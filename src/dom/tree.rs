@@ -1,5 +1,7 @@
 //! Node-API adapter for the platform-independent tree store.
 use super::{
+    constants::{ELEMENT_NODE, HTML_NAMESPACE},
+    data::{AttributeData, DomString, NodeData},
     error::TreeError,
     queries::{QueryEngine, QueryKind, QueryRequest},
     store,
@@ -73,6 +75,40 @@ fn to_napi_error(error: TreeError) -> Error {
     Error::new(status, error.to_string())
 }
 
+/// Decode a flat primitive array without allocating a JSON envelope per element.
+fn html_data(name: String, attributes: Vec<String>) -> Result<NodeData> {
+    if !attributes.len().is_multiple_of(2) {
+        return Err(Error::new(
+            Status::InvalidArg,
+            "NativeTree HTML data: attributes require name/value pairs",
+        ));
+    }
+    let mut pairs = attributes.into_iter();
+    let mut data = NodeData {
+        kind: ELEMENT_NODE,
+        name: Some(DomString::Text(name)),
+        namespace: Some(DomString::Text(HTML_NAMESPACE.to_owned())),
+        ..NodeData::default()
+    };
+    while let Some(name) = pairs.next() {
+        data.attributes.push(AttributeData {
+            name: DomString::Text(name),
+            namespace: None,
+            prefix: None,
+            value: DomString::Text(pairs.next().expect("validated pair")),
+        });
+    }
+    Ok(data)
+}
+
+fn simple_data(kind: u16, value: String) -> NodeData {
+    NodeData {
+        kind,
+        value: DomString::Text(value),
+        ..NodeData::default()
+    }
+}
+
 /// Own native topology while JavaScript maintains the corresponding GC ownership edges.
 #[napi]
 #[derive(Default)]
@@ -113,6 +149,27 @@ impl NativeTree {
     #[napi]
     pub fn set_data(&mut self, handle: f64, encoded: String) -> Result<()> {
         self.store.set_data(handle, &encoded).map_err(to_napi_error)
+    }
+
+    /// Avoid JSON construction and decoding for ordinary HTML elements.
+    #[napi]
+    pub fn set_html_element(
+        &mut self,
+        handle: f64,
+        name: String,
+        attributes: Vec<String>,
+    ) -> Result<()> {
+        self.store
+            .replace_data(handle, html_data(name, attributes)?)
+            .map_err(to_napi_error)
+    }
+
+    /// Plain text, comments and container nodes need no JSON envelope.
+    #[napi]
+    pub fn set_simple_data(&mut self, handle: f64, kind: u16, value: String) -> Result<()> {
+        self.store
+            .replace_data(handle, simple_data(kind, value))
+            .map_err(to_napi_error)
     }
 
     /// Serialize directly from native storage without replacing invalid UTF-16 code units.

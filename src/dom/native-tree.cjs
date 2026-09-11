@@ -2,7 +2,7 @@
 'use strict';
 const SymbolTree = require('symbol-tree');
 const { NativeTree, QueryMode } = require('../../dist/native.cjs');
-const { encodeNodeData } = require('./data-bridge.cjs');
+const { writeNodeData } = require('./data-bridge.cjs');
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -53,7 +53,7 @@ class NativeSymbolTree extends SymbolTree {
       this._collected.register(object, record.nativeId);
     }
     if (!record.nativeDataReady) {
-      this._arena.setData(record.nativeId, encodeNodeData(object, (node) => this._ensure(node)));
+      writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
     }
     return record.nativeId;
@@ -63,7 +63,7 @@ class NativeSymbolTree extends SymbolTree {
   updateNodeData(object) {
     const record = this._node(object);
     if (record.nativeId !== undefined) {
-      this._arena.setData(record.nativeId, encodeNodeData(object, (node) => this._ensure(node)));
+      writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
     }
   }
