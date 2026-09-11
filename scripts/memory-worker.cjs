@@ -8,6 +8,8 @@ const snapshots = [];
 const retainedTeardowns = [];
 /** Observe targets without keeping them alive. */
 const references = [];
+/** Observe Window proxies too: close() can release a Document while a Window remains retained. */
+const windowReferences = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
 const WARMUP_BATCHES = 3;
 /** Sample enough lifecycle batches to expose a per-window leak. */
@@ -35,12 +37,14 @@ async function settle() {
 function exerciseWindow(runtime, identity) {
   const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>');
   const document = dom.window.document;
+  windowReferences.push(new WeakRef(dom.window));
   const observer = new dom.window.MutationObserver(() => {});
   observer.observe(document.body, { childList: true, subtree: true });
   dom.window.addEventListener('custom-event', () => document.body);
   dom.window.setInterval(() => document.body, 60_000);
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
   references.push(new WeakRef(document.querySelector('iframe').contentDocument));
+  windowReferences.push(new WeakRef(document.querySelector('iframe').contentWindow));
   // Leave the observer connected: closing the window must release the entire cycle.
   references.push(new WeakRef(document));
   dom.window.close();
@@ -67,6 +71,7 @@ async function main() {
         const target = { setTimeout, clearTimeout, setInterval, clearInterval };
         const session = environment.setup(target, { jsdom: { runScripts: 'outside-only' } });
         references.push(new WeakRef(target.document));
+        windowReferences.push(new WeakRef(target.jsdom.window));
         target.document.body.innerHTML = '<p>created and released</p>';
         session.teardown();
         retainedTeardowns.push(session);
@@ -77,6 +82,7 @@ async function main() {
   }
   await settle();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
+  const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
   const first = snapshots[0];
   const last = snapshots.at(-1);
   const growth = { heapUsed: last.heapUsed - first.heapUsed, external: last.external - first.external,
@@ -87,9 +93,11 @@ async function main() {
   const report = { mode, node: process.version, warmupBatches: WARMUP_BATCHES,
     measuredBatches: MEASURED_BATCHES, operationsPerBatch: OPERATIONS_PER_BATCH,
     totalOperations: (WARMUP_BATCHES + MEASURED_BATCHES) * OPERATIONS_PER_BATCH,
-    observedDocuments: references.length, survivingDocuments, retainedTeardownCallbacks: retainedTeardowns.length,
+    observedDocuments: references.length, survivingDocuments,
+    observedWindows: windowReferences.length, survivingWindows,
+    retainedTeardownCallbacks: retainedTeardowns.length,
     snapshots, growth, budgets,
-    pass: survivingDocuments === 0 && growth.heapUsed < budgets.heapGrowthBytes &&
+    pass: survivingDocuments === 0 && survivingWindows === 0 && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
   process.stdout.write(JSON.stringify(report));
   if (!report.pass) process.exitCode = 1;

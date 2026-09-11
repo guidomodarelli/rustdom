@@ -9,8 +9,9 @@ const os = require('node:os');
 const report = { capturedAt: new Date().toISOString(), node: process.version,
   nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
   environmentSourceSha256: createHash('sha256').update(readFileSync('src/environments/vitest.mjs')).digest('hex'),
+  workerSourceSha256: createHash('sha256').update(readFileSync('scripts/memory-worker.cjs')).digest('hex'),
   machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
-  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; separate event-loop turns and explicit GC; WeakRef document collection.',
+  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; separate event-loop turns and explicit GC; independent WeakRef tracking of Documents and Window proxies.',
   limitations: 'Finite stress tests cannot prove zero leaks. RSS includes allocator retention. This is not a peak-memory benchmark, ASan/LSan run, or exhaustive native dependency audit.',
   results: [] };
 
@@ -28,7 +29,7 @@ mkdirSync('reports/memory', { recursive: true });
 const path = `reports/memory/${new Date().toISOString().replaceAll(':', '-')}-${os.platform()}-${os.arch()}.json`;
 writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
 for (const result of report.results) {
-  process.stdout.write(`${result.mode}: ${result.pass ? 'PASS' : 'FAIL'}, documentos retenidos ${result.survivingDocuments}/${result.observedDocuments}, heap delta ${(result.growth.heapUsed / 1024 / 1024).toFixed(2)} MiB, RSS delta ${(result.growth.rss / 1024 / 1024).toFixed(2)} MiB\n`);
+  process.stdout.write(`${result.mode}: ${result.pass ? 'PASS' : 'FAIL'}, documentos ${result.survivingDocuments}/${result.observedDocuments}, ventanas ${result.survivingWindows}/${result.observedWindows}, heap delta ${(result.growth.heapUsed / 1024 / 1024).toFixed(2)} MiB, RSS delta ${(result.growth.rss / 1024 / 1024).toFixed(2)} MiB\n`);
 }
 process.stdout.write(`Guardado: ${path}\n`);
 if (!report.pass) process.exitCode = 1;

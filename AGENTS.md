@@ -44,6 +44,7 @@
 - Analizar posibles **memory leaks** en cada cambio relevante. No introducir retención sin límite ni fugas conocidas.
 - Revisar ownership y destrucción del árbol Rust, transferencias N-API, referencias persistentes, wrappers, caches, eventos, timers, observers y teardown de cada entorno.
 - Agregar pruebas de ciclos repetidos de creación/mutación/cierre y comprobar liberación de referencias donde sea observable.
+- Observar `Document` y `Window` por separado: liberar el documento durante `close()` no demuestra que el proxy de ventana haya sido recolectado.
 - Medir heap JavaScript y memoria externa/RSS del proceso tras warmup y GC cuando corresponda. Distinguir retención del allocator de una fuga y comparar con jsdom cuando sea útil.
 - Guardar metodología y resultados de memoria en `reports/memory/`. No afirmar ausencia absoluta de fugas a partir de pruebas finitas; indicar escenarios, alcance y límites.
 

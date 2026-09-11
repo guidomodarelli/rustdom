@@ -25,4 +25,6 @@ Los JSON con fecha conservan las observaciones. El escenario inicial mide docume
 
 Una referencia débil que desaparece demuestra que ese documento puede recolectarse en el escenario medido. Una RSS estable es evidencia de ausencia de crecimiento retenido en esa carga, no una prueba de que cada allocation se haya devuelto al sistema operativo. Los allocators pueden conservar páginas libres.
 
+La cobertura ampliada también observa `Window` por separado. Esto es necesario porque `window.close()` puede liberar el documento sin que necesariamente se libere el proxy de ventana. Los informes anteriores sin `observedWindows` solo verificaban explícitamente los documentos.
+
 No se ejecutaron ASan/LSan, Valgrind ni una campaña prolongada de fuzzing. Tampoco se verificó localmente el addon nativo de Windows o macOS. No se afirma ausencia absoluta de fugas fuera de los escenarios y límites guardados.

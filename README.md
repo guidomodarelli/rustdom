@@ -97,12 +97,12 @@ Jest y Vitest usan `runScripts: 'dangerously'` por defecto. Por eso su documento
 
 La suite de memoria evalúa crecimiento retenido después de GC; no mide memoria pico ni sustituye ASan/LSan. La revisión verifica que el árbol `RcDom` temporal se libere antes de retornar al caller, que el puente no conserve handles nativos y que el cierre de entornos libere referencias y globals. Las pruebas finitas delimitan los escenarios evaluados; no demuestran ausencia absoluta de toda fuga posible.
 
-Los checkpoints usan tags incrementales `checkpoint-*`, con commits y pushes después de validar el hito. CI configura Linux, Windows y macOS; la validación local inicial se realiza en Linux x64 mediante WSL. La configuración de una plataforma en CI no equivale a haber confirmado que su job pasó.
+Los checkpoints usan tags incrementales `checkpoint-*`, con commits y pushes después de validar el hito. La validación local se realiza en Linux x64 mediante WSL. El [primer checkpoint pasó CI en Linux, Windows y macOS](https://github.com/guidomodarelli/rustdom/actions/runs/34619548664), incluidas compilación nativa, integraciones, corpus y pruebas de memoria; el job de benchmarks también pasó.
 
 ### Primer resultado local
 
 En la [medición final del 11 de septiembre de 2026](reports/benchmarks/2026-09-11T15-58-01.401Z-linux-x64.md), la construcción de documentos elegibles para Rust fue entre **1,12× y 1,26×** más rápida, y `innerHTML` entre **1,20× y 1,65×**, según el tamaño. Scripts, selectores y mutaciones quedaron cerca de la referencia, sin una mejora relevante. Son cargas sintéticas de una máquina; no se extrapolan al tiempo total de cualquier suite.
 
-La [prueba de memoria](reports/memory/2026-09-11T15-54-22.869Z-linux-x64.json) liberó los **880 documentos observados** de rustdom, incluidos iframes, y los **440 documentos del entorno Vitest**. El proceso nativo mostró aproximadamente 0,63 MiB de crecimiento de RSS entre las muestras posteriores al warmup, dentro del presupuesto registrado. La revisión y sus límites están en [el informe de memoria](reports/memory/REVIEW.md).
+La [prueba ampliada de memoria](reports/memory/2026-09-11T16-04-31.852Z-linux-x64.json) liberó los **880 documentos y 880 ventanas observados** de rustdom, incluidos iframes, y los **440 documentos y 440 ventanas del entorno Vitest**. El proceso nativo mostró aproximadamente 0,63 MiB de crecimiento de RSS entre las muestras posteriores al warmup, dentro del presupuesto registrado. La revisión y sus límites están en [el informe de memoria](reports/memory/REVIEW.md).
 
 Referencias: [html5ever](https://github.com/servo/html5ever), [NAPI-RS](https://napi.rs/), [jsdom](https://github.com/jsdom/jsdom), [entornos de Jest](https://jestjs.io/docs/configuration#testenvironment-string), [entornos de Vitest](https://vitest.dev/guide/environment).
