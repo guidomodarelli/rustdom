@@ -1,4 +1,5 @@
 //! DOM data keeps well-formed strings compact and preserves isolated UTF-16 surrogates.
+use super::constants::is_character_data;
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -73,9 +74,9 @@ pub struct NodeData {
 }
 
 impl NodeData {
-    /// Selectors use UTF-8; unsupported strings must use the compatibility engine losslessly.
+    /// Only selector-relevant names/attributes require UTF-8; CharacterData uses length for :empty.
     pub fn has_non_utf8(&self) -> bool {
-        self.value.as_str().is_none()
+        (!is_character_data(self.kind) && self.value.as_str().is_none())
             || [&self.name, &self.namespace, &self.prefix, &self.is_value]
                 .into_iter()
                 .any(|value| value.as_ref().is_some_and(|text| text.as_str().is_none()))
@@ -99,7 +100,8 @@ mod tests {
             data.value.units().collect::<Vec<_>>(),
             vec![55296, 0, 56320]
         );
-        assert!(data.has_non_utf8());
+        // Supported CSS selectors only inspect CharacterData emptiness, not its Unicode text.
+        assert!(!data.has_non_utf8());
         let text: DomString = serde_json::from_str(r#""🦀 & text""#).unwrap();
         assert_eq!(
             String::from_utf16(&text.units().collect::<Vec<_>>()).unwrap(),

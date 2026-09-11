@@ -11,6 +11,8 @@ pub enum TreeError {
     HandleExhausted,
     InvalidMetadata(serde_json::Error),
     MissingData(u64),
+    NotCharacterData(u64),
+    CharacterOffset { offset: u32, length: usize },
 }
 
 pub type Result<T> = std::result::Result<T, TreeError>;
@@ -18,6 +20,13 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NotCharacterData(id) => {
+                write!(formatter, "NativeTree: node {id} is not CharacterData")
+            }
+            Self::CharacterOffset { offset, length } => write!(
+                formatter,
+                "NativeTree: CharacterData offset {offset} exceeds UTF-16 length {length}"
+            ),
             Self::InvalidMetadata(_) => {
                 write!(formatter, "NativeTree: invalid node metadata payload")
             }

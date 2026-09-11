@@ -1,7 +1,8 @@
 //! Authoritative native forest with stable handles and atomic topology mutations.
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::data::NodeData;
+use super::constants::is_character_data;
+use super::data::{DomString, NodeData};
 use super::error::{Result, TreeError};
 
 /// JavaScript represents every integer up to this value exactly.
@@ -56,7 +57,7 @@ pub struct TreeStore {
     pub(crate) nodes: FxHashMap<NodeId, Links>,
     pub(crate) data: FxHashMap<NodeId, NodeData>,
     pub(crate) non_utf8_nodes: usize,
-    data_updates: u64,
+    pub(crate) data_updates: u64,
     pub(crate) serializations: u64,
     reserved: FxHashSet<NodeId>,
     next_id: NodeId,
@@ -227,7 +228,12 @@ impl TreeStore {
     }
 
     /// Shared commit path for decoded snapshots and allocation-light native arguments.
-    pub fn replace_data(&mut self, handle: f64, data: NodeData) -> Result<()> {
+    pub fn replace_data(&mut self, handle: f64, mut data: NodeData) -> Result<()> {
+        if is_character_data(data.kind)
+            && let DomString::Text(value) = &data.value
+        {
+            data.value = DomString::Utf16(value.encode_utf16().collect());
+        }
         let id = node_id(handle)?;
         self.activate(id)?;
         if data.template_content != 0.0 {

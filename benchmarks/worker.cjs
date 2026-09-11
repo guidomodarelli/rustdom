@@ -87,6 +87,14 @@ async function measure(name, size) {
           element.setAttribute('data-value', 'updated');
           element.remove();
         }
+      } else if (name === 'character-data-100') {
+        const text = document.querySelector('a').firstChild;
+        for (let iteration = 0; iteration < 100; iteration++) {
+          text.appendData('!');
+          text.replaceData(0, 1, 'R');
+          result = text.substringData(0, 4);
+          text.deleteData(text.length - 1, 1);
+        }
       } else if (name === 'serialize-utf8') {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
@@ -94,6 +102,7 @@ async function measure(name, size) {
       assert.equal(document.querySelectorAll('tr').length, size);
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
+      if (name === 'character-data-100') assert.equal(result, 'Row ');
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -125,7 +134,7 @@ async function main() {
   for (const size of [25, 250, 1000]) {
     for (const name of ['construct-native-eligible', 'innerHTML']) workloads.push(await measure(name, size));
   }
-  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100']) {
+  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100']) {
     workloads.push(await measure(name, 250));
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));

@@ -1,6 +1,16 @@
 # Fases de rustdom
 
-Objetivo: trasladar el trabajo del DOM a Rust sin perder los contratos que esperan Jest, Vitest y los consumidores de jsdom. La superficie JavaScript y WebIDL puede reutilizar jsdom; el estado y las operaciones que se declaren nativas deben ejecutarse realmente en Rust y tener pruebas que lo comprueben.
+Objetivo activo: migrar el 100% de la implementación a Rust y verificar el 100% de compatibilidad con jsdom. JavaScript queda limitado a los enlaces necesarios con Node/V8 y los runners; mantener implementaciones de DOM en jsdom o rutas de parsing en parse5 no satisface el objetivo. Los hitos siguientes de la primera versión híbrida son históricos, no una declaración de migración completa.
+
+## Migración integral abierta
+
+- Estado y algoritmos de datos de nodos: CharacterData, atributos, namespaces, colecciones, texto y reflexión WebIDL.
+- Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
+- Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
+- Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
+- URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.
+- Compatibilidad completa: corpus upstream y WPT aplicables, errores, realms, módulos, instalación y runners; resultados faltantes, excluidos o no verificados impiden cerrar el objetivo.
+- Cada PR requiere el ciclo `codex-autofix-loop`, validaciones, benchmarks pertinentes y revisión de memoria. Ningún milestone parcial marca el objetivo integral como terminado.
 
 ## Estado y criterios de cierre
 

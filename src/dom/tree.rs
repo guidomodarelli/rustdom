@@ -172,6 +172,60 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    /// Initialize canonical CharacterData without retaining a JavaScript copy.
+    #[napi]
+    pub fn set_character_data(&mut self, handle: f64, kind: u16, value: Utf16String) -> Result<()> {
+        self.store
+            .set_character_data(handle, kind, value.to_vec())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn get_character_data(&self, handle: f64) -> Result<Utf16String> {
+        self.store
+            .character_data(handle)
+            .map(|units| units.to_vec().into())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn character_length(&self, handle: f64) -> Result<f64> {
+        self.store
+            .character_length(handle)
+            .map(|length| length as f64)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn substring_data(&self, handle: f64, offset: u32, count: u32) -> Result<Utf16String> {
+        self.store
+            .substring_data(handle, offset, count)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn replace_character_data(
+        &mut self,
+        handle: f64,
+        offset: u32,
+        count: u32,
+        value: Utf16String,
+    ) -> Result<Utf16String> {
+        self.store
+            .replace_character_data(handle, offset, count, &value)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn whole_text(&self, handle: f64) -> Result<Utf16String> {
+        self.store
+            .whole_text(handle)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
     /// Serialize directly from native storage without replacing invalid UTF-16 code units.
     #[napi]
     pub fn serialize_html(

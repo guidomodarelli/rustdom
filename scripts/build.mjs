@@ -70,9 +70,42 @@ const characterPath = resolve(destination, 'lib/jsdom/living/nodes/CharacterData
 let characterSource = await readFile(characterPath, 'utf8');
 characterSource = substituteOnce(characterSource, 'const DOMException = require("../generated/DOMException");',
   'const DOMException = require("../generated/DOMException");\nconst { domSymbolTree } = require("../helpers/internal-constants");');
-characterSource = substituteOnce(characterSource, '    this._data = start + data + end;',
-  '    this._data = start + data + end;\n    domSymbolTree.updateNodeData(this);');
+characterSource = substituteOnce(characterSource, '    this._data = privateData.data;',
+  '    domSymbolTree.initializeCharacterData(this, privateData.nodeType, privateData.data);');
+characterSource = substituteOnce(characterSource, '  // https://dom.spec.whatwg.org/#dom-characterdata-data',
+  '  get _data() { return domSymbolTree.characterData(this); }\n' +
+  '  set _data(value) { domSymbolTree.setCharacterData(this, value); }\n\n' +
+  '  // https://dom.spec.whatwg.org/#dom-characterdata-data');
+characterSource = substituteOnce(characterSource, '    return this._data.length;',
+  '    return domSymbolTree.characterLength(this);');
+characterSource = substituteOnce(characterSource,
+  '    if (offset + count > length) {\n      return this._data.slice(offset);\n    }\n\n    return this._data.slice(offset, offset + count);',
+  '    return domSymbolTree.substringData(this, offset, count);');
+characterSource = substituteOnce(characterSource,
+  '    queueMutationRecord(MUTATION_TYPE.CHARACTER_DATA, this, null, null, this._data, [], [], null, null);\n\n' +
+  '    const start = this._data.slice(0, offset);\n    const end = this._data.slice(offset + count);\n    this._data = start + data + end;',
+  '    const previous = domSymbolTree.replaceCharacterData(this, offset, count, data);\n' +
+  '    queueMutationRecord(MUTATION_TYPE.CHARACTER_DATA, this, null, null, previous, [], [], null, null);');
 await writeFile(characterPath, characterSource);
+/** Supply final node kinds before subclass constructors assign their public fields. */
+for (const [filename, kind] of [['Text', 'TEXT_NODE'], ['Comment', 'COMMENT_NODE']]) {
+  const path = resolve(destination, `lib/jsdom/living/nodes/${filename}-impl.js`);
+  let source = substituteOnce(await readFile(path, 'utf8'), '      data: args[0],',
+    `      nodeType: NODE_TYPE.${kind},\n      data: args[0],`);
+  if (filename === 'Text') {
+    const start = source.indexOf('    let wholeText = this.textContent;');
+    const end = source.indexOf('    return wholeText;', start);
+    if (start < 0 || end < start) throw new Error('rustdom build: Text.wholeText boundary changed');
+    source = source.slice(0, start) + '    return domSymbolTree.wholeText(this);' + source.slice(end + '    return wholeText;'.length);
+  }
+  await writeFile(path, source);
+}
+for (const [filename, kind] of [['CDATASection', 'CDATA_SECTION_NODE'], ['ProcessingInstruction', 'PROCESSING_INSTRUCTION_NODE']]) {
+  const path = resolve(destination, `lib/jsdom/living/nodes/${filename}-impl.js`);
+  await writeFile(path, substituteOnce(await readFile(path, 'utf8'),
+    '    super(globalObject, args, privateData);',
+    `    super(globalObject, args, { ...privateData, nodeType: NODE_TYPE.${kind} });`));
+}
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
 await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
   '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',
