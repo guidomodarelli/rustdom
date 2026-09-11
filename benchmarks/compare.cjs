@@ -30,13 +30,15 @@ const report = {
   nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
   machine: { platform: platform(), arch: arch(), release: release(), cpu: cpus()[0].model,
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
-  sourceHash: createHash('sha256').update(['src/lib.rs', 'src/parser/bridge.cjs', 'benchmarks/worker.cjs', 'package-lock.json', 'Cargo.lock']
+  sourceHash: createHash('sha256').update(['src/lib.rs', 'src/parser/bridge.cjs', 'src/environments/vitest.mjs',
+    'src/environments/web-platform.cjs', 'src/environments/window.cjs', 'benchmarks/worker.cjs', 'package-lock.json', 'Cargo.lock']
     .map((path) => readFileSync(path)).reduce((combined, contents) => Buffer.concat([combined, contents]), Buffer.alloc(0))).digest('hex'),
   methodology: {
     build: 'cargo release, thin LTO', processOrders: ORDERS,
     timing: 'Public operation only; excludes module startup, setup, validation, window.close and explicit GC.',
     memory: 'Process memory after window.close, one event-loop turn and explicit GC; not peak memory or allocation totals.',
     compatibility: 'Assertions verify row count and decoded text outside timed regions; functional suites run separately.',
+    environments: 'Environment setup includes creation of a 25-row document with outside-only scripts, excludes imports and teardown, and uses an isolated globals object for the normal setup case.',
     ratio: 'jsdom median / rustdom median; values greater than 1 favor rustdom.',
     limitations: 'Synthetic workloads on one machine. Shared JavaScript DOM and selectors remain. No claim about complete test-suite speed.',
   },

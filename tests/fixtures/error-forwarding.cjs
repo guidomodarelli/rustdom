@@ -17,8 +17,15 @@ async function main() {
     window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('expected-unhandled'), cancelable: true }));
     const onHandled = () => { handled++; };
     window.addEventListener('error', onHandled);
+    window.addEventListener('error', onHandled);
     window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('expected-handled'), cancelable: true }));
     window.removeEventListener('error', onHandled);
+    window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('after-duplicate-removal'), cancelable: true }));
+    window.addEventListener('error', onHandled, { once: true });
+    window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('handled-once'), cancelable: true }));
+    window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('after-once'), cancelable: true }));
+    window.addEventListener('error', null);
+    window.dispatchEvent(new window.ErrorEvent('error', { error: new Error('after-null'), cancelable: true }));
   } finally {
     process.removeListener('uncaughtException', onUnhandled);
     session.teardown();

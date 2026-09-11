@@ -10,7 +10,9 @@
     "./vitest": "./src/environments/vitest.mjs",
     "./native": "./dist/native.cjs"
   },
-  "engines": { "node": "^22.12.0 || >=24.0.0" },
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
   "scripts": {
     "build:native": "node scripts/build-native.mjs",
     "build:js": "node scripts/build.mjs",
@@ -21,13 +23,35 @@
     "test:memory": "node scripts/memory-check.cjs",
     "validate": "node scripts/validate.mjs",
     "test:vitest": "vitest run",
-    "test": "npm run test:compat && npm run test:jest && npm run test:vitest",
+    "test:vm": "vitest run --config vitest.vm.config.mjs",
+    "test": "npm run test:compat && npm run test:jest && npm run test:vitest && npm run test:vm",
     "bench": "node --expose-gc benchmarks/compare.cjs"
   },
-  "napi": { "binaryName": "rustdom", "targets": ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"] },
-  "dependencies": { "jsdom": "27.4.0", "parse5": "8.0.0" },
-  "peerDependencies": { "@jest/environment-jsdom-abstract": "^30.0.0", "vitest": "^5.0.0" },
-  "peerDependenciesMeta": { "@jest/environment-jsdom-abstract": { "optional": true }, "vitest": { "optional": true } },
+  "napi": {
+    "binaryName": "rustdom",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "aarch64-apple-darwin"
+    ]
+  },
+  "dependencies": {
+    "@remix-run/multipart-parser": "0.16.4",
+    "jsdom": "27.4.0",
+    "parse5": "8.0.0"
+  },
+  "peerDependencies": {
+    "@jest/environment-jsdom-abstract": "^30.0.0",
+    "vitest": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@jest/environment-jsdom-abstract": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@jest/environment-jsdom-abstract": "30.5.0",
     "@testing-library/react": "^16.3.0",

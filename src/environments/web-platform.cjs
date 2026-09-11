@@ -1,0 +1,187 @@
+/** @module rustdom/web-platform Bridges jsdom values to Node's Web APIs without retaining closed realms. */
+'use strict';
+
+const { Blob: NodeBlob, File: NodeFile } = require('node:buffer');
+const { URL: NodeURL } = require('node:url');
+const NodeRequest = globalThis.Request;
+const NodeFormData = globalThis.FormData;
+const NodeAbortController = globalThis.AbortController;
+const NodeAbortSignal = globalThis.AbortSignal;
+const NodeResponse = globalThis.Response;
+const nodeFetch = globalThis.fetch;
+const { readFormData } = require('./multipart.cjs');
+const { implForWrapper } = require('../../dist/vendor-jsdom/lib/jsdom/living/generated/utils.js');
+const DOMBlob = require('../../dist/vendor-jsdom/lib/jsdom/living/generated/Blob.js');
+const DOMFormData = require('../../dist/vendor-jsdom/lib/jsdom/living/generated/FormData.js');
+const DOMAbortSignal = require('../../dist/vendor-jsdom/lib/jsdom/living/generated/AbortSignal.js');
+
+/**
+ * Convert private jsdom Blob/File values while preserving bytes and MIME type.
+ * @param {*} value - A body or object-URL input.
+ * @returns {*} A native Blob for recognized jsdom values, otherwise the original value.
+ */
+function nativeBlob(value) {
+  return DOMBlob.is(value) ? new NodeBlob([implForWrapper(value)._buffer], { type: value.type }) : value;
+}
+
+/**
+ * Preserve multipart ordering, duplicate names, binary bytes, and filenames.
+ * @param {*} body - Public Request body input.
+ * @returns {*} A native body accepted by Node Request.
+ */
+function nativeBody(body) {
+  if (!DOMFormData.is(body)) return nativeBlob(body);
+  const converted = new NodeFormData();
+  body.forEach((value, name) => {
+    if (DOMBlob.is(value)) converted.append(name, new NodeFile([implForWrapper(value)._buffer], value.name,
+      { type: value.type, lastModified: value.lastModified }));
+    else converted.append(name, value);
+  });
+  return converted;
+}
+
+/**
+ * Install per-window adapters and provide deterministic disposal of cross-realm links.
+ * @param {Window} window - The actual jsdom window, before global aliases are installed.
+ * @returns {{globals: object, dispose: Function}} Compatible globals and a resource disposer.
+ */
+function createWebPlatformBridge(window) {
+  const WindowAbortController = window.AbortController;
+  const originalAdd = window.EventTarget.prototype.addEventListener;
+  let toWindowSignals = new WeakMap();
+  let toNodeSignals = new WeakMap();
+  const connections = new Set();
+  const objectUrls = new Set();
+  const collectedSignals = new FinalizationRegistry((connection) => connections.delete(connection));
+
+  /**
+   * Translate a real signal and detach its propagation listener during disposal.
+   * @param {AbortSignal} source - Original signal from the other realm.
+   * @param {Function} Controller - Constructor for the destination realm.
+   * @param {WeakMap} cache - Per-window identity cache.
+   * @returns {AbortSignal} A signal with preserved aborted state and reason.
+   */
+  function translateSignal(source, Controller, cache) {
+    if (cache.has(source)) return cache.get(source);
+    const controller = new Controller();
+    cache.set(source, controller.signal);
+    if (source.aborted) {
+      controller.abort(source.reason);
+      return controller.signal;
+    }
+    const connection = { source: new WeakRef(source), listener: null };
+    connection.listener = () => {
+      controller.abort(connection.source.deref()?.reason);
+      connections.delete(connection);
+      collectedSignals.unregister(connection);
+    };
+    source.addEventListener('abort', connection.listener, { once: true });
+    connections.add(connection);
+    collectedSignals.register(source, connection, connection);
+    return controller.signal;
+  }
+
+  window.EventTarget.prototype.addEventListener = function (type, callback, options) {
+    if (options && typeof options === 'object' && options.signal instanceof NodeAbortSignal) {
+      const compatibleOptions = Object.create(options);
+      Object.defineProperty(compatibleOptions, 'signal', {
+        value: translateSignal(options.signal, WindowAbortController, toWindowSignals),
+      });
+      return originalAdd.call(this, type, callback, compatibleOptions);
+    }
+    return originalAdd.call(this, type, callback, options);
+  };
+
+  /** Accept jsdom bodies and signals while keeping native fetch semantics. */
+  class Request extends NodeRequest {
+    /**
+     * Construct a native Request from browser-realm inputs.
+     * @param {*} input - URL or existing Request.
+     * @param {object} [init] - Native RequestInit options.
+     */
+    constructor(input, init) {
+      let options = init;
+      if (init && typeof init === 'object') {
+        const body = init.body;
+        const signal = init.signal;
+        const overrides = new Map();
+        if (DOMBlob.is(body) || DOMFormData.is(body)) overrides.set('body', nativeBody(body));
+        if (DOMAbortSignal.is(signal)) overrides.set('signal', translateSignal(signal, NodeAbortController, toNodeSignals));
+        if (overrides.size) options = new Proxy(init, {
+          get(target, property) { return overrides.has(property) ? overrides.get(property) : Reflect.get(target, property, target); },
+        });
+      }
+      super(input, options);
+    }
+
+    /** @param {*} value - Candidate request. @returns {boolean} Whether Node recognizes it. */
+    static [Symbol.hasInstance](value) { return value instanceof NodeRequest; }
+
+    /** @returns {Promise<FormData>} Multipart values independent of the current global File. */
+    formData() { return readFormData(this, NodeRequest.prototype.formData); }
+
+    /** @returns {Request} A native clone retaining the interoperable formData method. */
+    clone() { return Object.setPrototypeOf(super.clone(), Request.prototype); }
+  }
+
+  /** Preserve native Response semantics while avoiding Node's mutable-global File dependency. */
+  class Response extends NodeResponse {
+    /** @param {*} body - Native or jsdom body. @param {object} [init] - Response options. */
+    constructor(body, init) { super(nativeBody(body), init); }
+    /** @returns {Promise<FormData>} Decoded multipart fields and native Files. */
+    formData() { return readFormData(this, NodeResponse.prototype.formData); }
+    /** @returns {Response} A clone with the same body interoperability. */
+    clone() { return Object.setPrototypeOf(super.clone(), Response.prototype); }
+    /** @param {*} value - Candidate response. @returns {boolean} Whether it is a native Response. */
+    static [Symbol.hasInstance](value) { return value instanceof NodeResponse; }
+  }
+
+  /**
+   * Use the native transport with interoperable request inputs and response body readers.
+   * @param {*} input - URL or Request.
+   * @param {object} [init] - Request options.
+   * @returns {Promise<Response>} A real native response with compatible multipart decoding.
+   */
+  async function fetch(input, init) {
+    const response = await nodeFetch(new Request(input, init));
+    return Object.setPrototypeOf(response, Response.prototype);
+  }
+
+  /** Track object URLs so teardown releases native Blob backing stores. */
+  class URL extends NodeURL {
+    /** @param {*} blob - Native or jsdom Blob. @returns {string} A native object URL. */
+    static createObjectURL(blob) {
+      const url = NodeURL.createObjectURL(nativeBlob(blob));
+      objectUrls.add(url);
+      return url;
+    }
+
+    /** @param {string} url - Previously created object URL. @returns {void} Releases its Blob. */
+    static revokeObjectURL(url) {
+      NodeURL.revokeObjectURL(url);
+      objectUrls.delete(String(url));
+    }
+
+    /** @param {*} value - Candidate URL. @returns {boolean} Whether Node recognizes it. */
+    static [Symbol.hasInstance](value) { return value instanceof NodeURL; }
+  }
+
+  return {
+    globals: { Request, Response, fetch, URL, AbortController: NodeAbortController, AbortSignal: NodeAbortSignal },
+    /** @returns {void} Removes listeners, clears caches, and revokes outstanding object URLs. */
+    dispose() {
+      window.EventTarget.prototype.addEventListener = originalAdd;
+      for (const connection of connections) {
+        connection.source.deref()?.removeEventListener('abort', connection.listener);
+        collectedSignals.unregister(connection);
+      }
+      connections.clear();
+      toWindowSignals = new WeakMap();
+      toNodeSignals = new WeakMap();
+      for (const url of objectUrls) NodeURL.revokeObjectURL(url);
+      objectUrls.clear();
+    },
+  };
+}
+
+module.exports = { createWebPlatformBridge };

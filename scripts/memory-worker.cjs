@@ -10,6 +10,8 @@ const retainedTeardowns = [];
 const references = [];
 /** Observe Window proxies too: close() can release a Document while a Window remains retained. */
 const windowReferences = [];
+/** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
+const retainedControllers = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
 const WARMUP_BATCHES = 3;
 /** Sample enough lifecycle batches to expose a per-window leak. */
@@ -59,8 +61,8 @@ async function main() {
   const mode = process.argv[2];
   const runtime = mode === 'jsdom' ? require('jsdom') : mode === 'rustdom' ? require('../dist/index.cjs') : null;
   const native = mode === 'native' ? require('../dist/native.cjs') : null;
-  const environment = mode === 'vitest' ? (await import('../src/environments/vitest.mjs')).default : null;
-  assert.ok(['jsdom', 'rustdom', 'native', 'vitest'].includes(mode));
+  const environment = mode.startsWith('vitest') ? (await import('../src/environments/vitest.mjs')).default : null;
+  assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
   const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
   for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
     for (let operation = 0; operation < OPERATIONS_PER_BATCH; operation++) {
@@ -68,13 +70,21 @@ async function main() {
         const tape = native.parseDocumentTape(markup + `<unique-${batch}-${operation} data-${batch}-${operation}="value"></unique-${batch}-${operation}>`);
         assert.ok(tape.length > markup.length);
       } else if (environment) {
-        const target = { setTimeout, clearTimeout, setInterval, clearInterval };
-        const session = environment.setup(target, { jsdom: { runScripts: 'outside-only' } });
+        let target = { setTimeout, clearTimeout, setInterval, clearInterval };
+        const session = mode === 'vitest-vm'
+          ? environment.setupVM({ jsdom: { runScripts: 'outside-only' } })
+          : environment.setup(target, { jsdom: { runScripts: 'outside-only' } });
+        if (mode === 'vitest-vm') target = session.getVmContext();
         references.push(new WeakRef(target.document));
         windowReferences.push(new WeakRef(target.jsdom.window));
         target.document.body.innerHTML = '<p>created and released</p>';
+        const controller = new AbortController();
+        target.document.querySelector('p').addEventListener('click', () => {}, { signal: controller.signal });
+        retainedControllers.push(controller);
+        target.URL.createObjectURL(new target.Blob(['x'.repeat(32 * 1024)]));
         session.teardown();
         retainedTeardowns.push(session);
+        target = null;
       } else exerciseWindow(runtime, `${batch}-${operation}`);
     }
     await settle();
@@ -96,6 +106,7 @@ async function main() {
     observedDocuments: references.length, survivingDocuments,
     observedWindows: windowReferences.length, survivingWindows,
     retainedTeardownCallbacks: retainedTeardowns.length,
+    retainedForeignSignals: retainedControllers.length,
     snapshots, growth, budgets,
     pass: survivingDocuments === 0 && survivingWindows === 0 && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

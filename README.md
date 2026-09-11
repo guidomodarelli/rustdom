@@ -67,8 +67,11 @@ export default {
 };
 ```
 
-El adaptador inicial usa workers normales; los pools VM no están habilitados todavía.
-La integración no replica aún los adaptadores adicionales de Vitest 5 para convertir `Blob`/`FormData` de jsdom al `Request` nativo de Node ni señales `AbortSignal` de otro realm. La compatibilidad de esas combinaciones queda fuera del alcance probado inicial.
+El adaptador soporta workers normales y los pools `vmForks` y `vmThreads`. El mismo creador de ventanas configura ambos modos y libera sus recursos durante el teardown.
+
+Los adaptadores conservan `Blob`, `File` y `FileReader` de jsdom y convierten cuerpos para `Request`, `Response` y `fetch` nativos. El parser multipart reutiliza `@remix-run/multipart-parser` porque la implementación interna de Node consulta el global `File`, que Vitest reemplaza por el de jsdom. Las señales de abort se traducen en ambos sentidos y las URLs de objetos creadas por el entorno se revocan al cerrarlo.
+
+Las pruebas incluyen consumo único del body, errores multipart, señales ya abortadas, clones, restauración de globals y fallos de setup. El [benchmark de entornos](reports/benchmarks/2026-09-11T16-49-53.762Z-linux-x64.md) registra el costo de setup normal y VM; el [estrés ampliado](reports/memory/2026-09-11T16-48-33.143Z-linux-x64.json) conserva señales externas y callbacks para comprobar su limpieza.
 
 ## Límites y rutas de compatibilidad
 
