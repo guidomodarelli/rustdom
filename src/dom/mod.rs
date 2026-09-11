@@ -1,4 +1,5 @@
 //! Native DOM storage components, independent of JavaScript realm management.
+mod attributes;
 mod character_data;
 mod constants;
 mod data;

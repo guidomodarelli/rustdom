@@ -1,0 +1,7 @@
+# Corpus WPT fijado
+
+Fuente: web-platform-tests, commit `8d124dbe46f46f55531f28f13eccf1113f794c12`, utilizado por jsdom 27.4.0 (`098d16d6b86c5f215d48658c3005cb54b1325603`). Los archivos de tests y helpers se conservan sin modificar; `manifest.json` enumera los casos y los SHA-256 de los blobs originales. La licencia BSD está incluida.
+
+`npm run test:wpt` ejecuta las suites incluidas. También acepta `character-data` o `attributes` para una ejecución focal. Usa el harness real de WPT, recursos locales y un reporter mínimo que transfiere resultados al proceso. Compara resultados, nombres y mensajes de fallo contra un jsdom independiente. Una coincidencia en fallos conocidos se registra como paridad, no como conformidad con el estándar; un harness incompleto o sin tests hace fallar la ejecución.
+
+Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad. El manifiesto permite ampliar la cobertura sin cambiar los tests upstream. Para recuperar cualquier archivo, usar su blob en la revisión fijada; `.gitattributes` evita conversiones de saltos de línea que alterarían los hashes.

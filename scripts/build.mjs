@@ -49,6 +49,29 @@ await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 
+/** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
+const attributePath = resolve(destination, 'lib/jsdom/living/attributes/Attr-impl.js');
+let attributeSource = substituteOnce(await readFile(attributePath, 'utf8'),
+  'const { ATTRIBUTE_NODE } = require("../node-type.js");',
+  'const { ATTRIBUTE_NODE } = require("../node-type.js");\nconst { domSymbolTree } = require("../helpers/internal-constants");');
+attributeSource = substituteOnce(attributeSource,
+  '    this._namespace = privateData.namespace !== undefined ? privateData.namespace : null;\n' +
+  '    this._namespacePrefix = privateData.namespacePrefix !== undefined ? privateData.namespacePrefix : null;\n' +
+  '    this._localName = privateData.localName;\n' +
+  '    this._value = privateData.value !== undefined ? privateData.value : "";',
+  '    domSymbolTree.initializeAttribute(this, ATTRIBUTE_NODE, privateData);');
+attributeSource = substituteOnce(attributeSource, '  get namespaceURI() {',
+  '  get _namespace() { return domSymbolTree.attributeNamespace(this); }\n' +
+  '  get _namespacePrefix() { return domSymbolTree.attributePrefix(this); }\n' +
+  '  get _localName() { return domSymbolTree.attributeName(this); }\n' +
+  '  get _value() { return domSymbolTree.attributeValue(this); }\n' +
+  '  set _value(value) { domSymbolTree.setAttributeValue(this, value); }\n\n' +
+  '  get namespaceURI() {');
+attributeSource = substituteOnce(attributeSource,
+  '    if (this._namespacePrefix === null) {\n      return this._localName;\n    }\n\n    return this._namespacePrefix + ":" + this._localName;',
+  '    return domSymbolTree.attributeQualifiedName(this);');
+await writeFile(attributePath, attributeSource);
+
 /** Keep attributes and character data synchronized before DOM observers run. */
 const elementPath = resolve(destination, 'lib/jsdom/living/nodes/Element-impl.js');
 let elementSource = substituteOnce(await readFile(elementPath, 'utf8'),

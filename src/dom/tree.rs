@@ -1,6 +1,7 @@
 //! Node-API adapter for the platform-independent tree store.
 use super::{
-    constants::{ELEMENT_NODE, HTML_NAMESPACE},
+    attributes,
+    constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
     queries::{QueryEngine, QueryKind, QueryRequest},
@@ -63,6 +64,16 @@ pub enum QueryMode {
     First = 1,
     Matches = 2,
     Closest = 3,
+}
+
+/// Lossless Attr metadata fields shared with the host binding.
+#[napi]
+pub enum AttributeField {
+    Name = 0,
+    Namespace = 1,
+    Prefix = 2,
+    Value = 3,
+    QualifiedName = 4,
 }
 
 /// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
@@ -169,6 +180,89 @@ impl NativeTree {
     pub fn set_simple_data(&mut self, handle: f64, kind: u16, value: String) -> Result<()> {
         self.store
             .replace_data(handle, simple_data(kind, value))
+            .map_err(to_napi_error)
+    }
+
+    /// Initialize canonical Attr metadata from the lossless wire representation.
+    #[napi]
+    pub fn initialize_attribute(&mut self, handle: f64, encoded: String) -> Result<()> {
+        self.store
+            .initialize_attribute(handle, &encoded)
+            .map_err(to_napi_error)
+    }
+
+    /// Common unqualified attributes avoid a JSON envelope on the construction path.
+    #[napi]
+    pub fn initialize_plain_attribute(
+        &mut self,
+        handle: f64,
+        name: String,
+        value: String,
+    ) -> Result<()> {
+        self.store
+            .replace_data(
+                handle,
+                NodeData {
+                    kind: ATTRIBUTE_NODE,
+                    name: Some(DomString::Text(name)),
+                    value: DomString::Text(value),
+                    ..NodeData::default()
+                },
+            )
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn attribute_field(
+        &self,
+        handle: f64,
+        field: AttributeField,
+    ) -> Result<Option<Utf16String>> {
+        let field = match field {
+            AttributeField::Name => attributes::AttributeField::Name,
+            AttributeField::Namespace => attributes::AttributeField::Namespace,
+            AttributeField::Prefix => attributes::AttributeField::Prefix,
+            AttributeField::Value => attributes::AttributeField::Value,
+            AttributeField::QualifiedName => attributes::AttributeField::QualifiedName,
+        };
+        self.store
+            .attribute_field(handle, field)
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn set_attribute_value(&mut self, handle: f64, value: Utf16String) -> Result<()> {
+        self.store
+            .set_attribute_value(handle, &value)
+            .map_err(to_napi_error)
+    }
+
+    /// Build derived selector/serializer data from canonical Attr records entirely in Rust.
+    #[napi]
+    pub fn set_element_from_attributes(
+        &mut self,
+        handle: f64,
+        encoded: String,
+        attributes: Vec<f64>,
+    ) -> Result<()> {
+        let data = serde_json::from_str(&encoded)
+            .map_err(TreeError::InvalidMetadata)
+            .map_err(to_napi_error)?;
+        self.store
+            .set_element_from_attributes(handle, data, &attributes)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn set_html_element_from_attributes(
+        &mut self,
+        handle: f64,
+        name: String,
+        attributes: Vec<f64>,
+    ) -> Result<()> {
+        self.store
+            .set_element_from_attributes(handle, html_data(name, vec![])?, &attributes)
             .map_err(to_napi_error)
     }
 

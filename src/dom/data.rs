@@ -31,6 +31,13 @@ impl Iterator for Units<'_> {
 }
 
 impl DomString {
+    /// Keep ordinary names/values compact while preserving isolated surrogate units.
+    pub fn from_units(units: &[u16]) -> Self {
+        match String::from_utf16(units) {
+            Ok(value) => Self::Text(value),
+            Err(_) => Self::Utf16(units.to_vec()),
+        }
+    }
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Text(value) => Some(value),

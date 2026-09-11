@@ -87,6 +87,15 @@ async function measure(name, size) {
           element.setAttribute('data-value', 'updated');
           element.remove();
         }
+      } else if (name === 'attribute-data-100') {
+        const element = document.querySelector('tr');
+        const attribute = document.createAttribute('data-transient');
+        element.setAttributeNode(attribute);
+        for (let iteration = 0; iteration < 100; iteration++) {
+          attribute.value = `value-${iteration}`;
+          result = element.getAttribute('data-transient');
+        }
+        element.removeAttributeNode(attribute);
       } else if (name === 'character-data-100') {
         const text = document.querySelector('a').firstChild;
         for (let iteration = 0; iteration < 100; iteration++) {
@@ -103,6 +112,7 @@ async function measure(name, size) {
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
       if (name === 'character-data-100') assert.equal(result, 'Row ');
+      if (name === 'attribute-data-100') assert.equal(result, 'value-99');
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -134,7 +144,7 @@ async function main() {
   for (const size of [25, 250, 1000]) {
     for (const name of ['construct-native-eligible', 'innerHTML']) workloads.push(await measure(name, size));
   }
-  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100']) {
+  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100']) {
     workloads.push(await measure(name, 250));
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));

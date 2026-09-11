@@ -10,6 +10,8 @@ export interface TreeLinks {
 }
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
+/** Canonical Attr metadata fields. */
+export const AttributeField: { readonly Name: 0; readonly Namespace: 1; readonly Prefix: 2; readonly Value: 3; readonly QualifiedName: 4 };
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
@@ -22,6 +24,12 @@ export class NativeTree {
   setHtmlElement(handle: number, name: string, attributes: string[]): void;
   /** Direct transfer for well-formed text, comments or containers. */
   setSimpleData(handle: number, kind: number, value: string): void;
+  initializeAttribute(handle: number, encoded: string): void;
+  initializePlainAttribute(handle: number, name: string, value: string): void;
+  attributeField(handle: number, field: typeof AttributeField[keyof typeof AttributeField]): string | null;
+  setAttributeValue(handle: number, value: string): void;
+  setElementFromAttributes(handle: number, encoded: string, attributes: number[]): void;
+  setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
   /** Initializes canonical UTF-16 CharacterData; supported kinds are 3, 4, 7 and 8. */
   setCharacterData(handle: number, kind: number, value: string): void;
   getCharacterData(handle: number): string;
