@@ -4,7 +4,7 @@ Experimento de DOM para Node.js, Jest y Vitest, con **compatibilidad con jsdom c
 
 ## Estado real
 
-Esta primera versión es **híbrida y experimental**. Rust realiza el parsing HTML5 y devuelve un árbol en forma de instrucciones. La implementación de objetos DOM, eventos, CSS, selectores y Web APIs sigue siendo la de **jsdom 27.4.0**, fijada en el lockfile. No es todavía un DOM íntegramente en Rust, ni un reemplazo probado de versiones posteriores de jsdom. Tampoco se presupone una mejora de rendimiento: hay que medir el costo completo del puente y de la creación de objetos JavaScript.
+Esta versión es **híbrida y experimental**. Rust realiza el parsing HTML5 y almacena la estructura del árbol, con inserciones, movimientos, eliminación y recorridos nativos. La capa JavaScript conserva referencias de ownership y caches mediante `symbol-tree`, para mantener identidad de objetos y permitir que V8 recolecte el grafo. Los eventos, CSS, datos de atributos/texto y demás Web APIs siguen reutilizando **jsdom 27.4.0**, fijado en el lockfile, mientras avanzan las fases siguientes. No es todavía un DOM íntegramente en Rust ni un reemplazo probado de versiones posteriores de jsdom.
 
 El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su licencia y sus archivos auxiliares, y sustituye solamente su dependencia de parsing HTML. El jsdom instalado en `node_modules` permanece independiente y se usa como referencia en los tests.
 
@@ -45,6 +45,10 @@ dom.window.close();
 ```
 
 Se conservan los exports de jsdom. `getParserStatistics()` devuelve contadores acumulados por proceso para verificar qué operaciones ejecutaron Rust y cuáles usaron una ruta de compatibilidad.
+
+`getNativeTreeStatistics()` informa los nodos nativos vivos, asignaciones, liberaciones, mutaciones y handles reservados. Los handles se reservan en lotes sin crear registros de nodos hasta usarlos, no se reutilizan y no conservan referencias a ventanas. Las inserciones inválidas se rechazan antes de modificar enlaces. `FinalizationRegistry` libera los registros de nodos recolectados y el almacenamiento reduce su capacidad tras picos de uso.
+
+La migración del árbol tiene un costo medido todavía pendiente de optimización: el [benchmark de esta fase](reports/benchmarks/2026-09-11T17-57-32.630Z-linux-x64.md) conserva ganancias en varias cargas de parsing, pero muestra regresiones cercanas al 10–15% en construcción grande, documentos con scripts y mutaciones. Los prototipos anteriores, con regresiones mayores, también quedan guardados. Esto se aborda en las fases de consultas nativas y rendimiento; no se presenta como una mejora global ya conseguida.
 
 ### Jest 30
 

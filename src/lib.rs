@@ -1,6 +1,8 @@
 //! Parse HTML once in Rust and transfer a flat instruction tape across Node-API.
 //! The JavaScript adapter owns browser objects; no JavaScript callbacks occur here.
 
+mod dom;
+
 use html5ever::interface::QuirksMode;
 use html5ever::{ParseOpts, QualName, parse_document, parse_fragment, tendril::TendrilSink};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};

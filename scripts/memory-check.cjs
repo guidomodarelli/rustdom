@@ -11,7 +11,7 @@ const report = { capturedAt: new Date().toISOString(), node: process.version,
   environmentSourceSha256: createHash('sha256').update(readFileSync('src/environments/vitest.mjs')).digest('hex'),
   workerSourceSha256: createHash('sha256').update(readFileSync('scripts/memory-worker.cjs')).digest('hex'),
   machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
-  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; separate event-loop turns and explicit GC; independent WeakRef tracking of Documents and Window proxies.',
+  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; explicit asynchronous major GC and event-loop drainage; terminal memory and WeakRef checks observe the same quiescent endpoint. All per-batch samples are retained.',
   limitations: 'Finite stress tests cannot prove zero leaks. RSS includes allocator retention. This is not a peak-memory benchmark, ASan/LSan run, or exhaustive native dependency audit.',
   results: [] };
 

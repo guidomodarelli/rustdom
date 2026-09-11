@@ -20,14 +20,15 @@ const MEASURED_BATCHES = 8;
 const OPERATIONS_PER_BATCH = 40;
 
 /**
- * Yield past readiness callbacks and request full collections in separate JS jobs.
- * @returns {Promise<void>} Completes two event-loop turns and full GC requests.
+ * Drain readiness/finalization callbacks and request explicit asynchronous major collections.
+ * @returns {Promise<void>} Completes collections after the current JavaScript stack has unwound.
  */
 async function settle() {
   for (let turn = 0; turn < 2; turn++) {
     await new Promise((resolve) => setImmediate(resolve));
-    global.gc();
+    await global.gc({ type: 'major', execution: 'async' });
   }
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 /**
@@ -62,6 +63,9 @@ async function main() {
   const runtime = mode === 'jsdom' ? require('jsdom') : mode === 'rustdom' ? require('../dist/index.cjs') : null;
   const native = mode === 'native' ? require('../dist/native.cjs') : null;
   const environment = mode.startsWith('vitest') ? (await import('../src/environments/vitest.mjs')).default : null;
+  const nativeRuntime = runtime?.getNativeTreeStatistics ? runtime
+    : environment ? require('../dist/index.cjs') : null;
+  const initialNativeNodes = nativeRuntime?.getNativeTreeStatistics().liveNodes;
   assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
   const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
   for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
@@ -91,10 +95,12 @@ async function main() {
     if (batch >= WARMUP_BATCHES) snapshots.push({ batch, ...process.memoryUsage() });
   }
   await settle();
+  const terminalMemory = process.memoryUsage();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
   const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
+  const nativeTree = nativeRuntime?.getNativeTreeStatistics();
   const first = snapshots[0];
-  const last = snapshots.at(-1);
+  const last = terminalMemory;
   const growth = { heapUsed: last.heapUsed - first.heapUsed, external: last.external - first.external,
     arrayBuffers: last.arrayBuffers - first.arrayBuffers, rss: last.rss - first.rss };
   // These catch substantial retained growth, not every possible leak or peak allocation.
@@ -107,8 +113,12 @@ async function main() {
     observedWindows: windowReferences.length, survivingWindows,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
-    snapshots, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 && growth.heapUsed < budgets.heapGrowthBytes &&
+    nativeTree, initialNativeNodes,
+    snapshots, terminalMemory, growth, budgets,
+    pass: survivingDocuments === 0 && survivingWindows === 0 &&
+      (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
+        nativeTree.indexedNodes === nativeTree.liveNodes &&
+        nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
   process.stdout.write(JSON.stringify(report));
   if (!report.pass) process.exitCode = 1;
