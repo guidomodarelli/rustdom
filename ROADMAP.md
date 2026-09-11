@@ -9,8 +9,8 @@ Objetivo: trasladar el trabajo del DOM a Rust sin perder los contratos que esper
 | 0. Base integrada | Completa | `main` contiene los checkpoints iniciales; la rama anterior está eliminada; CI en Linux, Windows y macOS. |
 | 1. Parser HTML5 y compatibilidad inicial | Completa | Parser real con html5ever, corpus diferencial, rutas de compatibilidad explícitas, React/Jest/Vitest y memoria con Document/Window. |
 | 2. Entornos y APIs entre realms | Completa | Vitest con pools VM, conversiones Blob/FormData/Request/URL, señales AbortSignal, errores y teardown verificables. Evidencia en los informes de validación, memoria y benchmarks del 11/09. |
-| 3. Estado y mutaciones del árbol Rust | Pendiente | Identificadores estables, ownership, inserciones, movimientos, eliminación, recorridos y liberación; integración real con los nodos del runtime. |
-| 4. Consultas y serialización nativas | Pendiente | Selectores reutilizando un motor CSS mantenido, contexto y orden correctos, invalidación después de mutaciones y rutas de compatibilidad documentadas. |
+| 3. Estado estructural y mutaciones del árbol Rust | Completa | Identificadores estables, ownership, inserciones, movimientos, eliminación, recorridos y liberación integrados con los nodos reales. Regresiones de rendimiento registradas para la fase 5. |
+| 4. Datos, consultas y serialización nativas | Pendiente | Datos UTF-16, atributos, selectores reutilizando un motor CSS mantenido, contexto y orden correctos, invalidación después de mutaciones y rutas de compatibilidad documentadas. |
 | 5. Rendimiento y endurecimiento | Pendiente | Benchmarks equivalentes por fase, estrés de memoria, entradas adversas y diferenciales; corregir regresiones observadas sin falsear cobertura. |
 | 6. Distribución reproducible | Pendiente | Paquetes instalables desde artefactos, tipos públicos, binarios por plataforma y pruebas del paquete fuera del checkout. No requiere publicación pública en npm. |
 

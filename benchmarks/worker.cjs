@@ -122,13 +122,15 @@ async function main() {
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));
   const parserStatistics = runtime.getParserStatistics?.();
+  const nativeTreeStatistics = runtime.getNativeTreeStatistics?.();
   if (engine === 'rustdom') {
     assert.ok(parserStatistics.nativeDocument > 0);
     assert.ok(parserStatistics.nativeFragment > 0);
     assert.ok(parserStatistics.fallback['document-scripts'] > 0);
+    if (nativeTreeStatistics) assert.ok(nativeTreeStatistics.mutations > 0);
   }
   process.stdout.write(JSON.stringify({ engine, warmupSamples: WARMUP_SAMPLES,
-    measuredSamples: MEASURED_SAMPLES, workloads, parserStatistics }));
+    measuredSamples: MEASURED_SAMPLES, workloads, parserStatistics, nativeTreeStatistics }));
 }
 
 main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });

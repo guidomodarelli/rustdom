@@ -28,6 +28,7 @@ async function settle() {
     await new Promise((resolve) => setImmediate(resolve));
     global.gc();
   }
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 /**
@@ -62,6 +63,9 @@ async function main() {
   const runtime = mode === 'jsdom' ? require('jsdom') : mode === 'rustdom' ? require('../dist/index.cjs') : null;
   const native = mode === 'native' ? require('../dist/native.cjs') : null;
   const environment = mode.startsWith('vitest') ? (await import('../src/environments/vitest.mjs')).default : null;
+  const nativeRuntime = runtime?.getNativeTreeStatistics ? runtime
+    : environment ? require('../dist/index.cjs') : null;
+  const initialNativeNodes = nativeRuntime?.getNativeTreeStatistics().liveNodes;
   assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
   const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
   for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
@@ -93,6 +97,7 @@ async function main() {
   await settle();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
   const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
+  const nativeTree = nativeRuntime?.getNativeTreeStatistics();
   const first = snapshots[0];
   const last = snapshots.at(-1);
   const growth = { heapUsed: last.heapUsed - first.heapUsed, external: last.external - first.external,
@@ -107,8 +112,12 @@ async function main() {
     observedWindows: windowReferences.length, survivingWindows,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
+    nativeTree, initialNativeNodes,
     snapshots, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 && growth.heapUsed < budgets.heapGrowthBytes &&
+    pass: survivingDocuments === 0 && survivingWindows === 0 &&
+      (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
+        nativeTree.indexedNodes === nativeTree.liveNodes &&
+        nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
   process.stdout.write(JSON.stringify(report));
   if (!report.pass) process.exitCode = 1;
