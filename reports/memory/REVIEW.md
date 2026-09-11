@@ -38,3 +38,7 @@ El árbol almacena enlaces en Rust y conserva un grafo de referencias JavaScript
 El informe `2026-09-11T18-11-53.055Z-linux-x64.json` comprueba que `liveNodes` vuelve al valor inicial y coincide con `indexedNodes` al finalizar. También acota los handles reservados: son identificadores primitivos, sin registros de nodos hasta su primer uso. Su lote fijo de 128 se expone junto con el conteo reservado; no se oculta como memoria liberada.
 
 Los errores del árbol viven en un módulo Rust puro; la conversión a N-API está separada. Los tests Rust no dependen de símbolos de Node ni de mocks de la plataforma. La comparación funcional incluye movimientos planos y anidados, filtros vivos, adopción, clones, rangos y rechazo atómico de ciclos.
+
+## Medición consistente del punto final
+
+La ejecución macOS de CI `34632388870` mostró cero objetos observados y registros nativos retenidos, pero dos muestras tardías de heap elevadas. La comprobación de referencias ocurría después de otra colección final que no se guardaba como muestra de memoria. El arnés ahora solicita GC mayor asíncrono explícito y calcula el crecimiento con `terminalMemory`, obtenido en el mismo punto quiescente que las referencias. Se conservan todas las muestras intermedias y los mismos presupuestos; una retención persistente sigue haciendo fallar el test.
