@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 const require = createRequire(import.meta.url);
 const root = resolve('.');
-const artifact = JSON.parse(await readFile('artifacts/latest.json', 'utf8'));
+const artifact = JSON.parse(await readFile(process.argv[2] || 'artifacts/latest.json', 'utf8'));
 assert.equal(createHash('sha256').update(await readFile(artifact.archive)).digest('hex'), artifact.sha256);
 const dependencies = { '@rustdom/rustdom': pathToFileURL(artifact.archive).href };
 const lock = JSON.parse(await readFile('package-lock.json', 'utf8'));
@@ -42,8 +42,10 @@ function run(name, args, cwd) {
 }
 
 try {
+  // Windows TEMP may contain an 8.3 alias; Vite resolves real paths when importing test files.
+  const temporaryRoot = await realpath(tmpdir());
   for (const manager of ['npm', 'pnpm']) {
-    const directory = await mkdtemp(join(tmpdir(), 'rustdom-consumer-'));
+    const directory = await realpath(await mkdtemp(join(temporaryRoot, 'rustdom-consumer-')));
     await writeFile(join(directory, 'package.json'), `${JSON.stringify({ name: 'rustdom-consumer', private: true, dependencies }, null, 2)}\n`);
     await cp('tests/integration', join(directory, 'tests/integration'), { recursive: true });
     await cp('tests/distribution', join(directory, 'types'), { recursive: true });

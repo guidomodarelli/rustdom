@@ -48,6 +48,8 @@ Linux se compila y prueba sobre Ubuntu 22.04 para mantener una base de glibc est
 
 Los exports admiten CommonJS (`require`) y ESM (`import`), con declaraciones para la API principal, el addon y ambos entornos. Se reutilizan los tipos de jsdom 27. La prueba de distribución instala el `.tgz` en directorios temporales fuera del checkout mediante npm y pnpm, compila y ejecuta consumidores TypeScript, comprueba estilos y XHR síncrono, y ejecuta React/Testing Library en Jest y Vitest, incluidos ambos pools VM. Guarda comandos, salidas y lockfiles en `reports/distribution/`.
 
+Para verificar un artefacto descargado en su plataforma, `npm run test:package -- ruta/al/manifiesto.json` acepta un manifiesto alternativo con su path local `archive` y su SHA-256. El [registro de aceptación](reports/validation/ACCEPTANCE.md) reúne las evidencias y los límites de esta versión.
+
 La copia privada resuelve sus archivos relativos dentro del paquete y sus dependencias externas desde la instalación fijada de jsdom. Esto permite layouts sin hoisting y mantiene independiente al jsdom utilizado como referencia. Los archivos distribuidos se seleccionan explícitamente para excluir temporales y binarios de compilaciones anteriores.
 
 ## API
