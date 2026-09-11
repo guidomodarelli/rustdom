@@ -2,6 +2,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { performance } = require('node:perf_hooks');
+const { createHash } = require('node:crypto');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -39,6 +40,7 @@ async function measure(name, size) {
     : null;
   const samplesMs = [];
   const memory = [];
+  let outputHash;
   for (let sample = 0; sample < WARMUP_SAMPLES + MEASURED_SAMPLES; sample++) {
     let dom;
     let elapsed;
@@ -85,12 +87,18 @@ async function measure(name, size) {
           element.setAttribute('data-value', 'updated');
           element.remove();
         }
+      } else if (name === 'serialize-utf8') {
+        result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
       assert.equal(document.querySelectorAll('tr').length, size);
       if (name === 'selectors-100') assert.equal(result.length, size);
+      if (name === 'serialize-utf8') assert.ok(result > 0);
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
+    const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
+    if (outputHash) assert.equal(checksum, outputHash);
+    outputHash = checksum;
     result = null;
     if (cleanup) await cleanup();
     else dom.window.close();
@@ -105,7 +113,7 @@ async function measure(name, size) {
       memory.push(process.memoryUsage());
     }
   }
-  return { name, rows: size, inputBytes: Buffer.byteLength(html), samplesMs, memoryAfterCleanup: memory };
+  return { name, rows: size, inputBytes: Buffer.byteLength(html), outputHash, samplesMs, memoryAfterCleanup: memory };
 }
 
 /**
@@ -121,6 +129,7 @@ async function main() {
     workloads.push(await measure(name, 250));
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));
+  for (const size of [250, 1000]) workloads.push(await measure('serialize-utf8', size));
   const parserStatistics = runtime.getParserStatistics?.();
   const nativeTreeStatistics = runtime.getNativeTreeStatistics?.();
   if (engine === 'rustdom') {

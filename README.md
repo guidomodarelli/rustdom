@@ -4,9 +4,9 @@ Experimento de DOM para Node.js, Jest y Vitest, con **compatibilidad con jsdom c
 
 ## Estado real
 
-Esta versión es **híbrida y experimental**. Rust realiza el parsing HTML5 y almacena la estructura del árbol, con inserciones, movimientos, eliminación y recorridos nativos. La capa JavaScript conserva referencias de ownership y caches mediante `symbol-tree`, para mantener identidad de objetos y permitir que V8 recolecte el grafo. Los eventos, CSS, datos de atributos/texto y demás Web APIs siguen reutilizando **jsdom 27.4.0**, fijado en el lockfile, mientras avanzan las fases siguientes. No es todavía un DOM íntegramente en Rust ni un reemplazo probado de versiones posteriores de jsdom.
+Esta versión es **híbrida y experimental**. Rust realiza el parsing HTML5, almacena la estructura y los datos del árbol, ejecuta mutaciones, consultas CSS compatibles y serialización HTML. Reutiliza `html5ever` y el motor `selectors` de Servo. La capa JavaScript conserva referencias de ownership y caches mediante `symbol-tree`, para mantener identidad de objetos y permitir que V8 recolecte el grafo. Los wrappers WebIDL, eventos, estilos y demás Web APIs reutilizan **jsdom 27.4.0**, fijado en el lockfile. No es un DOM íntegramente en Rust ni un reemplazo probado de versiones posteriores de jsdom.
 
-El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su licencia y sus archivos auxiliares, y sustituye solamente su dependencia de parsing HTML. El jsdom instalado en `node_modules` permanece independiente y se usa como referencia en los tests.
+El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su licencia y sus archivos auxiliares, e integra los módulos nativos mediante sustituciones verificadas sobre esa versión fijada. El jsdom instalado en `node_modules` permanece independiente y se usa como referencia en los tests.
 
 ## Desarrollo
 
@@ -48,7 +48,11 @@ Se conservan los exports de jsdom. `getParserStatistics()` devuelve contadores a
 
 `getNativeTreeStatistics()` informa los nodos nativos vivos, asignaciones, liberaciones, mutaciones y handles reservados. Los handles se reservan en lotes sin crear registros de nodos hasta usarlos, no se reutilizan y no conservan referencias a ventanas. Las inserciones inválidas se rechazan antes de modificar enlaces. `FinalizationRegistry` libera los registros de nodos recolectados y el almacenamiento reduce su capacidad tras picos de uso.
 
+También expone `dataNodes`, `dataUpdates`, `serializations`, `nativeQueries`, `queryFallbacks`, `selectorCacheHits` y `selectorCacheSize`. Los datos preservan UTF-16, incluidos surrogates aislados. La caché LRU conserva hasta 256 selectores compilados, sin referencias a nodos; las consultas siempre usan los datos actuales. `querySelector`, `querySelectorAll`, `matches` y `closest` devuelven los mismos wrappers originales.
+
 La migración del árbol tiene un costo medido todavía pendiente de optimización: el [benchmark de esta fase](reports/benchmarks/2026-09-11T17-57-32.630Z-linux-x64.md) conserva ganancias en varias cargas de parsing, pero muestra regresiones cercanas al 10–15% en construcción grande, documentos con scripts y mutaciones. Los prototipos anteriores, con regresiones mayores, también quedan guardados. Esto se aborda en las fases de consultas nativas y rendimiento; no se presenta como una mejora global ya conseguida.
+
+Con datos y consultas nativas, el [checkpoint siguiente](reports/benchmarks/2026-09-11T19-33-41.341Z-linux-x64.md) mide **1,89× en consultas repetidas** y **2,22–2,70× en serialización consumida como UTF-8**. La copia de metadatos por nodo agrega costo: construcción de 1.000 filas tarda 86,67 ms frente a 61,83 ms de jsdom, y 100 mutaciones 3,50 ms frente a 2,09 ms. Estas regresiones quedan registradas para optimizar el puente en la fase 5. Cada muestra verifica el documento completo mediante SHA-256 fuera del tiempo medido.
 
 ### Jest 30
 
@@ -83,6 +87,7 @@ Las pruebas incluyen consumo único del body, errores multipart, señales ya abo
 - `includeNodeLocations`: parser original, para conservar posiciones exactas.
 - Custom elements registrados y fragmentos dentro de formularios: parser original, para conservar reacciones y contexto.
 - XML/XHTML: implementación original de jsdom.
+- Selectores dinámicos o no implementados por la ruta nativa, `nth-child(... of ...)`, shadow roots y árboles con datos UTF-16 no representables en UTF-8: motor de selectores original. Las ambigüedades de mayúsculas/minúsculas en atributos SVG e identificadores en quirks también conservan el comportamiento de jsdom.
 - `<select>`: parser original para mantener las reglas de jsdom 27, anteriores a los selects personalizables de HTML5 actual.
 - Texto con foster parenting en tablas, atributos de raíces repetidas y surrogates UTF-16 incompletos: rutas explícitas para preservar el resultado de jsdom.
 - Las APIs de navegación, layout y otras limitaciones de jsdom conservan sus límites originales.
@@ -94,7 +99,7 @@ Jest y Vitest usan `runScripts: 'dangerously'` por defecto. Por eso su documento
 1. **Parser Rust**: reutilizar HTML5 y evitar callbacks JS por token; recorrido iterativo y una transferencia por parsing.
 2. **Adaptador privado**: conservar los hooks de creación de nodos y no modificar globalmente el cargador de módulos.
 3. **Compatibilidad verificable**: comparar contra jsdom independiente y ejercer React/Testing Library reales en ambos runners.
-4. **Próxima migración**: medir los costos dominantes antes de trasladar almacenamiento, mutaciones y selectores al árbol Rust. Esos cambios requerirán identidad estable de wrappers, colecciones vivas y conformidad WebIDL/WPT.
+4. **Datos y operaciones Rust**: preservar identidad de wrappers y colecciones vivas mientras los datos, la topología, las consultas compatibles y la serialización HTML se ejecutan en Rust. La hoja de ruta y los criterios de las fases restantes están en [ROADMAP.md](ROADMAP.md).
 
 ## Validación y resultados guardados
 

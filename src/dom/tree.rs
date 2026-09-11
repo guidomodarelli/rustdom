@@ -1,6 +1,13 @@
 //! Node-API adapter for the platform-independent tree store.
-use super::{error::TreeError, store};
-use napi::{Error, Result, Status};
+use super::{
+    error::TreeError,
+    queries::{QueryEngine, QueryKind, QueryRequest},
+    store,
+};
+use napi::{
+    Error, Result, Status,
+    bindgen_prelude::{Float64Array, Utf16String},
+};
 use napi_derive::napi;
 
 #[napi(object)]
@@ -38,11 +45,27 @@ pub struct TreeStatistics {
     pub releases: f64,
     pub mutations: f64,
     pub reserved_handles: f64,
+    pub data_nodes: f64,
+    pub data_updates: f64,
+    pub serializations: f64,
+    pub native_queries: f64,
+    pub query_fallbacks: f64,
+    pub selector_cache_hits: f64,
+    pub selector_cache_size: u32,
+}
+
+/// Query operation vocabulary shared with the JavaScript adapter.
+#[napi]
+pub enum QueryMode {
+    All = 0,
+    First = 1,
+    Matches = 2,
+    Closest = 3,
 }
 
 /// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
 fn to_napi_error(error: TreeError) -> Error {
-    let status = if error == TreeError::HandleExhausted {
+    let status = if matches!(&error, TreeError::HandleExhausted) {
         Status::GenericFailure
     } else {
         Status::InvalidArg
@@ -55,6 +78,7 @@ fn to_napi_error(error: TreeError) -> Error {
 #[derive(Default)]
 pub struct NativeTree {
     store: store::TreeStore,
+    queries: QueryEngine,
 }
 
 #[napi]
@@ -69,6 +93,7 @@ impl NativeTree {
     pub fn new() -> Self {
         Self {
             store: store::TreeStore::new(),
+            queries: QueryEngine::default(),
         }
     }
 
@@ -82,6 +107,57 @@ impl NativeTree {
     #[napi]
     pub fn reserve_handles(&mut self) -> Result<f64> {
         self.store.reserve_handles().map_err(to_napi_error)
+    }
+
+    /// Store lossless DOM data after private DOM construction or mutation.
+    #[napi]
+    pub fn set_data(&mut self, handle: f64, encoded: String) -> Result<()> {
+        self.store.set_data(handle, &encoded).map_err(to_napi_error)
+    }
+
+    /// Serialize directly from native storage without replacing invalid UTF-16 code units.
+    #[napi]
+    pub fn serialize_html(
+        &mut self,
+        handle: f64,
+        outer: bool,
+        scripting: bool,
+    ) -> Result<Utf16String> {
+        self.store
+            .serialize_html(handle, outer, scripting)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    /// Match supported selectors against live data; None requests compatibility handling.
+    #[napi]
+    pub fn query(
+        &mut self,
+        selector: String,
+        root: f64,
+        document: f64,
+        mode: QueryMode,
+        quirks: bool,
+    ) -> Result<Option<Float64Array>> {
+        let kind = match mode {
+            QueryMode::All => QueryKind::All,
+            QueryMode::First => QueryKind::First,
+            QueryMode::Matches => QueryKind::Matches,
+            QueryMode::Closest => QueryKind::Closest,
+        };
+        self.queries
+            .query(
+                &mut self.store,
+                QueryRequest {
+                    source: &selector,
+                    root,
+                    document,
+                    kind,
+                    quirks,
+                },
+            )
+            .map(|nodes| nodes.map(Into::into))
+            .map_err(to_napi_error)
     }
 
     /// Inspect one authoritative native link record.
@@ -150,6 +226,13 @@ impl NativeTree {
             releases: stats.releases,
             mutations: stats.mutations,
             reserved_handles: stats.reserved_handles,
+            data_nodes: stats.data_nodes,
+            data_updates: stats.data_updates,
+            serializations: stats.serializations,
+            native_queries: (self.queries.calls - self.queries.fallbacks) as f64,
+            query_fallbacks: self.queries.fallbacks as f64,
+            selector_cache_hits: self.queries.cache_hits as f64,
+            selector_cache_size: self.queries.cache_size() as u32,
         }
     }
 }

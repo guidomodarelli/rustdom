@@ -66,6 +66,7 @@ async function main() {
   const nativeRuntime = runtime?.getNativeTreeStatistics ? runtime
     : environment ? require('../dist/index.cjs') : null;
   const initialNativeNodes = nativeRuntime?.getNativeTreeStatistics().liveNodes;
+  const initialNativeData = nativeRuntime?.getNativeTreeStatistics().dataNodes;
   assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
   const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
   for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
@@ -113,10 +114,11 @@ async function main() {
     observedWindows: windowReferences.length, survivingWindows,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
-    nativeTree, initialNativeNodes,
+    nativeTree, initialNativeNodes, initialNativeData,
     snapshots, terminalMemory, growth, budgets,
     pass: survivingDocuments === 0 && survivingWindows === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
+        nativeTree.dataNodes === initialNativeData &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
