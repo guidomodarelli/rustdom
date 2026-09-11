@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-22.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,20 @@ jobs:
       - run: npm ci
       - run: npm run validate
       - run: npm run test:memory
+      - run: npm run package
+      - run: npm run test:package
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Linux'
+        with:
+          node-version: '22.12.0'
+          cache: npm
+      - if: runner.os == 'Linux'
+        run: npm run test:package
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-${{ runner.os }}-${{ runner.arch }}
+          path: artifacts/
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - if: runner.os == 'Linux'

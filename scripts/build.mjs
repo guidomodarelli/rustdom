@@ -1,7 +1,7 @@
-/** @file Copies a pinned private jsdom runtime and replaces only its HTML parsing dependency. */
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+/** @file Builds the pinned private jsdom runtime and integrates native DOM operations. */
+import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, relative, sep } from 'node:path';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
 const require = createRequire(import.meta.url);
@@ -90,3 +90,28 @@ entry = substituteOnce(entry, "require('./parser/bridge.cjs')", "require('./pars
 entry = substituteOnce(entry, "require('../dist/vendor-jsdom/lib/jsdom/living/helpers/internal-constants.js')",
   "require('./vendor-jsdom/lib/jsdom/living/helpers/internal-constants.js')");
 await writeFile('dist/index.cjs', entry);
+await cp('src/index.mjs', 'dist/index.mjs');
+await cp('src/native.mjs', 'dist/native.mjs');
+await cp('src/private-require.cjs', 'dist/private-require.cjs');
+
+/**
+ * Preserve dependency resolution in non-hoisted installations without mutating Node's loader.
+ * @param {string} directory - One directory in the owned private copy.
+ * @returns {Promise<void>} Patches each CommonJS module's local require exactly once after copying.
+ */
+async function scopePrivateDependencies(directory) {
+  for (const file of await readdir(directory, { withFileTypes: true })) {
+    const path = resolve(directory, file.name);
+    if (file.isDirectory()) await scopePrivateDependencies(path);
+    else if (file.name.endsWith('.js')) {
+      const source = await readFile(path, 'utf8');
+      const helper = relative(dirname(path), resolve('dist/private-require.cjs')).split(sep).join('/');
+      const injection = `\nrequire = require(${JSON.stringify(helper)})(require);\n`;
+      // Comments may precede the directive; keep it in the directive prologue.
+      const strict = /^(?:(?:\s+)|(?:\/\/[^\n]*(?:\n|$))|(?:\/\*[\s\S]*?\*\/))*["']use strict["'];/.exec(source);
+      const offset = strict?.[0].length || 0;
+      await writeFile(path, source.slice(0, offset) + injection + source.slice(offset));
+    }
+  }
+}
+await scopePrivateDependencies(resolve(destination, 'lib'));
