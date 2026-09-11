@@ -15,7 +15,7 @@ const report = { capturedAt: new Date().toISOString(), node: process.version,
   limitations: 'Finite stress tests cannot prove zero leaks. RSS includes allocator retention. This is not a peak-memory benchmark, ASan/LSan run, or exhaustive native dependency audit.',
   results: [] };
 
-for (const mode of ['jsdom', 'rustdom', 'native', 'vitest']) {
+for (const mode of ['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm']) {
   process.stderr.write(`Memoria: ${mode}\n`);
   const child = spawnSync(process.execPath, ['--expose-gc', 'scripts/memory-worker.cjs', mode], {
     encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, timeout: 300_000,

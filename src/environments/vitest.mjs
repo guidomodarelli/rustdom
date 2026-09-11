@@ -2,58 +2,28 @@
 import { populateGlobal } from 'vitest/runtime';
 import { createRequire } from 'node:module';
 
-/** Load the native CommonJS runtime through Node rather than Vite's ESM evaluator. */
-const runtime = createRequire(import.meta.url)('../../dist/index.cjs');
-
-/**
- * Forward unhandled browser errors to Vitest's process error listener.
- * @param {Window} window - Newly created isolated browser window.
- * @returns {Function} Removes forwarding and restores listener methods.
- */
-function forwardWindowErrors(window) {
-  const add = window.addEventListener;
-  const remove = window.removeEventListener;
-  let userErrorListeners = 0;
-  /**
-   * Report browser exceptions unless test code registered its own error handler.
-   * @param {ErrorEvent} event - Dispatched browser exception.
-   * @returns {void} Forwards the original error to the runner.
-   */
-  function reportError(event) {
-    if (userErrorListeners === 0 && event.error != null) {
-      event.preventDefault();
-      process.emit('uncaughtException', event.error);
-    }
-  }
-  add.call(window, 'error', reportError);
-  window.addEventListener = function (...args) {
-    if (args[0] === 'error') userErrorListeners++;
-    return add.apply(this, args);
-  };
-  window.removeEventListener = function (...args) {
-    if (args[0] === 'error' && userErrorListeners > 0) userErrorListeners--;
-    return remove.apply(this, args);
-  };
-  return () => {
-    remove.call(window, 'error', reportError);
-    window.addEventListener = add;
-    window.removeEventListener = remove;
-  };
-}
+/** Load shared window creation through Node rather than Vite's ESM evaluator. */
+const { createWindow } = createRequire(import.meta.url)('./window.cjs');
+/** Reuse the same precise exception routing in normal and VM pools. */
+const { forwardWindowErrors } = createRequire(import.meta.url)('./window-errors.cjs');
 
 /**
  * Restore partial global changes if a nonconfigurable host property rejects setup.
  * @param {object} global - Worker global receiving browser properties.
  * @param {Window} window - Isolated window to expose.
  * @param {object} dom - Public JSDOM instance exposed to the runner.
+ * @param {object} additionalGlobals - Native-compatible Web APIs to install.
  * @returns {object} Official Vitest keys and original descriptors.
  * @throws {TypeError} Preserves the original global-installation failure after rollback.
  */
-function installGlobals(global, window, dom) {
+function installGlobals(global, window, dom, additionalGlobals) {
   const before = Object.getOwnPropertyDescriptors(global);
   try {
     const installed = populateGlobal(global, window, { bindFunctions: true });
     Object.defineProperty(global, 'jsdom', { configurable: true, writable: true, value: dom });
+    for (const [name, value] of Object.entries(additionalGlobals)) {
+      Object.defineProperty(global, name, { configurable: true, writable: true, value });
+    }
     return installed;
   } catch (error) {
     for (const key of Reflect.ownKeys(global)) {
@@ -69,29 +39,60 @@ export default {
   name: 'rustdom',
   viteEnvironment: 'client',
   /**
+   * Provide a real JSDOM VM context to Vitest's VM worker pools.
+   * @param {object} options - Vitest environmentOptions.
+   * @returns {object} VM access and an idempotent teardown.
+   */
+  setupVM(options) {
+    let { dom, bridge } = createWindow(options);
+    let stopErrorForwarding = forwardWindowErrors(dom.window);
+    try {
+      dom.window.jsdom = dom;
+      dom.getInternalVMContext();
+    } catch (error) {
+      stopErrorForwarding();
+      bridge.dispose();
+      dom.window.close();
+      throw error;
+    }
+    return {
+      /** @returns {object} The context used to execute user tests. */
+      getVmContext() { return dom?.getInternalVMContext(); },
+      /** @returns {void} Releases timers, abort links, URLs, and the VM owner. */
+      teardown() {
+        if (!dom) return;
+        try {
+          stopErrorForwarding();
+          bridge.dispose();
+          delete dom.window.jsdom;
+          dom.window.close();
+        } finally {
+          dom = null;
+          bridge = null;
+          stopErrorForwarding = null;
+        }
+      },
+    };
+  },
+  /**
    * Create an isolated window for a Vitest worker's test file.
    * @param {object} global - Worker global to populate with browser properties.
    * @param {object} options - Vitest environmentOptions; accepts the usual jsdom key.
    * @returns {object} A teardown hook that restores globals and closes resources.
    */
   setup(global, options) {
-    const { html = '<!doctype html>', ...jsdomOptions } = options.jsdom || {};
-    let dom = new runtime.JSDOM(html, {
-      pretendToBeVisual: true,
-      url: 'http://localhost:3000',
-      runScripts: 'dangerously',
-      ...jsdomOptions,
-    });
+    let { dom, bridge } = createWindow(options);
     let stopErrorForwarding = forwardWindowErrors(dom.window);
     // populateGlobal rewrites these aliases but does not retain their descriptors.
-    const aliases = new Map(['window', 'self', 'top', 'parent', 'global'].map((key) =>
+    const aliases = new Map(['window', 'self', 'top', 'parent', 'global', ...Object.keys(bridge.globals)].map((key) =>
       [key, Object.getOwnPropertyDescriptor(global, key)]));
     const previousJsdom = Object.getOwnPropertyDescriptor(global, 'jsdom');
     let installed;
     try {
-      installed = installGlobals(global, dom.window, dom);
+      installed = installGlobals(global, dom.window, dom, bridge.globals);
     } catch (error) {
       stopErrorForwarding();
+      bridge.dispose();
       dom.window.close();
       throw error;
     }
@@ -105,6 +106,7 @@ export default {
         if (!dom) return;
         try {
           stopErrorForwarding();
+          bridge.dispose();
           dom.window.close();
         } finally {
           for (const key of keys) delete global[key];
@@ -117,6 +119,7 @@ export default {
           }
           // The runner may retain this teardown callback after calling it.
           dom = null;
+          bridge = null;
           stopErrorForwarding = null;
           keys.clear();
           originals.clear();

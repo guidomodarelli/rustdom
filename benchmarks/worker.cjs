@@ -33,13 +33,33 @@ function fixture(size) {
  */
 async function measure(name, size) {
   const html = fixture(size);
+  const environment = name.startsWith('environment-')
+    ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
+      : (await import('../src/environments/vitest.mjs')).default
+    : null;
   const samplesMs = [];
   const memory = [];
   for (let sample = 0; sample < WARMUP_SAMPLES + MEASURED_SAMPLES; sample++) {
     let dom;
     let elapsed;
     let result;
-    if (name.startsWith('construct')) {
+    let cleanup;
+    let target;
+    if (environment) {
+      target = { setTimeout, clearTimeout, setInterval, clearInterval,
+        Request: globalThis.Request, Response: globalThis.Response, URL: globalThis.URL,
+        AbortController: globalThis.AbortController, AbortSignal: globalThis.AbortSignal };
+      global.gc?.();
+      const start = performance.now();
+      const session = name === 'environment-vm-setup'
+        ? await environment.setupVM({ jsdom: { html, runScripts: 'outside-only' } })
+        : await environment.setup(target, { jsdom: { html, runScripts: 'outside-only' } });
+      if (name === 'environment-vm-setup') target = session.getVmContext();
+      dom = target.jsdom;
+      elapsed = performance.now() - start;
+      cleanup = () => session.teardown(target);
+      assert.equal(dom.window.document.querySelectorAll('tr').length, size);
+    } else if (name.startsWith('construct')) {
       const options = name === 'construct-script-compatible' ? { runScripts: 'dangerously' } : {};
       global.gc?.();
       const start = performance.now();
@@ -72,7 +92,10 @@ async function measure(name, size) {
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     result = null;
-    dom.window.close();
+    if (cleanup) await cleanup();
+    else dom.window.close();
+    cleanup = null;
+    target = null;
     dom = null;
     // Let pending DOM readiness callbacks release references before the next GC.
     await new Promise((resolve) => setImmediate(resolve));
@@ -97,6 +120,7 @@ async function main() {
   for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100']) {
     workloads.push(await measure(name, 250));
   }
+  for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));
   const parserStatistics = runtime.getParserStatistics?.();
   if (engine === 'rustdom') {
     assert.ok(parserStatistics.nativeDocument > 0);

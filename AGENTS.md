@@ -54,4 +54,7 @@
 - Crear y subir un **tag de checkpoint** que identifique ese estado funcional; utilizar nombres incrementales y no mover tags ya publicados.
 - No crear checkpoints de trabajo que se sabe que falla. Incluir resultados de validación y benchmarks correspondientes cuando formen parte del hito.
 - Usar una rama `feature/*` al iniciar desde una rama por defecto, salvo instrucción explícita diferente.
-- No usar force-push ni sobrescribir trabajo ajeno. Esta autorización comprende commits, pushes y tags del proyecto; no implica publicar paquetes npm ni abrir PRs automáticamente.
+- El usuario autoriza crear PRs, completar sus checks y mergearlos desde la terminal de forma autónoma. Usar `main` como base; crearla si no existe. Tras cada merge, eliminar las ramas ya integradas y conservar los tags.
+- Si los PRs no se pueden mergear desde la terminal, el usuario autoriza trabajar directamente sobre `main`; no saltar checks ni protecciones que requieran intervención externa.
+- Continuar con las fases pendientes después de cada hito, sin detenerse a pedir permiso para el siguiente. Mantener un registro verificable del avance y no declarar completa una fase cuya implementación siga pendiente.
+- No usar force-push ni sobrescribir trabajo ajeno. La autorización no incluye publicar paquetes npm automáticamente.

@@ -27,4 +27,6 @@ Una referencia débil que desaparece demuestra que ese documento puede recolecta
 
 La cobertura ampliada también observa `Window` por separado. Esto es necesario porque `window.close()` puede liberar el documento sin que necesariamente se libere el proxy de ventana. Los informes anteriores sin `observedWindows` solo verificaban explícitamente los documentos.
 
+La fase de entornos incorpora señales nativas retenidas fuera de la ventana, URLs de objetos con buffers y el pool VM. La primera prueba VM conservó por error la última referencia fuerte al contexto en el propio arnés (informe `2026-09-11T16-36-30.109Z-linux-x64.json`); al soltarla explícitamente se verificó la recolección de los 440 documentos y ventanas. Los informes fallidos se conservan como evidencia del diagnóstico.
+
 No se ejecutaron ASan/LSan, Valgrind ni una campaña prolongada de fuzzing. Tampoco se verificó localmente el addon nativo de Windows o macOS. No se afirma ausencia absoluta de fugas fuera de los escenarios y límites guardados.
