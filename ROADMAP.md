@@ -12,7 +12,7 @@ Objetivo: trasladar el trabajo del DOM a Rust sin perder los contratos que esper
 | 3. Estado estructural y mutaciones del árbol Rust | Completa | Identificadores estables, ownership, inserciones, movimientos, eliminación, recorridos y liberación integrados con los nodos reales. Regresiones de rendimiento registradas para la fase 5. |
 | 4. Datos, consultas y serialización nativas | Completa | Datos UTF-16, atributos, selectores Servo, contexto y orden correctos, lectura actual después de mutaciones y rutas de compatibilidad documentadas. Validación y memoria aprobadas; benchmarks guardados, con regresiones de construcción para la fase 5. |
 | 5. Rendimiento y endurecimiento | Completa | Puente directo para datos comunes, tape sin árbol JSON intermedio, 98 contratos JS, 14 tests Rust, corpus, estrés y Valgrind. Benchmarks finales guardados; quedan costos medidos en escrituras aisladas y parsing con scripts, descritos como límites de esta versión. |
-| 6. Distribución reproducible | Pendiente | Paquetes instalables desde artefactos, tipos públicos, binarios por plataforma y pruebas del paquete fuera del checkout. No requiere publicación pública en npm. |
+| 6. Distribución reproducible | En curso | Paquetes instalables desde artefactos, tipos públicos, binarios por plataforma y pruebas del paquete fuera del checkout. No requiere publicación pública en npm. |
 
 Cada fase se trabaja mediante PR cuando la terminal permite crearlo y mergearlo, y termina con checks y un tag de checkpoint. Las fases no se marcan completas únicamente por haber agregado un arnés o una API nativa que los consumidores reales no usan.
 

@@ -1,0 +1,43 @@
+/** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
+import type { NativeTreeStatistics } from './index.cjs';
+
+/** A contextual parser attribute, including optional XML metadata. */
+export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
+/** Stable native links; zero denotes a missing related node. */
+export interface TreeLinks {
+  id: number; parent: number; previous: number; next: number; first: number; last: number;
+  childCount: number; childrenVersion: number;
+}
+/** Query modes accepted by the native matcher. */
+export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
+
+/** Owns a native forest. Handles are positive safe integers and are never reused. */
+export class NativeTree {
+  constructor();
+  readonly handleBatchSize: number;
+  allocate(): number;
+  reserveHandles(): number;
+  setData(handle: number, encoded: string): void;
+  /** Direct transfer requires well-formed strings and alternating attribute name/value entries. */
+  setHtmlElement(handle: number, name: string, attributes: string[]): void;
+  /** Direct transfer for well-formed text, comments or containers. */
+  setSimpleData(handle: number, kind: number, value: string): void;
+  serializeHtml(handle: number, outer: boolean, scripting: boolean): string;
+  query(selector: string, root: number, document: number,
+    mode: typeof QueryMode[keyof typeof QueryMode], quirks: boolean): Float64Array | null;
+  getLinks(handle: number): TreeLinks;
+  append(parent: number, child: number): number;
+  prepend(parent: number, child: number): number;
+  insertBefore(reference: number, child: number): number;
+  insertAfter(reference: number, child: number): number;
+  remove(handle: number): number;
+  descendants(handle: number): number[];
+  release(handle: number): boolean;
+  statistics(): Omit<NativeTreeStatistics, 'indexedNodes' | 'handleBatchSize'>;
+}
+
+/** Parses well-formed HTML input to the native event tape, returned as JSON. */
+export function parseDocumentTape(markup: string): string;
+/** Parses a fragment using the supplied context and attributes. */
+export function parseFragmentTape(markup: string, contextName: string, contextNamespace: string,
+  attributes: ContextAttribute[], scriptingEnabled: boolean): string;

@@ -58,3 +58,7 @@ La fase de rendimiento evita el JSON por nodo en HTML común y serializa el tape
 El informe `2026-09-11T19-54-13.684Z-valgrind.json` ejecuta los 14 tests Rust reales con Valgrind 3.18.1/Memcheck: 81.377 allocations, cero errores de acceso, cero bytes `definitely lost` y cero `indirectly lost`. Se conservan **48 bytes `possibly lost`**, cuyo stack pertenece a `std::thread`/`std::sync::mpmc` desde `libtest`, y **544 bytes `still reachable`** del registro de stack del runtime Rust. No hay supresiones. Esas observaciones no se presentan como cero bytes pendientes ni como cobertura del addon cargado en V8.
 
 Los intentos previos fallaron antes de ejecutar tests por ausencia de símbolos de glibc. Se conservan sus logs. La instalación de `libc6-dbg` de la versión exacta del sistema permitió el análisis; no se sustituyó la biblioteca de ejecución. `npm run test:native-memory` requiere Linux, Valgrind y esos símbolos. CI instala Valgrind en Linux y guarda los informes completos.
+
+## Distribución
+
+El resolvedor privado nuevo captura funciones de carga de módulos, sin referencias a ventanas o nodos. Los exports ESM apuntan al mismo runtime CommonJS. El estrés `2026-09-11T20-23-11.454Z-linux-x64.json` vuelve a comprobar cero documentos y ventanas observados retenidos, y retorno al nivel inicial de nodos y datos nativos. El crecimiento final de heap de rustdom fue 0,53 MiB. Los consumidores de distribución cierran sus ventanas y el servidor HTTP auxiliar; los directorios temporales de instalaciones exitosas se eliminan después de verificar sus paths.

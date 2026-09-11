@@ -10,7 +10,7 @@ El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su
 
 ## Desarrollo
 
-Requisitos para compilación nativa: Node.js compatible con `package.json`, Rust estable y un linker de la plataforma. Los usuarios de paquetes binarios futuros no necesitarían Rust. Este repositorio aún no publica esos paquetes.
+Requisitos para compilación nativa: Node.js compatible con `package.json`, Rust estable y un linker de la plataforma. Los archivos `.tgz` de distribución contienen el binario y se instalan sin Rust; este repositorio no publica automáticamente paquetes en npm.
 
 ```sh
 npm ci
@@ -33,6 +33,22 @@ bash scripts/run-linux.sh npm test
 ```
 
 Desde PowerShell, anteponer `wsl.exe -d Ubuntu-22.04 --` a esos comandos. La instalación local no modifica perfiles de shell ni instala paquetes del sistema. Los binarios generados en WSL son Linux: para Node nativo de Windows hay que compilar con una toolchain Windows.
+
+## Paquetes y tipos
+
+```sh
+npm run package
+npm run test:package
+npm install ./artifacts/rustdom-rustdom-0.1.0-alpha.0-PLATAFORMA-FECHA.tgz
+```
+
+`package` reconstruye el runtime, incluye los tipos, las licencias de dependencias nativas y un manifiesto del binario, y crea un archivo específico de plataforma. El nombre real y su SHA-256 quedan en `artifacts/latest.json`. CI genera artefactos para Linux x64/glibc, Windows x64 y macOS arm64. Instalar el archivo correspondiente al sistema donde se ejecutará Node.
+
+Linux se compila y prueba sobre Ubuntu 22.04 para mantener una base de glibc estable. La matriz también comprueba el paquete construido con Node 24 desde Node 22.12.0, mediante Node-API. La versión de glibc del host de compilación queda registrada en el manifiesto.
+
+Los exports admiten CommonJS (`require`) y ESM (`import`), con declaraciones para la API principal, el addon y ambos entornos. Se reutilizan los tipos de jsdom 27. La prueba de distribución instala el `.tgz` en directorios temporales fuera del checkout mediante npm y pnpm, compila y ejecuta consumidores TypeScript, comprueba estilos y XHR síncrono, y ejecuta React/Testing Library en Jest y Vitest, incluidos ambos pools VM. Guarda comandos, salidas y lockfiles en `reports/distribution/`.
+
+La copia privada resuelve sus archivos relativos dentro del paquete y sus dependencias externas desde la instalación fijada de jsdom. Esto permite layouts sin hoisting y mantiene independiente al jsdom utilizado como referencia. Los archivos distribuidos se seleccionan explícitamente para excluir temporales y binarios de compilaciones anteriores.
 
 ## API
 
@@ -57,6 +73,8 @@ Con datos y consultas nativas, el [checkpoint siguiente](reports/benchmarks/2026
 
 La [optimización posterior](reports/benchmarks/2026-09-11T20-00-26.493Z-linux-x64.md) evita JSON para datos HTML comunes y el árbol JSON intermedio del parser. En esa medición, la construcción elegible mide **1,00–1,22×**, `innerHTML` **1,09–1,49×**, consultas **1,90×** y serialización **2,28–2,67×**. Persisten costos en construcción con scripts (**0,83×**) y escrituras aisladas (**0,69×**). La versión ofrece mejoras en operaciones concretas; no una aceleración universal de cualquier suite. Se conserva también el experimento de inserciones combinadas, descartado porque no mostró un beneficio claro.
 
+La [medición del runtime distribuible](reports/benchmarks/2026-09-11T20-44-58.920Z-linux-x64.md) registra **1,81×** en consultas, **2,10–2,59×** en serialización e **1,08–1,48×** en `innerHTML`. Construcción grande, scripts y mutaciones mantienen ratios inferiores a 1. Se conservan ambas mediciones para mostrar la variación y los costos restantes.
+
 ### Jest 30
 
 ```js
@@ -70,15 +88,19 @@ Instalar `@jest/environment-jsdom-abstract` junto con Jest. Se reutiliza su inte
 ### Vitest 5
 
 ```js
+import { fileURLToPath } from 'node:url';
+
 export default {
   test: {
-    environment: '@rustdom/rustdom/vitest',
+    environment: fileURLToPath(import.meta.resolve('@rustdom/rustdom/vitest')),
     environmentOptions: { jsdom: { url: 'http://localhost:3000' } },
   },
 };
 ```
 
 El adaptador soporta workers normales y los pools `vmForks` y `vmThreads`. El mismo creador de ventanas configura ambos modos y libera sus recursos durante el teardown.
+
+Vitest necesita el path resuelto del subpath: un nombre sin resolver hace que intente buscar un paquete con el prefijo `vitest-environment-`. En configuraciones CommonJS se puede usar `require.resolve('@rustdom/rustdom/vitest')`.
 
 Los adaptadores conservan `Blob`, `File` y `FileReader` de jsdom y convierten cuerpos para `Request`, `Response` y `fetch` nativos. El parser multipart reutiliza `@remix-run/multipart-parser` porque la implementación interna de Node consulta el global `File`, que Vitest reemplaza por el de jsdom. Las señales de abort se traducen en ambos sentidos y las URLs de objetos creadas por el entorno se revocan al cerrarlo.
 

@@ -2,13 +2,23 @@
   "name": "@rustdom/rustdom",
   "version": "0.1.0-alpha.0",
   "private": true,
-  "description": "Experimental html5ever parsing for a compatibility-first jsdom runtime",
+  "description": "Compatibility-first DOM with native Rust parsing, storage, queries and serialization",
+  "license": "MIT",
+  "repository": "github:guidomodarelli/rustdom",
   "main": "dist/index.cjs",
+  "types": "types/index.d.cts",
+  "files": ["dist", "src/environments", "types", "LICENSE", "README.md"],
   "exports": {
-    ".": "./dist/index.cjs",
-    "./jest": "./src/environments/jest.cjs",
-    "./vitest": "./src/environments/vitest.mjs",
-    "./native": "./dist/native.cjs"
+    ".": {
+      "import": { "types": "./types/index.d.mts", "default": "./dist/index.mjs" },
+      "require": { "types": "./types/index.d.cts", "default": "./dist/index.cjs" }
+    },
+    "./jest": { "types": "./types/jest.d.cts", "default": "./src/environments/jest.cjs" },
+    "./vitest": { "types": "./types/vitest.d.mts", "default": "./src/environments/vitest.mjs" },
+    "./native": {
+      "import": { "types": "./types/native.d.mts", "default": "./dist/native.mjs" },
+      "require": { "types": "./types/native.d.cts", "default": "./dist/native.cjs" }
+    }
   },
   "engines": {
     "node": "^22.12.0 || >=24.0.0"
@@ -26,7 +36,9 @@
     "test:vitest": "vitest run",
     "test:vm": "vitest run --config vitest.vm.config.mjs",
     "test": "npm run test:compat && npm run test:jest && npm run test:vitest && npm run test:vm",
-    "bench": "node --expose-gc benchmarks/compare.cjs"
+    "bench": "node --expose-gc benchmarks/compare.cjs",
+    "package": "npm run build && node scripts/package.mjs",
+    "test:package": "node scripts/package-check.mjs"
   },
   "napi": {
     "binaryName": "rustdom",
@@ -37,7 +49,9 @@
     ]
   },
   "dependencies": {
+    "@jest/environment": "30.5.0",
     "@remix-run/multipart-parser": "0.16.4",
+    "@types/jsdom": "27.0.0",
     "jsdom": "27.4.0",
     "parse5": "8.0.0",
     "symbol-tree": "3.2.4"
@@ -59,8 +73,10 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "jest": "30.5.1",
+    "pnpm": "12.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "typescript": "5.9.3",
     "vitest": "5.0.0"
   }
 }

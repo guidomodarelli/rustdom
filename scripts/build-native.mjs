@@ -1,6 +1,7 @@
 /** @file Builds the native library with Cargo and installs the host artifact without CLI filesystem transactions. */
 import { spawnSync } from 'node:child_process';
-import { mkdir, copyFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 
 /** Ask Cargo for the actual artifact path instead of guessing platform suffixes or target directories. */
 const result = spawnSync('cargo', ['build', '--release', '--locked', '--message-format=json-render-diagnostics'], {
@@ -19,3 +20,11 @@ if (!library) throw new Error('rustdom build: Cargo did not report the rustdom n
 await mkdir('dist', { recursive: true });
 await copyFile(library, 'dist/rustdom.node');
 await copyFile('src/native.cjs', 'dist/native.cjs');
+await writeFile('dist/native-build.json', `${JSON.stringify({
+  platform: process.platform, arch: process.arch,
+  libc: process.platform === 'linux' ? (process.report.getReport().header.glibcVersionRuntime ? 'glibc' : 'musl') : null,
+  glibcBuildVersion: process.report.getReport().header.glibcVersionRuntime || null,
+  node: process.version, napi: 8,
+  binarySha256: createHash('sha256').update(await readFile('dist/rustdom.node')).digest('hex'),
+  cargoLockSha256: createHash('sha256').update(await readFile('Cargo.lock')).digest('hex'),
+}, null, 2)}\n`);
