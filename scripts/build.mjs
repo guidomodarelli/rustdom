@@ -32,9 +32,12 @@ await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt
 
 /** Patch the private copy; node_modules/jsdom remains the independent reference. */
 const parserPath = resolve(destination, 'lib/jsdom/browser/parser/html.js');
-await writeFile(parserPath, substituteOnce(await readFile(parserPath, 'utf8'),
+let parserSource = substituteOnce(await readFile(parserPath, 'utf8'),
   'const parse5 = require("parse5");',
-  'const parse5 = require("../../../../../parser-bridge.cjs");'));
+  'const parse5 = require("../../../../../parser-bridge.cjs");\nconst { domSymbolTree } = require("../../living/helpers/internal-constants");');
+parserSource = substituteOnce(parserSource, '    templateElement._templateContents = contentFragment;',
+  '    templateElement._templateContents = contentFragment;\n    domSymbolTree.updateNodeData(templateElement);');
+await writeFile(parserPath, parserSource);
 
 /** Replace only DOM topology; other uses of symbol-tree remain upstream implementations. */
 const constantsPath = resolve(destination, 'lib/jsdom/living/helpers/internal-constants.js');
@@ -44,6 +47,36 @@ await writeFile(constantsPath, substituteOnce(await readFile(constantsPath, 'utf
 const nativeTree = await readFile('src/dom/native-tree.cjs', 'utf8');
 await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
+
+/** Keep attributes and character data synchronized before DOM observers run. */
+const elementPath = resolve(destination, 'lib/jsdom/living/nodes/Element-impl.js');
+let elementSource = substituteOnce(await readFile(elementPath, 'utf8'),
+  '  _attrModified(name, value, oldValue) {',
+  '  _attrModified(name, value, oldValue) {\n    domSymbolTree.updateNodeData(this);');
+elementSource = substituteOnce(elementSource, '    return domSelector.matches(selectors, this);',
+  '    const nodes = domSymbolTree.matchNode(selectors, this);\n    return nodes === null ? domSelector.matches(selectors, this) : nodes.length > 0;');
+elementSource = substituteOnce(elementSource, '    return domSelector.closest(selectors, this);',
+  '    const nodes = domSymbolTree.closestNode(selectors, this);\n    return nodes === null ? domSelector.closest(selectors, this) : (nodes[0] || null);');
+await writeFile(elementPath, elementSource);
+const parentPath = resolve(destination, 'lib/jsdom/living/nodes/ParentNode-impl.js');
+let parentSource = await readFile(parentPath, 'utf8');
+parentSource = substituteOnce(parentSource, '    return domSelector.querySelector(selectors, this);',
+  '    const nodes = domSymbolTree.queryFirst(selectors, this);\n    return nodes === null ? domSelector.querySelector(selectors, this) : (nodes[0] || null);');
+parentSource = substituteOnce(parentSource, '    const nodes = domSelector.querySelectorAll(selectors, this);',
+  '    const nativeNodes = domSymbolTree.queryAll(selectors, this);\n    const nodes = nativeNodes === null ? domSelector.querySelectorAll(selectors, this) : nativeNodes;');
+await writeFile(parentPath, parentSource);
+const characterPath = resolve(destination, 'lib/jsdom/living/nodes/CharacterData-impl.js');
+let characterSource = await readFile(characterPath, 'utf8');
+characterSource = substituteOnce(characterSource, 'const DOMException = require("../generated/DOMException");',
+  'const DOMException = require("../generated/DOMException");\nconst { domSymbolTree } = require("../helpers/internal-constants");');
+characterSource = substituteOnce(characterSource, '    this._data = start + data + end;',
+  '    this._data = start + data + end;\n    domSymbolTree.updateNodeData(this);');
+await writeFile(characterPath, characterSource);
+const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
+await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
+  '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',
+  '    return domSymbolTree.serializeHTML(node, Boolean(outer), config.scriptingEnabled !== false);'));
 
 /** Relocate authored modules without bundling or runtime module-cache mutations. */
 let bridge = await readFile('src/parser/bridge.cjs', 'utf8');

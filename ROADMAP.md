@@ -10,7 +10,7 @@ Objetivo: trasladar el trabajo del DOM a Rust sin perder los contratos que esper
 | 1. Parser HTML5 y compatibilidad inicial | Completa | Parser real con html5ever, corpus diferencial, rutas de compatibilidad explícitas, React/Jest/Vitest y memoria con Document/Window. |
 | 2. Entornos y APIs entre realms | Completa | Vitest con pools VM, conversiones Blob/FormData/Request/URL, señales AbortSignal, errores y teardown verificables. Evidencia en los informes de validación, memoria y benchmarks del 11/09. |
 | 3. Estado estructural y mutaciones del árbol Rust | Completa | Identificadores estables, ownership, inserciones, movimientos, eliminación, recorridos y liberación integrados con los nodos reales. Regresiones de rendimiento registradas para la fase 5. |
-| 4. Datos, consultas y serialización nativas | Pendiente | Datos UTF-16, atributos, selectores reutilizando un motor CSS mantenido, contexto y orden correctos, invalidación después de mutaciones y rutas de compatibilidad documentadas. |
+| 4. Datos, consultas y serialización nativas | Completa | Datos UTF-16, atributos, selectores Servo, contexto y orden correctos, lectura actual después de mutaciones y rutas de compatibilidad documentadas. Validación y memoria aprobadas; benchmarks guardados, con regresiones de construcción para la fase 5. |
 | 5. Rendimiento y endurecimiento | Pendiente | Benchmarks equivalentes por fase, estrés de memoria, entradas adversas y diferenciales; corregir regresiones observadas sin falsear cobertura. |
 | 6. Distribución reproducible | Pendiente | Paquetes instalables desde artefactos, tipos públicos, binarios por plataforma y pruebas del paquete fuera del checkout. No requiere publicación pública en npm. |
 

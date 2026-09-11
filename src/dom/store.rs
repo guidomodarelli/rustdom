@@ -1,6 +1,7 @@
 //! Authoritative native forest with stable handles and atomic topology mutations.
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::data::NodeData;
 use super::error::{Result, TreeError};
 
 /// JavaScript represents every integer up to this value exactly.
@@ -10,15 +11,15 @@ const MIN_NODE_CAPACITY: usize = 64;
 /// Amortize handle allocation across Node-API without allocating unused node records.
 pub const HANDLE_BATCH_SIZE: u64 = 128;
 
-type NodeId = u64;
+pub(crate) type NodeId = u64;
 
 #[derive(Clone, Copy, Default)]
-struct Links {
-    parent: NodeId,
-    previous: NodeId,
-    next: NodeId,
-    first: NodeId,
-    last: NodeId,
+pub(crate) struct Links {
+    pub parent: NodeId,
+    pub previous: NodeId,
+    pub next: NodeId,
+    pub first: NodeId,
+    pub last: NodeId,
     child_count: u64,
     children_version: u32,
 }
@@ -43,13 +44,20 @@ pub struct TreeStatistics {
     pub releases: f64,
     pub mutations: f64,
     pub reserved_handles: f64,
+    pub data_nodes: f64,
+    pub data_updates: f64,
+    pub serializations: f64,
 }
 
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
     // Handles are assigned internally; HTML input cannot choose colliding keys.
-    nodes: FxHashMap<NodeId, Links>,
+    pub(crate) nodes: FxHashMap<NodeId, Links>,
+    pub(crate) data: FxHashMap<NodeId, NodeData>,
+    pub(crate) non_utf8_nodes: usize,
+    data_updates: u64,
+    pub(crate) serializations: u64,
     reserved: FxHashSet<NodeId>,
     next_id: NodeId,
     allocations: u64,
@@ -57,7 +65,7 @@ pub struct TreeStore {
     mutations: u64,
 }
 
-fn node_id(value: f64) -> Result<NodeId> {
+pub(crate) fn node_id(value: f64) -> Result<NodeId> {
     if !value.is_finite() || value.fract() != 0.0 || value < 1.0 || value > MAX_NODE_HANDLE as f64 {
         return Err(TreeError::InvalidHandle);
     }
@@ -65,7 +73,7 @@ fn node_id(value: f64) -> Result<NodeId> {
 }
 
 impl TreeStore {
-    fn activate(&mut self, id: NodeId) -> Result<()> {
+    pub(crate) fn activate(&mut self, id: NodeId) -> Result<()> {
         if self.nodes.contains_key(&id) {
             return Ok(());
         }
@@ -77,7 +85,7 @@ impl TreeStore {
         Ok(())
     }
 
-    fn links(&self, id: NodeId) -> Result<Links> {
+    pub(crate) fn links(&self, id: NodeId) -> Result<Links> {
         self.nodes
             .get(&id)
             .copied()
@@ -212,6 +220,23 @@ impl TreeStore {
         Self::default()
     }
 
+    /// Replace metadata only after decoding the whole snapshot successfully.
+    pub fn set_data(&mut self, handle: f64, encoded: &str) -> Result<()> {
+        let data: NodeData = serde_json::from_str(encoded).map_err(TreeError::InvalidMetadata)?;
+        let id = node_id(handle)?;
+        self.activate(id)?;
+        if data.template_content != 0.0 {
+            self.activate(node_id(data.template_content)?)?;
+        }
+        let unsafe_data = usize::from(data.has_non_utf8());
+        if let Some(previous) = self.data.insert(id, data) {
+            self.non_utf8_nodes -= usize::from(previous.has_non_utf8());
+        }
+        self.non_utf8_nodes += unsafe_data;
+        self.data_updates += 1;
+        Ok(())
+    }
+
     /// Allocate a handle that will never be reused, including after collection.
     pub fn allocate(&mut self) -> Result<f64> {
         if self.next_id == MAX_NODE_HANDLE {
@@ -315,11 +340,15 @@ impl TreeStore {
             child = next;
         }
         self.nodes.remove(&id);
+        if let Some(data) = self.data.remove(&id) {
+            self.non_utf8_nodes -= usize::from(data.has_non_utf8());
+        }
         self.releases += 1;
         if self.nodes.capacity() > MIN_NODE_CAPACITY && self.nodes.len() < self.nodes.capacity() / 4
         {
             self.nodes
                 .shrink_to(self.nodes.len().max(MIN_NODE_CAPACITY));
+            self.data.shrink_to(self.data.len().max(MIN_NODE_CAPACITY));
         }
         Ok(true)
     }
@@ -331,6 +360,9 @@ impl TreeStore {
             releases: self.releases as f64,
             mutations: self.mutations as f64,
             reserved_handles: self.reserved.len() as f64,
+            data_nodes: self.data.len() as f64,
+            data_updates: self.data_updates as f64,
+            serializations: self.serializations as f64,
         }
     }
 }
@@ -385,10 +417,7 @@ mod tests {
         let mut tree = TreeStore::new();
         let root = tree.allocate().unwrap();
         let child = tree.allocate().unwrap();
-        assert_eq!(
-            tree.append(root, root).unwrap_err(),
-            TreeError::Cycle(root as u64)
-        );
+        assert!(matches!(tree.append(root, root), Err(TreeError::Cycle(id)) if id == root as u64));
         assert_eq!(tree.get_links(root).unwrap().child_count, 0.0);
         tree.append(root, child).unwrap();
         assert!(tree.append(child, root).is_err());

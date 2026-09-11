@@ -1,7 +1,8 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree } = require('../../dist/native.cjs');
+const { NativeTree, QueryMode } = require('../../dist/native.cjs');
+const { encodeNodeData } = require('./data-bridge.cjs');
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -51,8 +52,49 @@ class NativeSymbolTree extends SymbolTree {
       this._objects.set(record.nativeId, new WeakRef(object));
       this._collected.register(object, record.nativeId);
     }
+    if (!record.nativeDataReady) {
+      this._arena.setData(record.nativeId, encodeNodeData(object, (node) => this._ensure(node)));
+      record.nativeDataReady = true;
+    }
     return record.nativeId;
   }
+
+  /** @param {object} object - Mutated DOM implementation. @returns {void} Updates an indexed node's native data. */
+  updateNodeData(object) {
+    const record = this._node(object);
+    if (record.nativeId !== undefined) {
+      this._arena.setData(record.nativeId, encodeNodeData(object, (node) => this._ensure(node)));
+      record.nativeDataReady = true;
+    }
+  }
+
+  /** @param {object} node - DOM root. @param {boolean} outer - Include root markup. @param {boolean} scripting - Noscript serialization mode. @returns {string} HTML from native data. */
+  serializeHTML(node, outer, scripting) { return this._arena.serializeHtml(this._ensure(node), outer, scripting); }
+
+  /**
+   * Resolve native query results to the same DOM implementations used by jsdom.
+   * @param {string} selector - Already-converted DOMString selector.
+   * @param {object} root - Query context.
+   * @param {number} mode - Native query mode.
+   * @returns {object[]|null} Results or null for compatibility handling.
+   */
+  _query(selector, root, mode) {
+    const document = root._ownerDocument;
+    if (document?._parsingMode !== 'html' || typeof selector !== 'string' || !selector.isWellFormed()) return null;
+    let treeRoot = root;
+    while (this.parent(treeRoot)) treeRoot = this.parent(treeRoot);
+    if (treeRoot._host?._shadowRoot === treeRoot) return null;
+    const result = this._arena.query(selector, this._ensure(root), this._ensure(document), mode, document._mode === 'quirks');
+    return result == null ? null : Array.from(result, (id) => this._object(id));
+  }
+  /** @param {string} selector - Selector. @param {object} root - Context. @returns {object[]|null} Descendants or fallback. */
+  queryAll(selector, root) { return this._query(selector, root, QueryMode.All); }
+  /** @param {string} selector - Selector. @param {object} root - Context. @returns {object[]|null} First match or fallback. */
+  queryFirst(selector, root) { return this._query(selector, root, QueryMode.First); }
+  /** @param {string} selector - Selector. @param {object} root - Subject. @returns {object[]|null} Subject match or fallback. */
+  matchNode(selector, root) { return this._query(selector, root, QueryMode.Matches); }
+  /** @param {string} selector - Selector. @param {object} root - Original subject. @returns {object[]|null} Closest ancestor or fallback. */
+  closestNode(selector, root) { return this._query(selector, root, QueryMode.Closest); }
 
   /** @param {number} id - Native handle or zero. @returns {object|null} The original JS node. */
   _object(id) {

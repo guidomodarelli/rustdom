@@ -1,7 +1,8 @@
 /** @file Runs isolated benchmark processes, preserves raw samples, and writes comparable summaries. */
 'use strict';
 const { spawnSync } = require('node:child_process');
-const { mkdirSync, writeFileSync, readFileSync } = require('node:fs');
+const { mkdirSync, writeFileSync, readFileSync, readdirSync } = require('node:fs');
+const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
 
@@ -9,6 +10,16 @@ const { createHash } = require('node:crypto');
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
 /** Store reports in version control as requested; never replace results with marketing claims. */
 const outputDirectory = 'reports/benchmarks';
+
+/** @param {string} directory - Owned source directory. @returns {string[]} Files included in the reproducibility digest. */
+function sourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory() ? sourceFiles(`${directory}/${entry.name}`) : [`${directory}/${entry.name}`]);
+}
+const measuredSources = [...sourceFiles('src'), ...sourceFiles('scripts'), ...sourceFiles('benchmarks'),
+  'package-lock.json', 'Cargo.lock'].sort();
+const sourceDigest = createHash('sha256');
+for (const path of measuredSources) sourceDigest.update(path).update('\0').update(readFileSync(path)).update('\0');
 
 /**
  * Summarize raw observations using median and p95, without deleting outliers.
@@ -30,17 +41,15 @@ const report = {
   nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
   machine: { platform: platform(), arch: arch(), release: release(), cpu: cpus()[0].model,
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
-  sourceHash: createHash('sha256').update(['src/lib.rs', 'src/parser/bridge.cjs', 'src/environments/vitest.mjs',
-    'src/environments/web-platform.cjs', 'src/environments/window.cjs', 'benchmarks/worker.cjs', 'package-lock.json', 'Cargo.lock']
-    .map((path) => readFileSync(path)).reduce((combined, contents) => Buffer.concat([combined, contents]), Buffer.alloc(0))).digest('hex'),
+  sourceHash: sourceDigest.digest('hex'), measuredSources,
   methodology: {
     build: 'cargo release, thin LTO', processOrders: ORDERS,
     timing: 'Public operation only; excludes module startup, setup, validation, window.close and explicit GC.',
     memory: 'Process memory after window.close, one event-loop turn and explicit GC; not peak memory or allocation totals.',
-    compatibility: 'Assertions verify row count and decoded text outside timed regions; functional suites run separately.',
+    compatibility: 'Row count, decoded text, and deterministic full-document SHA-256 are checked outside timing. Cross-engine output hashes must match. serialize-utf8 includes result consumption via Buffer.byteLength.',
     environments: 'Environment setup includes creation of a 25-row document with outside-only scripts, excludes imports and teardown, and uses an isolated globals object for the normal setup case.',
     ratio: 'jsdom median / rustdom median; values greater than 1 favor rustdom.',
-    limitations: 'Synthetic workloads on one machine. Shared JavaScript DOM and selectors remain. No claim about complete test-suite speed.',
+    limitations: 'Synthetic workloads on one machine. JavaScript wrappers and Web APIs remain; unsupported selectors delegate to jsdom. No claim about complete test-suite speed.',
   },
   runs: [], comparisons: [],
 };
@@ -58,6 +67,8 @@ for (const order of ORDERS) {
 }
 for (const workload of report.runs[0].workloads) {
   const engines = {};
+  const hashes = report.runs.map((run) => run.workloads.find((entry) => entry.name === workload.name && entry.rows === workload.rows).outputHash);
+  assert.ok(hashes.every((hash) => hash === hashes[0]), `Benchmark output mismatch: ${workload.name}/${workload.rows}`);
   for (const engine of ['jsdom', 'rustdom']) {
     const values = report.runs.filter((run) => run.engine === engine).flatMap((run) =>
       run.workloads.find((entry) => entry.name === workload.name && entry.rows === workload.rows).samplesMs);
@@ -79,5 +90,5 @@ writeFileSync(`${outputDirectory}/${basename}.md`, `# Benchmark ${report.capture
   table.join('\n') + '\n\nRatio = mediana jsdom / mediana rustdom. Mayor que 1 favorece rustdom.\n' +
   '\nCada fila contiene 18 muestras en dos procesos por motor, con tres warmups por proceso.\n' +
   'Se excluyen carga de módulos, preparación, validación y limpieza. La memoria guardada en JSON es posterior a GC; no es memoria pico.\n' +
-  'Los documentos con scripts usan el parser original. Selectores y mutaciones siguen en JavaScript.\n');
+  'Los documentos con scripts usan el parser original. Árbol, consultas compatibles y serialización HTML ejecutan Rust; wrappers y Web APIs reutilizan jsdom.\n');
 process.stdout.write(`${table.join('\n')}\n\nGuardado: ${outputDirectory}/${basename}.json\n`);

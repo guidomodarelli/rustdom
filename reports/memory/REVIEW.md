@@ -42,3 +42,9 @@ Los errores del árbol viven en un módulo Rust puro; la conversión a N-API est
 ## Medición consistente del punto final
 
 La ejecución macOS de CI `34632388870` mostró cero objetos observados y registros nativos retenidos, pero dos muestras tardías de heap elevadas. La comprobación de referencias ocurría después de otra colección final que no se guardaba como muestra de memoria. El arnés ahora solicita GC mayor asíncrono explícito y calcula el crecimiento con `terminalMemory`, obtenido en el mismo punto quiescente que las referencias. Se conservan todas las muestras intermedias y los mismos presupuestos; una retención persistente sigue haciendo fallar el test.
+
+## Datos, selectores y serialización
+
+Los atributos y el texto pertenecen al registro nativo del nodo y se eliminan al liberarlo. El informe `2026-09-11T19-32-08.878Z-linux-x64.json` comprueba que `dataNodes`, `liveNodes` e `indexedNodes` vuelven al valor inicial. Se recolectaron los 880 documentos y 880 ventanas de rustdom, y los 440 documentos y ventanas de cada modo de Vitest. El crecimiento final del heap de rustdom fue 0,55 MiB; el RSS del parser nativo creció 0,50 MiB.
+
+El motor CSS conserva como máximo 256 selectores compilados, limita las claves cacheadas a 4.096 bytes y no guarda nodos ni ventanas. Las caches de matching se destruyen al terminar cada consulta. Los tests comprueban el límite, la invalidación por lectura de datos actuales y el aislamiento entre árboles. La serialización es iterativa y rechaza ciclos de metadatos de templates en la API nativa, evitando recursión o crecimiento sin límite ante ese input inválido.
