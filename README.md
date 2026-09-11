@@ -19,6 +19,7 @@ cargo test
 npm test
 npm run validate
 npm run test:memory
+npm run test:native-memory # Linux con Valgrind y símbolos de glibc
 npm run bench
 ```
 
@@ -53,6 +54,8 @@ También expone `dataNodes`, `dataUpdates`, `serializations`, `nativeQueries`, `
 La migración del árbol tiene un costo medido todavía pendiente de optimización: el [benchmark de esta fase](reports/benchmarks/2026-09-11T17-57-32.630Z-linux-x64.md) conserva ganancias en varias cargas de parsing, pero muestra regresiones cercanas al 10–15% en construcción grande, documentos con scripts y mutaciones. Los prototipos anteriores, con regresiones mayores, también quedan guardados. Esto se aborda en las fases de consultas nativas y rendimiento; no se presenta como una mejora global ya conseguida.
 
 Con datos y consultas nativas, el [checkpoint siguiente](reports/benchmarks/2026-09-11T19-33-41.341Z-linux-x64.md) mide **1,89× en consultas repetidas** y **2,22–2,70× en serialización consumida como UTF-8**. La copia de metadatos por nodo agrega costo: construcción de 1.000 filas tarda 86,67 ms frente a 61,83 ms de jsdom, y 100 mutaciones 3,50 ms frente a 2,09 ms. Estas regresiones quedan registradas para optimizar el puente en la fase 5. Cada muestra verifica el documento completo mediante SHA-256 fuera del tiempo medido.
+
+La [optimización posterior](reports/benchmarks/2026-09-11T20-00-26.493Z-linux-x64.md) evita JSON para datos HTML comunes y el árbol JSON intermedio del parser. En esa medición, la construcción elegible mide **1,00–1,22×**, `innerHTML` **1,09–1,49×**, consultas **1,90×** y serialización **2,28–2,67×**. Persisten costos en construcción con scripts (**0,83×**) y escrituras aisladas (**0,69×**). La versión ofrece mejoras en operaciones concretas; no una aceleración universal de cualquier suite. Se conserva también el experimento de inserciones combinadas, descartado porque no mostró un beneficio claro.
 
 ### Jest 30
 
@@ -105,9 +108,10 @@ Jest y Vitest usan `runScripts: 'dangerously'` por defecto. Por eso su documento
 
 - `npm run validate`: formato y Clippy de Rust, tests Rust, build nativo, tests de contrato, React/Testing Library en Jest y Vitest y comparación diferencial del corpus HTML5. Guarda logs y estados en `reports/validation/`.
 - `npm run test:memory`: procesos separados para jsdom, rustdom, el parser nativo y teardown de Vitest. Repite creación/cierre, comprueba documentos mediante `WeakRef`, incluye timers, observers, iframes y nombres únicos, y guarda heap, memoria externa y RSS en `reports/memory/`.
+- `npm run test:native-memory`: ejecuta los tests Rust reales bajo Valgrind/Memcheck en Linux; falla ante accesos inválidos o fugas definitivas/indirectas y conserva también posibles fugas y allocations alcanzables para revisión.
 - `npm run bench`: operaciones públicas equivalentes, procesos independientes, warmup y muestras crudas. Guarda JSON y un resumen Markdown con fecha en `reports/benchmarks/`. Debe ejecutarse sin otras cargas locales de tests/build para reducir interferencias.
 
-La suite de memoria evalúa crecimiento retenido después de GC; no mide memoria pico ni sustituye ASan/LSan. La revisión verifica que el árbol `RcDom` temporal se libere antes de retornar al caller, que el puente no conserve handles nativos y que el cierre de entornos libere referencias y globals. Las pruebas finitas delimitan los escenarios evaluados; no demuestran ausencia absoluta de toda fuga posible.
+La suite de memoria evalúa crecimiento retenido después de GC; no mide memoria pico ni sustituye ASan/LSan. La revisión verifica que el árbol `RcDom` temporal se libere antes de retornar al caller, que los índices del puente usen referencias débiles y que el cierre de entornos libere referencias y globals. Valgrind complementa el estrés del addon con análisis del ejecutable de tests Rust; las allocations pendientes del arnés/runtime se detallan en [el informe de memoria](reports/memory/REVIEW.md). Las pruebas finitas delimitan los escenarios evaluados; no demuestran ausencia absoluta de toda fuga posible.
 
 Los checkpoints usan tags incrementales `checkpoint-*`, con commits y pushes después de validar el hito. La validación local se realiza en Linux x64 mediante WSL. El [primer checkpoint pasó CI en Linux, Windows y macOS](https://github.com/guidomodarelli/rustdom/actions/runs/34619548664), incluidas compilación nativa, integraciones, corpus y pruebas de memoria; el job de benchmarks también pasó.
 

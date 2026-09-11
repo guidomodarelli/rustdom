@@ -4,6 +4,10 @@ const stringify = JSON.stringify;
 const setPrototypeOf = Object.setPrototypeOf;
 const isWellFormed = Function.call.bind(String.prototype.isWellFormed);
 const charCodeAt = Function.call.bind(String.prototype.charCodeAt);
+/** Namespace invariant from the HTML specification. */
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+/** Plain character data and containers have no qualified names or attribute metadata. */
+const SIMPLE_NODE_TYPES = new Set([3, 4, 8, 9, 11]);
 
 /** @param {string|null|undefined} value - DOM string. @returns {string|number[]|null} Lossless transport value. */
 function wireString(value) {
@@ -38,4 +42,38 @@ function encodeNodeData(node, ensure) {
   });
 }
 
-module.exports = { encodeNodeData };
+/**
+ * Transfer common HTML data directly; preserve the lossless decoder for exceptional strings and namespaces.
+ * @param {object} arena - Native storage instance.
+ * @param {number} handle - Stable node identifier.
+ * @param {object} node - DOM implementation.
+ * @param {Function} ensure - Template content handle resolver.
+ * @returns {void} Data is committed before returning to the caller.
+ */
+function writeNodeData(arena, handle, node, ensure) {
+  const value = node._data ?? '';
+  if (SIMPLE_NODE_TYPES.has(node.nodeType) && isWellFormed(value)) {
+    arena.setSimpleData(handle, node.nodeType, value);
+    return;
+  }
+  if (node._namespaceURI === HTML_NAMESPACE && !node._prefix && !node._templateContents &&
+      node._isValue == null && isWellFormed(node._localName)) {
+    const attributes = [];
+    let direct = true;
+    for (const attribute of node._attributeList) {
+      if (attribute._namespace != null || attribute._namespacePrefix != null ||
+          !isWellFormed(attribute._localName) || !isWellFormed(attribute._value)) {
+        direct = false;
+        break;
+      }
+      attributes.push(attribute._localName, attribute._value);
+    }
+    if (direct) {
+      arena.setHtmlElement(handle, node._localName, attributes);
+      return;
+    }
+  }
+  arena.setData(handle, encodeNodeData(node, ensure));
+}
+
+module.exports = { writeNodeData };

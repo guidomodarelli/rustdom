@@ -7,7 +7,7 @@ use html5ever::interface::QuirksMode;
 use html5ever::{ParseOpts, QualName, parse_document, parse_fragment, tendril::TendrilSink};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use napi_derive::napi;
-use serde_json::{Value, json};
+use serde::Serialize;
 
 /// Pinned html5ever 0.39 diagnostic for text foster-parenting (rules.rs, InTableText).
 /// jsdom 27's adapter differs from the HTML5 tree here, so preserve its behavior.
@@ -27,6 +27,23 @@ enum Visit {
     Node(Handle),
     Close,
     Template(Handle),
+}
+
+/// Borrow attribute strings while serializing one event; no intermediate JSON object tree.
+#[derive(Serialize)]
+struct TapeAttribute<'a> {
+    name: &'a str,
+    value: &'a str,
+    namespace: &'a str,
+    prefix: Option<&'a str>,
+}
+
+fn write_event(output: &mut Vec<u8>, first: &mut bool, event: &impl Serialize) {
+    if !*first {
+        output.push(b',');
+    }
+    *first = false;
+    serde_json::to_writer(output, event).expect("serializing borrowed DOM data to memory");
 }
 
 /// Convert a completed HTML5 tree to an ordered tape, including inert templates.
@@ -54,15 +71,16 @@ fn encode(dom: RcDom, fragment: bool) -> String {
         .rev()
         .map(|node| Visit::Node(node.clone()))
         .collect();
-    let mut events: Vec<Value> = Vec::new();
+    let mut output = b"{\"events\":[".to_vec();
+    let mut first_event = true;
     while let Some(visit) = pending.pop() {
         let node = match visit {
             Visit::Close => {
-                events.push(json!(["close"]));
+                write_event(&mut output, &mut first_event, &["close"]);
                 continue;
             }
             Visit::Template(contents) => {
-                events.push(json!(["template"]));
+                write_event(&mut output, &mut first_event, &["template"]);
                 pending.push(Visit::Close);
                 pending.extend(
                     contents
@@ -90,24 +108,21 @@ fn encode(dom: RcDom, fragment: bool) -> String {
                 {
                     fallback_reason.get_or_insert("legacy-select");
                 }
-                let attributes: Vec<Value> = attrs
-                    .borrow()
+                let borrowed_attributes = attrs.borrow();
+                let attributes: Vec<TapeAttribute<'_>> = borrowed_attributes
                     .iter()
-                    .map(|attribute| {
-                        json!({
-                            "name": attribute.name.local.as_ref(),
-                            "value": attribute.value.as_ref(),
-                            "namespace": attribute.name.ns.as_ref(),
-                            "prefix": attribute.name.prefix.as_ref().map(|prefix| prefix.as_ref()),
-                        })
+                    .map(|attribute| TapeAttribute {
+                        name: attribute.name.local.as_ref(),
+                        value: attribute.value.as_ref(),
+                        namespace: attribute.name.ns.as_ref(),
+                        prefix: attribute.name.prefix.as_ref().map(|prefix| prefix.as_ref()),
                     })
                     .collect();
-                events.push(json!([
-                    "element",
-                    name.local.as_ref(),
-                    name.ns.as_ref(),
-                    attributes
-                ]));
+                write_event(
+                    &mut output,
+                    &mut first_event,
+                    &("element", name.local.as_ref(), name.ns.as_ref(), attributes),
+                );
                 pending.push(Visit::Close);
                 if let Some(contents) = template_contents.borrow().as_ref() {
                     pending.push(Visit::Template(contents.clone()));
@@ -120,22 +135,40 @@ fn encode(dom: RcDom, fragment: bool) -> String {
                         .map(|child| Visit::Node(child.clone())),
                 );
             }
-            NodeData::Text { contents } => events.push(json!(["text", contents.borrow().as_ref()])),
-            NodeData::Comment { contents } => events.push(json!(["comment", contents.as_ref()])),
+            NodeData::Text { contents } => write_event(
+                &mut output,
+                &mut first_event,
+                &["text", contents.borrow().as_ref()],
+            ),
+            NodeData::Comment { contents } => write_event(
+                &mut output,
+                &mut first_event,
+                &["comment", contents.as_ref()],
+            ),
             NodeData::Doctype {
                 name,
                 public_id,
                 system_id,
-            } => events.push(json!([
-                "doctype",
-                name.as_ref(),
-                public_id.as_ref(),
-                system_id.as_ref()
-            ])),
+            } => write_event(
+                &mut output,
+                &mut first_event,
+                &[
+                    "doctype",
+                    name.as_ref(),
+                    public_id.as_ref(),
+                    system_id.as_ref(),
+                ],
+            ),
             NodeData::Document | NodeData::ProcessingInstruction { .. } => {}
         }
     }
-    json!({ "mode": mode, "events": events, "fallbackReason": fallback_reason }).to_string()
+    output.extend_from_slice(b"],\"mode\":");
+    serde_json::to_writer(&mut output, &mode).expect("serializing static document mode");
+    output.extend_from_slice(b",\"fallbackReason\":");
+    serde_json::to_writer(&mut output, &fallback_reason)
+        .expect("serializing static fallback reason");
+    output.push(b'}');
+    String::from_utf8(output).expect("JSON serializer emits UTF-8")
 }
 
 /// Parse an HTML document with scripting disabled, matching ordinary jsdom input.
@@ -185,6 +218,7 @@ pub fn parse_fragment_tape(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::{Value, json};
 
     #[test]
     fn should_decode_entities_and_repair_tables_when_parsing_html() {

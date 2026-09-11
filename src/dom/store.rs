@@ -223,6 +223,11 @@ impl TreeStore {
     /// Replace metadata only after decoding the whole snapshot successfully.
     pub fn set_data(&mut self, handle: f64, encoded: &str) -> Result<()> {
         let data: NodeData = serde_json::from_str(encoded).map_err(TreeError::InvalidMetadata)?;
+        self.replace_data(handle, data)
+    }
+
+    /// Shared commit path for decoded snapshots and allocation-light native arguments.
+    pub fn replace_data(&mut self, handle: f64, data: NodeData) -> Result<()> {
         let id = node_id(handle)?;
         self.activate(id)?;
         if data.template_content != 0.0 {

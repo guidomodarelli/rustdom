@@ -29,7 +29,7 @@ La cobertura ampliada también observa `Window` por separado. Esto es necesario 
 
 La fase de entornos incorpora señales nativas retenidas fuera de la ventana, URLs de objetos con buffers y el pool VM. La primera prueba VM conservó por error la última referencia fuerte al contexto en el propio arnés (informe `2026-09-11T16-36-30.109Z-linux-x64.json`); al soltarla explícitamente se verificó la recolección de los 440 documentos y ventanas. Los informes fallidos se conservan como evidencia del diagnóstico.
 
-No se ejecutaron ASan/LSan, Valgrind ni una campaña prolongada de fuzzing. Tampoco se verificó localmente el addon nativo de Windows o macOS. No se afirma ausencia absoluta de fugas fuera de los escenarios y límites guardados.
+No se ejecutaron ASan/LSan ni una campaña prolongada de fuzzing. Valgrind se incorporó en la fase de endurecimiento, con el alcance que se detalla abajo. Tampoco se verificó localmente el addon nativo de Windows o macOS; esas plataformas se ejercitan mediante CI. No se afirma ausencia absoluta de fugas fuera de los escenarios y límites guardados.
 
 ## Almacenamiento estructural nativo
 
@@ -48,3 +48,13 @@ La ejecución macOS de CI `34632388870` mostró cero objetos observados y regist
 Los atributos y el texto pertenecen al registro nativo del nodo y se eliminan al liberarlo. El informe `2026-09-11T19-32-08.878Z-linux-x64.json` comprueba que `dataNodes`, `liveNodes` e `indexedNodes` vuelven al valor inicial. Se recolectaron los 880 documentos y 880 ventanas de rustdom, y los 440 documentos y ventanas de cada modo de Vitest. El crecimiento final del heap de rustdom fue 0,55 MiB; el RSS del parser nativo creció 0,50 MiB.
 
 El motor CSS conserva como máximo 256 selectores compilados, limita las claves cacheadas a 4.096 bytes y no guarda nodos ni ventanas. Las caches de matching se destruyen al terminar cada consulta. Los tests comprueban el límite, la invalidación por lectura de datos actuales y el aislamiento entre árboles. La serialización es iterativa y rechaza ciclos de metadatos de templates en la API nativa, evitando recursión o crecimiento sin límite ante ese input inválido.
+
+## Optimización e instrumentación nativa
+
+La fase de rendimiento evita el JSON por nodo en HTML común y serializa el tape del parser directamente sobre un buffer. Los strings prestados se consumen durante la visita y no escapan del `RcDom`. Las dos rutas de metadatos usan el mismo `replace_data`, por lo que comparten liberación y contabilidad. No se agregaron referencias a JavaScript, threads, timers ni caches.
+
+`2026-09-11T19-52-03.333Z-linux-x64.json` conserva el estrés final: cero documentos, ventanas y registros nativos retenidos en los escenarios observados. Los tests adversos incluyen 240 mutaciones con transiciones UTF-16, errores de selectores, pares de atributos inválidos y serialización/liberación de un árbol nativo de 10.000 niveles.
+
+El informe `2026-09-11T19-54-13.684Z-valgrind.json` ejecuta los 14 tests Rust reales con Valgrind 3.18.1/Memcheck: 81.377 allocations, cero errores de acceso, cero bytes `definitely lost` y cero `indirectly lost`. Se conservan **48 bytes `possibly lost`**, cuyo stack pertenece a `std::thread`/`std::sync::mpmc` desde `libtest`, y **544 bytes `still reachable`** del registro de stack del runtime Rust. No hay supresiones. Esas observaciones no se presentan como cero bytes pendientes ni como cobertura del addon cargado en V8.
+
+Los intentos previos fallaron antes de ejecutar tests por ausencia de símbolos de glibc. Se conservan sus logs. La instalación de `libc6-dbg` de la versión exacta del sistema permitió el análisis; no se sustituyó la biblioteca de ejecución. `npm run test:native-memory` requiere Linux, Valgrind y esos símbolos. CI instala Valgrind en Linux y guarda los informes completos.
