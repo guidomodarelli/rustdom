@@ -4,9 +4,13 @@ Experimento de DOM para Node.js, Jest y Vitest, con **compatibilidad con jsdom c
 
 ## Estado real
 
+El objetivo activo es migrar el 100% de la implementación a Rust con compatibilidad completa verificable. Ese objetivo **sigue abierto**: los checkpoints iniciales y las pruebas aprobadas de la versión híbrida no lo completan. El alcance restante se mantiene en [ROADMAP.md](ROADMAP.md).
+
 Esta versión es **híbrida y experimental**. Rust realiza el parsing HTML5, almacena la estructura y los datos del árbol, ejecuta mutaciones, consultas CSS compatibles y serialización HTML. Reutiliza `html5ever` y el motor `selectors` de Servo. La capa JavaScript conserva referencias de ownership y caches mediante `symbol-tree`, para mantener identidad de objetos y permitir que V8 recolecte el grafo. Los wrappers WebIDL, eventos, estilos y demás Web APIs reutilizan **jsdom 27.4.0**, fijado en el lockfile. No es un DOM íntegramente en Rust ni un reemplazo probado de versiones posteriores de jsdom.
 
 El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su licencia y sus archivos auxiliares, e integra los módulos nativos mediante sustituciones verificadas sobre esa versión fijada. El jsdom instalado en `node_modules` permanece independiente y se usa como referencia en los tests.
+
+La migración de `CharacterData` elimina su copia de texto en JavaScript: `Text`, `Comment`, `CDATASection` y `ProcessingInstruction` leen su valor de Rust. La longitud, los substrings, las sustituciones UTF-16 y `wholeText` se ejecutan sobre ese almacenamiento nativo. Los hooks de rangos, observadores y parte del binding WebIDL todavía usan jsdom y deben migrarse para cumplir el objetivo integral.
 
 ## Desarrollo
 

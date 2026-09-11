@@ -62,3 +62,11 @@ Los intentos previos fallaron antes de ejecutar tests por ausencia de símbolos 
 ## Distribución
 
 El resolvedor privado nuevo captura funciones de carga de módulos, sin referencias a ventanas o nodos. Los exports ESM apuntan al mismo runtime CommonJS. El estrés `2026-09-11T20-23-11.454Z-linux-x64.json` vuelve a comprobar cero documentos y ventanas observados retenidos, y retorno al nivel inicial de nodos y datos nativos. El crecimiento final de heap de rustdom fue 0,53 MiB. Los consumidores de distribución cierran sus ventanas y el servidor HTTP auxiliar; los directorios temporales de instalaciones exitosas se eliminan después de verificar sus paths.
+
+## CharacterData canónico en Rust
+
+El texto deja de almacenarse en un campo propio de JavaScript. Los cuatro tipos de CharacterData guardan unidades UTF-16 en `TreeStore`; el accessor de compatibilidad `_data` lee/escribe ese estado. El constructor de Node/EventTarget no conserva `privateData`, de modo que la cadena inicial no queda retenida por ese argumento después de construir el nodo. Las lecturas devuelven valores al caller, sin una caché persistente de cadenas JavaScript.
+
+Las sustituciones construyen el nuevo buffer antes de modificar el estado y devuelven el valor anterior para MutationObserver. La estructura de relaciones no cambia; los buffers se destruyen al reemplazarlos o liberar su nodo. También se inicializan y liberan nodos que nunca se insertan en un documento. `wholeText` rechaza metadata faltante con un error controlado.
+
+El estrés `2026-09-11T22-39-35.076Z-linux-x64.json` agrega WeakRef para 1.320 nodos CharacterData por motor, valores grandes, surrogates y observers con `characterDataOldValue`. Todos los observados de rustdom se recolectaron, junto con los 880 documentos y ventanas. La memoria nativa vuelve a los conteos iniciales; el heap final creció 0,56 MiB. Este alcance no sustituye la migración pendiente de la lógica de rangos y observadores ni demuestra ausencia absoluta de fugas.

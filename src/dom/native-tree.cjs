@@ -40,7 +40,7 @@ class NativeSymbolTree extends SymbolTree {
    * @param {object} object - Real node entering native storage.
    * @returns {number} Its stable native handle.
    */
-  _ensure(object) {
+  _identify(object) {
     const record = this._node(object);
     if (record.nativeId === undefined) {
       if (this._nextHandle === this._handleLimit) {
@@ -52,21 +52,51 @@ class NativeSymbolTree extends SymbolTree {
       this._objects.set(record.nativeId, new WeakRef(object));
       this._collected.register(object, record.nativeId);
     }
+    return record.nativeId;
+  }
+
+  /** @param {object} object - DOM node. @returns {number} A handle with initialized native metadata. */
+  _ensure(object) {
+    const id = this._identify(object);
+    const record = this._node(object);
     if (!record.nativeDataReady) {
       writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
     }
-    return record.nativeId;
+    return id;
   }
 
   /** @param {object} object - Mutated DOM implementation. @returns {void} Updates an indexed node's native data. */
   updateNodeData(object) {
     const record = this._node(object);
+    if (record.nativeCharacterKind !== undefined) return;
     if (record.nativeId !== undefined) {
       writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
     }
   }
+
+  /** @param {object} node - CharacterData implementation. @param {number} kind - Final subclass kind. @param {string} value - Initial UTF-16 value. @returns {void} */
+  initializeCharacterData(node, kind, value) {
+    const id = this._identify(node);
+    this._arena.setCharacterData(id, kind, value);
+    const record = this._node(node);
+    record.nativeCharacterKind = kind;
+    record.nativeDataReady = true;
+  }
+
+  /** @param {object} node - CharacterData implementation. @returns {string} Its current native value. */
+  characterData(node) { return this._arena.getCharacterData(this._identify(node)); }
+  /** @param {object} node - CharacterData implementation. @param {string} value - Replacement value. @returns {void} */
+  setCharacterData(node, value) { this._arena.setCharacterData(this._identify(node), this._node(node).nativeCharacterKind, value); }
+  /** @param {object} node - CharacterData implementation. @returns {number} UTF-16 length without transferring text. */
+  characterLength(node) { return this._arena.characterLength(this._identify(node)); }
+  /** @param {object} node - CharacterData implementation. @param {number} offset - UTF-16 offset. @param {number} count - Requested units. @returns {string} Native slice. */
+  substringData(node, offset, count) { return this._arena.substringData(this._identify(node), offset, count); }
+  /** @param {object} node - CharacterData implementation. @param {number} offset - UTF-16 offset. @param {number} count - Units to replace. @param {string} value - New units. @returns {string} Previous value for observers. */
+  replaceCharacterData(node, offset, count, value) { return this._arena.replaceCharacterData(this._identify(node), offset, count, value); }
+  /** @param {object} node - Text or CDATA implementation. @returns {string} Adjacent text from the native tree. */
+  wholeText(node) { return this._arena.wholeText(this._identify(node)); }
 
   /** @param {object} node - DOM root. @param {boolean} outer - Include root markup. @param {boolean} scripting - Noscript serialization mode. @returns {string} HTML from native data. */
   serializeHTML(node, outer, scripting) { return this._arena.serializeHtml(this._ensure(node), outer, scripting); }

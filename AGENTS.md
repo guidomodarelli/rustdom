@@ -16,6 +16,7 @@
 ## Objetivo y diseño
 
 - Construir un clon de jsdom respaldado por Rust que funcione con Jest y Vitest y priorice **máxima compatibilidad con jsdom**.
+- Objetivo activo: **100% de la implementación migrada a Rust y 100% de compatibilidad verificable**. La versión híbrida y sus checkpoints son avances intermedios; no satisfacen el objetivo final. No reducir el alcance a las pruebas que ya pasan ni cerrar el objetivo mientras queden módulos o rutas delegadas a jsdom/parse5.
 - Reutilizar bibliotecas maduras cuando corresponda, incluyendo `html5ever`, para evitar reimplementar trabajo existente.
 - Buscar alto rendimiento mediante mediciones, no por suponer que Rust será más rápido.
 - Explicar con precisión qué partes ejecutan Rust, cuáles siguen en JavaScript y qué modos utilizan rutas de compatibilidad. No presentar el motor híbrido como un DOM íntegramente en Rust.
@@ -55,6 +56,7 @@
 - No crear checkpoints de trabajo que se sabe que falla. Incluir resultados de validación y benchmarks correspondientes cuando formen parte del hito.
 - Usar una rama `feature/*` al iniciar desde una rama por defecto, salvo instrucción explícita diferente.
 - El usuario autoriza crear PRs, completar sus checks y mergearlos desde la terminal de forma autónoma. Usar `main` como base; crearla si no existe. Tras cada merge, eliminar las ramas ya integradas y conservar los tags.
+- Por cada PR nuevo, aplicar `codex-autofix-loop`: atender comentarios inline, generales y cuerpos de review; verificar fixes y su publicación antes de cerrar hallazgos; pedir nueva review después de cambios y comprobar el SHA revisado antes del merge. Mantener el seguimiento activo mientras haya trabajo o revisión pendiente.
 - Si los PRs no se pueden mergear desde la terminal, el usuario autoriza trabajar directamente sobre `main`; no saltar checks ni protecciones que requieran intervención externa.
 - Continuar con las fases pendientes después de cada hito, sin detenerse a pedir permiso para el siguiente. Mantener un registro verificable del avance y no declarar completa una fase cuya implementación siga pendiente.
 - No usar force-push ni sobrescribir trabajo ajeno. La autorización no incluye publicar paquetes npm automáticamente.

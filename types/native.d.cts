@@ -22,6 +22,13 @@ export class NativeTree {
   setHtmlElement(handle: number, name: string, attributes: string[]): void;
   /** Direct transfer for well-formed text, comments or containers. */
   setSimpleData(handle: number, kind: number, value: string): void;
+  /** Initializes canonical UTF-16 CharacterData; supported kinds are 3, 4, 7 and 8. */
+  setCharacterData(handle: number, kind: number, value: string): void;
+  getCharacterData(handle: number): string;
+  characterLength(handle: number): number;
+  substringData(handle: number, offset: number, count: number): string;
+  replaceCharacterData(handle: number, offset: number, count: number, value: string): string;
+  wholeText(handle: number): string;
   serializeHtml(handle: number, outer: boolean, scripting: boolean): string;
   query(selector: string, root: number, document: number,
     mode: typeof QueryMode[keyof typeof QueryMode], quirks: boolean): Float64Array | null;

@@ -10,6 +10,8 @@ const retainedTeardowns = [];
 const references = [];
 /** Observe Window proxies too: close() can release a Document while a Window remains retained. */
 const windowReferences = [];
+/** Observe attached and detached CharacterData wrappers owning native buffers. */
+const characterReferences = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
 const retainedControllers = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
@@ -42,10 +44,17 @@ function exerciseWindow(runtime, identity) {
   const document = dom.window.document;
   windowReferences.push(new WeakRef(dom.window));
   const observer = new dom.window.MutationObserver(() => {});
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, characterData: true, characterDataOldValue: true, subtree: true });
   dom.window.addEventListener('custom-event', () => document.body);
   dom.window.setInterval(() => document.body, 60_000);
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
+  const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
+  const comment = document.createComment('comment-' + identity);
+  const detached = document.createTextNode('detached-' + identity);
+  document.body.append(text, comment);
+  text.replaceData(1, 4096, '🦀');
+  comment.appendData('\udc00');
+  characterReferences.push(new WeakRef(text), new WeakRef(comment), new WeakRef(detached));
   references.push(new WeakRef(document.querySelector('iframe').contentDocument));
   windowReferences.push(new WeakRef(document.querySelector('iframe').contentWindow));
   // Leave the observer connected: closing the window must release the entire cycle.
@@ -99,6 +108,7 @@ async function main() {
   const terminalMemory = process.memoryUsage();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
   const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
+  const survivingCharacterData = characterReferences.filter((reference) => reference.deref() !== undefined).length;
   const nativeTree = nativeRuntime?.getNativeTreeStatistics();
   const first = snapshots[0];
   const last = terminalMemory;
@@ -112,11 +122,12 @@ async function main() {
     totalOperations: (WARMUP_BATCHES + MEASURED_BATCHES) * OPERATIONS_PER_BATCH,
     observedDocuments: references.length, survivingDocuments,
     observedWindows: windowReferences.length, survivingWindows,
+    observedCharacterData: characterReferences.length, survivingCharacterData,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     snapshots, terminalMemory, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 &&
+    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
