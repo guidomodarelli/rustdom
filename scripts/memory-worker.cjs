@@ -12,6 +12,8 @@ const references = [];
 const windowReferences = [];
 /** Observe attached and detached CharacterData wrappers owning native buffers. */
 const characterReferences = [];
+/** Track attached, removed and never-attached native-backed Attr values. */
+const attributeReferences = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
 const retainedControllers = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
@@ -55,6 +57,16 @@ function exerciseWindow(runtime, identity) {
   text.replaceData(1, 4096, '🦀');
   comment.appendData('\udc00');
   characterReferences.push(new WeakRef(text), new WeakRef(comment), new WeakRef(detached));
+  const removedAttribute = document.createAttributeNS(`urn:${identity}`, 'p:value');
+  removedAttribute.value = 'x'.repeat(8192) + '\udfff';
+  document.body.setAttributeNodeNS(removedAttribute);
+  document.body.removeAttributeNode(removedAttribute);
+  removedAttribute.value = 'removed';
+  const detachedAttribute = document.createAttribute('detached');
+  detachedAttribute.value = '\ud800';
+  document.body.setAttribute('data-attached', identity);
+  attributeReferences.push(new WeakRef(removedAttribute), new WeakRef(detachedAttribute),
+    new WeakRef(document.body.getAttributeNode('data-attached')));
   references.push(new WeakRef(document.querySelector('iframe').contentDocument));
   windowReferences.push(new WeakRef(document.querySelector('iframe').contentWindow));
   // Leave the observer connected: closing the window must release the entire cycle.
@@ -109,6 +121,7 @@ async function main() {
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
   const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
   const survivingCharacterData = characterReferences.filter((reference) => reference.deref() !== undefined).length;
+  const survivingAttributes = attributeReferences.filter((reference) => reference.deref() !== undefined).length;
   const nativeTree = nativeRuntime?.getNativeTreeStatistics();
   const first = snapshots[0];
   const last = terminalMemory;
@@ -123,11 +136,12 @@ async function main() {
     observedDocuments: references.length, survivingDocuments,
     observedWindows: windowReferences.length, survivingWindows,
     observedCharacterData: characterReferences.length, survivingCharacterData,
+    observedAttributes: attributeReferences.length, survivingAttributes,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     snapshots, terminalMemory, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 &&
+    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&

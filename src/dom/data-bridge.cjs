@@ -22,11 +22,12 @@ function wireString(value) {
  * Snapshot only DOM data; structure remains in the authoritative native forest.
  * @param {object} node - Private jsdom Node implementation.
  * @param {Function} ensure - Resolves a template content fragment to its native handle.
+ * @param {boolean} [includeAttributes] - Whether to copy legacy attribute values.
  * @returns {string} Prototype-safe JSON consumed by the native metadata decoder.
  */
-function encodeNodeData(node, ensure) {
+function encodeNodeData(node, ensure, includeAttributes = true) {
   const attributes = [];
-  if (node._attributeList) for (const attribute of node._attributeList) {
+  if (includeAttributes && node._attributeList) for (const attribute of node._attributeList) {
     attributes[attributes.length] = { __proto__: null,
       name: wireString(attribute._localName), namespace: wireString(attribute._namespace),
       prefix: wireString(attribute._namespacePrefix), value: wireString(attribute._value) };
@@ -56,24 +57,34 @@ function writeNodeData(arena, handle, node, ensure) {
     arena.setSimpleData(handle, node.nodeType, value);
     return;
   }
-  if (node._namespaceURI === HTML_NAMESPACE && !node._prefix && !node._templateContents &&
-      node._isValue == null && isWellFormed(node._localName)) {
-    const attributes = [];
-    let direct = true;
-    for (const attribute of node._attributeList) {
-      if (attribute._namespace != null || attribute._namespacePrefix != null ||
-          !isWellFormed(attribute._localName) || !isWellFormed(attribute._value)) {
-        direct = false;
-        break;
-      }
-      attributes.push(attribute._localName, attribute._value);
+  if (node._attributeList) {
+    const attributes = node._attributeList.map(ensure);
+    if (node._namespaceURI === HTML_NAMESPACE && !node._prefix && !node._templateContents &&
+        node._isValue == null && isWellFormed(node._localName)) {
+      arena.setHtmlElementFromAttributes(handle, node._localName, attributes);
+    } else {
+      arena.setElementFromAttributes(handle, encodeNodeData(node, ensure, false), attributes);
     }
-    if (direct) {
-      arena.setHtmlElement(handle, node._localName, attributes);
-      return;
-    }
+    return;
   }
   arena.setData(handle, encodeNodeData(node, ensure));
 }
 
-module.exports = { writeNodeData };
+/** @param {number} kind - Attr node type. @param {object} data - Constructor metadata. @returns {string} Lossless initialization without reading native-backed getters. */
+function encodeAttribute(kind, data) {
+  return stringify({ __proto__: null, kind,
+    name: wireString(data.localName), namespace: wireString(data.namespace),
+    prefix: wireString(data.namespacePrefix), value: wireString(data.value === undefined ? '' : data.value) });
+}
+
+/** @param {object} arena - Native storage. @param {number} handle - Attr ID. @param {number} kind - Attr kind. @param {object} data - Constructor metadata. @returns {void} */
+function writeAttribute(arena, handle, kind, data) {
+  const value = data.value === undefined ? '' : data.value;
+  if (data.namespace == null && data.namespacePrefix == null && isWellFormed(data.localName) && isWellFormed(value)) {
+    arena.initializePlainAttribute(handle, data.localName, value);
+  } else {
+    arena.initializeAttribute(handle, encodeAttribute(kind, data));
+  }
+}
+
+module.exports = { writeNodeData, writeAttribute };

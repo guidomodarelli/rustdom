@@ -12,6 +12,7 @@ pub enum TreeError {
     InvalidMetadata(serde_json::Error),
     MissingData(u64),
     NotCharacterData(u64),
+    NotAttribute(u64),
     CharacterOffset { offset: u32, length: usize },
 }
 
@@ -23,6 +24,10 @@ impl fmt::Display for TreeError {
             Self::NotCharacterData(id) => {
                 write!(formatter, "NativeTree: node {id} is not CharacterData")
             }
+            Self::NotAttribute(id) => write!(
+                formatter,
+                "NativeTree: node {id} is not an initialized Attr"
+            ),
             Self::CharacterOffset { offset, length } => write!(
                 formatter,
                 "NativeTree: CharacterData offset {offset} exceeds UTF-16 length {length}"

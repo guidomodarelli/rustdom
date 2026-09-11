@@ -70,3 +70,11 @@ El texto deja de almacenarse en un campo propio de JavaScript. Los cuatro tipos 
 Las sustituciones construyen el nuevo buffer antes de modificar el estado y devuelven el valor anterior para MutationObserver. La estructura de relaciones no cambia; los buffers se destruyen al reemplazarlos o liberar su nodo. También se inicializan y liberan nodos que nunca se insertan en un documento. `wholeText` rechaza metadata faltante con un error controlado.
 
 El estrés `2026-09-11T22-39-35.076Z-linux-x64.json` agrega WeakRef para 1.320 nodos CharacterData por motor, valores grandes, surrogates y observers con `characterDataOldValue`. Todos los observados de rustdom se recolectaron, junto con los 880 documentos y ventanas. La memoria nativa vuelve a los conteos iniciales; el heap final creció 0,56 MiB. Este alcance no sustituye la migración pendiente de la lógica de rangos y observadores ni demuestra ausencia absoluta de fugas.
+
+## Attr canónico en Rust
+
+Attr ya no guarda nombres, namespaces, prefijos ni valores en campos de texto propios de JavaScript. Los getters leen registros Rust, y el nombre calificado se construye allí. Los campos JavaScript de ownership y las colecciones siguen vigentes; las caches de elementos para consultas/serialización son derivadas en Rust desde los Attr canónicos, con valores copiados dentro de Rust para conservar el contrato del almacenamiento actual.
+
+No se agregaron referencias persistentes de Rust a objetos V8. Attr se registra en el mismo índice de WeakRef/FinalizationRegistry que los demás nodos y sus buffers se destruyen al liberarlo. Los errores de tipos/handles se detectan antes de reemplazar la cache del elemento. El cambio de valor actualiza la contabilidad de datos no representables en UTF-8.
+
+`2026-09-11T23-22-37.798Z-linux-x64.json` observa 1.320 Attr por motor, incluyendo atributos adjuntos, removidos y nunca insertados. Todos los observados fueron recolectados; también los nodos CharacterData, documentos y ventanas. Los conteos nativos volvieron al inicio y el heap de rustdom creció 0,61 MiB. RSS se conserva en el informe como medida de retención del proceso/allocator, no como prueba aislada de fuga.

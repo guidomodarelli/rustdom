@@ -1,8 +1,8 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, QueryMode } = require('../../dist/native.cjs');
-const { writeNodeData } = require('./data-bridge.cjs');
+const { NativeTree, QueryMode, AttributeField } = require('../../dist/native.cjs');
+const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -69,7 +69,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} object - Mutated DOM implementation. @returns {void} Updates an indexed node's native data. */
   updateNodeData(object) {
     const record = this._node(object);
-    if (record.nativeCharacterKind !== undefined) return;
+    if (record.nativeCharacterKind !== undefined || record.nativeAttribute) return;
     if (record.nativeId !== undefined) {
       writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
@@ -97,6 +97,27 @@ class NativeSymbolTree extends SymbolTree {
   replaceCharacterData(node, offset, count, value) { return this._arena.replaceCharacterData(this._identify(node), offset, count, value); }
   /** @param {object} node - Text or CDATA implementation. @returns {string} Adjacent text from the native tree. */
   wholeText(node) { return this._arena.wholeText(this._identify(node)); }
+
+  /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
+  initializeAttribute(node, kind, data) {
+    const id = this._identify(node);
+    writeAttribute(this._arena, id, kind, data);
+    const record = this._node(node);
+    record.nativeAttribute = true;
+    record.nativeDataReady = true;
+  }
+  /** @param {object} node - Attr. @returns {string} Native local name. */
+  attributeName(node) { return this._arena.attributeField(this._identify(node), AttributeField.Name); }
+  /** @param {object} node - Attr. @returns {string|null} Native namespace. */
+  attributeNamespace(node) { return this._arena.attributeField(this._identify(node), AttributeField.Namespace); }
+  /** @param {object} node - Attr. @returns {string|null} Native prefix. */
+  attributePrefix(node) { return this._arena.attributeField(this._identify(node), AttributeField.Prefix); }
+  /** @param {object} node - Attr. @returns {string} Native value. */
+  attributeValue(node) { return this._arena.attributeField(this._identify(node), AttributeField.Value); }
+  /** @param {object} node - Attr. @returns {string} Qualified name constructed in Rust. */
+  attributeQualifiedName(node) { return this._arena.attributeField(this._identify(node), AttributeField.QualifiedName); }
+  /** @param {object} node - Attr. @param {string} value - New value. @returns {void} */
+  setAttributeValue(node, value) { this._arena.setAttributeValue(this._identify(node), value); }
 
   /** @param {object} node - DOM root. @param {boolean} outer - Include root markup. @param {boolean} scripting - Noscript serialization mode. @returns {string} HTML from native data. */
   serializeHTML(node, outer, scripting) { return this._arena.serializeHtml(this._ensure(node), outer, scripting); }

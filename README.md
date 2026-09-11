@@ -12,6 +12,10 @@ El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su
 
 La migración de `CharacterData` elimina su copia de texto en JavaScript: `Text`, `Comment`, `CDATASection` y `ProcessingInstruction` leen su valor de Rust. La longitud, los substrings, las sustituciones UTF-16 y `wholeText` se ejecutan sobre ese almacenamiento nativo. Los hooks de rangos, observadores y parte del binding WebIDL todavía usan jsdom y deben migrarse para cumplir el objetivo integral.
 
+`Attr` también conserva nombres, namespaces, prefijos y valores canónicos en Rust. Su nombre calificado se construye allí, y las caches nativas de selectores/serialización se obtienen directamente de esos registros. La colección ordenada, el mapa de búsqueda por nombre, ownership y reacciones de atributos todavía tienen lógica JavaScript; siguen pendientes dentro del objetivo integral.
+
+El [benchmark de esta migración](reports/benchmarks/2026-09-11T23-25-11.030Z-linux-x64.md) registra el costo de la transición: la carga de lectura/escritura de atributos mide 0,67× frente a jsdom y la construcción grande 0,76×. Consultas repetidas y serialización conservan mejoras en esa medición. Los resultados guían la migración pendiente de índices y operaciones completas; no se ocultan ni se interpreta esta etapa como una aceleración universal.
+
 ## Desarrollo
 
 Requisitos para compilación nativa: Node.js compatible con `package.json`, Rust estable y un linker de la plataforma. Los archivos `.tgz` de distribución contienen el binario y se instalan sin Rust; este repositorio no publica automáticamente paquetes en npm.
@@ -22,6 +26,7 @@ npm run build
 cargo test
 npm test
 npm run validate
+npm run test:wpt
 npm run test:memory
 npm run test:native-memory # Linux con Valgrind y símbolos de glibc
 npm run bench
@@ -135,6 +140,7 @@ Jest y Vitest usan `runScripts: 'dangerously'` por defecto. Por eso su documento
 ## Validación y resultados guardados
 
 - `npm run validate`: formato y Clippy de Rust, tests Rust, build nativo, tests de contrato, React/Testing Library en Jest y Vitest y comparación diferencial del corpus HTML5. Guarda logs y estados en `reports/validation/`.
+- `npm run test:wpt`: harness WPT real con fixtures fijados por revisión y hash. Compara nombres, estados y mensajes contra jsdom; los fallos compartidos se reportan por separado y no se presentan como conformidad con el estándar. También integra `validate`.
 - `npm run test:memory`: procesos separados para jsdom, rustdom, el parser nativo y teardown de Vitest. Repite creación/cierre, comprueba documentos mediante `WeakRef`, incluye timers, observers, iframes y nombres únicos, y guarda heap, memoria externa y RSS en `reports/memory/`.
 - `npm run test:native-memory`: ejecuta los tests Rust reales bajo Valgrind/Memcheck en Linux; falla ante accesos inválidos o fugas definitivas/indirectas y conserva también posibles fugas y allocations alcanzables para revisión.
 - `npm run bench`: operaciones públicas equivalentes, procesos independientes, warmup y muestras crudas. Guarda JSON y un resumen Markdown con fecha en `reports/benchmarks/`. Debe ejecutarse sin otras cargas locales de tests/build para reducir interferencias.

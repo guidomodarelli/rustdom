@@ -1,6 +1,7 @@
 //! DOM protocol values shared by native data consumers.
 pub const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
 pub const ELEMENT_NODE: u16 = 1;
+pub const ATTRIBUTE_NODE: u16 = 2;
 pub const TEXT_NODE: u16 = 3;
 pub const CDATA_SECTION_NODE: u16 = 4;
 pub const PROCESSING_INSTRUCTION_NODE: u16 = 7;

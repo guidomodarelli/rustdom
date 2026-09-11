@@ -14,6 +14,7 @@ const commands = [
   ['build', process.execPath, [npmEntry, 'run', 'build']],
   ['javascript-tests', process.execPath, [npmEntry, 'test']],
   ['html5-corpus', process.execPath, [npmEntry, 'run', 'test:corpus']],
+  ['wpt-contracts', process.execPath, [npmEntry, 'run', 'test:wpt']],
 ];
 /** Preserve failed gates as failures with original diagnostic logs. */
 const report = { capturedAt: new Date().toISOString(), node: process.version, gates: [], pass: false };
