@@ -4,6 +4,7 @@ import native from './native.cjs';
 export const {
   NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField,
   RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
+  RangeMutationKind, RangeEndpoint,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;

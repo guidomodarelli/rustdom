@@ -21,6 +21,10 @@ const RANGE_BOUNDARY_ITERATIONS = 100;
 const RANGE_STATE_ITERATIONS = 1000;
 /** Repeated insertions include preflight, native geometry and live-range mutation delivery. */
 const RANGE_INSERTION_ITERATIONS = 100;
+/** Exercise dense live-range sets and consume intermediate offsets to reject no-op updates. */
+const RANGE_MUTATION_RANGE_COUNT = 1000;
+const RANGE_MUTATION_ITERATIONS = 100;
+const RANGE_MUTATION_TEXT = '++';
 /** Public content operations sharing identical partial-boundary fixtures. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
@@ -50,6 +54,9 @@ async function measure(name, size) {
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
   const surroundsContent = name === 'range-surround-contents';
   const insertsNodes = name === 'range-insert-node-100';
+  const mutatesCharacterRanges = name === 'range-character-mutations-100';
+  const mutatesTreeRanges = name === 'range-tree-mutations-100';
+  const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
     ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
       : (await import('../src/environments/vitest.mjs')).default
@@ -90,7 +97,7 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
-      const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent && !insertsNodes ? [...document.querySelectorAll('tr')] : null;
+      const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent && !insertsNodes && !mutatesRanges ? [...document.querySelectorAll('tr')] : null;
       const ranges = name === 'range-state-lifecycle-1000' || contentOperation ? null
         : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
@@ -102,6 +109,15 @@ async function measure(name, size) {
       const insertionParent = insertsNodes ? document.querySelector('tbody') : null;
       const insertionOffset = Math.floor(size / 2);
       if (insertionRange) { insertionRange.setStart(insertionParent, insertionOffset); insertionRange.collapse(true); }
+      const mutationNode = mutatesCharacterRanges ? document.querySelector('tbody').lastChild.firstChild.firstChild.firstChild
+        : mutatesTreeRanges ? document.querySelector('tbody') : null;
+      const mutationOriginalText = mutatesCharacterRanges ? mutationNode.data : null;
+      const mutationEndOffset = mutatesCharacterRanges ? 8 : size;
+      const mutationStartOffset = mutatesCharacterRanges ? 1 : Math.floor(size / 2);
+      const mutationRanges = mutatesRanges ? Array.from({ length: RANGE_MUTATION_RANGE_COUNT }, () => {
+        const range = document.createRange(); range.setStart(mutationNode, mutationStartOffset); range.setEnd(mutationNode, mutationEndOffset); return range;
+      }) : null;
+      const mutationRow = mutatesTreeRanges ? document.createElement('tr') : null;
       const contentRange = contentOperation ? document.createRange() : null;
       if (contentRange) {
         contentRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
@@ -138,6 +154,15 @@ async function measure(name, size) {
         surroundRange.surroundContents(surrounding);
       } else if (insertsNodes) {
         for (const node of insertionNodes) insertionRange.insertNode(node);
+      } else if (mutatesRanges) {
+        result = 0;
+        for (let iteration = 0; iteration < RANGE_MUTATION_ITERATIONS; iteration++) {
+          if (mutatesCharacterRanges) mutationNode.insertData(2, RANGE_MUTATION_TEXT);
+          else mutationNode.insertBefore(mutationRow, mutationNode.firstChild);
+          result += mutationRanges[0].endOffset;
+          if (mutatesCharacterRanges) mutationNode.deleteData(2, RANGE_MUTATION_TEXT.length);
+          else mutationNode.removeChild(mutationRow);
+        }
       } else if (contentOperation) {
         result = contentRange[contentOperation]();
       } else if (name === 'range-control-1000') {
@@ -287,6 +312,15 @@ async function measure(name, size) {
         assert.equal(surroundRange.startContainer, document.body);
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
+      if (mutatesRanges) {
+        assert.equal(result, (mutationEndOffset + (mutatesCharacterRanges ? RANGE_MUTATION_TEXT.length : 1)) * RANGE_MUTATION_ITERATIONS);
+        for (const range of mutationRanges) {
+          assert.equal(range.startContainer, mutationNode); assert.equal(range.endContainer, mutationNode);
+          assert.equal(range.startOffset, mutationStartOffset); assert.equal(range.endOffset, mutationEndOffset);
+        }
+        if (mutatesCharacterRanges) assert.equal(mutationNode.data, mutationOriginalText);
+        else assert.equal(mutationRow.parentNode, null);
+      }
       if (insertsNodes) {
         assert.equal(insertionParent.childNodes.length, size + RANGE_INSERTION_ITERATIONS);
         assert.equal(insertionRange.startContainer, insertionParent); assert.equal(insertionRange.endContainer, insertionParent);
@@ -369,6 +403,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
     ...[250, 1000].map((size) => ({ name: 'range-insert-node-100', size })),
+    ...[250, 1000].flatMap((size) => ['range-character-mutations-100', 'range-tree-mutations-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_CONTENT_OPERATIONS).map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-surround-contents', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>

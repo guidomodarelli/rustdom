@@ -17,6 +17,14 @@ pub(crate) struct RangeState {
 }
 
 impl RangeState {
+    /// Apply a validated native decision without changing any host-owned node reference.
+    pub(super) fn apply_point(&mut self, start: bool, point: BoundaryPoint) {
+        if start {
+            self.start = Some(point);
+        } else {
+            self.end = Some(point);
+        }
+    }
     pub fn set_start(&mut self, node: f64, offset: f64) -> Result<()> {
         self.start = Some(BoundaryPoint {
             node: node_id(node)?,

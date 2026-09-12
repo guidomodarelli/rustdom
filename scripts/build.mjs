@@ -136,6 +136,11 @@ characterSource = substituteOnce(characterSource,
   '    const start = this._data.slice(0, offset);\n    const end = this._data.slice(offset + count);\n    this._data = start + data + end;',
   '    const previous = domSymbolTree.replaceCharacterData(this, offset, count, data);\n' +
   '    queueMutationRecord(MUTATION_TYPE.CHARACTER_DATA, this, null, null, previous, [], [], null, null);');
+const characterRangesStart = characterSource.indexOf('    for (const range of this._liveRanges()) {');
+const characterRangesEnd = characterSource.indexOf('    if (this.nodeType === TEXT_NODE && this.parentNode)', characterRangesStart);
+if (characterRangesStart < 0 || characterRangesEnd < characterRangesStart) throw new Error('rustdom build: CharacterData Range adjustment boundary changed');
+characterSource = characterSource.slice(0, characterRangesStart) +
+  '    domSymbolTree.adjustCharacterDataRanges(this, offset, count, data.length);\n\n' + characterSource.slice(characterRangesEnd);
 await writeFile(characterPath, characterSource);
 /** Supply final node kinds before subclass constructors assign their public fields. */
 for (const [filename, kind] of [['Text', 'TEXT_NODE'], ['Comment', 'COMMENT_NODE']]) {
@@ -143,6 +148,14 @@ for (const [filename, kind] of [['Text', 'TEXT_NODE'], ['Comment', 'COMMENT_NODE
   let source = substituteOnce(await readFile(path, 'utf8'), '      data: args[0],',
     `      nodeType: NODE_TYPE.${kind},\n      data: args[0],`);
   if (filename === 'Text') {
+    const splitRangesStart = source.indexOf('      for (const range of this._liveRanges()) {');
+    const splitIndex = source.indexOf('      const nodeIndex = domSymbolTree.index(this);', splitRangesStart);
+    const splitRangesEnd = source.indexOf('\n    }\n\n    this.replaceData(offset, count, "");', splitIndex);
+    if (splitRangesStart < 0 || splitIndex < splitRangesStart || splitRangesEnd < splitIndex) throw new Error('rustdom build: splitText Range adjustment boundary changed');
+    source = source.slice(0, splitRangesStart) +
+      '      domSymbolTree.adjustSplitTextRanges(this, newNode, offset);\n' +
+      '      const nodeIndex = domSymbolTree.index(this);\n' +
+      '      domSymbolTree.adjustSplitParentRanges(parent, nodeIndex);' + source.slice(splitRangesEnd);
     const start = source.indexOf('    let wholeText = this.textContent;');
     const end = source.indexOf('    return wholeText;', start);
     if (start < 0 || end < start) throw new Error('rustdom build: Text.wholeText boundary changed');
@@ -230,12 +243,33 @@ const normalizationRangesEnd = nodeSource.indexOf('      for (const continuousEx
 if (normalizationRangesStart < 0 || normalizationRangesEnd < normalizationRangesStart) {
   throw new Error('rustdom build: Node.normalize range boundary changed');
 }
-const normalizationRanges = nodeSource.slice(normalizationRangesStart, normalizationRangesEnd).trimEnd();
+let normalizationRanges = nodeSource.slice(normalizationRangesStart, normalizationRangesEnd).trimEnd();
+const normalizedUpdatesStart = normalizationRanges.indexOf('        for (const range of node._liveRanges()) {');
+const normalizedUpdatesEnd = normalizationRanges.indexOf('        length += nodeLength(currentNode);', normalizedUpdatesStart);
+if (normalizedUpdatesStart < 0 || normalizedUpdatesEnd < normalizedUpdatesStart) throw new Error('rustdom build: normalize Range updates changed');
+normalizationRanges = normalizationRanges.slice(0, normalizedUpdatesStart) +
+  '        domSymbolTree.adjustNormalizedTextRanges(node, currentNode, length);\n' +
+  '        domSymbolTree.adjustNormalizedParentRanges(parentNode, node, currentNodeIndex, length);\n\n' +
+  normalizationRanges.slice(normalizedUpdatesEnd);
 // Check after replaceData: a synchronous hook can create live ranges before this point.
 nodeSource = nodeSource.slice(0, normalizationRangesStart) +
   '      if (node._referencedRanges.size !== 0 || parentNode._referencedRanges.size !== 0) {\n' +
   normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
   nodeSource.slice(normalizationRangesEnd);
+const insertMethod = nodeSource.indexOf('  _insert(nodeImpl, childImpl, suppressObservers) {');
+const insertedRangesStart = nodeSource.indexOf('      for (const range of this._liveRanges()) {', insertMethod);
+const insertedRangesEnd = nodeSource.indexOf('\n    }\n\n    const nodesImpl =', insertedRangesStart);
+if (insertMethod < 0 || insertedRangesStart < insertMethod || insertedRangesEnd < insertedRangesStart) throw new Error('rustdom build: inserted Range updates changed');
+nodeSource = nodeSource.slice(0, insertedRangesStart) +
+  '      domSymbolTree.adjustInsertedRanges(this, childIndex, count);' + nodeSource.slice(insertedRangesEnd);
+const removeMethod = nodeSource.indexOf('  _remove(nodeImpl, suppressObservers) {');
+const removedRangesStart = nodeSource.indexOf('    for (const descendant of domSymbolTree.treeIterator(nodeImpl)) {', removeMethod);
+const removedRangesEnd = nodeSource.indexOf('    if (this._ownerDocument) {', removedRangesStart);
+if (removeMethod < 0 || removedRangesStart < removeMethod || removedRangesEnd < removedRangesStart) throw new Error('rustdom build: removed Range updates changed');
+nodeSource = nodeSource.slice(0, removedRangesStart) +
+  '    for (const descendant of domSymbolTree.treeIterator(nodeImpl)) {\n' +
+  '      domSymbolTree.adjustRemovedDescendantRanges(descendant, this, index);\n    }\n' +
+  '    domSymbolTree.adjustRemovedParentRanges(this, index);\n\n' + nodeSource.slice(removedRangesEnd);
 await writeFile(nodePath, nodeSource);
 const boundaryPointPath = resolve(destination, 'lib/jsdom/living/range/boundary-point.js');
 let boundaryPointSource = await readFile(boundaryPointPath, 'utf8');
