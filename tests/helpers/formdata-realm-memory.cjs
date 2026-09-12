@@ -33,13 +33,17 @@ function completion(pending) {
  * @returns {object} Strong native roots, pending transport controls and weak DOM observations.
  */
 function fixture(environment, mode) {
-  let target = { setTimeout, clearTimeout };
+  let target = { setTimeout, clearTimeout, TypeError };
   const options = { jsdom: { runScripts: 'outside-only', beforeParse(window) {
     if (mode === 'normal') {
       const originalFetch = window.fetch;
       Object.defineProperty(window, 'fetch', { configurable: true,
         get() { return this === window ? originalFetch : undefined; } });
     }
+    // Public constructor and close replacements must not become retained roots or prevent owned cleanup.
+    delete window.EventTarget;
+    delete window.TypeError;
+    window.close = () => {};
   } } };
   const session = mode === 'vm' ? environment.setupVM(options) : environment.setup(target, options);
   if (mode === 'vm') target = session.getVmContext();
@@ -103,7 +107,7 @@ async function main() {
   const growth = first ? Object.fromEntries(['heapUsed', 'external', 'rss', 'arrayBuffers'].map((field) => [field, last[field] - first[field]])) : null;
   const report = { capturedAt: new Date().toISOString(), mode, node: process.version,
     fingerprints: Object.fromEntries(['src/environments/multipart.cjs', 'src/environments/web-platform.cjs',
-      'src/environments/window.cjs', 'src/environments/vitest.mjs',
+      'src/environments/window.cjs', 'src/environments/vitest.mjs', 'src/environments/lifecycle.cjs',
       'dist/rustdom.node'].map((file) => [file, createHash('sha256').update(readFileSync(file)).digest('hex')])),
     machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
     methodology: 'Real rustdom addon and public Vitest lifecycle. Two warmup batches, four measured batches, four environments each. Retain Request/Response constructors, methods, clones, instances, fetch, normal-pool accessor adapters and teardown callbacks. Hold native stream bodies open across teardown, require separate Document/Window WeakRefs and native owners to clear before completing pending reads, then require a second quiescent endpoint. Preserve every major-GC trace and heap/external/RSS sample.',

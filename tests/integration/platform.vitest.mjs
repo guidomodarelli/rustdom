@@ -168,3 +168,30 @@ test('should use captured form intrinsics when globals disappear during a pendin
     expect(await readDomFile(globalThis, received.get('file'))).toEqual([...new TextEncoder().encode('content')]);
   } finally { Object.defineProperties(window, descriptors); }
 });
+
+test('should create intrinsic body errors when the current worker TypeError global is changed', async () => {
+  const OriginalTypeError = TypeError;
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'TypeError');
+  for (const mutation of ['replace', 'delete']) {
+    const owner = new Response('invalid', { headers: { 'content-type': 'text/plain' } });
+    let failure;
+    try {
+      if (mutation === 'replace') globalThis.TypeError = class ReplacementTypeError extends Error {};
+      else delete globalThis.TypeError;
+      try { await owner.formData(); } catch (error) { failure = error; }
+    } finally { Object.defineProperty(globalThis, 'TypeError', descriptor); }
+    expect(failure.constructor).toBe(OriginalTypeError);
+  }
+});
+
+test('should ignore mutable append and body properties when decoding in the current worker', async () => {
+  const originalAppend = FormData.prototype.append;
+  const owner = new Response('field=value', { headers: { 'content-type': 'text/plain, application/x-www-form-urlencoded' } });
+  Object.defineProperty(owner, 'bodyUsed', { get() { throw new Error('shadow bodyUsed must not run'); } });
+  let form;
+  try {
+    FormData.prototype.append = () => { throw new Error('DOM append override must not run'); };
+    form = await owner.formData();
+  } finally { FormData.prototype.append = originalAppend; }
+  expect(form.get('field')).toBe('value');
+});

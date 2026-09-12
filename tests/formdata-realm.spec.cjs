@@ -17,7 +17,7 @@ function setup(environment, mode) {
     const session = environment.setupVM({ jsdom: { runScripts: 'outside-only' } });
     return { session, target: session.getVmContext() };
   }
-  const target = { setTimeout, clearTimeout };
+  const target = { setTimeout, clearTimeout, TypeError };
   return { target, session: environment.setup(target, {}) };
 }
 

@@ -176,7 +176,7 @@ for (const mode of ['normal', 'vm']) {
         assert.equal(overridden.bodyUsed, true);
         const getterFailure = bodyOwner(target, kind, 'field=value', 'application/x-www-form-urlencoded');
         Object.defineProperty(getterFailure, 'headers', { get() { throw failure; } });
-        await assert.rejects(getterFailure.formData(), (error) => error === failure);
+        assert.equal((await getterFailure.formData()).get('field'), 'value');
         assert.equal(getterFailure.bodyUsed, true);
         const unusedIterator = bodyOwner(target, kind, 'field=value', 'application/x-www-form-urlencoded');
         Object.defineProperty(unusedIterator, 'headers', { value: {

@@ -6,6 +6,9 @@ import { createRequire } from 'node:module';
 const { createWindow } = createRequire(import.meta.url)('./window.cjs');
 /** Reuse the same precise exception routing in normal and VM pools. */
 const { forwardWindowErrors } = createRequire(import.meta.url)('./window-errors.cjs');
+const { releaseResources } = createRequire(import.meta.url)('./lifecycle.cjs');
+/** Capture the fallback before callbacks can replace or delete the normal worker's exposed TypeError. */
+const HostTypeError = TypeError;
 
 /**
  * Restore partial global changes if a nonconfigurable host property rejects setup.
@@ -69,16 +72,14 @@ export default {
    * @returns {object} VM access and an idempotent teardown.
    */
   setupVM(options) {
-    let { dom, bridge } = createWindow(options);
-    let stopErrorForwarding = forwardWindowErrors(dom.window);
+    let { dom, bridge, close } = createWindow(options);
+    let stopErrorForwarding;
     try {
+      stopErrorForwarding = forwardWindowErrors(dom.window);
       dom.window.jsdom = dom;
       dom.getInternalVMContext();
     } catch (error) {
-      stopErrorForwarding();
-      bridge.dispose();
-      dom.window.close();
-      throw error;
+      releaseResources([stopErrorForwarding, close], [error]);
     }
     return {
       /** @returns {object} The context used to execute user tests. */
@@ -87,14 +88,12 @@ export default {
       teardown() {
         if (!dom) return;
         try {
-          stopErrorForwarding();
-          bridge.dispose();
-          delete dom.window.jsdom;
-          dom.window.close();
+          releaseResources([stopErrorForwarding, () => { delete dom.window.jsdom; }, close]);
         } finally {
           dom = null;
           bridge = null;
           stopErrorForwarding = null;
+          close = null;
         }
       },
     };
@@ -106,20 +105,19 @@ export default {
    * @returns {object} A teardown hook that restores globals and closes resources.
    */
   setup(global, options) {
-    let { dom, bridge, managedGlobalNames } = createWindow(options);
-    let stopErrorForwarding = forwardWindowErrors(dom.window);
+    const executionTypeError = global.TypeError ?? HostTypeError;
+    let { dom, bridge, managedGlobalNames, close } = createWindow(options, executionTypeError);
+    let stopErrorForwarding;
     // populateGlobal rewrites these aliases but does not retain their descriptors.
     const aliases = new Map(['window', 'self', 'top', 'parent', 'global', ...managedGlobalNames].map((key) =>
       [key, Object.getOwnPropertyDescriptor(global, key)]));
     const previousJsdom = Object.getOwnPropertyDescriptor(global, 'jsdom');
     let installed;
     try {
+      stopErrorForwarding = forwardWindowErrors(dom.window);
       installed = installGlobals(global, dom.window, dom, managedGlobalNames);
     } catch (error) {
-      stopErrorForwarding();
-      bridge.dispose();
-      dom.window.close();
-      throw error;
+      releaseResources([stopErrorForwarding, close], [error]);
     }
     const { keys, originals } = installed;
     return {
@@ -130,9 +128,7 @@ export default {
       teardown() {
         if (!dom) return;
         try {
-          stopErrorForwarding();
-          bridge.dispose();
-          dom.window.close();
+          releaseResources([stopErrorForwarding, close]);
         } finally {
           installed.disposeAccessors();
           for (const key of keys) delete global[key];
@@ -147,6 +143,7 @@ export default {
           dom = null;
           bridge = null;
           stopErrorForwarding = null;
+          close = null;
           installed = null;
           managedGlobalNames = null;
           keys.clear();
