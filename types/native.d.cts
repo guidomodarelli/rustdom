@@ -56,6 +56,11 @@ export class NativeTree {
    * Disconnected Text endpoints can concatenate their partial data without reaching that comparison.
    */
   rangeText(start: number, startOffset: number, end: number, endOffset: number): string | null;
+  /**
+   * Requires allocated node, start and end handles before any plan or DOM rejection.
+   * Endpoint topology requires no metadata; reservations remain unallocated on rejection.
+   * @throws InvalidArg when any handle is malformed, reserved, released or unknown.
+   */
   rangeBoundaryPlan(mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number, start: number, startOffset: number, end: number, endOffset: number): RangeBoundaryPlan;
   /** Returns zero for distinct roots. */
   commonAncestor(left: number, right: number): number;

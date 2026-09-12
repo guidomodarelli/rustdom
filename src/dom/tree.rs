@@ -459,6 +459,7 @@ impl NativeTree {
     }
 
     /// Primitive endpoints avoid allocating temporary input objects at each Node-API call.
+    /// All three handles must be allocated; endpoint topology needs no additional metadata.
     #[allow(clippy::too_many_arguments)]
     #[napi]
     pub fn range_boundary_plan(

@@ -52,6 +52,7 @@ impl TreeStore {
         }
     }
 
+    /// Require allocated endpoint topology before any mode-specific plan or DOM rejection.
     pub fn range_boundary_plan(
         &mut self,
         mode: BoundaryMode,
@@ -63,6 +64,9 @@ impl TreeStore {
         let mut node = node_id(handle)?;
         let mut offset = u64::from(offset);
         let links = self.links(node)?;
+        let start_node = node_id(start.0)?;
+        self.links(start_node)?;
+        self.links(node_id(end.0)?)?;
         if matches!(mode, BoundaryMode::SelectNode) {
             if links.parent == 0 {
                 return Ok(BoundaryPlan::NoParent);
@@ -117,8 +121,7 @@ impl TreeStore {
             mode,
             BoundaryMode::Start | BoundaryMode::StartBefore | BoundaryMode::StartAfter
         );
-        let different_root =
-            self.root_and_depth(node)?.0 != self.root_and_depth(node_id(start.0)?)?.0;
+        let different_root = self.root_and_depth(node)?.0 != self.root_and_depth(start_node)?.0;
         let collapse = if different_root {
             true
         } else {
@@ -170,6 +173,116 @@ impl TreeStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Exercise every public plan mode against the same handle contract.
+    const BOUNDARY_MODES: [BoundaryMode; 8] = [
+        BoundaryMode::Start,
+        BoundaryMode::End,
+        BoundaryMode::StartBefore,
+        BoundaryMode::StartAfter,
+        BoundaryMode::EndBefore,
+        BoundaryMode::EndAfter,
+        BoundaryMode::SelectNode,
+        BoundaryMode::SelectContents,
+    ];
+
+    fn statistics_snapshot(tree: &TreeStore) -> [f64; 12] {
+        let statistics = tree.statistics();
+        [
+            statistics.attribute_collections,
+            statistics.attribute_owners,
+            statistics.attribute_holders,
+            statistics.live_nodes,
+            statistics.capacity,
+            statistics.allocations,
+            statistics.releases,
+            statistics.mutations,
+            statistics.reserved_handles,
+            statistics.data_nodes,
+            statistics.data_updates,
+            statistics.serializations,
+        ]
+    }
+
+    #[test]
+    fn should_reject_each_unallocated_endpoint_before_any_mode_decision_without_mutation() {
+        for mode in BOUNDARY_MODES {
+            let mut tree = TreeStore::new();
+            let root = node(&mut tree, r#"{"kind":1,"name":"root"}"#);
+            let text = node(&mut tree, r#"{"kind":3,"value":"text"}"#);
+            let detached = node(&mut tree, r#"{"kind":3,"value":"detached"}"#);
+            let doctype = node(&mut tree, r#"{"kind":10,"name":"html"}"#);
+            tree.append(root, text).unwrap();
+            let released = tree.allocate().unwrap();
+            tree.release(released).unwrap();
+            let reserved = tree.reserve_handles().unwrap();
+            let unknown = reserved + super::super::store::HANDLE_BATCH_SIZE as f64;
+            let before = statistics_snapshot(&tree);
+
+            // Cover successful plans plus NoParent, InvalidNodeType and InvalidOffset paths.
+            for (target, offset) in [(text, 0), (detached, 0), (doctype, 0), (text, 99)] {
+                for invalid in [
+                    reserved,
+                    released,
+                    unknown,
+                    0.0,
+                    -1.0,
+                    1.5,
+                    f64::NAN,
+                    f64::INFINITY,
+                    9_007_199_254_740_992.0,
+                ] {
+                    for (start, end) in [(invalid, root), (root, invalid)] {
+                        let result =
+                            tree.range_boundary_plan(mode, target, offset, (start, 0), (end, 1));
+                        assert!(
+                            matches!(
+                                result,
+                                Err(TreeError::InvalidHandle | TreeError::UnknownHandle(_))
+                            ),
+                            "mode={mode:?}, target={target}, offset={offset}, start={start}, end={end}: {result:?}"
+                        );
+                        assert_eq!(statistics_snapshot(&tree), before);
+                        assert_eq!(tree.links(text as NodeId).unwrap().parent, root as NodeId);
+                        assert_eq!(tree.child_count(root as NodeId).unwrap(), 1);
+                        assert_eq!(tree.character_data(text).unwrap().len(), 4);
+                    }
+                }
+            }
+            for handle in [text, root, detached, doctype] {
+                tree.release(handle).unwrap();
+            }
+            for index in 0..super::super::store::HANDLE_BATCH_SIZE {
+                tree.release(reserved + index as f64).unwrap();
+            }
+            assert_eq!(tree.statistics().live_nodes, 0.0);
+            assert_eq!(tree.statistics().reserved_handles, 0.0);
+            assert_eq!(tree.statistics().data_nodes, 0.0);
+        }
+    }
+
+    #[test]
+    fn should_accept_topology_only_endpoints_in_every_mode() {
+        let mut tree = TreeStore::new();
+        let root = node(&mut tree, r#"{"kind":1,"name":"root"}"#);
+        let text = node(&mut tree, r#"{"kind":3,"value":"text"}"#);
+        let start = tree.allocate().unwrap();
+        let end = tree.allocate().unwrap();
+        for child in [start, text, end] {
+            tree.append(root, child).unwrap();
+        }
+        for mode in BOUNDARY_MODES {
+            let plan = tree
+                .range_boundary_plan(mode, text, 1, (start, 0), (end, 0))
+                .unwrap();
+            assert!(matches!(
+                plan,
+                BoundaryPlan::Start { .. } | BoundaryPlan::End { .. } | BoundaryPlan::Both { .. }
+            ));
+            assert!(!tree.data.contains_key(&(start as NodeId)));
+            assert!(!tree.data.contains_key(&(end as NodeId)));
+        }
+    }
+
     fn node(tree: &mut TreeStore, metadata: &str) -> f64 {
         let handle = tree.allocate().unwrap();
         tree.set_data(handle, metadata).unwrap();

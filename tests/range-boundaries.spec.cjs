@@ -111,3 +111,69 @@ test('should return transient native plans and release nodes while results remai
   tree.release(text); tree.release(root);
   assert.equal(plan.endOffset, 3); assert.equal(tree.statistics().liveNodes, 0);
 });
+
+/** @param {NativeTree} tree - Real native arena. @param {number[]} handles - Live fixture handles. @returns {object} Public state observed without serializing or mutating the arena. */
+function nativeSnapshot(tree, handles) {
+  return { links: handles.map((handle) => tree.getLinks(handle)), text: tree.getCharacterData(handles[1]), statistics: tree.statistics() };
+}
+
+for (const modeName of ['Start', 'End', 'StartBefore', 'StartAfter', 'EndBefore', 'EndAfter', 'SelectNode', 'SelectContents']) {
+  test(`should reject either unallocated endpoint before all ${modeName} decisions without mutation`, () => {
+    const { NativeTree, RangeBoundaryMode } = require('../dist/native.cjs');
+    const tree = new NativeTree();
+    const root = tree.allocate(); tree.setHtmlElement(root, 'main', []);
+    const text = tree.allocate(); tree.setCharacterData(text, 3, 'text'); tree.append(root, text);
+    const detached = tree.allocate(); tree.setCharacterData(detached, 3, 'detached');
+    const doctype = tree.allocate(); tree.initializeDocumentType(doctype, 'html', '', '');
+    const released = tree.allocate(); tree.release(released);
+    const reserved = tree.reserveHandles();
+    const handles = [root, text, detached, doctype];
+    const before = nativeSnapshot(tree, handles);
+    try {
+      // Exercise normal decisions and early NoParent, InvalidNodeType and InvalidOffset decisions.
+      for (const [target, offset] of [[text, 0], [detached, 0], [doctype, 0], [text, 99]]) {
+        for (const invalid of [reserved, released, reserved + tree.handleBatchSize, 0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+          for (const [start, end] of [[invalid, root], [root, invalid]]) {
+            assert.throws(() => tree.rangeBoundaryPlan(RangeBoundaryMode[modeName], target, offset, start, 0, end, 1),
+              { code: 'InvalidArg' }, `${modeName}: target=${target}, offset=${offset}, start=${start}, end=${end}`);
+            assert.deepEqual(nativeSnapshot(tree, handles), before);
+          }
+        }
+      }
+    } finally {
+      for (const handle of [text, root, detached, doctype]) tree.release(handle);
+      for (let index = 0; index < tree.handleBatchSize; index++) tree.release(reserved + index);
+    }
+    const after = tree.statistics();
+    assert.equal(after.liveNodes, 0); assert.equal(after.dataNodes, 0); assert.equal(after.reservedHandles, 0);
+  });
+}
+
+test('should accept both topology-only endpoints in every native boundary mode', () => {
+  const { NativeTree, RangeBoundaryMode, RangeBoundaryAction } = require('../dist/native.cjs');
+  const tree = new NativeTree();
+  const root = tree.allocate(); tree.setHtmlElement(root, 'main', []);
+  const text = tree.allocate(); tree.setCharacterData(text, 3, 'text');
+  const start = tree.allocate(); const end = tree.allocate();
+  for (const child of [start, text, end]) tree.append(root, child);
+  try {
+    const cases = [
+      ['Start', RangeBoundaryAction.Start, text, 1, 1],
+      ['End', RangeBoundaryAction.End, text, 1, 1],
+      ['StartBefore', RangeBoundaryAction.Start, root, 1, 1],
+      ['StartAfter', RangeBoundaryAction.Start, root, 2, 2],
+      ['EndBefore', RangeBoundaryAction.End, root, 1, 1],
+      ['EndAfter', RangeBoundaryAction.End, root, 2, 2],
+      ['SelectNode', RangeBoundaryAction.BothStartFirst, root, 1, 2],
+      ['SelectContents', RangeBoundaryAction.BothStartFirst, text, 0, 4],
+    ];
+    for (const [modeName, action, node, startOffset, endOffset] of cases) {
+      assert.deepEqual(tree.rangeBoundaryPlan(RangeBoundaryMode[modeName], text, 1, start, 0, end, 0),
+        { action, node, startOffset, endOffset });
+      assert.equal(tree.statistics().dataNodes, 2);
+    }
+  } finally {
+    for (const handle of [start, text, end, root]) tree.release(handle);
+  }
+  assert.equal(tree.statistics().liveNodes, 0);
+});
