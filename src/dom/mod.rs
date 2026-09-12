@@ -6,6 +6,8 @@ mod character_data;
 mod constants;
 mod data;
 mod error;
+mod node_comparison;
+mod node_metadata;
 mod queries;
 mod selector_element;
 mod selector_syntax;

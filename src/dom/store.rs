@@ -1,5 +1,6 @@
 //! Authoritative native forest with stable handles and atomic topology mutations.
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::num::NonZeroU64;
 
 use super::constants::is_character_data;
 use super::data::{DomString, NodeData};
@@ -23,6 +24,8 @@ pub(crate) struct Links {
     pub last: NodeId,
     child_count: u64,
     children_version: u32,
+    // Parent version and index + 1; the cache is reclaimed with this node record.
+    cached_child_index: Option<(u32, NonZeroU64)>,
 }
 
 /// A complete link-cache update. Zero denotes the absence of a related node.
@@ -107,6 +110,60 @@ impl TreeStore {
             .ok_or(TreeError::UnknownHandle(id))
     }
 
+    /// Fill each uncached sibling prefix once per parent version, in either query direction.
+    pub(crate) fn sibling_index(&mut self, id: NodeId) -> Result<u64> {
+        let links = self.links(id)?;
+        if links.parent == 0 {
+            return Ok(0);
+        }
+        let version = self.links(links.parent)?.children_version;
+        if let Some((cached_version, index)) = links.cached_child_index
+            && cached_version == version
+        {
+            return Ok(index.get() - 1);
+        }
+        let mut pending = Vec::new();
+        let mut cursor = id;
+        let mut next_index = 0;
+        while cursor != 0 {
+            let links = self.links(cursor)?;
+            if let Some((cached_version, index)) = links.cached_child_index
+                && cached_version == version
+            {
+                next_index = index.get();
+                break;
+            }
+            pending.push(cursor);
+            cursor = links.previous;
+        }
+        for child in pending.into_iter().rev() {
+            // The number of children cannot exceed the safe-integer handle limit.
+            let index = NonZeroU64::new(next_index + 1).expect("bounded sibling index");
+            self.nodes
+                .get_mut(&child)
+                .expect("validated sibling")
+                .cached_child_index = Some((version, index));
+            next_index += 1;
+        }
+        Ok(next_index - 1)
+    }
+
+    /// A wrapped public version must not revive an index from an older epoch.
+    fn children_changed(&mut self, parent: NodeId) {
+        let links = self.nodes.get_mut(&parent).expect("validated parent");
+        links.children_version = links.children_version.wrapping_add(1);
+        let mut child = if links.children_version == 0 {
+            links.first
+        } else {
+            0
+        };
+        while child != 0 {
+            let links = self.nodes.get_mut(&child).expect("linked sibling");
+            links.cached_child_index = None;
+            child = links.next;
+        }
+    }
+
     /// Preview the detached links of a reserved handle without consuming its reservation.
     fn links_or_reserved(&self, id: NodeId) -> Result<Links> {
         if let Some(links) = self.nodes.get(&id) {
@@ -174,6 +231,7 @@ impl TreeStore {
         child_links.parent = parent;
         child_links.previous = previous;
         child_links.next = next;
+        child_links.cached_child_index = None;
         if previous != 0 {
             self.nodes
                 .get_mut(&previous)
@@ -195,7 +253,7 @@ impl TreeStore {
                 parent_links.last = child;
             }
             parent_links.child_count += 1;
-            parent_links.children_version = parent_links.children_version.wrapping_add(1);
+            self.children_changed(parent);
         }
         self.mutations += 1;
         if parent == 0 {
@@ -219,7 +277,6 @@ impl TreeStore {
                 parent.last = links.previous;
             }
             parent.child_count -= 1;
-            parent.children_version = parent.children_version.wrapping_add(1);
         }
         if links.previous != 0 {
             self.nodes
@@ -237,6 +294,10 @@ impl TreeStore {
         removed.parent = 0;
         removed.previous = 0;
         removed.next = 0;
+        removed.cached_child_index = None;
+        if links.parent != 0 {
+            self.children_changed(links.parent);
+        }
         self.mutations += 1;
         Ok(if links.parent == 0 {
             0.0
@@ -410,6 +471,7 @@ impl TreeStore {
             links.parent = 0;
             links.previous = 0;
             links.next = 0;
+            links.cached_child_index = None;
             child = next;
         }
         self.nodes.remove(&id);
@@ -580,6 +642,45 @@ mod tests {
         }
         assert_eq!(tree.statistics().live_nodes, 0.0);
         assert_eq!(tree.statistics().reserved_handles, 0.0);
+    }
+
+    #[test]
+    fn should_invalidate_sibling_indices_after_mutations_and_version_wrap() {
+        let mut tree = TreeStore::new();
+        let parent = tree.allocate().unwrap();
+        let other_parent = tree.allocate().unwrap();
+        let children: Vec<_> = (0..4).map(|_| tree.allocate().unwrap()).collect();
+        for &child in &children[..3] {
+            tree.append(parent, child).unwrap();
+        }
+        // Model an earlier wrapped epoch; old cached zero versions must not revive.
+        tree.nodes
+            .get_mut(&(parent as NodeId))
+            .unwrap()
+            .children_version = 0;
+        for (index, &child) in children[..3].iter().enumerate().rev() {
+            assert_eq!(tree.sibling_index(child as NodeId).unwrap(), index as u64);
+        }
+        tree.nodes
+            .get_mut(&(parent as NodeId))
+            .unwrap()
+            .children_version = u32::MAX;
+        tree.prepend(parent, children[3]).unwrap();
+        assert_eq!(tree.sibling_index(children[2] as NodeId).unwrap(), 3);
+        assert_eq!(tree.sibling_index(children[0] as NodeId).unwrap(), 1);
+        tree.remove(children[0]).unwrap();
+        tree.append(parent, children[0]).unwrap();
+        assert_eq!(tree.sibling_index(children[0] as NodeId).unwrap(), 3);
+        assert_eq!(tree.sibling_index(children[1] as NodeId).unwrap(), 1);
+        tree.remove(children[0]).unwrap();
+        tree.append(other_parent, children[0]).unwrap();
+        assert_eq!(tree.sibling_index(children[0] as NodeId).unwrap(), 0);
+        tree.release(parent).unwrap();
+        assert_eq!(tree.sibling_index(children[1] as NodeId).unwrap(), 0);
+        for handle in children.into_iter().chain([other_parent]) {
+            tree.release(handle).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
     }
 
     #[test]

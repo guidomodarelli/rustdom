@@ -151,10 +151,54 @@ for (const [filename, kind] of [['Text', 'TEXT_NODE'], ['Comment', 'COMMENT_NODE
 }
 for (const [filename, kind] of [['CDATASection', 'CDATA_SECTION_NODE'], ['ProcessingInstruction', 'PROCESSING_INSTRUCTION_NODE']]) {
   const path = resolve(destination, `lib/jsdom/living/nodes/${filename}-impl.js`);
-  await writeFile(path, substituteOnce(await readFile(path, 'utf8'),
+  let source = substituteOnce(await readFile(path, 'utf8'),
     '    super(globalObject, args, privateData);',
-    `    super(globalObject, args, { ...privateData, nodeType: NODE_TYPE.${kind} });`));
+    `    super(globalObject, args, { ...privateData, nodeType: NODE_TYPE.${kind} });`);
+  if (filename === 'ProcessingInstruction') {
+    source = substituteOnce(source, 'const NODE_TYPE = require("../node-type");',
+      'const NODE_TYPE = require("../node-type");\nconst { domSymbolTree } = require("../helpers/internal-constants");');
+    source = substituteOnce(source, '    this._target = privateData.target;',
+      '    domSymbolTree.initializeProcessingInstructionTarget(this, privateData.target);');
+    source = substituteOnce(source, '  get target() {',
+      '  get _target() { return domSymbolTree.processingInstructionTarget(this); }\n\n  get target() {');
+  }
+  await writeFile(path, source);
 }
+/** DocumentType stores immutable identifiers in Rust; JS only exposes existing WebIDL wrappers. */
+const doctypePath = resolve(destination, 'lib/jsdom/living/nodes/DocumentType-impl.js');
+let doctypeSource = substituteOnce(await readFile(doctypePath, 'utf8'),
+  'const NODE_TYPE = require("../node-type");',
+  'const NODE_TYPE = require("../node-type");\nconst { domSymbolTree } = require("../helpers/internal-constants");');
+doctypeSource = substituteOnce(doctypeSource,
+  '    this.name = privateData.name;\n    this.publicId = privateData.publicId;\n    this.systemId = privateData.systemId;',
+  '    domSymbolTree.initializeDocumentType(this, privateData);');
+doctypeSource = substituteOnce(doctypeSource, '\n}\n',
+  '\n  get name() { return domSymbolTree.documentTypeName(this); }\n' +
+  '  get publicId() { return domSymbolTree.documentTypePublicId(this); }\n' +
+  '  get systemId() { return domSymbolTree.documentTypeSystemId(this); }\n}\n');
+await writeFile(doctypePath, doctypeSource);
+/** Remove upstream comparison algorithms once every public entry point uses native state. */
+const nodePath = resolve(destination, 'lib/jsdom/living/nodes/Node-impl.js');
+let nodeSource = await readFile(nodePath, 'utf8');
+nodeSource = substituteOnce(nodeSource, 'const { simultaneousIterators } = require("../../utils");\n', '');
+nodeSource = substituteOnce(nodeSource, 'const NODE_DOCUMENT_POSITION = require("../node-document-position");\n', '');
+const equalityStart = nodeSource.indexOf('function nodeEquals(a, b) {');
+const equalityEnd = nodeSource.indexOf('// https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor', equalityStart);
+if (equalityStart < 0 || equalityEnd < equalityStart) throw new Error('rustdom build: Node equality boundary changed');
+nodeSource = nodeSource.slice(0, equalityStart) + nodeSource.slice(equalityEnd);
+const positionStart = nodeSource.indexOf('  compareDocumentPosition(other) {');
+const positionEnd = nodeSource.indexOf('  lookupPrefix(namespace) {', positionStart);
+if (positionStart < 0 || positionEnd < positionStart) throw new Error('rustdom build: Node position boundary changed');
+nodeSource = nodeSource.slice(0, positionStart) +
+  '  compareDocumentPosition(other) { return domSymbolTree.compareDocumentPosition(this, other); }\n\n' + nodeSource.slice(positionEnd);
+nodeSource = substituteOnce(nodeSource, '    return isInclusiveAncestor(this, other);',
+  '    return domSymbolTree.containsNode(this, other);');
+const equalMethodStart = nodeSource.indexOf('  isEqualNode(node) {');
+const equalMethodEnd = nodeSource.indexOf('  isSameNode(node) {', equalMethodStart);
+if (equalMethodStart < 0 || equalMethodEnd < equalMethodStart) throw new Error('rustdom build: Node.isEqualNode boundary changed');
+nodeSource = nodeSource.slice(0, equalMethodStart) +
+  '  isEqualNode(node) { return domSymbolTree.equalNode(this, node); }\n\n' + nodeSource.slice(equalMethodEnd);
+await writeFile(nodePath, nodeSource);
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
 await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
   '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',

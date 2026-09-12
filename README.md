@@ -20,6 +20,13 @@ La visibilidad de nombres Unicode usa las tablas incluidas cuando coinciden con 
 
 En la API de bajo nivel, `trySetUnicodeVersion(version)` devuelve `false` sin modificar el perfil si faltan tablas incluidas. `setHostUnicodeCaseChanges(buffer)` copia el `ArrayBuffer` completo de un `Uint32Array` con los escalares del host en orden ascendente, sin duplicados. Rechaza buffers compartidos, desconectados, incompletos y escalares inválidos antes de reemplazar el perfil; el llamador debe proporcionar el conjunto completo obtenido del host. La integración habitual configura esto automáticamente.
 
+`isEqualNode`, `contains` y `compareDocumentPosition` ejecutan sus algoritmos en Rust sobre la estructura y los datos actuales. La igualdad recorre el árbol sin recursión y compara atributos sin depender de su orden. Los identificadores de `DocumentType` y el target de `ProcessingInstruction` son canónicos en Rust; los datos específicos de doctype se reservan únicamente para esos nodos. Las comparaciones conservan las particularidades de jsdom 27 para Attr, CDATA, templates y shadow roots. La creación de wrappers y las otras operaciones de Node todavía tienen trabajo pendiente de migración.
+
+La posición documental reutiliza índices de hermanos que se invalidan al mutar
+el padre. La caché vive dentro de cada registro Rust y se libera con él. El
+[informe de comparación](reports/validation/node-comparison.md) conserva la
+regresión que motivó este cambio y las validaciones realizadas.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
@@ -44,6 +51,8 @@ npm run test:wpt
 npm run test:memory
 npm run test:native-memory # Linux con Valgrind y símbolos de glibc
 npm run bench
+npm run bench -- node-position-1000 node-equality-100
+npm run test:memory -- jsdom rustdom
 ```
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:

@@ -15,9 +15,11 @@ const windowReferences = [];
 const characterReferences = [];
 /** Track attached, removed and never-attached native-backed Attr values. */
 const attributeReferences = [];
+/** Observe compared subtrees and native immutable node metadata without retaining them. */
+const comparisonReferences = [];
 /** Every explicit fixture participates in the same final liveness observation. */
 const observedReferences = { documents: references, windows: windowReferences,
-  characterData: characterReferences, attributes: attributeReferences };
+  characterData: characterReferences, attributes: attributeReferences, comparedNodes: comparisonReferences };
 /** Preserve collection progress as numbers and memory samples without retaining DOM fixtures. */
 const quiescenceChecks = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
@@ -116,6 +118,59 @@ async function exerciseAttributeChurn(runtime) {
 }
 
 /**
+ * Compare transient nodes against a live tree and verify that no comparison cache retains them.
+ * @param {object} runtime - Real jsdom-compatible engine.
+ * @returns {Promise<void>} Completes weak-reference and native-allocation checks before window teardown.
+ */
+async function exerciseNodeComparisons(runtime) {
+  let dom = new runtime.JSDOM('<!doctype html><section>' + '<p a="value">text</p>'.repeat(20) + '</section>');
+  let document = dom.window.document;
+  let root = document.querySelector('section');
+  references.push(new WeakRef(document));
+  windowReferences.push(new WeakRef(dom.window));
+  const batches = 5;
+  const comparisonsPerBatch = 100;
+  try {
+    await settle();
+    const initial = runtime.getNativeTreeStatistics?.();
+    /** @returns {WeakRef<Node>[]} Compared nodes whose last strong test references end on return. */
+    function compareTransientNodes() {
+      const clone = root.cloneNode(true);
+      const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
+      const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
+      assert.ok(root.isEqualNode(clone));
+      // Populate sibling-index caches in a subtree that must disappear while root stays alive.
+      assert.ok(clone.firstChild.compareDocumentPosition(clone.lastChild) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+      assert.equal(root.contains(clone), false);
+      assert.ok(root.compareDocumentPosition(clone) & dom.window.Node.DOCUMENT_POSITION_DISCONNECTED);
+      assert.ok(doctype.isEqualNode(doctype.cloneNode()));
+      instruction.data = 'changed';
+      assert.equal(instruction.target, 'target');
+      return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction)];
+    }
+    for (let batch = 0; batch < batches; batch++) {
+      const compared = [];
+      for (let index = 0; index < comparisonsPerBatch; index++) compared.push(...compareTransientNodes());
+      const endpoint = await waitForMemoryQuiescence({ label: `node-comparison-${batch}`,
+        sample: () => captureMemoryState({ comparedNodes: compared }, runtime), expectedNative: initial });
+      quiescenceChecks.push(endpoint);
+      assert.equal(compared.filter((reference) => reference.deref()).length, 0, 'comparison retained transient nodes');
+      const current = runtime.getNativeTreeStatistics?.();
+      if (current) {
+        assert.equal(current.liveNodes, initial.liveNodes, 'comparison retained native nodes');
+        assert.equal(current.dataNodes, initial.dataNodes, 'comparison retained native metadata');
+      }
+      comparisonReferences.push(...compared);
+    }
+  } finally {
+    dom.window.close();
+    root = null;
+    document = null;
+    dom = null;
+  }
+}
+
+/**
  * Run one isolated stress target and enforce conservative retained-growth budgets.
  * @returns {Promise<void>} Emits a machine-readable report and fails observed leaks.
  */
@@ -163,13 +218,18 @@ async function main() {
       sample: () => captureMemoryState(observedReferences, nativeRuntime) });
     quiescenceChecks.push(preceding);
     await exerciseAttributeChurn(runtime);
+    const beforeComparison = await waitForMemoryQuiescence({ label: 'before-node-comparison', expectedNative: initialAttributeState,
+      sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+    quiescenceChecks.push(beforeComparison);
+    await exerciseNodeComparisons(runtime);
   }
   const endpoint = await waitForMemoryQuiescence({ label: 'terminal', expectedNative: initialAttributeState,
     sample: () => captureMemoryState(observedReferences, nativeRuntime) });
   quiescenceChecks.push(endpoint);
   const terminalMemory = endpoint.state.memory;
   const { documents: survivingDocuments, windows: survivingWindows,
-    characterData: survivingCharacterData, attributes: survivingAttributes } = endpoint.state.survivors;
+    characterData: survivingCharacterData, attributes: survivingAttributes,
+    comparedNodes: survivingComparedNodes } = endpoint.state.survivors;
   const nativeTree = endpoint.state.nativeTree;
   const first = snapshots[0];
   const last = terminalMemory;
@@ -185,13 +245,14 @@ async function main() {
     observedWindows: windowReferences.length, survivingWindows,
     observedCharacterData: characterReferences.length, survivingCharacterData,
     observedAttributes: attributeReferences.length, survivingAttributes,
+    observedComparedNodes: comparisonReferences.length, survivingComparedNodes,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     initialAttributeState,
     snapshots, terminalMemory, growth, budgets, quiescenceChecks,
     pass: quiescenceChecks.every((check) => check.reached) &&
-      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
+      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 && survivingComparedNodes === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.attributeCollections === initialAttributeState.attributeCollections &&
