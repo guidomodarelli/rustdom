@@ -3,6 +3,8 @@
 const SymbolTree = require('symbol-tree');
 const { NativeTree, QueryMode, AttributeField } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
+/** Initialize native case data without assuming every host version was known at build time. */
+const { initializeHostUnicode } = require('./host-unicode.cjs');
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -13,7 +15,7 @@ class NativeSymbolTree extends SymbolTree {
   constructor(description) {
     super(description);
     this._arena = new NativeTree();
-    this._arena.setUnicodeVersion(process.versions.unicode);
+    initializeHostUnicode(this._arena, process.versions.unicode);
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
     this._nextHandle = 0;

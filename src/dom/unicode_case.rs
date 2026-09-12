@@ -1,13 +1,17 @@
 //! Host-version case data for DOM supported-property-name filtering.
 use super::error::{Result, TreeError};
 
+/// Unicode scalar values exclude the surrogate interval.
+const SCALAR_COUNT: usize = char::MAX as usize + 1 - 0x800;
+
 /// Pin older hosts to maintained tables instead of the compiler's newer Unicode data.
-#[derive(Clone, Copy, Default)]
+#[derive(Default)]
 pub(crate) enum UnicodeCaseMapping {
     Unicode15,
     Unicode16,
     #[default]
     Native,
+    Host(Box<[u32]>),
 }
 
 impl UnicodeCaseMapping {
@@ -32,13 +36,44 @@ impl UnicodeCaseMapping {
         }
     }
 
-    pub(crate) fn changes_when_lowercased(self, character: char) -> bool {
+    /// Decode an owned, non-shared JavaScript ArrayBuffer using host byte order.
+    pub(crate) fn from_host_buffer(bytes: &[u8]) -> Result<Self> {
+        if !bytes.len().is_multiple_of(size_of::<u32>())
+            || bytes.len() / size_of::<u32>() > SCALAR_COUNT
+        {
+            return Err(TreeError::InvalidUnicodeCaseChanges);
+        }
+        let changes: Box<[u32]> = bytes
+            .as_chunks::<{ size_of::<u32>() }>()
+            .0
+            .iter()
+            .copied()
+            .map(u32::from_ne_bytes)
+            .collect();
+        Self::validate_host_changes(&changes)?;
+        Ok(Self::Host(changes))
+    }
+
+    fn validate_host_changes(changes: &[u32]) -> Result<()> {
+        if changes.len() > SCALAR_COUNT
+            || changes
+                .iter()
+                .any(|&codepoint| char::from_u32(codepoint).is_none())
+            || changes.windows(2).any(|pair| pair[0] >= pair[1])
+        {
+            return Err(TreeError::InvalidUnicodeCaseChanges);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn changes_when_lowercased(&self, character: char) -> bool {
         let mapping = match self {
             Self::Unicode15 => unicode_case_mapping_15::to_lowercase(character),
             Self::Unicode16 => unicode_case_mapping::to_lowercase(character),
             Self::Native => {
                 return !character.to_lowercase().eq(std::iter::once(character));
             }
+            Self::Host(changes) => return changes.binary_search(&(character as u32)).is_ok(),
         };
         // Generated tables encode identity as either all zeros or the character
         // itself (e.g. sharp s and ligatures from SpecialCasing).

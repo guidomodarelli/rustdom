@@ -17,6 +17,7 @@ pub enum TreeError {
     AttributeInUse(u64),
     AttributeCollectionInitialized(u64),
     UnsupportedUnicodeVersion(String),
+    InvalidUnicodeCaseChanges,
     CharacterOffset { offset: u32, length: usize },
 }
 
@@ -25,6 +26,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidUnicodeCaseChanges => write!(
+                formatter,
+                "NativeTree: host Unicode case changes require an attached buffer of complete, strictly increasing valid u32 scalar values"
+            ),
             Self::AttributeCollectionInitialized(id) => write!(
                 formatter,
                 "NativeTree: attribute collection for element {id} is initialized; use element metadata and attribute mutation APIs instead of a snapshot"

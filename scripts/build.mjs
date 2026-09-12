@@ -48,6 +48,7 @@ const nativeTree = await readFile('src/dom/native-tree.cjs', 'utf8');
 await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
+await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 
 /** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
 const attributePath = resolve(destination, 'lib/jsdom/living/attributes/Attr-impl.js');

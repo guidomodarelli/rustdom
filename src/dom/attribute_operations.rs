@@ -17,6 +17,20 @@ impl TreeStore {
         self.unicode_case = UnicodeCaseMapping::for_version(version)?;
         Ok(())
     }
+    /// Select a bundled profile, leaving the active profile intact when unavailable.
+    pub fn try_set_unicode_version(&mut self, version: &str) -> bool {
+        if let Ok(profile) = UnicodeCaseMapping::for_version(version) {
+            self.unicode_case = profile;
+            true
+        } else {
+            false
+        }
+    }
+    /// Decode the host buffer atomically; the Node-API adapter excludes shared backing memory.
+    pub fn set_host_unicode_case_buffer(&mut self, bytes: &[u8]) -> Result<()> {
+        self.unicode_case = UnicodeCaseMapping::from_host_buffer(bytes)?;
+        Ok(())
+    }
     fn element(&self, id: NodeId) -> Result<&NodeData> {
         self.data
             .get(&id)
@@ -488,5 +502,50 @@ mod tests {
             assert!(tree.set_unicode_version("unsupported").is_err());
             assert_eq!(tree.attribute_names(element, true, true).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn should_copy_host_case_changes_and_reject_invalid_profiles_atomically() {
+        let mut tree = TreeStore::new();
+        let element = tree.allocate().unwrap();
+        tree.set_data(
+            element,
+            r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+        )
+        .unwrap();
+        tree.initialize_attribute_collection(element).unwrap();
+        for name in ["A", "a", "ß", "\u{a7cb}"] {
+            let attribute = tree.allocate().unwrap();
+            tree.initialize_attribute(
+                attribute,
+                &serde_json::json!({ "kind": 2, "name": name, "value": "case" }).to_string(),
+            )
+            .unwrap();
+            tree.append_attribute(element, attribute).unwrap();
+        }
+
+        let mut changes: Vec<u8> = [u32::from('A'), 0xa7cb]
+            .into_iter()
+            .flat_map(u32::to_ne_bytes)
+            .collect();
+        tree.set_host_unicode_case_buffer(&changes).unwrap();
+        changes.fill(0);
+        let expected = vec![vec![u16::from(b'a')], vec![0xdf]];
+        assert_eq!(tree.attribute_names(element, true, true).unwrap(), expected);
+        for invalid in [vec![0xd800_u32], vec![0x110000], vec![65, 65], vec![66, 65]] {
+            let bytes: Vec<u8> = invalid.into_iter().flat_map(u32::to_ne_bytes).collect();
+            assert!(matches!(
+                tree.set_host_unicode_case_buffer(&bytes),
+                Err(TreeError::InvalidUnicodeCaseChanges)
+            ));
+            assert_eq!(tree.attribute_names(element, true, true).unwrap(), expected);
+        }
+        assert!(!tree.try_set_unicode_version("unbundled-test-profile"));
+        assert_eq!(tree.attribute_names(element, true, true).unwrap(), expected);
+        assert!(tree.try_set_unicode_version("15.1"));
+        assert_eq!(
+            tree.attribute_names(element, true, true).unwrap(),
+            vec![vec![u16::from(b'a')], vec![0xdf], vec![0xa7cb]]
+        );
     }
 }
