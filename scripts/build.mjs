@@ -462,6 +462,20 @@ rangeSource = rangeSource.slice(0, extractDriverStart) +
 rangeSource = substituteOnce(rangeSource, 'const { nodeRoot, nodeLength } = require("../helpers/node");',
   'const { nodeRoot } = require("../helpers/node");');
 await writeFile(rangePath, rangeSource);
+/** Share native topology helpers with every original DOM caller. */
+const geometryHelpersPath = resolve(destination, 'lib/jsdom/living/helpers/node.js');
+const geometryHelpersSource = await readFile(geometryHelpersPath, 'utf8');
+if (!['function nodeLength(node)', 'function nodeRoot(node)', 'function isInclusiveAncestor(ancestorNode, node)',
+  'function isFollowing(nodeA, nodeB)'].every((anchor) => geometryHelpersSource.includes(anchor))) {
+  throw new Error('rustdom build: generic node geometry helper boundaries changed');
+}
+await writeFile(geometryHelpersPath, '"use strict";\n' +
+  'const { domSymbolTree } = require("./internal-constants");\n' +
+  'module.exports = {\n' +
+  '  nodeLength(node) { return domSymbolTree.nodeLength(node); },\n' +
+  '  nodeRoot(node) { return domSymbolTree.nodeRoot(node); },\n' +
+  '  isInclusiveAncestor(ancestor, node) { return domSymbolTree.isInclusiveAncestor(ancestor, node); },\n' +
+  '  isFollowing(node, reference) { return domSymbolTree.isFollowing(node, reference); }\n};\n');
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
 let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');

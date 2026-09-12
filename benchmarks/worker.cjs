@@ -25,6 +25,8 @@ const RANGE_INSERTION_ITERATIONS = 100;
 const RANGE_MUTATION_RANGE_COUNT = 1000;
 const RANGE_MUTATION_ITERATIONS = 100;
 const RANGE_MUTATION_TEXT = '++';
+/** Include both public root lookup and connectivity on stable shallow/deep trees. */
+const NODE_ROOT_ITERATIONS = 1000;
 /** Public content operations sharing identical partial-boundary fixtures. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
@@ -98,6 +100,13 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
+      const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
+      let rootTarget = readsRoots ? document.querySelector('tbody').lastChild.lastChild.firstChild : null;
+      if (name === 'node-roots-deep-1000') {
+        let parent = document.body;
+        for (let index = 0; index < size; index++) parent = parent.appendChild(document.createElement('section'));
+        rootTarget = parent.appendChild(document.createTextNode('deep'));
+      }
       const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent && !insertsNodes && !mutatesRanges && !createsContextFragment ? [...document.querySelectorAll('tr')] : null;
       const ranges = name === 'range-state-lifecycle-1000' || contentOperation ? null
         : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
@@ -152,7 +161,12 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (stringifyReads) {
+      if (readsRoots) {
+        result = 0;
+        for (let iteration = 0; iteration < NODE_ROOT_ITERATIONS; iteration++) {
+          result += Number(rootTarget.getRootNode() === document) + Number(rootTarget.isConnected);
+        }
+      } else if (stringifyReads) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
         }
@@ -320,6 +334,7 @@ async function measure(name, size) {
         assert.equal(surroundRange.startContainer, document.body);
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
+      if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (createsContextFragment) {
         assert.equal(result.nodeType, dom.window.Node.DOCUMENT_FRAGMENT_NODE);
         assert.equal(result.querySelectorAll('tr').length, size); assert.equal(result.textContent, expectedText);
@@ -412,6 +427,7 @@ async function main() {
       'attribute-collections-100', 'node-equality-100', 'node-position-1000', 'namespace-lookup-1000'].map((name) => ({ name, size: 250 })),
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
+    ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
