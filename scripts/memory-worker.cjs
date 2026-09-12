@@ -158,6 +158,16 @@ async function exerciseNodeComparisons(runtime) {
       const wholeRange = document.createRange();
       const firstRange = document.createRange();
       wholeRange.selectNodeContents(clone);
+      firstRange.selectNode(clone.firstChild);
+      firstRange.setStartBefore(clone.firstChild);
+      firstRange.setEndAfter(clone.lastChild);
+      assert.equal(firstRange.commonAncestorContainer, clone);
+      firstRange.setStart(clone.firstChild.firstChild, 1);
+      firstRange.setEnd(clone.lastChild.firstChild, 2);
+      assert.equal(firstRange.commonAncestorContainer, clone);
+      firstRange.setStartAfter(clone.lastChild);
+      firstRange.setEndBefore(clone.firstChild);
+      assert.equal(firstRange.collapsed, true);
       firstRange.selectNodeContents(clone.firstChild);
       assert.equal(wholeRange.compareBoundaryPoints(dom.window.Range.START_TO_START, firstRange), -1);
       assert.equal(wholeRange.comparePoint(clone.firstChild.firstChild, 0), 0);

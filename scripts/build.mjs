@@ -249,6 +249,35 @@ boundaryPointSource = boundaryPointSource.slice(0, boundaryPointStart) +
 await writeFile(boundaryPointPath, boundaryPointSource);
 const rangePath = resolve(destination, 'lib/jsdom/living/range/Range-impl.js');
 let rangeSource = await readFile(rangePath, 'utf8');
+/** Keep only live-reference delivery in JS; Rust selects boundaries and their update order. */
+const rangeSettersStart = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer');
+const rangeSettersEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-compareboundarypoints', rangeSettersStart);
+const rangeCollapseStart = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-collapse', rangeSettersStart);
+const rangeCollapseEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-selectnode', rangeCollapseStart);
+if (rangeSettersStart < 0 || rangeSettersEnd < rangeSettersStart || rangeCollapseStart < rangeSettersStart || rangeCollapseEnd < rangeCollapseStart) {
+  throw new Error('rustdom build: Range setter boundaries changed');
+}
+const rangeCollapse = rangeSource.slice(rangeCollapseStart, rangeCollapseEnd);
+rangeSource = rangeSource.slice(0, rangeSettersStart) +
+  '  get commonAncestorContainer() { return domSymbolTree.commonAncestor(this._start.node, this._end.node); }\n\n' +
+  '  setStart(node, offset) { setBoundaryPointStart(this, node, offset); }\n' +
+  '  setEnd(node, offset) { setBoundaryPointEnd(this, node, offset); }\n' +
+  ['StartBefore', 'StartAfter', 'EndBefore', 'EndAfter'].map((mode) =>
+    `  set${mode}(node) { domSymbolTree.setRangeBoundary(this, node, 0, "${mode}", DOMException); }\n`).join('') +
+  '\n' + rangeCollapse +
+  '  selectNode(node) { selectNodeWithinRange(node, this); }\n' +
+  '  selectNodeContents(node) { domSymbolTree.setRangeBoundary(this, node, 0, "SelectContents", DOMException); }\n\n' +
+  rangeSource.slice(rangeSettersEnd);
+const rangeBoundaryHelpersStart = rangeSource.indexOf('// https://dom.spec.whatwg.org/#concept-range-bp-set');
+const rangeBoundaryHelpersEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#contained', rangeBoundaryHelpersStart);
+if (rangeBoundaryHelpersStart < 0 || rangeBoundaryHelpersEnd < rangeBoundaryHelpersStart) {
+  throw new Error('rustdom build: Range boundary helpers changed');
+}
+rangeSource = rangeSource.slice(0, rangeBoundaryHelpersStart) +
+  'function setBoundaryPointStart(range, node, offset) { domSymbolTree.setRangeBoundary(range, node, offset, "Start", DOMException); }\n' +
+  'function setBoundaryPointEnd(range, node, offset) { domSymbolTree.setRangeBoundary(range, node, offset, "End", DOMException); }\n' +
+  'function selectNodeWithinRange(node, range) { domSymbolTree.setRangeBoundary(range, node, 0, "SelectNode", DOMException); }\n\n' +
+  rangeSource.slice(rangeBoundaryHelpersEnd);
 const rangeQueriesStart = rangeSource.indexOf('  isPointInRange(node, offset) {');
 const rangeQueriesEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-stringifier', rangeQueriesStart);
 if (rangeQueriesStart < 0 || rangeQueriesEnd < rangeQueriesStart) throw new Error('rustdom build: Range query boundaries changed');

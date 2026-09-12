@@ -20,6 +20,12 @@ export const AttributeField: { readonly Name: 0; readonly Namespace: 1; readonly
 export const DocumentTypeField: { readonly Name: 0; readonly PublicId: 1; readonly SystemId: 2 };
 /** Native Range decision vocabulary; DOM bindings create errors in the relevant realm. */
 export const RangePointRelation: { readonly Before: -1; readonly Inside: 0; readonly After: 1; readonly DifferentRoot: 2; readonly InvalidNodeType: 3; readonly InvalidOffset: 4; readonly InconsistentRoots: 5 };
+/** Intent for a transient native boundary plan. */
+export const RangeBoundaryMode: { readonly Start: 0; readonly End: 1; readonly StartBefore: 2; readonly StartAfter: 3; readonly EndBefore: 4; readonly EndAfter: 5; readonly SelectNode: 6; readonly SelectContents: 7 };
+/** Ordered host reference updates, or rejection without live Range mutation. */
+export const RangeBoundaryAction: { readonly Start: 0; readonly End: 1; readonly BothStartFirst: 2; readonly BothEndFirst: 3; readonly InvalidNodeType: 4; readonly InvalidOffset: 5; readonly NoParent: 6; readonly InconsistentRoots: 7 };
+/** Node and offsets are zero for rejected plans; successful plans retain no native resources. */
+export interface RangeBoundaryPlan { action: typeof RangeBoundaryAction[keyof typeof RangeBoundaryAction]; node: number; startOffset: number; endOffset: number; }
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
@@ -50,6 +56,14 @@ export class NativeTree {
    * Disconnected Text endpoints can concatenate their partial data without reaching that comparison.
    */
   rangeText(start: number, startOffset: number, end: number, endOffset: number): string | null;
+  /**
+   * Requires allocated node, start and end handles before any plan or DOM rejection.
+   * Endpoint topology requires no metadata; reservations remain unallocated on rejection.
+   * @throws InvalidArg when any handle is malformed, reserved, released or unknown.
+   */
+  rangeBoundaryPlan(mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number, start: number, startOffset: number, end: number, endOffset: number): RangeBoundaryPlan;
+  /** Returns zero for distinct roots. */
+  commonAncestor(left: number, right: number): number;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

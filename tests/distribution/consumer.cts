@@ -73,6 +73,11 @@ assert.equal(tree.rangePointRelation(textHandle, 999, namespaceHandle, 0, namesp
 assert.equal(tree.rangeIntersectsNode(textHandle, namespaceHandle, 0, namespaceHandle, 2), true);
 assert.equal(tree.rangeText(namespaceHandle, 0, namespaceHandle, 2), 'native\ud800 tail');
 assert.equal(tree.rangeText(textHandle, 6, textHandle, 7), '\ud800');
+assert.equal(tree.commonAncestor(textHandle, siblingHandle), namespaceHandle);
+assert.deepEqual(tree.rangeBoundaryPlan(native.RangeBoundaryMode.SelectNode, siblingHandle, 0,
+  namespaceHandle, 0, namespaceHandle, 2), {
+  action: native.RangeBoundaryAction.BothStartFirst, node: namespaceHandle, startOffset: 1, endOffset: 2,
+});
 tree.release(siblingHandle);
 tree.release(textHandle);
 tree.release(namespaceHandle);

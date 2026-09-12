@@ -59,8 +59,16 @@ de CDATA del jsdom fijado para priorizar compatibilidad.
 
 `Range.toString()` recorre el árbol y reúne las porciones seleccionadas de Text
 en Rust, preservando unidades UTF-16 aisladas y la exclusión de CDATA propia
-de jsdom 27. El resultado se copia a V8 sin retener nodos. La representación,
-los setters y otras mutaciones de Range siguen pendientes de migración.
+de jsdom 27. El resultado se copia a V8 sin retener nodos. La representación
+y otras mutaciones de Range siguen pendientes de migración.
+
+Las decisiones de `setStart`, `setEnd`, sus variantes Before/After,
+`selectNode` y `selectNodeContents` se calculan en Rust, que devuelve las
+actualizaciones en el orden original. `commonAncestorContainer` también
+recorre la topología nativa. La capa JS entrega esas actualizaciones a las
+referencias vivas y conserva el realm de cada excepción; la representación
+de Range y los ajustes de sus extremos durante otras mutaciones siguen
+pendientes de migración.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

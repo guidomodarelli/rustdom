@@ -7,6 +7,7 @@ use super::{
     node_metadata,
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
+    range_boundaries::{BoundaryMode, BoundaryPlan},
     range_queries::PointRelation,
     store,
 };
@@ -138,6 +139,76 @@ pub enum RangePointRelation {
     InvalidNodeType = 3,
     InvalidOffset = 4,
     InconsistentRoots = 5,
+}
+
+/// Public setter intent; live references are updated only after the native decision returns.
+#[napi]
+pub enum RangeBoundaryMode {
+    Start,
+    End,
+    StartBefore,
+    StartAfter,
+    EndBefore,
+    EndAfter,
+    SelectNode,
+    SelectContents,
+}
+
+/// Ordered reference updates or a rejection to translate into a realm-specific exception.
+#[napi]
+pub enum RangeBoundaryAction {
+    Start,
+    End,
+    BothStartFirst,
+    BothEndFirst,
+    InvalidNodeType,
+    InvalidOffset,
+    NoParent,
+    InconsistentRoots,
+}
+
+#[napi(object)]
+pub struct RangeBoundaryPlan {
+    pub action: RangeBoundaryAction,
+    pub node: f64,
+    pub start_offset: f64,
+    pub end_offset: f64,
+}
+
+impl From<BoundaryPlan> for RangeBoundaryPlan {
+    fn from(plan: BoundaryPlan) -> Self {
+        let (action, node, start, end) = match plan {
+            BoundaryPlan::Start { node, offset } => {
+                (RangeBoundaryAction::Start, node, offset, offset)
+            }
+            BoundaryPlan::End { node, offset } => (RangeBoundaryAction::End, node, offset, offset),
+            BoundaryPlan::Both {
+                node,
+                start,
+                end,
+                start_first,
+            } => (
+                if start_first {
+                    RangeBoundaryAction::BothStartFirst
+                } else {
+                    RangeBoundaryAction::BothEndFirst
+                },
+                node,
+                start,
+                end,
+            ),
+            BoundaryPlan::InvalidNodeType => (RangeBoundaryAction::InvalidNodeType, 0, 0, 0),
+            BoundaryPlan::InvalidOffset => (RangeBoundaryAction::InvalidOffset, 0, 0, 0),
+            BoundaryPlan::NoParent => (RangeBoundaryAction::NoParent, 0, 0, 0),
+            BoundaryPlan::InconsistentRoots => (RangeBoundaryAction::InconsistentRoots, 0, 0, 0),
+        };
+        Self {
+            action,
+            node: node as f64,
+            start_offset: start as f64,
+            end_offset: end as f64,
+        }
+    }
 }
 
 /// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
@@ -384,6 +455,50 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    /// Primitive endpoints avoid allocating temporary input objects at each Node-API call.
+    /// All three handles must be allocated; endpoint topology needs no additional metadata.
+    #[allow(clippy::too_many_arguments)]
+    #[napi]
+    pub fn range_boundary_plan(
+        &mut self,
+        mode: RangeBoundaryMode,
+        node: f64,
+        offset: u32,
+        start: f64,
+        start_offset: u32,
+        end: f64,
+        end_offset: u32,
+    ) -> Result<RangeBoundaryPlan> {
+        let mode = match mode {
+            RangeBoundaryMode::Start => BoundaryMode::Start,
+            RangeBoundaryMode::End => BoundaryMode::End,
+            RangeBoundaryMode::StartBefore => BoundaryMode::StartBefore,
+            RangeBoundaryMode::StartAfter => BoundaryMode::StartAfter,
+            RangeBoundaryMode::EndBefore => BoundaryMode::EndBefore,
+            RangeBoundaryMode::EndAfter => BoundaryMode::EndAfter,
+            RangeBoundaryMode::SelectNode => BoundaryMode::SelectNode,
+            RangeBoundaryMode::SelectContents => BoundaryMode::SelectContents,
+        };
+        self.store
+            .range_boundary_plan(
+                mode,
+                node,
+                offset,
+                (start, u64::from(start_offset)),
+                (end, u64::from(end_offset)),
+            )
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn common_ancestor(&self, left: f64, right: f64) -> Result<f64> {
+        self.store
+            .common_ancestor(left, right)
+            .map(|id| id as f64)
             .map_err(to_napi_error)
     }
 
