@@ -134,6 +134,14 @@ class NativeSymbolTree extends SymbolTree {
   nodeValue(node) { return this._arena.nodeValue(this._ensure(node)); }
   /** @param {object} node - Context node. @returns {string|null} Native value or aggregated descendant text. */
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
+  /** @param {object} root - Inclusive normalization context. @returns {object[]} Snapshot of Text candidates. */
+  normalizationCandidates(root) { return this._arena.normalizationCandidates(this._ensure(root)).map((id) => this._object(id)); }
+  /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
+  normalizationGroup(node) {
+    const group = this._arena.normalizationGroup(this._ensure(node));
+    return group === null ? null : { ...group, parent: this._object(group.parent),
+      siblings: group.siblings.map((id) => this._object(id)) };
+  }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
   initializeAttribute(node, kind, data) {

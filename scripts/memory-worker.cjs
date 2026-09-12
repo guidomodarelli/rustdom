@@ -145,6 +145,14 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(copiedText, 'text'.repeat(20));
       assert.equal(clone.firstChild.firstChild.nodeValue, 'text');
       retainedTextResults.push(copiedText);
+      for (const paragraph of clone.children) {
+        const empty = document.createTextNode('');
+        const tail = document.createTextNode('tail');
+        paragraph.append(empty, tail);
+        characterReferences.push(new WeakRef(empty), new WeakRef(tail));
+      }
+      clone.normalize();
+      assert.equal(clone.textContent, 'texttail'.repeat(20));
       const namespace = 'urn:' + 'n'.repeat(8192);
       clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
       assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);

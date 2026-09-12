@@ -11,6 +11,7 @@ mod namespaces;
 mod node_comparison;
 mod node_metadata;
 mod node_text;
+mod normalization;
 mod queries;
 mod selector_element;
 mod selector_syntax;

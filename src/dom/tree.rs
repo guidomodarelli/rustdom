@@ -23,6 +23,15 @@ fn string_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>>
     })
 }
 
+/// A transient read-only plan; the binding preserves the ordering of existing mutation/range hooks.
+#[napi(object)]
+pub struct NormalizationGroup {
+    pub parent: f64,
+    pub original_length: f64,
+    pub appended_data: Utf16String,
+    pub siblings: Vec<f64>,
+}
+
 #[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
@@ -299,6 +308,28 @@ impl NativeTree {
         self.store
             .node_value(handle)
             .map(string_result)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn normalization_candidates(&self, handle: f64) -> Result<Vec<f64>> {
+        self.store
+            .normalization_candidates(handle)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn normalization_group(&self, handle: f64) -> Result<Option<NormalizationGroup>> {
+        self.store
+            .normalization_group(handle)
+            .map(|group| {
+                group.map(|group| NormalizationGroup {
+                    parent: group.parent as f64,
+                    original_length: group.original_length as f64,
+                    appended_data: group.appended_data.into(),
+                    siblings: group.siblings.into_iter().map(|id| id as f64).collect(),
+                })
+            })
             .map_err(to_napi_error)
     }
 

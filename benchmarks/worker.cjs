@@ -75,13 +75,21 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
-      const textRoot = name === 'text-content-100' ? document.querySelector('table') : null;
+      const textRoot = name === 'text-content-100' || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
       let consumedTextUnits = 0;
+      if (name === 'normalize-split-text') {
+        for (const anchor of document.querySelectorAll('a')) {
+          let text = anchor.firstChild;
+          while (text.length > 4) text = text.splitText(4);
+        }
+      }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (name === 'text-content-100') {
+      if (name.startsWith('normalize-')) {
+        textRoot.normalize();
+      } else if (name === 'text-content-100') {
         for (let iteration = 0; iteration < 100; iteration++) {
           result = textRoot.textContent;
           consumedTextUnits += result.length;
@@ -160,6 +168,13 @@ async function measure(name, size) {
         assert.equal(result, expectedText);
         assert.equal(consumedTextUnits, expectedText.length * 100);
       }
+      if (name.startsWith('normalize-')) {
+        assert.equal(textRoot.textContent, expectedText);
+        for (const anchor of document.querySelectorAll('a')) {
+          assert.equal(anchor.childNodes.length, 1);
+          assert.equal(anchor.firstChild.nodeType, 3);
+        }
+      }
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
@@ -196,6 +211,7 @@ async function main() {
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
+    ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
   ];
   const requested = new Set(process.argv.slice(3));

@@ -8,6 +8,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas; quedan setters de Node y reflexión WebIDL, entre otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
+- La planificación de normalize usa Rust; quedan su driver de mutaciones y los ajustes de rangos.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.
