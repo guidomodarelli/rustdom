@@ -81,6 +81,9 @@ impl NativeRange {
             (end.node as f64, query_offset(end.offset)),
         ))
     }
+    pub(super) fn raw_points(&self) -> Result<(BoundaryPoint, BoundaryPoint)> {
+        self.state.points().map_err(to_napi_error)
+    }
 }
 
 #[napi]

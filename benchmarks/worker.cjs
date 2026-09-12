@@ -82,8 +82,15 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const rangeNodes = name.startsWith('range-') && !stringifyReads ? [...document.querySelectorAll('tr')] : null;
-      const ranges = name === 'range-state-lifecycle-1000' ? null : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
+      const ranges = name === 'range-state-lifecycle-1000' || name === 'range-delete-contents' ? null
+        : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
+      const deletionRange = name === 'range-delete-contents' ? document.createRange() : null;
+      if (deletionRange) {
+        deletionRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
+        const end = rangeNodes.at(-1).lastChild.firstChild;
+        deletionRange.setEnd(end, end.length - 1);
+      }
       const stateTextNodes = name === 'range-state-lifecycle-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : null;
       const expectedStateUnits = stateTextNodes ? Array.from({ length: RANGE_STATE_ITERATIONS },
@@ -110,6 +117,8 @@ async function measure(name, size) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
         }
+      } else if (name === 'range-delete-contents') {
+        deletionRange.deleteContents();
       } else if (name === 'range-control-1000') {
         result = 0;
         for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
@@ -229,7 +238,7 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
-      assert.equal(document.querySelectorAll('tr').length, size);
+      assert.equal(document.querySelectorAll('tr').length, name === 'range-delete-contents' ? 2 : size);
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
       if (name === 'character-data-100') assert.equal(result, 'Row ');
@@ -251,6 +260,13 @@ async function measure(name, size) {
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
       if (name === 'range-state-read-1000') assert.equal(result, RANGE_STATE_ITERATIONS * 2);
+      if (name === 'range-delete-contents') {
+        assert.equal(document.querySelectorAll('tr').length, 2);
+        assert.equal(document.querySelector('table').textContent, `Row ${String(size - 1).at(-1)}`);
+        assert.equal(deletionRange.startContainer, document.querySelector('tbody'));
+        assert.equal(deletionRange.startOffset, 1); assert.equal(deletionRange.endOffset, 1);
+        assert.equal(deletionRange.collapsed, true);
+      }
       if (name === 'range-control-1000') {
         assert.equal(result, Math.floor(RANGE_STATE_ITERATIONS / 2));
         assert.equal(lastRange.startOffset, 0); assert.equal(lastRange.endOffset, 2); assert.equal(lastRange.collapsed, false);
@@ -270,7 +286,7 @@ async function measure(name, size) {
         assert.equal(consumedTextUnits, expectedText.length * stringifyReads);
       }
     }
-    assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
+    assert.equal(dom.window.document.querySelector('a').textContent, name === 'range-delete-contents' ? 'Row ' : 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
@@ -309,6 +325,7 @@ async function main() {
     ...[250, 1000].map((size) => ({ name: 'range-boundaries-100', size })),
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
+    ...[250, 1000].map((size) => ({ name: 'range-delete-contents', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

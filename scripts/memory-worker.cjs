@@ -190,6 +190,12 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(firstRange.toString(), 'texttail');
       retainedTextResults.push(rangeText);
       rangeReferences.push(new WeakRef(wholeRange), new WeakRef(firstRange));
+      const removedParagraph = clone.children[10]; const removedText = removedParagraph.firstChild;
+      wholeRange.setStart(clone.firstChild.firstChild, 2);
+      wholeRange.setEnd(clone.lastChild.firstChild, 2);
+      wholeRange.deleteContents();
+      assert.equal(clone.children.length, 2); assert.equal(clone.textContent, 'texttail');
+      assert.equal(wholeRange.collapsed, true); assert.equal(wholeRange.startOffset, 1);
       const namespace = 'urn:' + 'n'.repeat(8192);
       clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
       assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);
@@ -204,7 +210,8 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(instruction.target, 'target');
       assert.equal(instruction.nodeValue, 'changed');
       assert.equal(doctype.nodeValue, null);
-      return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction)];
+      return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction),
+        new WeakRef(removedParagraph), new WeakRef(removedText)];
     }
     for (let batch = 0; batch < batches; batch++) {
       const compared = [];

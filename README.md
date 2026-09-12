@@ -86,6 +86,11 @@ modo y raíces. `collapse` recibe un plan nativo y `cloneRange` copia el estado
 numérico sin reconstruir sus extremos en JavaScript. La nueva instancia
 mantiene referencias vivas independientes para los ajustes posteriores.
 
+`deleteContents` planifica en Rust los nodos completos a retirar, las porciones
+de texto y el punto de colapso. El binding mantiene el orden de las mutaciones
+y vuelve a consultar el padre al retirar cada nodo, preservando callbacks
+síncronos que lo muevan durante la operación.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
@@ -223,6 +228,7 @@ Jest y Vitest usan `runScripts: 'dangerously'` por defecto. Por eso su documento
 
 - `npm run validate`: formato y Clippy de Rust, tests Rust, build nativo, tests de contrato, React/Testing Library en Jest y Vitest y comparación diferencial del corpus HTML5. Guarda logs y estados en `reports/validation/`.
 - `npm run test:wpt`: harness WPT real con fixtures fijados por revisión y hash. Compara nombres, estados y mensajes contra jsdom; los fallos compartidos se reportan por separado y no se presentan como conformidad con el estándar. También integra `validate`.
+- Las suites cuyo bootstrap está bloqueado por una limitación reproducida de jsdom se registran explícitamente en el manifiesto y los informes, con `complete: false`; no se cuentan como cobertura aprobada. Se pueden ejecutar por nombre para reproducir el bloqueo. Actualmente afecta al fixture de iframes de `deleteContents`, que clona CDATA dentro de un documento HTML antes de probar la eliminación.
 - `npm run test:memory`: procesos separados para jsdom, rustdom, el parser nativo y teardown de Vitest. Repite creación/cierre, comprueba documentos mediante `WeakRef`, incluye timers, observers, iframes y nombres únicos, y guarda heap, memoria externa y RSS en `reports/memory/`.
 - `npm run test:native-memory`: ejecuta los tests Rust reales bajo Valgrind/Memcheck en Linux; falla ante accesos inválidos o fugas definitivas/indirectas y conserva también posibles fugas y allocations alcanzables para revisión.
 - `npm run bench`: operaciones públicas equivalentes, procesos independientes, warmup y muestras crudas. Guarda JSON y un resumen Markdown con fecha en `reports/benchmarks/`. Debe ejecutarse sin otras cargas locales de tests/build para reducir interferencias.
