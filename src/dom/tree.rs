@@ -5,6 +5,7 @@ use super::{
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
     node_metadata,
+    node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
     store,
 };
@@ -15,7 +16,7 @@ use napi::{
 use napi_derive::napi;
 
 /// Node-API copies borrowed UTF-8 directly into V8; preserve isolated UTF-16 units on the fallback.
-fn namespace_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>> {
+fn string_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>> {
     value.map(|value| match value {
         DomString::Text(value) => Either::A(value.as_str()),
         DomString::Utf16(value) => Either::B(value.clone().into()),
@@ -266,7 +267,7 @@ impl NativeTree {
     ) -> Result<Option<Either<&str, Utf16String>>> {
         self.store
             .lookup_namespace_uri(handle, prefix.as_deref())
-            .map(namespace_result)
+            .map(string_result)
             .map_err(to_napi_error)
     }
 
@@ -278,7 +279,7 @@ impl NativeTree {
     ) -> Result<Option<Either<&str, Utf16String>>> {
         self.store
             .lookup_prefix(handle, namespace.as_deref())
-            .map(namespace_result)
+            .map(string_result)
             .map_err(to_napi_error)
     }
 
@@ -290,6 +291,26 @@ impl NativeTree {
     ) -> Result<bool> {
         self.store
             .is_default_namespace(handle, namespace.as_deref())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn node_value(&self, handle: f64) -> Result<Option<Either<&str, Utf16String>>> {
+        self.store
+            .node_value(handle)
+            .map(string_result)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn text_content(&self, handle: f64) -> Result<Option<Either<&str, Utf16String>>> {
+        self.store
+            .text_content(handle)
+            .map(|value| match value {
+                Some(NodeText::Value(value)) => string_result(Some(value)),
+                Some(NodeText::Descendants(value)) => Some(Either::B(value.into())),
+                None => None,
+            })
             .map_err(to_napi_error)
     }
 

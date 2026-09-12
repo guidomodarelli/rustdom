@@ -17,6 +17,8 @@ const characterReferences = [];
 const attributeReferences = [];
 /** Observe compared subtrees and native immutable node metadata without retaining them. */
 const comparisonReferences = [];
+/** Keep copied string results alive to catch ownership accidentally shared with native nodes. */
+const retainedTextResults = [];
 /** Every explicit fixture participates in the same final liveness observation. */
 const observedReferences = { documents: references, windows: windowReferences,
   characterData: characterReferences, attributes: attributeReferences, comparedNodes: comparisonReferences };
@@ -139,6 +141,10 @@ async function exerciseNodeComparisons(runtime) {
       const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
       const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
       assert.ok(root.isEqualNode(clone));
+      const copiedText = clone.textContent;
+      assert.equal(copiedText, 'text'.repeat(20));
+      assert.equal(clone.firstChild.firstChild.nodeValue, 'text');
+      retainedTextResults.push(copiedText);
       const namespace = 'urn:' + 'n'.repeat(8192);
       clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
       assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);
@@ -151,6 +157,8 @@ async function exerciseNodeComparisons(runtime) {
       assert.ok(doctype.isEqualNode(doctype.cloneNode()));
       instruction.data = 'changed';
       assert.equal(instruction.target, 'target');
+      assert.equal(instruction.nodeValue, 'changed');
+      assert.equal(doctype.nodeValue, null);
       return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction)];
     }
     for (let batch = 0; batch < batches; batch++) {
@@ -251,6 +259,7 @@ async function main() {
     observedCharacterData: characterReferences.length, survivingCharacterData,
     observedAttributes: attributeReferences.length, survivingAttributes,
     observedComparedNodes: comparisonReferences.length, survivingComparedNodes,
+    retainedTextResults: retainedTextResults.length,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,

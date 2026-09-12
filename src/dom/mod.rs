@@ -10,6 +10,7 @@ mod error;
 mod namespaces;
 mod node_comparison;
 mod node_metadata;
+mod node_text;
 mod queries;
 mod selector_element;
 mod selector_syntax;
