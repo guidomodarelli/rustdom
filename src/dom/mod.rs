@@ -12,3 +12,4 @@ mod selector_syntax;
 mod serialization;
 mod store;
 pub mod tree;
+mod unicode_case;

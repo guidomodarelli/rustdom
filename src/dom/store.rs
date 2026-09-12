@@ -56,7 +56,7 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
-    pub(crate) unicode_16: bool,
+    pub(crate) unicode_case: super::unicode_case::UnicodeCaseMapping,
     pub(crate) attribute_collections: super::attribute_index::AttributeCollections,
     // Handles are assigned internally; HTML input cannot choose colliding keys.
     pub(crate) nodes: FxHashMap<NodeId, Links>,

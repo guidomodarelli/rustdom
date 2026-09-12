@@ -6,32 +6,14 @@ use super::{
     data::{AttributeData, DomString, NodeData},
     error::{Result, TreeError},
     store::{NodeId, TreeStore, node_id},
+    unicode_case::UnicodeCaseMapping,
 };
 
 impl TreeStore {
     /// Use the host's case data rather than silently inheriting a newer Rust Unicode table.
     pub fn set_unicode_version(&mut self, version: &str) -> Result<()> {
-        let native = std::char::UNICODE_VERSION;
-        let native_version = format!("{}.{}", native.0, native.1);
-        let compatible = unicode_case_mapping::UNICODE_VERSION;
-        let compatible_version = format!("{}.{}", compatible.0, compatible.1);
-        if version == compatible_version {
-            self.unicode_16 = true;
-        } else if version == native_version {
-            self.unicode_16 = false;
-        } else {
-            return Err(TreeError::UnsupportedUnicodeVersion(
-                version.chars().take(16).collect(),
-            ));
-        }
+        self.unicode_case = UnicodeCaseMapping::for_version(version)?;
         Ok(())
-    }
-    fn changes_when_lowercased(&self, character: char) -> bool {
-        if self.unicode_16 {
-            unicode_case_mapping::to_lowercase(character)[0] != 0
-        } else {
-            !character.to_lowercase().eq(std::iter::once(character))
-        }
     }
     fn element(&self, id: NodeId) -> Result<&NodeData> {
         self.data
@@ -237,7 +219,8 @@ impl TreeStore {
             }
             if filter_uppercase
                 && std::char::decode_utf16(name.iter().copied()).any(|character| {
-                    character.is_ok_and(|character| self.changes_when_lowercased(character))
+                    character
+                        .is_ok_and(|character| self.unicode_case.changes_when_lowercased(character))
                 })
             {
                 continue;
@@ -369,34 +352,54 @@ mod tests {
     fn should_use_host_unicode_tables_for_supported_attribute_names() {
         let mut tree = TreeStore::new();
         let element = tree.allocate().unwrap();
-        let attribute = tree.allocate().unwrap();
         tree.initialize_attribute_collection(element).unwrap();
         tree.set_data(
             element,
             r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
         )
         .unwrap();
-        tree.initialize_attribute(attribute, r#"{"kind":2,"name":"\ua7ce","value":"case"}"#)
+        // A7CB acquired lowercase in Unicode 16; A7CE acquired it in Unicode 17.
+        // Sharp s and ligatures have explicit identity lowercase table entries.
+        let names = ["lower", "UPPER", "ß", "ﬀ", "İ", "\u{a7cb}", "\u{a7ce}"];
+        for name in names {
+            let attribute = tree.allocate().unwrap();
+            tree.initialize_attribute(
+                attribute,
+                &serde_json::json!({ "kind": 2, "name": name, "value": "case" }).to_string(),
+            )
             .unwrap();
-        tree.append_attribute(element, attribute).unwrap();
-        tree.set_unicode_version("16.0").unwrap();
-        assert_eq!(
-            tree.attribute_names(element, true, true).unwrap(),
-            vec![vec![0xa7ce]]
-        );
-        let native = std::char::UNICODE_VERSION;
-        tree.set_unicode_version(&format!("{}.{}", native.0, native.1))
-            .unwrap();
-        assert!(
-            tree.attribute_names(element, true, true)
-                .unwrap()
-                .is_empty()
-        );
-        assert!(tree.set_unicode_version("unsupported").is_err());
-        assert!(
-            tree.attribute_names(element, true, true)
-                .unwrap()
-                .is_empty()
-        );
+            tree.append_attribute(element, attribute).unwrap();
+        }
+        let all_names: Vec<Vec<u16>> = names
+            .iter()
+            .map(|name| name.encode_utf16().collect())
+            .collect();
+        for (version, expected) in [
+            ("15.1", vec!["lower", "ß", "ﬀ", "\u{a7cb}", "\u{a7ce}"]),
+            ("16.0", vec!["lower", "ß", "ﬀ", "\u{a7ce}"]),
+            ("17.0", vec!["lower", "ß", "ﬀ"]),
+        ] {
+            tree.set_unicode_version(version).unwrap();
+            let expected: Vec<Vec<u16>> = expected
+                .iter()
+                .map(|name| name.encode_utf16().collect())
+                .collect();
+            assert_eq!(
+                tree.attribute_names(element, true, true).unwrap(),
+                expected,
+                "Unicode {version}"
+            );
+            assert_eq!(
+                tree.attribute_names(element, false, true).unwrap(),
+                all_names
+            );
+            assert_eq!(
+                tree.attribute_names(element, true, false).unwrap(),
+                all_names
+            );
+            // A rejected host version must leave the previous behavior intact.
+            assert!(tree.set_unicode_version("unsupported").is_err());
+            assert_eq!(tree.attribute_names(element, true, true).unwrap(), expected);
+        }
     }
 }
