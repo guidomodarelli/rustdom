@@ -1,0 +1,18 @@
+{
+  "baselineCommit": "0f40cc06e7f25cac80d3b656e48528f1eaa43fba",
+  "command": "cargo test --locked attribute_index::capacity_tests -- --nocapture --test-threads=1",
+  "phase": "New regression tests before production fix",
+  "exitCode": 1,
+  "passed": 0,
+  "failed": 6,
+  "capacityUnit": "container entries, not RSS bytes",
+  "observations": [
+    { "scenario": "unique-sparse-0", "liveAttributes": 8, "retained": { "ordered": 4096, "names": 7014, "references": 7168, "owners": 7168, "holders": 7168 } },
+    { "scenario": "live-alias-with-empty-order", "orderedLength": 0, "liveAlias": true, "retained": { "ordered": 4096, "names": 7064, "references": 7168, "owners": 7168, "holders": 7168 } },
+    { "scenario": "duplicate-name-bucket", "liveAttributes": 8, "peakCapacity": 4096, "retainedCapacity": 4096 },
+    { "scenario": "global-tables-with-live-pair", "liveElements": 1, "liveAttributes": 1, "retained": { "elements": 7168, "owners": 7168, "holders": 7168 } },
+    { "scenario": "shared-holder-set", "liveHolders": 1, "peakCapacity": 3584, "retainedCapacity": 3584 },
+    { "scenario": "constructor-owner-set", "liveAttributes": 8, "peakCapacity": 7168, "retainedCapacity": 7168 }
+  ],
+  "limitations": "Each baseline regression aborts at its first failed assertion. No later steps in those failing tests are claimed as executed. HashMap capacities can vary as deletion creates tombstones; capacities above are actual observed values."
+}

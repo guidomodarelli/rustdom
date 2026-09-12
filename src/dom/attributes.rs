@@ -15,7 +15,7 @@ pub enum AttributeField {
 }
 
 impl TreeStore {
-    fn attribute(&self, id: NodeId) -> Result<&NodeData> {
+    pub(crate) fn attribute(&self, id: NodeId) -> Result<&NodeData> {
         self.data
             .get(&id)
             .filter(|data| data.kind == ATTRIBUTE_NODE && data.name.is_some())
@@ -61,10 +61,13 @@ impl TreeStore {
         data.value = value;
         self.non_utf8_nodes += usize::from(data.has_non_utf8());
         self.data_updates += 1;
+        if let Some(&owner) = self.attribute_collections.owners.get(&id) {
+            self.refresh_attribute_cache(owner)?;
+        }
         Ok(())
     }
 
-    /// Rebuild a derived element cache inside Rust, without round-tripping Attr strings through JS.
+    /// Build a snapshot from Attr data only when no canonical collection owns the element data.
     pub fn set_element_from_attributes(
         &mut self,
         handle: f64,
@@ -90,13 +93,100 @@ impl TreeStore {
             });
         }
         data.attributes = values;
-        self.replace_data(handle, data)
+        self.replace_snapshot(handle, data)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_reject_snapshot_initializers_without_modifying_canonical_collections() {
+        for populated in [false, true] {
+            for include_attribute in [false, true] {
+                let mut tree = TreeStore::new();
+                let element = tree.allocate().unwrap();
+                let current = tree.allocate().unwrap();
+                let incoming = tree.allocate().unwrap();
+                tree.initialize_attribute_collection(element).unwrap();
+                let metadata = || NodeData {
+                    kind: ELEMENT_NODE,
+                    name: Some(DomString::Text("section".into())),
+                    namespace: Some(DomString::Text(
+                        super::super::constants::HTML_NAMESPACE.into(),
+                    )),
+                    ..NodeData::default()
+                };
+                tree.set_element_metadata(element, metadata()).unwrap();
+                tree.initialize_attribute(current, r#"{"kind":2,"name":"id","value":"retained"}"#)
+                    .unwrap();
+                tree.initialize_attribute(
+                    incoming,
+                    r#"{"kind":2,"name":"title","value":"incoming"}"#,
+                )
+                .unwrap();
+                if populated {
+                    tree.append_attribute(element, current).unwrap();
+                }
+                let template = tree.reserve_handles().unwrap();
+                let mut replacement = metadata();
+                replacement.name = Some(DomString::Text("article".into()));
+                replacement.template_content = template;
+                let before = tree.statistics();
+                let incoming_ids = if include_attribute {
+                    vec![incoming]
+                } else {
+                    vec![]
+                };
+
+                let copied = tree.set_element_from_attributes(element, replacement, &incoming_ids);
+                assert!(
+                    matches!(copied, Err(TreeError::AttributeCollectionInitialized(id)) if id == element as u64)
+                );
+                let snapshot = if include_attribute {
+                    r#"{"kind":1,"name":"article","attributes":[{"name":"title","value":"incoming"}]}"#
+                } else {
+                    r#"{"kind":1,"name":"article","attributes":[]}"#
+                };
+                assert!(
+                    matches!(tree.set_data(element, snapshot), Err(TreeError::AttributeCollectionInitialized(id)) if id == element as u64)
+                );
+                let after = tree.statistics();
+                assert_eq!(after.live_nodes, before.live_nodes);
+                assert_eq!(after.reserved_handles, before.reserved_handles);
+                assert_eq!(after.data_updates, before.data_updates);
+                assert_eq!(after.attribute_holders, before.attribute_holders);
+                assert_eq!(
+                    tree.attribute_ids(element).unwrap(),
+                    if populated { vec![current] } else { vec![] }
+                );
+                assert_eq!(
+                    tree.attribute_owner(current).unwrap(),
+                    if populated { element } else { 0.0 }
+                );
+                assert_eq!(tree.attribute_owner(incoming).unwrap(), 0.0);
+                tree.set_element_metadata(element, metadata()).unwrap();
+                let markup =
+                    String::from_utf16(&tree.serialize_html(element, true, false).unwrap())
+                        .unwrap();
+                assert_eq!(
+                    markup,
+                    if populated {
+                        "<section id=\"retained\"></section>"
+                    } else {
+                        "<section></section>"
+                    }
+                );
+                for handle in [element, current, incoming] {
+                    tree.release(handle).unwrap();
+                }
+                assert_eq!(tree.statistics().live_nodes, 0.0);
+                assert_eq!(tree.statistics().attribute_holders, 0.0);
+                assert_eq!(tree.statistics().attribute_owners, 0.0);
+            }
+        }
+    }
 
     #[test]
     fn should_preserve_attr_names_namespaces_and_utf16_values() {

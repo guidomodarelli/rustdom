@@ -10,6 +10,9 @@ export interface ParserStatistics {
 
 /** Native allocation and operation counts without references to DOM objects. */
 export interface NativeTreeStatistics {
+  attributeCollections: number;
+  attributeOwners: number;
+  attributeHolders: number;
   liveNodes: number;
   capacity: number;
   allocations: number;

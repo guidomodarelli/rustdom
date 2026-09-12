@@ -87,6 +87,17 @@ async function measure(name, size) {
           element.setAttribute('data-value', 'updated');
           element.remove();
         }
+      } else if (name === 'attribute-collections-100') {
+        const element = document.querySelector('tr');
+        let current;
+        for (let iteration = 0; iteration < 100; iteration++) {
+          const attribute = document.createAttributeNS('urn:benchmark', 'p:transient');
+          attribute.value = `value-${iteration}`;
+          element.setAttributeNodeNS(attribute);
+          current = element.attributes.getNamedItemNS('urn:benchmark', 'transient');
+          result = current.value;
+        }
+        element.removeAttributeNode(current);
       } else if (name === 'attribute-data-100') {
         const element = document.querySelector('tr');
         const attribute = document.createAttribute('data-transient');
@@ -113,6 +124,7 @@ async function measure(name, size) {
       if (name === 'serialize-utf8') assert.ok(result > 0);
       if (name === 'character-data-100') assert.equal(result, 'Row ');
       if (name === 'attribute-data-100') assert.equal(result, 'value-99');
+      if (name === 'attribute-collections-100') assert.equal(result, 'value-99');
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -144,7 +156,7 @@ async function main() {
   for (const size of [25, 250, 1000]) {
     for (const name of ['construct-native-eligible', 'innerHTML']) workloads.push(await measure(name, size));
   }
-  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100']) {
+  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100', 'attribute-collections-100']) {
     workloads.push(await measure(name, 250));
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));

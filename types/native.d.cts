@@ -8,6 +8,8 @@ export interface TreeLinks {
   id: number; parent: number; previous: number; next: number; first: number; last: number;
   childCount: number; childrenVersion: number;
 }
+/** Host GC-reference changes after a native attribute mutation. */
+export interface AttributeDelta { previous: number; changed: boolean; attached: number; detached: number; released: number[]; }
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
@@ -19,8 +21,9 @@ export class NativeTree {
   readonly handleBatchSize: number;
   allocate(): number;
   reserveHandles(): number;
+  /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
-  /** Direct transfer requires well-formed strings and alternating attribute name/value entries. */
+  /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */
   setHtmlElement(handle: number, name: string, attributes: string[]): void;
   /** Direct transfer for well-formed text, comments or containers. */
   setSimpleData(handle: number, kind: number, value: string): void;
@@ -28,8 +31,39 @@ export class NativeTree {
   initializePlainAttribute(handle: number, name: string, value: string): void;
   attributeField(handle: number, field: typeof AttributeField[keyof typeof AttributeField]): string | null;
   setAttributeValue(handle: number, value: string): void;
+  /** Copies Attr data into a snapshot; rejects an initialized attribute collection, even for an empty list. */
   setElementFromAttributes(handle: number, encoded: string, attributes: number[]): void;
+  /** Copies Attr data into an HTML snapshot; rejects an initialized attribute collection. */
   setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
+  /**
+   * Initializes before metadata or after an empty Element snapshot; idempotent for existing collections.
+   * @throws InvalidArg for non-Element metadata or snapshot attributes without a canonical collection.
+   */
+  initializeAttributeCollection(element: number): void;
+  setUnicodeVersion(version: string): void;
+  /** Selects bundled tables; returns false without changing state for an unknown profile. */
+  trySetUnicodeVersion(version: string): boolean;
+  /** Copies a Uint32Array's complete non-shared buffer of strictly increasing host lowercase-change scalars. */
+  setHostUnicodeCaseChanges(changes: ArrayBuffer): void;
+  /** Updates metadata or retypes an empty snapshot; rejects existing nonempty snapshots without a canonical index. */
+  setElementMetadata(element: number, encoded: string): void;
+  /** Updates HTML metadata while preserving canonical attributes; rejects existing nonempty snapshot-only data. */
+  setHtmlElementMetadata(element: number, name: string): void;
+  attributeIds(element: number): number[];
+  attributeCount(element: number): number;
+  attributeAt(element: number, index: number): number;
+  attributeOwner(attribute: number): number;
+  /** A non-null validated owner establishes canonical collection state; nonempty snapshots are rejected atomically. */
+  initializeAttributeOwner(attribute: number, element: number | null): void;
+  containsAttribute(element: number, attribute: number): boolean;
+  attributeByName(element: number, name: string, htmlDocument: boolean): number;
+  attributeByNamespace(element: number, namespace: string | null, name: string): number;
+  attributeNames(element: number, supported: boolean, htmlDocument: boolean): string[];
+  /** Attribute mutations initialize empty snapshots implicitly and reject nonempty snapshot-only data. */
+  appendAttribute(element: number, attribute: number): AttributeDelta;
+  removeAttribute(element: number, attribute: number): AttributeDelta;
+  replaceAttribute(element: number, oldAttribute: number, newAttribute: number): AttributeDelta;
+  setAttribute(element: number, attribute: number): AttributeDelta;
   /** Initializes canonical UTF-16 CharacterData; supported kinds are 3, 4, 7 and 8. */
   setCharacterData(handle: number, kind: number, value: string): void;
   getCharacterData(handle: number): string;

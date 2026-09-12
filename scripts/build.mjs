@@ -48,6 +48,7 @@ const nativeTree = await readFile('src/dom/native-tree.cjs', 'utf8');
 await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
+await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 
 /** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
 const attributePath = resolve(destination, 'lib/jsdom/living/attributes/Attr-impl.js');
@@ -60,7 +61,11 @@ attributeSource = substituteOnce(attributeSource,
   '    this._localName = privateData.localName;\n' +
   '    this._value = privateData.value !== undefined ? privateData.value : "";',
   '    domSymbolTree.initializeAttribute(this, ATTRIBUTE_NODE, privateData);');
+attributeSource = substituteOnce(attributeSource,
+  '    this._element = privateData.element !== undefined ? privateData.element : null;',
+  '    domSymbolTree.initializeAttributeOwner(this, privateData.element !== undefined ? privateData.element : null);');
 attributeSource = substituteOnce(attributeSource, '  get namespaceURI() {',
+  '  get _element() { return domSymbolTree.attributeOwner(this); }\n' +
   '  get _namespace() { return domSymbolTree.attributeNamespace(this); }\n' +
   '  get _namespacePrefix() { return domSymbolTree.attributePrefix(this); }\n' +
   '  get _localName() { return domSymbolTree.attributeName(this); }\n' +
@@ -71,17 +76,38 @@ attributeSource = substituteOnce(attributeSource,
   '    if (this._namespacePrefix === null) {\n      return this._localName;\n    }\n\n    return this._namespacePrefix + ":" + this._localName;',
   '    return domSymbolTree.attributeQualifiedName(this);');
 await writeFile(attributePath, attributeSource);
+await cp('src/dom/attribute-bridge.cjs', resolve(destination, 'lib/jsdom/living/attributes.js'));
 
 /** Keep attributes and character data synchronized before DOM observers run. */
 const elementPath = resolve(destination, 'lib/jsdom/living/nodes/Element-impl.js');
 let elementSource = substituteOnce(await readFile(elementPath, 'utf8'),
-  '  _attrModified(name, value, oldValue) {',
-  '  _attrModified(name, value, oldValue) {\n    domSymbolTree.updateNodeData(this);');
+  '    this._attributeList = [];\n    // Used for caching.\n    this._attributesByNameMap = new Map();',
+  '    domSymbolTree.initializeAttributeCollection(this);');
+elementSource = substituteOnce(elementSource, '  _attach() {',
+  '  get _attributeList() { return domSymbolTree.attributeList(this); }\n\n  _attach() {');
 elementSource = substituteOnce(elementSource, '    return domSelector.matches(selectors, this);',
   '    const nodes = domSymbolTree.matchNode(selectors, this);\n    return nodes === null ? domSelector.matches(selectors, this) : nodes.length > 0;');
 elementSource = substituteOnce(elementSource, '    return domSelector.closest(selectors, this);',
   '    const nodes = domSymbolTree.closestNode(selectors, this);\n    return nodes === null ? domSelector.closest(selectors, this) : (nodes[0] || null);');
 await writeFile(elementPath, elementSource);
+/** NamedNodeMap remains a WebIDL wrapper over native collection operations. */
+const namedMapPath = resolve(destination, 'lib/jsdom/living/attributes/NamedNodeMap-impl.js');
+let namedMapSource = substituteOnce(await readFile(namedMapPath, 'utf8'),
+  'const { HTML_NS } = require("../helpers/namespaces");',
+  'const { domSymbolTree } = require("../helpers/internal-constants");');
+namedMapSource = substituteOnce(namedMapSource, '    return this._attributeList.keys();',
+  '    return domSymbolTree.attributeIndices(this._element);');
+namedMapSource = substituteOnce(namedMapSource, '    return this._attributeList.length;',
+  '    return domSymbolTree.attributeCount(this._element);');
+namedMapSource = substituteOnce(namedMapSource,
+  '    if (index >= this._attributeList.length) {\n      return null;\n    }\n    return this._attributeList[index];',
+  '    return domSymbolTree.attributeAt(this._element, index);');
+const supportedNamesStart = namedMapSource.indexOf('    const names = new Set(this._attributeList.map(a => a._qualifiedName));');
+const supportedNamesEnd = namedMapSource.indexOf('    return names;', supportedNamesStart);
+if (supportedNamesStart < 0 || supportedNamesEnd < supportedNamesStart) throw new Error('rustdom build: NamedNodeMap supported names boundary changed');
+namedMapSource = namedMapSource.slice(0, supportedNamesStart) +
+  '    return domSymbolTree.attributeNames(this._element, true);' + namedMapSource.slice(supportedNamesEnd + '    return names;'.length);
+await writeFile(namedMapPath, namedMapSource);
 const parentPath = resolve(destination, 'lib/jsdom/living/nodes/ParentNode-impl.js');
 let parentSource = await readFile(parentPath, 'utf8');
 parentSource = substituteOnce(parentSource, '    return domSelector.querySelector(selectors, this);',

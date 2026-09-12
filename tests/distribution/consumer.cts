@@ -12,6 +12,12 @@ paragraph.textContent = 'After 🦀';
 assert.ok(dom.serialize().includes('After 🦀'));
 assert.ok(rustdom.getParserStatistics().nativeDocument > 0);
 assert.ok(rustdom.getNativeTreeStatistics().nativeQueries > 0);
+for (const name of ['Ä', 'ä', '\ua7ce', '\ua7d2', '\ua7d4']) {
+  paragraph.setAttributeNS(null, name, 'case');
+  // Pinned jsdom exposes named lookup separately from own-key enumeration.
+  assert.equal(Object.hasOwn(paragraph.attributes, name), true);
+  assert.equal(Reflect.ownKeys(paragraph.attributes).includes(name), name.toLowerCase() === name);
+}
 assert.equal(typeof JestEnvironment.prototype.getVmContext, 'function');
 dom.window.close();
 

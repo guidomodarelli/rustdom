@@ -6,6 +6,7 @@ const isWellFormed = Function.call.bind(String.prototype.isWellFormed);
 const charCodeAt = Function.call.bind(String.prototype.charCodeAt);
 /** Namespace invariant from the HTML specification. */
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+const ELEMENT_NODE = 1;
 /** Plain character data and containers have no qualified names or attribute metadata. */
 const SIMPLE_NODE_TYPES = new Set([3, 4, 8, 9, 11]);
 
@@ -22,22 +23,14 @@ function wireString(value) {
  * Snapshot only DOM data; structure remains in the authoritative native forest.
  * @param {object} node - Private jsdom Node implementation.
  * @param {Function} ensure - Resolves a template content fragment to its native handle.
- * @param {boolean} [includeAttributes] - Whether to copy legacy attribute values.
  * @returns {string} Prototype-safe JSON consumed by the native metadata decoder.
  */
-function encodeNodeData(node, ensure, includeAttributes = true) {
-  const attributes = [];
-  if (includeAttributes && node._attributeList) for (const attribute of node._attributeList) {
-    attributes[attributes.length] = { __proto__: null,
-      name: wireString(attribute._localName), namespace: wireString(attribute._namespace),
-      prefix: wireString(attribute._namespacePrefix), value: wireString(attribute._value) };
-  }
-  setPrototypeOf(attributes, null);
+function encodeNodeData(node, ensure) {
   return stringify({ __proto__: null,
     kind: node.nodeType || 0,
     name: wireString(node._localName ?? node.name),
     namespace: wireString(node._namespaceURI), prefix: wireString(node._prefix),
-    value: wireString(node._data ?? ''), attributes,
+    value: wireString(node._data ?? ''),
     templateContent: node._templateContents ? ensure(node._templateContents) : 0,
     isValue: wireString(node._isValue),
   });
@@ -57,13 +50,12 @@ function writeNodeData(arena, handle, node, ensure) {
     arena.setSimpleData(handle, node.nodeType, value);
     return;
   }
-  if (node._attributeList) {
-    const attributes = node._attributeList.map(ensure);
+  if (node.nodeType === ELEMENT_NODE) {
     if (node._namespaceURI === HTML_NAMESPACE && !node._prefix && !node._templateContents &&
         node._isValue == null && isWellFormed(node._localName)) {
-      arena.setHtmlElementFromAttributes(handle, node._localName, attributes);
+      arena.setHtmlElementMetadata(handle, node._localName);
     } else {
-      arena.setElementFromAttributes(handle, encodeNodeData(node, ensure, false), attributes);
+      arena.setElementMetadata(handle, encodeNodeData(node, ensure));
     }
     return;
   }

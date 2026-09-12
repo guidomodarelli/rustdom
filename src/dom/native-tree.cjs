@@ -3,6 +3,8 @@
 const SymbolTree = require('symbol-tree');
 const { NativeTree, QueryMode, AttributeField } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
+/** Initialize native case data without assuming every host version was known at build time. */
+const { initializeHostUnicode } = require('./host-unicode.cjs');
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -13,6 +15,7 @@ class NativeSymbolTree extends SymbolTree {
   constructor(description) {
     super(description);
     this._arena = new NativeTree();
+    initializeHostUnicode(this._arena, process.versions.unicode);
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
     this._nextHandle = 0;
@@ -118,6 +121,68 @@ class NativeSymbolTree extends SymbolTree {
   attributeQualifiedName(node) { return this._arena.attributeField(this._identify(node), AttributeField.QualifiedName); }
   /** @param {object} node - Attr. @param {string} value - New value. @returns {void} */
   setAttributeValue(node, value) { this._arena.setAttributeValue(this._identify(node), value); }
+
+  /** @param {object} element - Constructing element. @returns {void} Initializes native order and host GC roots. */
+  initializeAttributeCollection(element) {
+    this._arena.initializeAttributeCollection(this._identify(element));
+    this._node(element).attributeRoots = new Map();
+  }
+  /** @param {object} element - Element. @returns {object[]} Ordered view of canonical native IDs. */
+  attributeList(element) { return this._arena.attributeIds(this._identify(element)).map((id) => this._object(id)); }
+  /** @param {object} element - Element. @returns {IterableIterator<number>} Native ordered positions without materializing Attr wrappers. */
+  attributeIndices(element) { return this._arena.attributeIds(this._identify(element)).keys(); }
+  /** @param {object} element - Element. @returns {number} Native collection size. */
+  attributeCount(element) { return this._arena.attributeCount(this._identify(element)); }
+  /** @param {object} element - Element. @param {number} index - Position. @returns {object|null} Attr identity. */
+  attributeAt(element, index) { return this._object(this._arena.attributeAt(this._identify(element), index)); }
+  /** @param {object} attribute - Attr. @returns {object|null} Canonical owner. */
+  attributeOwner(attribute) { return this._object(this._arena.attributeOwner(this._identify(attribute))); }
+  /** @param {object} attribute - Attr. @param {object|null} element - Constructor owner. @returns {void} */
+  initializeAttributeOwner(attribute, element) {
+    if (element) this._arena.initializeAttributeOwner(this._identify(attribute), this._ensure(element));
+    this._node(attribute).attributeOwnerRoot = element;
+  }
+  /** @param {object} element - Element. @param {object} attribute - Attr. @returns {boolean} Native membership. */
+  containsAttribute(element, attribute) { return this._arena.containsAttribute(this._identify(element), this._identify(attribute)); }
+  /** @param {object} element - Element. @param {string} name - Qualified name. @param {boolean} [normalize] - HTML ASCII normalization. @returns {object|null} Attr from native name cache. */
+  attributeByName(element, name, normalize = true) {
+    return this._object(this._arena.attributeByName(this._ensure(element), name,
+      normalize && element._ownerDocument._parsingMode === 'html'));
+  }
+  /** @param {object} element - Element. @param {string|null} namespace - Namespace. @param {string} name - Local name. @returns {object|null} Native namespace lookup. */
+  attributeByNamespace(element, namespace, name) {
+    return this._object(this._arena.attributeByNamespace(this._ensure(element), namespace, name));
+  }
+  /** @param {object} element - Element. @param {boolean} [supported] - NamedNodeMap supported-property filtering. @returns {string[]} Native ordered names. */
+  attributeNames(element, supported = false) {
+    return this._arena.attributeNames(this._ensure(element), supported, element._ownerDocument._parsingMode === 'html');
+  }
+  /**
+   * Apply only GC-visible ownership edges after native commit. Native code owns order and cache decisions.
+   * @param {object} element - Owner element.
+   * @param {object} delta - Native reference changes.
+   * @returns {object} Change record retaining the previous Attr for the caller.
+   */
+  _applyAttributeDelta(element, delta) {
+    const previous = this._object(delta.previous);
+    const roots = this._node(element).attributeRoots;
+    if (delta.detached) this._node(this._object(delta.detached)).attributeOwnerRoot = null;
+    if (delta.attached) {
+      const attribute = this._object(delta.attached);
+      roots.set(delta.attached, attribute);
+      this._node(attribute).attributeOwnerRoot = element;
+    }
+    for (const id of delta.released) roots.delete(id);
+    return { changed: delta.changed, previous };
+  }
+  /** @param {object} element - Element. @param {object} attribute - Attr. @returns {object} Native append effects. */
+  appendAttribute(element, attribute) { return this._applyAttributeDelta(element, this._arena.appendAttribute(this._ensure(element), this._identify(attribute))); }
+  /** @param {object} element - Element. @param {object} attribute - Attr. @returns {object} Native removal effects. */
+  removeAttribute(element, attribute) { return this._applyAttributeDelta(element, this._arena.removeAttribute(this._ensure(element), this._identify(attribute))); }
+  /** @param {object} element - Element. @param {object} oldAttribute - Prior Attr. @param {object} newAttribute - Replacement. @returns {object} Native replacement effects. */
+  replaceAttribute(element, oldAttribute, newAttribute) { return this._applyAttributeDelta(element, this._arena.replaceAttribute(this._ensure(element), this._identify(oldAttribute), this._identify(newAttribute))); }
+  /** @param {object} element - Element. @param {object} attribute - Attr. @returns {object} Native append/replace/no-op decision. */
+  setAttribute(element, attribute) { return this._applyAttributeDelta(element, this._arena.setAttribute(this._ensure(element), this._identify(attribute))); }
 
   /** @param {object} node - DOM root. @param {boolean} outer - Include root markup. @param {boolean} scripting - Noscript serialization mode. @returns {string} HTML from native data. */
   serializeHTML(node, outer, scripting) { return this._arena.serializeHtml(this._ensure(node), outer, scripting); }

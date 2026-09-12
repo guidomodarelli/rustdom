@@ -13,6 +13,12 @@ pub enum TreeError {
     MissingData(u64),
     NotCharacterData(u64),
     NotAttribute(u64),
+    NotElement(u64),
+    AttributeInUse(u64),
+    AttributeCollectionInitialized(u64),
+    NonEmptyAttributeSnapshot(u64),
+    UnsupportedUnicodeVersion(String),
+    InvalidUnicodeCaseChanges,
     CharacterOffset { offset: u32, length: usize },
 }
 
@@ -21,6 +27,30 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NonEmptyAttributeSnapshot(id) => write!(
+                formatter,
+                "NativeTree: element {id} contains snapshot attributes; cannot initialize a canonical attribute collection from a nonempty snapshot"
+            ),
+            Self::InvalidUnicodeCaseChanges => write!(
+                formatter,
+                "NativeTree: host Unicode case changes require an attached buffer of complete, strictly increasing valid u32 scalar values"
+            ),
+            Self::AttributeCollectionInitialized(id) => write!(
+                formatter,
+                "NativeTree: attribute collection for element {id} is initialized; use element metadata and attribute mutation APIs instead of a snapshot"
+            ),
+            Self::UnsupportedUnicodeVersion(version) => write!(
+                formatter,
+                "NativeTree: unsupported host Unicode version {version}"
+            ),
+            Self::NotElement(id) => write!(
+                formatter,
+                "NativeTree: node {id} is not an initialized Element"
+            ),
+            Self::AttributeInUse(id) => write!(
+                formatter,
+                "NativeTree: attribute {id} is already referenced by an element"
+            ),
             Self::NotCharacterData(id) => {
                 write!(formatter, "NativeTree: node {id} is not CharacterData")
             }
