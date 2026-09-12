@@ -137,6 +137,10 @@ mod tests {
     use super::*;
     use std::hash::{BuildHasherDefault, Hasher};
 
+    // reserve(256) gives 448 entries on this toolchain: enough to expose the retained
+    // capacity regression, without quadratic collision setup on thousands of keys.
+    const COLLIDING_FIXTURE_RESERVATION: usize = 256;
+
     #[derive(Default)]
     struct CollidingHasher;
     impl Hasher for CollidingHasher {
@@ -146,56 +150,72 @@ mod tests {
         }
     }
 
-    #[test]
-    fn should_reclaim_map_buckets_when_tombstones_hide_their_capacity() {
-        for remaining in [0, 8] {
-            let mut values = CompactMap::<u64, u64, BuildHasherDefault<CollidingHasher>>::default();
-            values.reserve(4096);
-            let count = values.capacity() as u64;
-            for key in 0..count {
-                values.insert(key, key);
-            }
-            for key in remaining..count {
-                values.remove(&key);
-                values.compact();
-            }
-            // Reusing a table full of tombstones exposes its old bucket allocation again.
-            values.insert(count, count);
-            println!(
-                "attribute-storage map remaining={remaining} peak={count} after-reuse={}",
-                values.capacity()
-            );
-            assert!(values.capacity() < 256);
-            assert_eq!(values.len(), remaining as usize + 1);
-            for key in 0..remaining {
-                assert_eq!(values.get(&key), Some(&key));
-            }
-            assert_eq!(values.get(&count), Some(&count));
+    fn assert_map_reclaims_tombstones(remaining: u64) {
+        let mut values = CompactMap::<u64, u64, BuildHasherDefault<CollidingHasher>>::default();
+        values.reserve(COLLIDING_FIXTURE_RESERVATION);
+        let count = values.capacity() as u64;
+        for key in 0..count {
+            values.insert(key, key);
         }
+        for key in remaining..count {
+            values.remove(&key);
+            values.compact();
+        }
+        // Reusing a table full of tombstones exposes its old bucket allocation again.
+        values.insert(count, count);
+        println!(
+            "attribute-storage map remaining={remaining} peak={count} after-reuse={}",
+            values.capacity()
+        );
+        assert!(values.capacity() < 256);
+        assert_eq!(values.len(), remaining as usize + 1);
+        for key in 0..remaining {
+            assert_eq!(values.get(&key), Some(&key));
+        }
+        assert_eq!(values.get(&count), Some(&count));
     }
 
-    #[test]
-    fn should_reclaim_set_buckets_when_tombstones_hide_their_capacity() {
+    fn assert_set_reclaims_tombstones(remaining: u64) {
         let mut values = CompactSet::<u64, BuildHasherDefault<CollidingHasher>>::default();
-        values.reserve(4096);
+        values.reserve(COLLIDING_FIXTURE_RESERVATION);
         let count = values.capacity() as u64;
         for key in 0..count {
             values.insert(key);
         }
-        for key in 8..count {
+        for key in remaining..count {
             values.remove(&key);
             values.compact();
         }
         values.insert(count);
         println!(
-            "attribute-storage set remaining=8 peak={count} after-reuse={}",
+            "attribute-storage set remaining={remaining} peak={count} after-reuse={}",
             values.capacity()
         );
         assert!(values.capacity() < 256);
-        assert_eq!(values.len(), 9);
-        for key in 0..8 {
+        assert_eq!(values.len(), remaining as usize + 1);
+        for key in 0..remaining {
             assert!(values.contains(&key));
         }
         assert!(values.contains(&count));
+    }
+
+    #[test]
+    fn should_reclaim_map_buckets_when_tombstones_hide_their_capacity() {
+        assert_map_reclaims_tombstones(8);
+    }
+
+    #[test]
+    fn should_reclaim_empty_map_buckets_when_tombstones_hide_their_capacity() {
+        assert_map_reclaims_tombstones(0);
+    }
+
+    #[test]
+    fn should_reclaim_set_buckets_when_tombstones_hide_their_capacity() {
+        assert_set_reclaims_tombstones(8);
+    }
+
+    #[test]
+    fn should_reclaim_empty_set_buckets_when_tombstones_hide_their_capacity() {
+        assert_set_reclaims_tombstones(0);
     }
 }

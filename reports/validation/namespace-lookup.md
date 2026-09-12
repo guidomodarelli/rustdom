@@ -56,3 +56,8 @@ verifica los 3.000 resultados y conserva todas las muestras. No hubo otras
 compilaciones, tests o análisis de memoria en paralelo. La construcción y el GC
 quedan fuera del tiempo medido. El resultado es una regresión y permanece como
 baseline; migrar una operación a Rust no acredita por sí solo una mejora.
+
+La integración posterior de los fixtures eficientes de Valgrind del commit
+`4a7003adc9e71a725b91c4ed2b20bc6e148cad1d` pasó los **51 tests Rust** de esta
+rama. El cambio de CI está limitado a `cfg(test)` y no modifica las consultas,
+el binario de producción medido ni los controles de memoria del DOM.
