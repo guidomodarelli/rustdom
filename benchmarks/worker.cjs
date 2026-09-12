@@ -19,6 +19,9 @@ const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-1
 const RANGE_BOUNDARY_ITERATIONS = 100;
 /** Measure both read-heavy access and complete Range/StaticRange lifetimes through public APIs. */
 const RANGE_STATE_ITERATIONS = 1000;
+/** Public content operations sharing identical partial-boundary fixtures. */
+const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
+  'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
 
 /**
  * Build reproducible HTML with attributes, decoded entities, and table insertion modes.
@@ -41,6 +44,8 @@ function fixture(size) {
 async function measure(name, size) {
   const html = fixture(size);
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
+  const contentOperation = RANGE_CONTENT_OPERATIONS[name];
+  const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
   const environment = name.startsWith('environment-')
     ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
       : (await import('../src/environments/vitest.mjs')).default
@@ -82,14 +87,14 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const rangeNodes = name.startsWith('range-') && !stringifyReads ? [...document.querySelectorAll('tr')] : null;
-      const ranges = name === 'range-state-lifecycle-1000' || name === 'range-delete-contents' ? null
+      const ranges = name === 'range-state-lifecycle-1000' || contentOperation ? null
         : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
-      const deletionRange = name === 'range-delete-contents' ? document.createRange() : null;
-      if (deletionRange) {
-        deletionRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
+      const contentRange = contentOperation ? document.createRange() : null;
+      if (contentRange) {
+        contentRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
         const end = rangeNodes.at(-1).lastChild.firstChild;
-        deletionRange.setEnd(end, end.length - 1);
+        contentRange.setEnd(end, end.length - 1);
       }
       const stateTextNodes = name === 'range-state-lifecycle-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : null;
@@ -99,7 +104,7 @@ async function measure(name, size) {
       const rangePointNodes = name === 'range-text-point-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
-      const textRoot = name === 'text-content-100' || stringifyReads || name.startsWith('normalize-') ? document.querySelector('table') : null;
+      const textRoot = name === 'text-content-100' || stringifyReads || contentOperation || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
       let consumedTextUnits = 0;
       const stringifyRange = stringifyReads ? document.createRange() : null;
@@ -117,8 +122,8 @@ async function measure(name, size) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
         }
-      } else if (name === 'range-delete-contents') {
-        deletionRange.deleteContents();
+      } else if (contentOperation) {
+        result = contentRange[contentOperation]();
       } else if (name === 'range-control-1000') {
         result = 0;
         for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
@@ -238,7 +243,7 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
-      assert.equal(document.querySelectorAll('tr').length, name === 'range-delete-contents' ? 2 : size);
+      assert.equal(document.querySelectorAll('tr').length, removesContent ? 2 : size);
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
       if (name === 'character-data-100') assert.equal(result, 'Row ');
@@ -260,12 +265,18 @@ async function measure(name, size) {
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
       if (name === 'range-state-read-1000') assert.equal(result, RANGE_STATE_ITERATIONS * 2);
-      if (name === 'range-delete-contents') {
+      if (removesContent) {
         assert.equal(document.querySelectorAll('tr').length, 2);
         assert.equal(document.querySelector('table').textContent, `Row ${String(size - 1).at(-1)}`);
-        assert.equal(deletionRange.startContainer, document.querySelector('tbody'));
-        assert.equal(deletionRange.startOffset, 1); assert.equal(deletionRange.endOffset, 1);
-        assert.equal(deletionRange.collapsed, true);
+        assert.equal(contentRange.startContainer, document.querySelector('tbody'));
+        assert.equal(contentRange.startOffset, 1); assert.equal(contentRange.endOffset, 1);
+        assert.equal(contentRange.collapsed, true);
+      }
+      if (contentOperation === 'cloneContents' || contentOperation === 'extractContents') {
+        assert.equal(result.nodeType, dom.window.Node.DOCUMENT_FRAGMENT_NODE);
+        assert.equal(result.querySelectorAll('tr').length, size);
+        assert.equal(result.textContent, expectedText.slice(4, -1));
+        if (!removesContent) { assert.equal(textRoot.textContent, expectedText); assert.equal(contentRange.startOffset, 4); }
       }
       if (name === 'range-control-1000') {
         assert.equal(result, Math.floor(RANGE_STATE_ITERATIONS / 2));
@@ -286,8 +297,10 @@ async function measure(name, size) {
         assert.equal(consumedTextUnits, expectedText.length * stringifyReads);
       }
     }
-    assert.equal(dom.window.document.querySelector('a').textContent, name === 'range-delete-contents' ? 'Row ' : 'Row 0 & value');
-    const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
+    assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
+    const fragmentOutput = contentOperation === 'cloneContents' || contentOperation === 'extractContents'
+      ? new dom.window.XMLSerializer().serializeToString(result) : '';
+    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
     result = null;
@@ -325,7 +338,7 @@ async function main() {
     ...[250, 1000].map((size) => ({ name: 'range-boundaries-100', size })),
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
-    ...[250, 1000].map((size) => ({ name: 'range-delete-contents', size })),
+    ...[250, 1000].flatMap((size) => Object.keys(RANGE_CONTENT_OPERATIONS).map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

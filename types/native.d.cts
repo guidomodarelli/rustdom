@@ -39,6 +39,9 @@ export const RangeDeletionKind: { readonly Empty: 0; readonly CharacterData: 1; 
 export interface RangeDeletionPlan { kind: typeof RangeDeletionKind[keyof typeof RangeDeletionKind]; startNode: number; startOffset: number;
   startCount: number; endNode: number; endOffset: number; startCharacter: boolean; endCharacter: boolean; nodes: number[];
   collapseNode: number; collapseOffset: number; }
+/** Read-only content selection; zero partial IDs mean no partial child on that side. */
+export interface RangeContentSelection { commonAncestor: number; firstPartial: number; lastPartial: number; contained: number[];
+  hasDoctype: boolean; collapseNode: number; collapseOffset: number; }
 /** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
 export class NativeRange {
   constructor();
@@ -98,6 +101,8 @@ export class NativeTree {
   commonAncestorFromState(state: NativeRange): number;
   compareRangeStates(current: NativeRange, how: number, source: NativeRange): typeof RangeComparison[keyof typeof RangeComparison];
   rangeDeletionPlan(state: NativeRange): RangeDeletionPlan;
+  /** Returns null for distinct roots; all endpoint handles must be allocated. */
+  rangeContentSelection(state: NativeRange): RangeContentSelection | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

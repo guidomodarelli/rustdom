@@ -343,6 +343,35 @@ const rangeStringEnd = rangeSource.indexOf('  // https://w3c.github.io/DOM-Parsi
 if (rangeStringStart < 0 || rangeStringEnd < rangeStringStart) throw new Error('rustdom build: Range stringification boundary changed');
 rangeSource = rangeSource.slice(0, rangeStringStart) +
   '  toString() { return domSymbolTree.rangeText(this); }\n\n' + rangeSource.slice(rangeStringEnd);
+/** Both content operations capture the same immutable selection before invoking clone/mutation hooks. */
+for (const helper of ['cloneRange', 'extractRange']) {
+  const helperStart = rangeSource.indexOf(`function ${helper}(range) {`);
+  const selectionStart = rangeSource.indexOf('  let commonAncestor = originalStart.node;', helperStart);
+  const doctypeLine = '  const hasDoctypeChildren = containedChildren.some(node => node.nodeType === NODE_TYPE.DOCUMENT_TYPE_NODE);';
+  const selectionEnd = rangeSource.indexOf(doctypeLine, selectionStart);
+  if (helperStart < 0 || selectionStart < helperStart || selectionEnd < selectionStart) {
+    throw new Error(`rustdom build: ${helper} content selection changed`);
+  }
+  rangeSource = rangeSource.slice(0, selectionStart) +
+    '  const selection = domSymbolTree.rangeContentSelection(range);\n' +
+    '  const firstPartialContainedChild = selection.firstPartial;\n' +
+    '  const lastPartiallyContainedChild = selection.lastPartial;\n' +
+    '  const containedChildren = selection.contained;\n' +
+    '  const hasDoctypeChildren = selection.hasDoctype;' + rangeSource.slice(selectionEnd + doctypeLine.length);
+}
+const extractHelper = rangeSource.indexOf('function extractRange(range) {');
+const extractCollapseStart = rangeSource.indexOf('  let newNode, newOffset;', extractHelper);
+const extractCollapseEnd = rangeSource.indexOf('  if (\n    firstPartialContainedChild !== null', extractCollapseStart);
+if (extractHelper < 0 || extractCollapseStart < extractHelper || extractCollapseEnd < extractCollapseStart) {
+  throw new Error('rustdom build: extractRange collapse geometry changed');
+}
+rangeSource = rangeSource.slice(0, extractCollapseStart) +
+  '  const newNode = selection.collapseNode;\n  const newOffset = selection.collapseOffset;\n\n' + rangeSource.slice(extractCollapseEnd);
+const containedHelperStart = rangeSource.indexOf('// https://dom.spec.whatwg.org/#contained');
+const containedHelperEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#partially-contained', containedHelperStart);
+if (containedHelperStart < 0 || containedHelperEnd < containedHelperStart) throw new Error('rustdom build: contained helper changed');
+rangeSource = rangeSource.slice(0, containedHelperStart) + rangeSource.slice(containedHelperEnd);
+rangeSource = substituteOnce(rangeSource, 'const { compareBoundaryPointsPosition } = require("./boundary-point");\n', '');
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
