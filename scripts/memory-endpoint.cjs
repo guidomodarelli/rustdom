@@ -40,6 +40,7 @@ function isReleased(state, expected) {
   if (expected === undefined) return native === undefined;
   return native !== undefined && NATIVE_LIFETIME_FIELDS.every((field) => native[field] === expected[field]) &&
     native.rangeStates?.live === expected.rangeStates?.live &&
+    native.rangeClones?.live === expected.rangeClones?.live &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

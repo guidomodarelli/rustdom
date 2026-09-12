@@ -50,6 +50,10 @@ await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
+await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
+const cloneDriverSource = await readFile('src/dom/range-clone-driver.cjs', 'utf8');
+await writeFile('dist/range-clone-driver.cjs', substituteOnce(cloneDriverSource,
+  "require('../../dist/native.cjs')", "require('./native.cjs')"));
 
 /** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
 const attributePath = resolve(destination, 'lib/jsdom/living/attributes/Attr-impl.js');
@@ -443,6 +447,12 @@ rangeSource = rangeSource.slice(0, fragmentContextStart) +
   '    let element = domSymbolTree.rangeFragmentContext(this);\n' +
   '    if (element === null) element = createElement(this._rangeStartNode._ownerDocument, "body", HTML_NS);\n' +
   '    return parseFragment(fragment, element);\n  }\n\n' + rangeSource.slice(fragmentContextEnd);
+const cloneDriverStart = rangeSource.indexOf('function cloneRange(range) {');
+const cloneDriverEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#concept-range-extract', cloneDriverStart);
+if (cloneDriverStart < 0 || cloneDriverEnd < cloneDriverStart) throw new Error('rustdom build: cloneContents driver boundary changed');
+rangeSource = rangeSource.slice(0, cloneDriverStart) +
+  'function cloneRange(range) {\n' +
+  '  return domSymbolTree.cloneRangeContents(range, DocumentFragment, clone, DOMException);\n}\n\n' + rangeSource.slice(cloneDriverEnd);
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

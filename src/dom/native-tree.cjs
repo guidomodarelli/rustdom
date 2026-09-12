@@ -1,12 +1,12 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
+const { cloneContents } = require('./range-clone-driver.cjs');
+const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
-/** Preserve the pinned private comparator's diagnostic for inconsistent roots. */
-const BOUNDARY_ROOT_ERROR_MESSAGE = 'Internal Error: Boundary points should have the same root!';
 /** Shared pinned diagnostics; the exception realm remains specific to the calling operation. */
 const RANGE_INVALID_TYPE_MESSAGE = "DocumentType Node can't be used as boundary point.";
 const RANGE_OFFSET_MESSAGE = 'Offset out of bound.';
@@ -382,6 +382,10 @@ class NativeSymbolTree extends SymbolTree {
     selection.collapseNode = this._object(selection.collapseNode);
     return selection;
   }
+  /** @param {object} range - Receiver Range. @param {object} fragmentFactory - Existing fragment factory. @param {Function} cloneNode - Existing clone hook. @param {object} exceptionFactory - Existing error factory. @returns {object} Cloned fragment. */
+  cloneRangeContents(range, fragmentFactory, cloneNode, exceptionFactory) {
+    return cloneContents(this, range, fragmentFactory, cloneNode, exceptionFactory);
+  }
   /** @param {object} range - Receiver Range. @returns {object|null} Existing context element or a request for the synthetic body. */
   rangeFragmentContext(range) {
     const context = this._arena.rangeFragmentContext(range._nativeRange, range._rangeStartNode._ownerDocument._parsingMode === 'html');
@@ -611,7 +615,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
-      rangeStates: NativeRange.statistics() };
+      rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics() };
   }
 }
 
