@@ -39,15 +39,22 @@ impl TreeStore {
     }
     /// Initialize canonical ownership without silently replacing snapshot-only attributes.
     pub fn initialize_attribute_collection(&mut self, handle: f64) -> Result<()> {
-        let id = node_id(handle)?;
+        self.initialize_attribute_collection_id(node_id(handle)?)
+    }
+    /// Shared snapshot boundary; target-type restrictions remain with each operation.
+    fn validate_attribute_snapshot(&self, id: NodeId, data: &NodeData) -> Result<()> {
+        if !data.attributes.is_empty() && !self.attribute_collections.elements.contains_key(&id) {
+            return Err(TreeError::NonEmptyAttributeSnapshot(id));
+        }
+        Ok(())
+    }
+    /// All implicit collection creation commits only after its caller validates Attr/owner inputs.
+    fn initialize_attribute_collection_id(&mut self, id: NodeId) -> Result<()> {
         if let Some(data) = self.data.get(&id) {
             if data.kind != ELEMENT_NODE {
                 return Err(TreeError::NotElement(id));
             }
-            if !data.attributes.is_empty() && !self.attribute_collections.elements.contains_key(&id)
-            {
-                return Err(TreeError::NonEmptyAttributeSnapshot(id));
-            }
+            self.validate_attribute_snapshot(id, data)?;
         }
         self.activate(id)?;
         self.attribute_collections.initialize(id);
@@ -75,6 +82,12 @@ impl TreeStore {
         Ok(values)
     }
     pub(crate) fn refresh_attribute_cache(&mut self, element: NodeId) -> Result<()> {
+        if !self.attribute_collections.elements.contains_key(&element) {
+            // Snapshot-only data has no canonical source to rebuild from. Still reject
+            // missing/wrong-type metadata instead of swallowing an unrelated state error.
+            self.element(element)?;
+            return Ok(());
+        }
         let attributes = self.snapshot_attributes(element)?;
         if let Some(data) = self.data.get_mut(&element) {
             self.non_utf8_nodes -= usize::from(data.has_non_utf8());
@@ -89,6 +102,9 @@ impl TreeStore {
         let id = node_id(handle)?;
         if data.kind != ELEMENT_NODE {
             return Err(TreeError::NotElement(id));
+        }
+        if let Some(previous) = self.data.get(&id) {
+            self.validate_attribute_snapshot(id, previous)?;
         }
         self.replace_data(handle, data)
     }
@@ -146,6 +162,7 @@ impl TreeStore {
         if let Some(element) = element {
             let element = node_id(element)?;
             self.element(element)?;
+            self.initialize_attribute_collection_id(element)?;
             self.attribute_collections.set_initial_owner(id, element);
         }
         Ok(())
@@ -289,7 +306,7 @@ impl TreeStore {
             return Err(TreeError::AttributeInUse(attribute_id));
         }
         let name = self.attribute_key(attribute_id)?;
-        self.attribute_collections.initialize(element_id);
+        self.initialize_attribute_collection_id(element_id)?;
         let delta = self
             .attribute_collections
             .append(element_id, attribute_id, name);
@@ -330,7 +347,7 @@ impl TreeStore {
         let attribute = node_id(attribute)?;
         self.element(element)?;
         let name = self.attribute_key(attribute)?;
-        self.attribute_collections.initialize(element);
+        self.initialize_attribute_collection_id(element)?;
         let delta = self.attribute_collections.remove(element, attribute, &name);
         if delta.changed {
             self.refresh_attribute_cache(element)?;
@@ -358,7 +375,7 @@ impl TreeStore {
             return Err(TreeError::AttributeInUse(new));
         }
         let name = self.attribute_key(new)?;
-        self.attribute_collections.initialize(element);
+        self.initialize_attribute_collection_id(element)?;
         let delta = self.attribute_collections.replace(element, old, new, name);
         if delta.changed {
             self.refresh_attribute_cache(element)?;
@@ -382,6 +399,10 @@ impl TreeStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "attribute_transition_tests.rs"]
+mod transition_tests;
 
 #[cfg(test)]
 mod tests {
