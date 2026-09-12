@@ -63,3 +63,39 @@ test('should copy native Range text before subsequent mutation and node release'
   assert.equal(result, '\ud800');
   assert.equal(tree.statistics().liveNodes, 0);
 });
+
+test('should preserve pinned stringifier short-circuits for internal disconnected boundaries', () => {
+  // Valid public setters collapse disconnected points. Exercise internal endpoint states
+  // because the public low-level NativeTree contract mirrors this private algorithm.
+  for (const [name, engine] of Object.entries(engines)) {
+    const dom = new engine.JSDOM('');
+    try {
+      const utilities = name === 'jsdom' ? require('jsdom/lib/jsdom/living/generated/utils')
+        : require('../dist/vendor-jsdom/lib/jsdom/living/generated/utils');
+      const document = dom.window.document;
+      const first = document.createTextNode('first');
+      const second = document.createTextNode('second');
+      const range = document.createRange();
+      const implementation = utilities.implForWrapper(range);
+      implementation._setLiveRangeStart(utilities.implForWrapper(first), 1);
+      implementation._setLiveRangeEnd(utilities.implForWrapper(second), 2);
+      assert.equal(range.toString(), 'irstse');
+      const fragment = document.createDocumentFragment();
+      implementation._setLiveRangeStart(utilities.implForWrapper(fragment), 0);
+      assert.equal(range.toString(), 'se');
+      fragment.append('contained');
+      assert.throws(() => range.toString(), { message: 'Internal Error: Boundary points should have the same root!' });
+    } finally { dom.window.close(); }
+  }
+  const { NativeTree } = require('../dist/native.cjs');
+  const tree = new NativeTree();
+  const first = tree.allocate(); tree.setCharacterData(first, 3, 'first');
+  const second = tree.allocate(); tree.setCharacterData(second, 3, 'second');
+  const fragment = tree.allocate(); tree.setSimpleData(fragment, 11, '');
+  assert.equal(tree.rangeText(first, 1, second, 2), 'irstse');
+  assert.equal(tree.rangeText(fragment, 0, second, 2), 'se');
+  tree.append(fragment, first);
+  assert.equal(tree.rangeText(fragment, 0, second, 2), null);
+  for (const handle of [first, second, fragment]) tree.release(handle);
+  assert.equal(tree.statistics().liveNodes, 0);
+});

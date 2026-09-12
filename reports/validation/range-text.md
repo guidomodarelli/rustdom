@@ -58,3 +58,8 @@ El [paquete instalado](../distribution/2026-09-12T08-55-22.759Z-linux-x64.json)
 pasó los 18 controles npm/pnpm, incluidos consumidores CJS/ESM, tipos, workers,
 Jest, Vitest y pools VM. Su SHA-256 es
 `f6cc4798c54a9a80b59dba9b9d4d39d7408f2bc70cefa762babea2810007ebdb`.
+
+El [seguimiento de review](range-text-review/README.md) agrega una regresión
+sobre extremos internos desconectados y aclara cuándo la API de bajo nivel
+devuelve null. Conserva los cortocircuitos del jsdom original; no cambia el
+algoritmo, los benchmarks ni el análisis de memoria de producción.
