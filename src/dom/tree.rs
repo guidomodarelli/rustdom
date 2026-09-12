@@ -5,6 +5,7 @@ use super::{
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
     napi_error::to_napi_error,
+    node_insertion::InsertionStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
     queries::{QueryEngine, QueryKind, QueryRequest},
@@ -41,6 +42,16 @@ pub enum NodeTextWriteAction {
     Attribute = 1,
     CharacterData = 2,
     ReplaceChildren = 3,
+}
+
+/// Insertion constraints evaluated after the host's parent-kind and host-cycle gates.
+#[napi]
+pub enum NodeInsertionStatus {
+    Ready = 0,
+    ChildNotFound = 1,
+    InvalidNodeType = 2,
+    InvalidParentForNode = 3,
+    InvalidDocumentStructure = 4,
 }
 
 /// A transient read-only plan; the binding preserves the ordering of existing mutation/range hooks.
@@ -580,6 +591,26 @@ impl NativeTree {
     #[napi]
     pub fn node_root(&self, handle: f64) -> Result<f64> {
         self.store.node_root(handle).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn pre_insert_constraints(
+        &self,
+        parent: f64,
+        node: f64,
+        child: f64,
+    ) -> Result<NodeInsertionStatus> {
+        self.store
+            .pre_insert_constraints(parent, node, child)
+            .map(|status| match status {
+                InsertionStatus::Ready => NodeInsertionStatus::Ready,
+                InsertionStatus::ChildNotFound => NodeInsertionStatus::ChildNotFound,
+                InsertionStatus::InvalidNodeType => NodeInsertionStatus::InvalidNodeType,
+                InsertionStatus::InvalidParentForNode => NodeInsertionStatus::InvalidParentForNode,
+                InsertionStatus::InvalidDocumentStructure => {
+                    NodeInsertionStatus::InvalidDocumentStructure
+                }
+            })
+            .map_err(to_napi_error)
     }
     #[napi]
     pub fn text_write_action(

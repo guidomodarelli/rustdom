@@ -269,6 +269,17 @@ nodeSource = nodeSource.slice(0, normalizationRangesStart) +
   '      if (node._referencedRanges.size !== 0 || parentNode._referencedRanges.size !== 0) {\n' +
   normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
   nodeSource.slice(normalizationRangesEnd);
+/** Preserve parent/host-cycle gates before delegating the remaining insertion constraints. */
+const nodePreInsertStart = nodeSource.indexOf('  _preInsertValidity(nodeImpl, childImpl) {');
+const nodePreInsertEnd = nodeSource.indexOf('\n  }\n', nodePreInsertStart);
+const preInsertConstraintsStart = nodeSource.indexOf('    if (childImpl && domSymbolTree.parent(childImpl) !== this) {', nodePreInsertStart);
+if (nodePreInsertStart < 0 || preInsertConstraintsStart < nodePreInsertStart || nodePreInsertEnd < preInsertConstraintsStart) {
+  throw new Error('rustdom build: Node pre-insertion constraint boundaries changed');
+}
+const preInsertPrefix = substituteOnce(nodeSource.slice(nodePreInsertStart, preInsertConstraintsStart),
+  '    const { nodeType } = nodeImpl;\n', '');
+nodeSource = nodeSource.slice(0, nodePreInsertStart) + preInsertPrefix +
+  '    domSymbolTree.validateInsertionConstraints(this, nodeImpl, childImpl, DOMException);' + nodeSource.slice(nodePreInsertEnd);
 const insertMethod = nodeSource.indexOf('  _insert(nodeImpl, childImpl, suppressObservers) {');
 const insertedRangesStart = nodeSource.indexOf('      for (const range of this._liveRanges()) {', insertMethod);
 const insertedRangesEnd = nodeSource.indexOf('\n    }\n\n    const nodesImpl =', insertedRangesStart);

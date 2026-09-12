@@ -8,6 +8,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas. Los setters de texto deciden en Rust el efecto por tipo; quedan sus factories y drivers de mutación, reflexión WebIDL y otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
+- Las restricciones de inserción posteriores a los controles de contenedor/ciclos consultan Rust: referencia, tipos y estructura de Document. Esos controles previos, adopción y entrega de mutaciones conservan sus drivers pendientes de migración.
 - Los helpers genéricos de raíz, longitud, ascendencia y orden de árbol usan Rust. Se mantienen separados los enlaces padre/hijo, Attr owners y shadow hosts; quedan recorridos compuestos y algoritmos generales de mutación/creación.
 - La planificación de normalize y sus ajustes de rangos usan Rust; queda la entrega de mutaciones y hooks.
 - La comparación de puntos de Range usa el árbol Rust; las conversiones WebIDL y otras operaciones de la plataforma siguen pendientes.

@@ -14,6 +14,8 @@ export interface AttributeDelta { previous: number; changed: boolean; attached: 
 export interface NormalizationGroup { parent: number; originalLength: number; appendedData: string; siblings: number[]; }
 /** Scalar setter decisions; the host delivers the selected existing mutation hooks. */
 export const NodeTextWriteAction: { readonly Ignore: 0; readonly Attribute: 1; readonly CharacterData: 2; readonly ReplaceChildren: 3 };
+/** Constraints after parent-kind and host-cycle validation; zero child handle means append. */
+export const NodeInsertionStatus: { readonly Ready: 0; readonly ChildNotFound: 1; readonly InvalidNodeType: 2; readonly InvalidParentForNode: 3; readonly InvalidDocumentStructure: 4 };
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
@@ -120,6 +122,8 @@ export class NativeTree {
   containsNode(ancestor: number, descendant: number): boolean;
   /** Generic geometry requires allocated handles; root/order/ancestry require no metadata. */
   nodeRoot(handle: number): number;
+  /** Read-only child membership, node-kind and Document constraints; caller handles parent validity and host-inclusive cycles first. */
+  preInsertConstraints(parent: number, node: number, child: number): typeof NodeInsertionStatus[keyof typeof NodeInsertionStatus];
   /** Select nodeValue (false) or textContent (true) effects without changing native state. */
   textWriteAction(handle: number, textContent: boolean): typeof NodeTextWriteAction[keyof typeof NodeTextWriteAction];
   nodeLength(handle: number): number;
