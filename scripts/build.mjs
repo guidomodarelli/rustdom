@@ -232,6 +232,15 @@ for (const property of ['nodeValue', 'textContent']) {
   nodeSource = nodeSource.slice(0, getterStart) +
     `  get ${property}() { return domSymbolTree.${property}(this); }\n\n` + nodeSource.slice(setterStart);
 }
+/** Keep WebIDL conversion and observable hooks while Rust selects each text setter effect. */
+for (const property of ['nodeValue', 'textContent']) {
+  const setterStart = nodeSource.indexOf(`  set ${property}(value) {`);
+  const setterEnd = nodeSource.indexOf('\n  }', setterStart);
+  if (setterStart < 0 || setterEnd < setterStart) throw new Error(`rustdom build: Node.${property} setter boundary changed`);
+  nodeSource = nodeSource.slice(0, setterStart) +
+    `  set ${property}(value) { domSymbolTree.setNodeText(this, value, ${property === 'textContent'}, setAnExistingAttributeValue); }` +
+    nodeSource.slice(setterEnd + '\n  }'.length);
+}
 const normalizeStart = nodeSource.indexOf('  normalize() {');
 const normalizeDataEnd = nodeSource.indexOf('      node.replaceData(length, 0, data);', normalizeStart);
 if (normalizeStart < 0 || normalizeDataEnd < normalizeStart) throw new Error('rustdom build: Node.normalize planning boundary changed');

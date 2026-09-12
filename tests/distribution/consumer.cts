@@ -60,6 +60,8 @@ tree.setCharacterData(siblingHandle, 3, ' tail');
 tree.append(namespaceHandle, siblingHandle);
 assert.equal(tree.nodeRoot(textHandle), namespaceHandle);
 assert.equal(tree.nodeLength(namespaceHandle), 2); assert.equal(tree.nodeLength(textHandle), 7);
+assert.equal(tree.textWriteAction(textHandle, false), native.NodeTextWriteAction.CharacterData);
+assert.equal(tree.textWriteAction(namespaceHandle, true), native.NodeTextWriteAction.ReplaceChildren);
 assert.equal(tree.isFollowing(siblingHandle, textHandle), true);
 assert.deepEqual(tree.normalizationCandidates(namespaceHandle), [textHandle, siblingHandle]);
 const group = tree.normalizationGroup(textHandle);

@@ -6,7 +6,7 @@ import nativeRuntime, {
   RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
-  NativeRangeExtract, RangeExtractAction,
+  NativeRangeExtract, RangeExtractAction, NodeTextWriteAction,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -18,6 +18,8 @@ assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
 const doctype = nativeTree.allocate();
 nativeTree.initializeDocumentType(doctype, 'html', 'public', 'system');
+assert.equal(NodeTextWriteAction, nativeRuntime.NodeTextWriteAction);
+assert.equal(nativeTree.textWriteAction(doctype, true), NodeTextWriteAction.Ignore);
 assert.equal(nativeTree.documentTypeField(doctype, DocumentTypeField.SystemId), 'system');
 nativeTree.release(doctype);
 assert.equal(nativeTree.statistics().liveNodes, 0);

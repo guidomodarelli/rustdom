@@ -6,7 +6,7 @@ use super::{
     error::TreeError,
     napi_error::to_napi_error,
     node_metadata,
-    node_text::NodeText,
+    node_text::{NodeText, TextWriteAction},
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
     range_clone_binding::{NativeRangeClone, RangeCloneInstruction},
@@ -32,6 +32,15 @@ fn string_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>>
         DomString::Text(value) => Either::A(value.as_str()),
         DomString::Utf16(value) => Either::B(value.clone().into()),
     })
+}
+
+/// Scalar text setter decision; effects run in the host after the native borrow ends.
+#[napi]
+pub enum NodeTextWriteAction {
+    Ignore = 0,
+    Attribute = 1,
+    CharacterData = 2,
+    ReplaceChildren = 3,
 }
 
 /// A transient read-only plan; the binding preserves the ordering of existing mutation/range hooks.
@@ -571,6 +580,22 @@ impl NativeTree {
     #[napi]
     pub fn node_root(&self, handle: f64) -> Result<f64> {
         self.store.node_root(handle).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn text_write_action(
+        &self,
+        handle: f64,
+        text_content: bool,
+    ) -> Result<NodeTextWriteAction> {
+        self.store
+            .text_write_action(handle, text_content)
+            .map(|action| match action {
+                TextWriteAction::Ignore => NodeTextWriteAction::Ignore,
+                TextWriteAction::Attribute => NodeTextWriteAction::Attribute,
+                TextWriteAction::CharacterData => NodeTextWriteAction::CharacterData,
+                TextWriteAction::ReplaceChildren => NodeTextWriteAction::ReplaceChildren,
+            })
+            .map_err(to_napi_error)
     }
     #[napi]
     pub fn node_length(&self, handle: f64) -> Result<f64> {

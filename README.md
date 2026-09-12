@@ -131,6 +131,10 @@ Los helpers compartidos de raíz, longitud DOM y ascendencia también consultan
 Rust. `getRootNode` e `isConnected` conservan los límites de ShadowRoot y
 DocumentFragment; el ownership de Attr no se trata como un enlace padre/hijo.
 
+Los setters `nodeValue` y `textContent` consultan una decisión nativa por tipo
+de nodo. El puente conserva conversiones WebIDL, creación de Text y los hooks
+de atributos, CharacterData y reemplazo de hijos, incluidas escrituras idénticas.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

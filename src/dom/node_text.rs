@@ -1,4 +1,4 @@
-//! Node text reads over live native data; aggregation never crosses fragment ownership boundaries.
+//! Node text reads and write decisions over live native data and topology.
 use super::{
     constants::{
         ATTRIBUTE_NODE, CDATA_SECTION_NODE, DOCUMENT_FRAGMENT_NODE, ELEMENT_NODE, TEXT_NODE,
@@ -14,7 +14,32 @@ pub(crate) enum NodeText<'a> {
     Descendants(Vec<u16>),
 }
 
+/// The host performs the selected effect only after the native tree borrow ends.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TextWriteAction {
+    Ignore,
+    Attribute,
+    CharacterData,
+    ReplaceChildren,
+}
+
 impl TreeStore {
+    /// Select the complete Node text setter effect without changing data or topology.
+    pub fn text_write_action(&self, handle: f64, text_content: bool) -> Result<TextWriteAction> {
+        let id = node_id(handle)?;
+        self.links(id)?;
+        let kind = self.data.get(&id).ok_or(TreeError::MissingData(id))?.kind;
+        Ok(if kind == ATTRIBUTE_NODE {
+            TextWriteAction::Attribute
+        } else if is_character_data(kind) {
+            TextWriteAction::CharacterData
+        } else if text_content && matches!(kind, ELEMENT_NODE | DOCUMENT_FRAGMENT_NODE) {
+            TextWriteAction::ReplaceChildren
+        } else {
+            TextWriteAction::Ignore
+        })
+    }
+
     pub fn node_value(&self, handle: f64) -> Result<Option<&DomString>> {
         let id = node_id(handle)?;
         let data = self.data.get(&id).ok_or(TreeError::MissingData(id))?;
@@ -108,6 +133,52 @@ mod tests {
         }
         assert_eq!(tree.statistics().live_nodes, 0.0);
         assert_eq!(tree.statistics().data_nodes, 0.0);
+    }
+
+    #[test]
+    fn should_select_text_write_effects_without_mutation_for_every_node_kind() {
+        let mut tree = TreeStore::new();
+        for kind in [0, 1, 2, 3, 4, 7, 8, 9, 10, 11] {
+            let handle = node(
+                &mut tree,
+                &format!(r#"{{"kind":{kind},"name":"node","value":"initial"}}"#),
+            );
+            for text_content in [false, true] {
+                let expected = match kind {
+                    2 => TextWriteAction::Attribute,
+                    3 | 4 | 7 | 8 => TextWriteAction::CharacterData,
+                    1 | 11 if text_content => TextWriteAction::ReplaceChildren,
+                    _ => TextWriteAction::Ignore,
+                };
+                let before = tree.statistics();
+                assert_eq!(
+                    tree.text_write_action(handle, text_content).unwrap(),
+                    expected
+                );
+                assert_eq!(tree.statistics().mutations, before.mutations);
+                assert_eq!(tree.statistics().data_updates, before.data_updates);
+            }
+            tree.release(handle).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+    }
+
+    #[test]
+    fn should_reject_unallocated_or_untyped_text_writes_without_consuming_reservations() {
+        let mut tree = TreeStore::new();
+        let reserved = tree.reserve_handles().unwrap();
+        let untyped = tree.allocate().unwrap();
+        let before = tree.statistics();
+        for invalid in [0.0, -1.0, f64::NAN, 0.5, reserved, untyped] {
+            for text_content in [false, true] {
+                assert!(tree.text_write_action(invalid, text_content).is_err());
+            }
+        }
+        let after = tree.statistics();
+        assert_eq!(after.allocations, before.allocations);
+        assert_eq!(after.reserved_handles, before.reserved_handles);
+        assert_eq!(after.mutations, before.mutations);
+        assert_eq!(after.data_updates, before.data_updates);
     }
 
     #[test]

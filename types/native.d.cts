@@ -12,6 +12,8 @@ export interface TreeLinks {
 export interface AttributeDelta { previous: number; changed: boolean; attached: number; detached: number; released: number[]; }
 /** Read-only normalization decision; mutation and range hooks run after the plan is returned. */
 export interface NormalizationGroup { parent: number; originalLength: number; appendedData: string; siblings: number[]; }
+/** Scalar setter decisions; the host delivers the selected existing mutation hooks. */
+export const NodeTextWriteAction: { readonly Ignore: 0; readonly Attribute: 1; readonly CharacterData: 2; readonly ReplaceChildren: 3 };
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
@@ -118,6 +120,8 @@ export class NativeTree {
   containsNode(ancestor: number, descendant: number): boolean;
   /** Generic geometry requires allocated handles; root/order/ancestry require no metadata. */
   nodeRoot(handle: number): number;
+  /** Select nodeValue (false) or textContent (true) effects without changing native state. */
+  textWriteAction(handle: number, textContent: boolean): typeof NodeTextWriteAction[keyof typeof NodeTextWriteAction];
   nodeLength(handle: number): number;
   isFollowing(node: number, reference: number): boolean;
   compareDocumentPosition(left: number, right: number): number;
