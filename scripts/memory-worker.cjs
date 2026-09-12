@@ -77,6 +77,7 @@ function exerciseWindow(runtime, identity) {
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
   const text = target.document.querySelector('p').firstChild;
+  assert.equal(text.getRootNode(), target.document); assert.equal(text.isConnected, true);
   const live = target.document.createRange(); live.setStart(text, 1); live.setEnd(text, 3);
   const clone = live.cloneRange();
   const frozen = new target.jsdom.window.StaticRange({ startContainer: text, startOffset: 1,
@@ -176,6 +177,7 @@ async function exerciseNodeComparisons(runtime) {
       const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
       assert.ok(root.isEqualNode(clone));
       const copiedText = clone.textContent;
+      assert.equal(clone.firstChild.firstChild.getRootNode(), clone); assert.equal(clone.firstChild.isConnected, false);
       assert.equal(copiedText, 'text'.repeat(20));
       assert.equal(clone.firstChild.firstChild.nodeValue, 'text');
       retainedTextResults.push(copiedText);
@@ -233,6 +235,7 @@ async function exerciseNodeComparisons(runtime) {
       wholeRange.setStart(clone.firstChild.firstChild, 2);
       wholeRange.setEnd(clone.lastChild.firstChild, 2);
       wholeRange.deleteContents();
+      assert.equal(removedText.getRootNode(), removedParagraph); assert.equal(removedParagraph.isConnected, false);
       assert.equal(clone.children.length, 2); assert.equal(clone.textContent, 'texttail');
       assert.equal(wholeRange.collapsed, true); assert.equal(wholeRange.startOffset, 1);
       const namespace = 'urn:' + 'n'.repeat(8192);
