@@ -21,6 +21,7 @@ assert.ok(environment.setupVM);
 const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' } });
 const context = session.getVmContext();
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
+assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 assert.ok(context.document.body.contains(context.document.querySelector('p')));
 assert.ok(context.document.body.isEqualNode(context.document.body.cloneNode(true)));
 context.document.body.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:vm');

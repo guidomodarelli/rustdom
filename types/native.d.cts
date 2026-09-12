@@ -33,6 +33,8 @@ export class NativeTree {
   lookupNamespaceUri(handle: number, prefix: string | null): string | null;
   lookupPrefix(handle: number, namespace: string | null): string | null;
   isDefaultNamespace(handle: number, namespace: string | null): boolean;
+  nodeValue(handle: number): string | null;
+  textContent(handle: number): string | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

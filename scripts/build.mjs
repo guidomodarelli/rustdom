@@ -207,6 +207,13 @@ nodeSource = nodeSource.slice(0, namespaceStart) +
   '  lookupPrefix(namespace) { return domSymbolTree.lookupPrefix(this, namespace); }\n\n' +
   '  lookupNamespaceURI(prefix) { return domSymbolTree.lookupNamespaceURI(this, prefix); }\n\n' +
   '  isDefaultNamespace(namespace) { return domSymbolTree.isDefaultNamespace(this, namespace); }\n\n' + nodeSource.slice(namespaceEnd);
+for (const property of ['nodeValue', 'textContent']) {
+  const getterStart = nodeSource.indexOf(`  get ${property}() {`);
+  const setterStart = nodeSource.indexOf(`  set ${property}(value) {`, getterStart);
+  if (getterStart < 0 || setterStart < getterStart) throw new Error(`rustdom build: Node.${property} boundary changed`);
+  nodeSource = nodeSource.slice(0, getterStart) +
+    `  get ${property}() { return domSymbolTree.${property}(this); }\n\n` + nodeSource.slice(setterStart);
+}
 await writeFile(nodePath, nodeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

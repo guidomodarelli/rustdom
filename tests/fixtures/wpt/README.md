@@ -9,3 +9,7 @@ Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad
 La suite `namespaces` incluye las consultas de prefijo, URI y namespace por defecto,
 con los fixtures originales HTML y XHTML. Se aplica la misma comparación de
 estados y mensajes, conservando también los fallos compartidos con jsdom.
+
+La suite `node-text` incluye lecturas/escrituras de `nodeValue` y `textContent`,
+además de registros de MutationObserver producidos por las escrituras. El cambio
+nativo de getters se verifica también contra esos setters y sus efectos reales.

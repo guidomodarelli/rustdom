@@ -130,6 +130,10 @@ class NativeSymbolTree extends SymbolTree {
   lookupPrefix(node, namespace) { return this._arena.lookupPrefix(this._ensure(node), namespace); }
   /** @param {object} node - Context node. @param {string|null} namespace - Requested URI. @returns {boolean} Native default namespace comparison. */
   isDefaultNamespace(node, namespace) { return this._arena.isDefaultNamespace(this._ensure(node), namespace); }
+  /** @param {object} node - Context node. @returns {string|null} Current native node value. */
+  nodeValue(node) { return this._arena.nodeValue(this._ensure(node)); }
+  /** @param {object} node - Context node. @returns {string|null} Native value or aggregated descendant text. */
+  textContent(node) { return this._arena.textContent(this._ensure(node)); }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
   initializeAttribute(node, kind, data) {

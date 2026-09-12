@@ -75,10 +75,18 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
+      const textRoot = name === 'text-content-100' ? document.querySelector('table') : null;
+      const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
+      let consumedTextUnits = 0;
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (name === 'namespace-lookup-1000') {
+      if (name === 'text-content-100') {
+        for (let iteration = 0; iteration < 100; iteration++) {
+          result = textRoot.textContent;
+          consumedTextUnits += result.length;
+        }
+      } else if (name === 'namespace-lookup-1000') {
         result = 0;
         for (let iteration = 0; iteration < 1000; iteration++) {
           result += Number(namespaceNode.lookupNamespaceURI('p') === 'urn:benchmark');
@@ -148,6 +156,10 @@ async function measure(name, size) {
       if (name === 'attribute-collections-100') assert.equal(result, 'value-99');
       if (name === 'node-equality-100') assert.equal(result, 100);
       if (name === 'namespace-lookup-1000') assert.equal(result, 3000);
+      if (name === 'text-content-100') {
+        assert.equal(result, expectedText);
+        assert.equal(consumedTextUnits, expectedText.length * 100);
+      }
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
@@ -183,6 +195,7 @@ async function main() {
       'attribute-collections-100', 'node-equality-100', 'node-position-1000', 'namespace-lookup-1000'].map((name) => ({ name, size: 250 })),
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
+    ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
   ];
   const requested = new Set(process.argv.slice(3));
