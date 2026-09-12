@@ -54,19 +54,21 @@ export class NativeTree {
   trySetUnicodeVersion(version: string): boolean;
   /** Copies a Uint32Array's complete non-shared buffer of strictly increasing host lowercase-change scalars. */
   setHostUnicodeCaseChanges(changes: ArrayBuffer): void;
-  /** Updates element metadata while preserving its canonical attribute collection. */
+  /** Updates metadata or retypes an empty snapshot; rejects existing nonempty snapshots without a canonical index. */
   setElementMetadata(element: number, encoded: string): void;
-  /** Updates HTML element metadata while preserving its canonical attribute collection. */
+  /** Updates HTML metadata while preserving canonical attributes; rejects existing nonempty snapshot-only data. */
   setHtmlElementMetadata(element: number, name: string): void;
   attributeIds(element: number): number[];
   attributeCount(element: number): number;
   attributeAt(element: number, index: number): number;
   attributeOwner(attribute: number): number;
+  /** A non-null validated owner establishes canonical collection state; nonempty snapshots are rejected atomically. */
   initializeAttributeOwner(attribute: number, element: number | null): void;
   containsAttribute(element: number, attribute: number): boolean;
   attributeByName(element: number, name: string, htmlDocument: boolean): number;
   attributeByNamespace(element: number, namespace: string | null, name: string): number;
   attributeNames(element: number, supported: boolean, htmlDocument: boolean): string[];
+  /** Attribute mutations initialize empty snapshots implicitly and reject nonempty snapshot-only data. */
   appendAttribute(element: number, attribute: number): AttributeDelta;
   removeAttribute(element: number, attribute: number): AttributeDelta;
   replaceAttribute(element: number, oldAttribute: number, newAttribute: number): AttributeDelta;

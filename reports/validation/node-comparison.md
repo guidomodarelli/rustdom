@@ -185,3 +185,13 @@ ProcessingInstruction. La unión pasó **51 tests Rust, 192 contratos Node,
 La revisión posterior detectó que las mutaciones implícitas de atributos aún
 podían omitir ese guard. Ese hallazgo se corrige en el PR base antes del merge;
 esta validación no se presenta como solución de esas rutas pendientes.
+
+## Transiciones implícitas y ownership
+
+La unión con `21817575405bfe642f640134884bcc7597a5f191` incorpora el preflight
+común de mutaciones, owner y metadata. Pasó **56 tests Rust, 234 contratos Node,
+7 Jest, 11 Vitest, 4 VM y 1.784 casos HTML5**, con
+[3.347 WPT en paridad](../compatibility/2026-09-12T05-57-31.465Z-linux-wpt.json).
+Se conservan los controles de snapshot, errores sin escrituras parciales e
+inicialización válida. El informe de las transiciones implícitas documenta
+también GC, Memcheck focal y la regresión pequeña del benchmark.
