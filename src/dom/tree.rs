@@ -7,6 +7,7 @@ use super::{
     node_metadata,
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
+    range_queries::PointRelation,
     store,
 };
 use napi::{
@@ -125,6 +126,18 @@ pub enum DocumentTypeField {
     Name = 0,
     PublicId = 1,
     SystemId = 2,
+}
+
+/// Range decisions are translated into the appropriate realm's DOM exceptions by the binding.
+#[napi]
+pub enum RangePointRelation {
+    Before = -1,
+    Inside = 0,
+    After = 1,
+    DifferentRoot = 2,
+    InvalidNodeType = 3,
+    InvalidOffset = 4,
+    InconsistentRoots = 5,
 }
 
 /// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
@@ -327,7 +340,50 @@ impl NativeTree {
         right_offset: u32,
     ) -> Result<Option<i32>> {
         self.store
-            .compare_boundary_points_position(left, left_offset, right, right_offset)
+            .compare_boundary_points_position(
+                left,
+                u64::from(left_offset),
+                right,
+                u64::from(right_offset),
+            )
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_point_relation(
+        &mut self,
+        node: f64,
+        offset: u32,
+        start: f64,
+        start_offset: u32,
+        end: f64,
+        end_offset: u32,
+    ) -> Result<RangePointRelation> {
+        self.store
+            .range_point_relation(node, offset, start, start_offset, end, end_offset)
+            .map(|relation| match relation {
+                PointRelation::Before => RangePointRelation::Before,
+                PointRelation::Inside => RangePointRelation::Inside,
+                PointRelation::After => RangePointRelation::After,
+                PointRelation::DifferentRoot => RangePointRelation::DifferentRoot,
+                PointRelation::InvalidNodeType => RangePointRelation::InvalidNodeType,
+                PointRelation::InvalidOffset => RangePointRelation::InvalidOffset,
+                PointRelation::InconsistentRoots => RangePointRelation::InconsistentRoots,
+            })
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_intersects_node(
+        &mut self,
+        node: f64,
+        start: f64,
+        start_offset: u32,
+        end: f64,
+        end_offset: u32,
+    ) -> Result<Option<bool>> {
+        self.store
+            .range_intersects_node(node, start, start_offset, end, end_offset)
             .map_err(to_napi_error)
     }
 

@@ -247,6 +247,21 @@ boundaryPointSource = boundaryPointSource.slice(0, boundaryPointStart) +
   'function compareBoundaryPointsPosition(bpA, bpB) {\n' +
   '  return domSymbolTree.compareBoundaryPointsPosition(bpA, bpB);\n}\n\n' + boundaryPointSource.slice(boundaryPointEnd);
 await writeFile(boundaryPointPath, boundaryPointSource);
+const rangePath = resolve(destination, 'lib/jsdom/living/range/Range-impl.js');
+let rangeSource = await readFile(rangePath, 'utf8');
+const rangeQueriesStart = rangeSource.indexOf('  isPointInRange(node, offset) {');
+const rangeQueriesEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-stringifier', rangeQueriesStart);
+if (rangeQueriesStart < 0 || rangeQueriesEnd < rangeQueriesStart) throw new Error('rustdom build: Range query boundaries changed');
+rangeSource = rangeSource.slice(0, rangeQueriesStart) +
+  '  isPointInRange(node, offset) {\n' +
+  '    return domSymbolTree.rangePointPosition(this, node, offset, DOMException) === 0;\n  }\n\n' +
+  '  comparePoint(node, offset) {\n' +
+  '    const result = domSymbolTree.rangePointPosition(this, node, offset, DOMException);\n' +
+  '    if (result === null) throw DOMException.create(this._globalObject, [\n' +
+  '      "The given Node and the Range are not in the same tree.", "WrongDocumentError"\n' +
+  '    ]);\n    return result;\n  }\n\n' +
+  '  intersectsNode(node) { return domSymbolTree.rangeIntersectsNode(this, node); }\n\n' + rangeSource.slice(rangeQueriesEnd);
+await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
 let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');
