@@ -353,9 +353,12 @@ mod tests {
         let mut tree = TreeStore::new();
         let element = tree.allocate().unwrap();
         tree.initialize_attribute_collection(element).unwrap();
-        tree.set_data(
+        tree.set_element_metadata(
             element,
-            r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+            serde_json::from_str(
+                r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+            )
+            .unwrap(),
         )
         .unwrap();
         // A7CB acquired lowercase in Unicode 16; A7CE acquired it in Unicode 17.

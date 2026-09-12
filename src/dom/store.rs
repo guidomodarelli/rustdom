@@ -226,13 +226,22 @@ impl TreeStore {
         Self::default()
     }
 
-    /// Replace metadata only after decoding the whole snapshot successfully.
+    /// Replace snapshot data only before a canonical element collection exists.
     pub fn set_data(&mut self, handle: f64, encoded: &str) -> Result<()> {
         let data: NodeData = serde_json::from_str(encoded).map_err(TreeError::InvalidMetadata)?;
+        self.replace_snapshot(handle, data)
+    }
+
+    /// Reject incompatible snapshot writes before changing metadata, owners or reserved handles.
+    pub fn replace_snapshot(&mut self, handle: f64, data: NodeData) -> Result<()> {
+        let id = node_id(handle)?;
+        if self.attribute_collections.elements.contains_key(&id) {
+            return Err(TreeError::AttributeCollectionInitialized(id));
+        }
         self.replace_data(handle, data)
     }
 
-    /// Shared commit path for decoded snapshots and allocation-light native arguments.
+    /// Commit metadata; callers updating an element preserve its authoritative Attr collection.
     pub fn replace_data(&mut self, handle: f64, mut data: NodeData) -> Result<()> {
         if is_character_data(data.kind)
             && let DomString::Text(value) = &data.value

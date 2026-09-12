@@ -15,6 +15,7 @@ pub enum TreeError {
     NotAttribute(u64),
     NotElement(u64),
     AttributeInUse(u64),
+    AttributeCollectionInitialized(u64),
     UnsupportedUnicodeVersion(String),
     CharacterOffset { offset: u32, length: usize },
 }
@@ -24,6 +25,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::AttributeCollectionInitialized(id) => write!(
+                formatter,
+                "NativeTree: attribute collection for element {id} is initialized; use element metadata and attribute mutation APIs instead of a snapshot"
+            ),
             Self::UnsupportedUnicodeVersion(version) => write!(
                 formatter,
                 "NativeTree: unsupported host Unicode version {version}"
