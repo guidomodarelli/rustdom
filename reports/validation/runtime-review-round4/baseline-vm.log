@@ -1,0 +1,100 @@
+
+> @rustdom/rustdom@0.1.0-alpha.0 test:vm
+> vitest run --config vitest.vm.config.mjs
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90m/mnt/c/Users/guido/AppData/Local/Temp/rustdom-review-round4-0bbd1be5b5934a3196e4969d362d0df7[39m
+
+ [31m❯[39m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs [2m([22m[2m11 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 38[2mms[22m[39m
+   [32m✓[39m should submit DOM FormData through a native Request without changing filenames[32m 10[2mms[22m[39m
+   [32m✓[39m should preserve stream identity and transfer data when using native response bodies[32m 2[2mms[22m[39m
+   [32m✓[39m should return DOM FormData and Files when decoding request and response clones[32m 7[2mms[22m[39m
+[31m   [31m×[31m should resolve relative request and fetch URLs when the document URL changes[39m[32m 9[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 1[2mms[22m[39m
+   [32m✓[39m should retain body consumption and malformed multipart errors[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve a host stream TypeError when native bodies fail in the current worker realm[32m 1[2mms[22m[39m
+   [32m✓[39m should use captured form intrinsics when globals disappear during a pending body read[32m 1[2mms[22m[39m
+[31m   [31m×[31m should create intrinsic body errors when the current worker TypeError global is changed[39m[32m 2[2mms[22m[39m
+   [32m✓[39m should ignore mutable append and body properties when decoding in the current worker[32m 0[2mms[22m[39m
+ [32m✓[39m [30m[46m vmForks [49m[39m tests/integration/realm.vm.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [31m❯[39m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs [2m([22m[2m11 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 36[2mms[22m[39m
+   [32m✓[39m should submit DOM FormData through a native Request without changing filenames[32m 11[2mms[22m[39m
+   [32m✓[39m should preserve stream identity and transfer data when using native response bodies[32m 2[2mms[22m[39m
+   [32m✓[39m should return DOM FormData and Files when decoding request and response clones[32m 6[2mms[22m[39m
+[31m   [31m×[31m should resolve relative request and fetch URLs when the document URL changes[39m[32m 7[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 1[2mms[22m[39m
+   [32m✓[39m should retain body consumption and malformed multipart errors[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve a host stream TypeError when native bodies fail in the current worker realm[32m 1[2mms[22m[39m
+   [32m✓[39m should use captured form intrinsics when globals disappear during a pending body read[32m 1[2mms[22m[39m
+[31m   [31m×[31m should create intrinsic body errors when the current worker TypeError global is changed[39m[32m 2[2mms[22m[39m
+   [32m✓[39m should ignore mutable append and body properties when decoding in the current worker[32m 0[2mms[22m[39m
+ [32m✓[39m [30m[42m vmThreads [49m[39m tests/integration/realm.vm.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m22 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 16:54:44
+[2m   Duration [22m 23.40s[2m (environment 94%, worker 4%, import 2%)[22m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 4 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould resolve relative request and fetch URLs when the document URL changes
+[31m[1mError[22m: shadow baseURI must not run[39m
+[36m [2m❯[22m Document.get tests/integration/platform.vitest.mjs:[2m69:84[22m[39m
+    [90m 67|[39m   const origin = `http://127.0.0.1:${server.address().port}`;
+    [90m 68|[39m   try {
+    [90m 69|[39m     Object.defineProperty(document, 'baseURI', { configurable: true, g…
+    [90m   |[39m                                                                                    [31m^[39m
+    [90m 70|[39m     jsdom.reconfigure({ url: `${origin}/nested/page` });
+    [90m 71|[39m     expect(new Request('/api').url).toBe(`${origin}/api`);
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m165:103[22m[39m
+[90m [2m❯[22m tests/integration/platform.vitest.mjs:[2m71:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould create intrinsic body errors when the current worker TypeError global is changed
+[31m[1mAssertionError[22m: expected [Function TypeError] to be [Function TypeError] // Object.is equality[39m
+
+[2mCompared values have no visual difference.[22m
+
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m192:40[22m[39m
+    [90m190|[39m     } finally { Object.defineProperty(globalThis, 'TypeError', descrip…
+    [90m191|[39m     expect(failure.constructor).toBe(OriginalTypeError);
+    [90m192|[39m     expect(requestFailure.constructor).toBe(OriginalTypeError);
+    [90m   |[39m                                        [31m^[39m
+    [90m193|[39m     expect(fetchFailure.constructor).toBe(OriginalTypeError);
+    [90m194|[39m   }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould resolve relative request and fetch URLs when the document URL changes
+[31m[1mError[22m: shadow baseURI must not run[39m
+[36m [2m❯[22m Document.get tests/integration/platform.vitest.mjs:[2m69:84[22m[39m
+    [90m 67|[39m   const origin = `http://127.0.0.1:${server.address().port}`;
+    [90m 68|[39m   try {
+    [90m 69|[39m     Object.defineProperty(document, 'baseURI', { configurable: true, g…
+    [90m   |[39m                                                                                    [31m^[39m
+    [90m 70|[39m     jsdom.reconfigure({ url: `${origin}/nested/page` });
+    [90m 71|[39m     expect(new Request('/api').url).toBe(`${origin}/api`);
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m165:103[22m[39m
+[90m [2m❯[22m tests/integration/platform.vitest.mjs:[2m71:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould create intrinsic body errors when the current worker TypeError global is changed
+[31m[1mAssertionError[22m: expected [Function TypeError] to be [Function TypeError] // Object.is equality[39m
+
+[2mCompared values have no visual difference.[22m
+
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m192:40[22m[39m
+    [90m190|[39m     } finally { Object.defineProperty(globalThis, 'TypeError', descrip…
+    [90m191|[39m     expect(failure.constructor).toBe(OriginalTypeError);
+    [90m192|[39m     expect(requestFailure.constructor).toBe(OriginalTypeError);
+    [90m   |[39m                                        [31m^[39m
+    [90m193|[39m     expect(fetchFailure.constructor).toBe(OriginalTypeError);
+    [90m194|[39m   }
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯[22m[39m
+
