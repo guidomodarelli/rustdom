@@ -17,6 +17,7 @@ mod normalization;
 mod queries;
 mod range_boundaries;
 mod range_content_queries;
+mod range_context;
 mod range_control;
 mod range_deletion;
 mod range_geometry;

@@ -111,6 +111,9 @@ const inserted = context.document.createDocumentFragment(); inserted.append(cont
 contentRange.collapse(false); contentRange.insertNode(inserted);
 assert.equal(inserted.childNodes.length, 0); assert.equal(contentRoot.textContent, 'lghtinstalled');
 assert.equal(contentRange.startOffset, 1); assert.equal(contentRange.endOffset, 3);
+const contextual = contentRange.createContextualFragment('<em>context</em>');
+assert.equal(contextual.firstChild?.localName, 'em'); assert.equal(contextual.textContent, 'context');
+assert.equal(contextual.ownerDocument, context.document);
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });
