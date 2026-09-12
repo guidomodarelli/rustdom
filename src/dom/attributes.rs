@@ -15,7 +15,7 @@ pub enum AttributeField {
 }
 
 impl TreeStore {
-    fn attribute(&self, id: NodeId) -> Result<&NodeData> {
+    pub(crate) fn attribute(&self, id: NodeId) -> Result<&NodeData> {
         self.data
             .get(&id)
             .filter(|data| data.kind == ATTRIBUTE_NODE && data.name.is_some())
@@ -61,6 +61,9 @@ impl TreeStore {
         data.value = value;
         self.non_utf8_nodes += usize::from(data.has_non_utf8());
         self.data_updates += 1;
+        if let Some(&owner) = self.attribute_collections.owners.get(&id) {
+            self.refresh_attribute_cache(owner)?;
+        }
         Ok(())
     }
 

@@ -8,6 +8,8 @@ export interface TreeLinks {
   id: number; parent: number; previous: number; next: number; first: number; last: number;
   childCount: number; childrenVersion: number;
 }
+/** Host GC-reference changes after a native attribute mutation. */
+export interface AttributeDelta { previous: number; changed: boolean; attached: number; detached: number; released: number[]; }
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
@@ -30,6 +32,23 @@ export class NativeTree {
   setAttributeValue(handle: number, value: string): void;
   setElementFromAttributes(handle: number, encoded: string, attributes: number[]): void;
   setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
+  initializeAttributeCollection(element: number): void;
+  setUnicodeVersion(version: string): void;
+  setElementMetadata(element: number, encoded: string): void;
+  setHtmlElementMetadata(element: number, name: string): void;
+  attributeIds(element: number): number[];
+  attributeCount(element: number): number;
+  attributeAt(element: number, index: number): number;
+  attributeOwner(attribute: number): number;
+  initializeAttributeOwner(attribute: number, element: number | null): void;
+  containsAttribute(element: number, attribute: number): boolean;
+  attributeByName(element: number, name: string, htmlDocument: boolean): number;
+  attributeByNamespace(element: number, namespace: string | null, name: string): number;
+  attributeNames(element: number, supported: boolean, htmlDocument: boolean): string[];
+  appendAttribute(element: number, attribute: number): AttributeDelta;
+  removeAttribute(element: number, attribute: number): AttributeDelta;
+  replaceAttribute(element: number, oldAttribute: number, newAttribute: number): AttributeDelta;
+  setAttribute(element: number, attribute: number): AttributeDelta;
   /** Initializes canonical UTF-16 CharacterData; supported kinds are 3, 4, 7 and 8. */
   setCharacterData(handle: number, kind: number, value: string): void;
   getCharacterData(handle: number): string;

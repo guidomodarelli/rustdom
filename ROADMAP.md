@@ -4,7 +4,7 @@ Objetivo activo: migrar el 100% de la implementación a Rust y verificar el 100%
 
 ## Migración integral abierta
 
-Avance actual: CharacterData tiene estado canónico y operaciones de texto nativas; Attr migra sus strings y la construcción del nombre calificado. Las colecciones/índices de atributos y los hooks DOM siguen en JavaScript. La cobertura WPT versionada amplía la evidencia, sin cerrar por sí sola ningún bloque pendiente.
+Avance actual: CharacterData tiene estado canónico y operaciones de texto nativas. Attr, sus colecciones ordenadas, índices y ownership se ejecutan en Rust. Los wrappers, la construcción de objetos y la entrega de reacciones aún conectan con lógica JS; también quedan Node/Document/Element, eventos, rangos y el resto de las familias de API. La cobertura WPT versionada amplía la evidencia, sin cerrar por sí sola ningún bloque pendiente.
 
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, namespaces, colecciones, texto y reflexión WebIDL.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.

@@ -78,3 +78,11 @@ Attr ya no guarda nombres, namespaces, prefijos ni valores en campos de texto pr
 No se agregaron referencias persistentes de Rust a objetos V8. Attr se registra en el mismo índice de WeakRef/FinalizationRegistry que los demás nodos y sus buffers se destruyen al liberarlo. Los errores de tipos/handles se detectan antes de reemplazar la cache del elemento. El cambio de valor actualiza la contabilidad de datos no representables en UTF-8.
 
 `2026-09-11T23-22-37.798Z-linux-x64.json` observa 1.320 Attr por motor, incluyendo atributos adjuntos, removidos y nunca insertados. Todos los observados fueron recolectados; también los nodos CharacterData, documentos y ventanas. Los conteos nativos volvieron al inicio y el heap de rustdom creció 0,61 MiB. RSS se conserva en el informe como medida de retención del proceso/allocator, no como prueba aislada de fuga.
+
+## Colecciones, índices y ownership nativos
+
+El orden y los índices de atributos residen en `AttributeCollections`. Los owners y holders usan IDs numéricos, sin referencias V8 en Rust. El binding conserva únicamente las referencias de objetos que el GC necesita; las agrega o elimina según los deltas calculados por Rust. El refcount interno distingue referencias de la lista ordenada y del cache por nombre, incluyendo aliases históricos observables en jsdom 27.
+
+Los caminos de liberación funcionan tanto si finaliza primero el elemento como si finaliza primero el atributo. Se retiran índices, owners, holders y relaciones iniciales aún no insertadas. Los contadores `attributeCollections`, `attributeOwners` y `attributeHolders` permiten comprobar el regreso al estado inicial. Las versiones Unicode 16/17 se seleccionan según el host mediante datos estáticos; no agregan caches por ventana.
+
+`2026-09-12T00-17-57.892Z-linux-x64.json` observa 2.320 Attr por motor: a los escenarios anteriores agrega 1.000 reemplazos/eliminaciones con un elemento todavía vivo. Los atributos removidos se recolectan antes de cerrar esa ventana, y owners/holders vuelven a su baseline en cada lote. Todas las referencias observadas y contadores nativos volvieron al estado esperado; el heap final de rustdom creció 0,67 MiB. Las pruebas finitas siguen sin demostrar ausencia absoluta de fugas.

@@ -75,6 +75,44 @@ function exerciseWindow(runtime, identity) {
 }
 
 /**
+ * Keep an element alive while removing many attributes, so delayed cleanup cannot hide behind window.close().
+ * @param {object} runtime - Real jsdom-compatible engine.
+ * @returns {Promise<void>} Verifies collection before releasing the owning document.
+ */
+async function exerciseAttributeChurn(runtime) {
+  const dom = new runtime.JSDOM('<!doctype html><div></div>');
+  const element = dom.window.document.querySelector('div');
+  /** Fixed stress size, independent of production allocation policy. */
+  const batches = 5;
+  const attributesPerBatch = 200;
+  try {
+    await settle();
+    const initial = runtime.getNativeTreeStatistics?.();
+    /** @param {number} identity - Unique payload. @returns {WeakRef<Attr>} A removed attribute without a strong test reference. */
+    function replace(identity) {
+      const attribute = dom.window.document.createAttribute('data-churn');
+      attribute.value = `value-${identity}`;
+      element.setAttributeNode(attribute);
+      return new WeakRef(attribute);
+    }
+    for (let batch = 0; batch < batches; batch++) {
+      const removed = [];
+      for (let index = 0; index < attributesPerBatch; index++) removed.push(replace(batch * attributesPerBatch + index));
+      element.removeAttribute('data-churn');
+      await settle();
+      assert.equal(removed.filter((reference) => reference.deref()).length, 0, 'removed Attr retained by a live element');
+      assert.ok(dom.window.document.body.contains(element));
+      const current = runtime.getNativeTreeStatistics?.();
+      if (current) {
+        assert.equal(current.attributeOwners, initial.attributeOwners);
+        assert.equal(current.attributeHolders, initial.attributeHolders);
+      }
+      attributeReferences.push(...removed);
+    }
+  } finally { dom.window.close(); }
+}
+
+/**
  * Run one isolated stress target and enforce conservative retained-growth budgets.
  * @returns {Promise<void>} Emits a machine-readable report and fails observed leaks.
  */
@@ -88,6 +126,7 @@ async function main() {
     : environment ? require('../dist/index.cjs') : null;
   const initialNativeNodes = nativeRuntime?.getNativeTreeStatistics().liveNodes;
   const initialNativeData = nativeRuntime?.getNativeTreeStatistics().dataNodes;
+  const initialAttributeState = nativeRuntime?.getNativeTreeStatistics();
   assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
   const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
   for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
@@ -116,6 +155,7 @@ async function main() {
     await settle();
     if (batch >= WARMUP_BATCHES) snapshots.push({ batch, ...process.memoryUsage() });
   }
+  if (runtime) await exerciseAttributeChurn(runtime);
   await settle();
   const terminalMemory = process.memoryUsage();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
@@ -140,10 +180,14 @@ async function main() {
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
+    initialAttributeState,
     snapshots, terminalMemory, growth, budgets,
     pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
+        nativeTree.attributeCollections === initialAttributeState.attributeCollections &&
+        nativeTree.attributeOwners === initialAttributeState.attributeOwners &&
+        nativeTree.attributeHolders === initialAttributeState.attributeHolders &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

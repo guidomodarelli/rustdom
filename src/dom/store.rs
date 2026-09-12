@@ -39,6 +39,9 @@ pub struct TreeLinks {
 
 /// Observe live native allocations without retaining JavaScript nodes.
 pub struct TreeStatistics {
+    pub attribute_collections: f64,
+    pub attribute_owners: f64,
+    pub attribute_holders: f64,
     pub live_nodes: f64,
     pub capacity: f64,
     pub allocations: f64,
@@ -53,6 +56,8 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    pub(crate) unicode_16: bool,
+    pub(crate) attribute_collections: super::attribute_index::AttributeCollections,
     // Handles are assigned internally; HTML input cannot choose colliding keys.
     pub(crate) nodes: FxHashMap<NodeId, Links>,
     pub(crate) data: FxHashMap<NodeId, NodeData>,
@@ -235,6 +240,15 @@ impl TreeStore {
             data.value = DomString::Utf16(value.encode_utf16().collect());
         }
         let id = node_id(handle)?;
+        if self.attribute_collections.has_references(id) {
+            return Err(TreeError::AttributeInUse(id));
+        }
+        if self.attribute_collections.elements.contains_key(&id) {
+            if data.kind != super::constants::ELEMENT_NODE {
+                return Err(TreeError::NotElement(id));
+            }
+            data.attributes = self.snapshot_attributes(id)?;
+        }
         self.activate(id)?;
         if data.template_content != 0.0 {
             self.activate(node_id(data.template_content)?)?;
@@ -340,6 +354,7 @@ impl TreeStore {
         if !self.nodes.contains_key(&id) {
             return Ok(false);
         }
+        self.release_attribute_references(id)?;
         self.detach(id)?;
         let mut child = self.nodes[&id].first;
         while child != 0 {
@@ -365,6 +380,9 @@ impl TreeStore {
     }
     pub fn statistics(&self) -> TreeStatistics {
         TreeStatistics {
+            attribute_collections: self.attribute_collections.elements.len() as f64,
+            attribute_owners: self.attribute_collections.owners.len() as f64,
+            attribute_holders: self.attribute_collections.holder_count() as f64,
             live_nodes: self.nodes.len() as f64,
             capacity: self.nodes.capacity() as f64,
             allocations: self.allocations as f64,

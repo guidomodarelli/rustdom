@@ -12,7 +12,11 @@ El build genera una copia privada de jsdom bajo `dist/vendor-jsdom`, conserva su
 
 La migración de `CharacterData` elimina su copia de texto en JavaScript: `Text`, `Comment`, `CDATASection` y `ProcessingInstruction` leen su valor de Rust. La longitud, los substrings, las sustituciones UTF-16 y `wholeText` se ejecutan sobre ese almacenamiento nativo. Los hooks de rangos, observadores y parte del binding WebIDL todavía usan jsdom y deben migrarse para cumplir el objetivo integral.
 
-`Attr` también conserva nombres, namespaces, prefijos y valores canónicos en Rust. Su nombre calificado se construye allí, y las caches nativas de selectores/serialización se obtienen directamente de esos registros. La colección ordenada, el mapa de búsqueda por nombre, ownership y reacciones de atributos todavía tienen lógica JavaScript; siguen pendientes dentro del objetivo integral.
+`Attr` también conserva nombres, namespaces, prefijos y valores canónicos en Rust. Rust mantiene la colección ordenada, los índices de nombres, la relación con el elemento y las decisiones de inserción/reemplazo/eliminación. `NamedNodeMap` consulta esas estructuras. JavaScript mantiene referencias para GC, wrappers, creación de objetos y entrega a los hooks de observadores/custom elements; esas capas restantes no completan todavía el objetivo integral.
+
+Los índices nativos conservan las peculiaridades observables de jsdom 27 al reemplazar prefijos, incluyendo aliases antiguos de lookup separados de la lista actual. Sus referencias se contabilizan y se eliminan al quedar sin uso. La visibilidad de nombres Unicode usa tablas que coinciden con Node 22/24, en lugar de asumir que el Unicode de Rust coincide con el del host.
+
+El [benchmark de colecciones nativas](reports/benchmarks/2026-09-12T00-20-27.127Z-linux-x64.md) conserva el costo de esta transición: 0,45× en reemplazos/búsquedas de colecciones, 0,67× en valores de atributos y mejoras en consultas repetidas y serialización. El siguiente trabajo debe reducir llamadas al puente y copias, manteniendo el estado y las decisiones en Rust.
 
 El [benchmark de esta migración](reports/benchmarks/2026-09-11T23-25-11.030Z-linux-x64.md) registra el costo de la transición: la carga de lectura/escritura de atributos mide 0,67× frente a jsdom y la construcción grande 0,76×. Consultas repetidas y serialización conservan mejoras en esa medición. Los resultados guían la migración pendiente de índices y operaciones completas; no se ocultan ni se interpreta esta etapa como una aceleración universal.
 

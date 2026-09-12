@@ -42,6 +42,9 @@ impl From<store::TreeLinks> for TreeLinks {
 
 #[napi(object)]
 pub struct TreeStatistics {
+    pub attribute_collections: f64,
+    pub attribute_owners: f64,
+    pub attribute_holders: f64,
     pub live_nodes: f64,
     pub capacity: f64,
     pub allocations: f64,
@@ -55,6 +58,27 @@ pub struct TreeStatistics {
     pub query_fallbacks: f64,
     pub selector_cache_hits: f64,
     pub selector_cache_size: u32,
+}
+
+/// Binding ownership changes returned only after a native collection mutation commits.
+#[napi(object)]
+pub struct AttributeDelta {
+    pub previous: f64,
+    pub changed: bool,
+    pub attached: f64,
+    pub detached: f64,
+    pub released: Vec<f64>,
+}
+impl From<super::attribute_index::AttributeDelta> for AttributeDelta {
+    fn from(delta: super::attribute_index::AttributeDelta) -> Self {
+        Self {
+            previous: delta.previous as f64,
+            changed: delta.changed,
+            attached: delta.attached as f64,
+            detached: delta.detached as f64,
+            released: delta.released.into_iter().map(|id| id as f64).collect(),
+        }
+    }
 }
 
 /// Query operation vocabulary shared with the JavaScript adapter.
@@ -266,6 +290,139 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    #[napi]
+    pub fn initialize_attribute_collection(&mut self, element: f64) -> Result<()> {
+        self.store
+            .initialize_attribute_collection(element)
+            .map_err(to_napi_error)
+    }
+    /// Select the Unicode case tables matching the JavaScript host.
+    #[napi]
+    pub fn set_unicode_version(&mut self, version: String) -> Result<()> {
+        self.store
+            .set_unicode_version(&version)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn set_element_metadata(&mut self, element: f64, encoded: String) -> Result<()> {
+        let data = serde_json::from_str(&encoded)
+            .map_err(TreeError::InvalidMetadata)
+            .map_err(to_napi_error)?;
+        self.store
+            .set_element_metadata(element, data)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn set_html_element_metadata(&mut self, element: f64, name: String) -> Result<()> {
+        self.store
+            .set_element_metadata(element, html_data(name, vec![])?)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_ids(&self, element: f64) -> Result<Vec<f64>> {
+        self.store.attribute_ids(element).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_count(&self, element: f64) -> Result<f64> {
+        self.store
+            .attribute_count(element)
+            .map(|count| count as f64)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_at(&self, element: f64, index: u32) -> Result<f64> {
+        self.store
+            .attribute_at(element, index)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_owner(&self, attribute: f64) -> Result<f64> {
+        self.store.attribute_owner(attribute).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn initialize_attribute_owner(
+        &mut self,
+        attribute: f64,
+        element: Option<f64>,
+    ) -> Result<()> {
+        self.store
+            .initialize_attribute_owner(attribute, element)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn contains_attribute(&self, element: f64, attribute: f64) -> Result<bool> {
+        self.store
+            .contains_attribute(element, attribute)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_by_name(
+        &self,
+        element: f64,
+        name: Utf16String,
+        html_document: bool,
+    ) -> Result<f64> {
+        self.store
+            .attribute_by_name(element, &name, html_document)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_by_namespace(
+        &self,
+        element: f64,
+        namespace: Option<Utf16String>,
+        name: Utf16String,
+    ) -> Result<f64> {
+        self.store
+            .attribute_by_namespace(element, namespace.as_deref(), &name)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_names(
+        &self,
+        element: f64,
+        supported: bool,
+        html_document: bool,
+    ) -> Result<Vec<Utf16String>> {
+        self.store
+            .attribute_names(element, supported, html_document)
+            .map(|names| names.into_iter().map(Into::into).collect())
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn append_attribute(&mut self, element: f64, attribute: f64) -> Result<AttributeDelta> {
+        self.store
+            .append_attribute(element, attribute)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn remove_attribute(&mut self, element: f64, attribute: f64) -> Result<AttributeDelta> {
+        self.store
+            .remove_attribute(element, attribute)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn replace_attribute(
+        &mut self,
+        element: f64,
+        old: f64,
+        new: f64,
+    ) -> Result<AttributeDelta> {
+        self.store
+            .replace_attribute(element, old, new)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn set_attribute(&mut self, element: f64, attribute: f64) -> Result<AttributeDelta> {
+        self.store
+            .set_attribute(element, attribute)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
     /// Initialize canonical CharacterData without retaining a JavaScript copy.
     #[napi]
     pub fn set_character_data(&mut self, handle: f64, kind: u16, value: Utf16String) -> Result<()> {
@@ -425,6 +582,9 @@ impl NativeTree {
     pub fn statistics(&self) -> TreeStatistics {
         let stats = self.store.statistics();
         TreeStatistics {
+            attribute_collections: stats.attribute_collections,
+            attribute_owners: stats.attribute_owners,
+            attribute_holders: stats.attribute_holders,
             live_nodes: stats.live_nodes,
             capacity: stats.capacity,
             allocations: stats.allocations,
