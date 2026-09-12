@@ -1,0 +1,37 @@
+diff --git a/src/dom/attribute_storage.rs b/src/dom/attribute_storage.rs
+index f46f8e2..20afb43 100644
+--- a/src/dom/attribute_storage.rs
++++ b/src/dom/attribute_storage.rs
+@@ -61,14 +61,8 @@ impl<Key, Value, Hasher> DerefMut for CompactMap<Key, Value, Hasher> {
+ 
+ impl<Key: Eq + Hash, Value, Hasher: BuildHasher + Clone> CompactMap<Key, Value, Hasher> {
+     pub fn compact(&mut self) {
+-        self.allocated_capacity = self.allocated_capacity.max(self.values.capacity());
+-        if let Some(target) = reduced_capacity(self.values.len(), self.allocated_capacity) {
+-            // shrink_to may itself skip a tombstone-heavy table whose reported capacity is low.
+-            let replacement =
+-                HashMap::with_capacity_and_hasher(target, self.values.hasher().clone());
+-            let previous = std::mem::replace(&mut self.values, replacement);
+-            self.values.extend(previous);
+-            self.allocated_capacity = self.values.capacity();
++        if let Some(target) = reduced_capacity(self.values.len(), self.values.capacity()) {
++            self.values.shrink_to(target);
+         }
+     }
+ 
+@@ -113,13 +107,8 @@ impl<Value, Hasher> DerefMut for CompactSet<Value, Hasher> {
+ 
+ impl<Value: Eq + Hash, Hasher: BuildHasher + Clone> CompactSet<Value, Hasher> {
+     pub fn compact(&mut self) {
+-        self.allocated_capacity = self.allocated_capacity.max(self.values.capacity());
+-        if let Some(target) = reduced_capacity(self.values.len(), self.allocated_capacity) {
+-            let replacement =
+-                HashSet::with_capacity_and_hasher(target, self.values.hasher().clone());
+-            let previous = std::mem::replace(&mut self.values, replacement);
+-            self.values.extend(previous);
+-            self.allocated_capacity = self.values.capacity();
++        if let Some(target) = reduced_capacity(self.values.len(), self.values.capacity()) {
++            self.values.shrink_to(target);
+         }
+     }
+ }
