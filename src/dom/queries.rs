@@ -123,6 +123,8 @@ impl QueryEngine {
         self.calls += 1;
         let root = node_id(root)?;
         let document = node_id(document)?;
+        store.validate_activation(root)?;
+        store.validate_activation(document)?;
         store.activate(root)?;
         store.activate(document)?;
         if !Self::compatible_tree(store, root) {
@@ -207,6 +209,60 @@ mod tests {
     use super::*;
     use crate::dom::constants::HTML_NAMESPACE;
 
+    #[test]
+    fn should_count_query_errors_without_activating_reserved_handles() {
+        let mut store = TreeStore::new();
+        let reserved = store.reserve_handles().unwrap();
+        let unknown = reserved + super::super::store::HANDLE_BATCH_SIZE as f64;
+        let mut engine = QueryEngine::default();
+        for (root, document) in [
+            (reserved, unknown),
+            (unknown, reserved),
+            (reserved, f64::NAN),
+        ] {
+            let before = store.statistics();
+            let attempts = engine.calls;
+            assert!(
+                engine
+                    .query(
+                        &mut store,
+                        QueryRequest {
+                            source: "*",
+                            root,
+                            document,
+                            kind: QueryKind::All,
+                            quirks: false,
+                        }
+                    )
+                    .is_err()
+            );
+            let after = store.statistics();
+            assert_eq!(after.live_nodes, before.live_nodes);
+            assert_eq!(after.capacity, before.capacity);
+            assert_eq!(after.allocations, before.allocations);
+            assert_eq!(after.reserved_handles, before.reserved_handles);
+            assert_eq!(engine.calls, attempts + 1);
+            assert_eq!(engine.fallbacks, 0);
+            assert_eq!(engine.cache_size(), 0);
+        }
+        assert!(
+            engine
+                .query(
+                    &mut store,
+                    QueryRequest {
+                        source: "*",
+                        root: reserved,
+                        document: reserved,
+                        kind: QueryKind::All,
+                        quirks: false,
+                    }
+                )
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(store.statistics().allocations, 1.0);
+        assert_eq!(engine.fallbacks, 1);
+    }
     fn sample_tree() -> (TreeStore, f64, f64, f64) {
         let mut store = TreeStore::new();
         let document = store.allocate().unwrap();

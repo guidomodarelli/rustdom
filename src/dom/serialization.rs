@@ -86,7 +86,7 @@ impl TreeStore {
         scripting: bool,
     ) -> Result<Vec<u16>> {
         let root = node_id(handle)?;
-        self.activate(root)?;
+        self.validate_activation(root)?;
         let root_data = self.serialization_data(root)?;
         let mut output = Vec::new();
         let mut pending = Vec::new();
@@ -194,6 +194,25 @@ impl TreeStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_reject_missing_serialization_data_without_consuming_reservations() {
+        let mut tree = TreeStore::new();
+        let reserved = tree.reserve_handles().unwrap();
+        for outer in [false, true] {
+            let before = tree.statistics();
+            assert!(matches!(
+                tree.serialize_html(reserved, outer, false),
+                Err(TreeError::MissingData(_))
+            ));
+            let after = tree.statistics();
+            assert_eq!(after.live_nodes, before.live_nodes);
+            assert_eq!(after.capacity, before.capacity);
+            assert_eq!(after.allocations, before.allocations);
+            assert_eq!(after.reserved_handles, before.reserved_handles);
+            assert_eq!(after.serializations, before.serializations);
+        }
+    }
 
     #[test]
     fn should_escape_html_and_preserve_isolated_utf16_units() {
