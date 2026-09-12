@@ -4,9 +4,16 @@ const { spawnSync } = require('node:child_process');
 const { mkdirSync, writeFileSync, readFileSync } = require('node:fs');
 const { createHash } = require('node:crypto');
 const os = require('node:os');
+/** Optional targets rerun the affected ownership boundary with the same stress and budgets. */
+const supportedModes = ['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'];
+const modes = process.argv.length > 2 ? process.argv.slice(2) : supportedModes;
+for (const mode of modes) {
+  if (!supportedModes.includes(mode)) throw new Error(`Unknown memory target: ${mode}`);
+}
 
 /** Capture actual retained growth for the reference, native boundary, DOM runtime, and teardown. */
 const report = { capturedAt: new Date().toISOString(), node: process.version,
+  targets: modes,
   nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
   environmentSourceSha256: createHash('sha256').update(readFileSync('src/environments/vitest.mjs')).digest('hex'),
   workerSourceSha256: createHash('sha256').update(readFileSync('scripts/memory-worker.cjs')).digest('hex'),
@@ -15,7 +22,7 @@ const report = { capturedAt: new Date().toISOString(), node: process.version,
   limitations: 'Finite stress tests cannot prove zero leaks. RSS includes allocator retention. This is not a peak-memory benchmark, ASan/LSan run, or exhaustive native dependency audit.',
   results: [] };
 
-for (const mode of ['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm']) {
+for (const mode of modes) {
   process.stderr.write(`Memoria: ${mode}\n`);
   const child = spawnSync(process.execPath, ['--expose-gc', 'scripts/memory-worker.cjs', mode], {
     encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, timeout: 300_000,

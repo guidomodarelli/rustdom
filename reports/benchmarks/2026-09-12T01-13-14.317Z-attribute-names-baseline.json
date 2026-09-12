@@ -1,0 +1,670 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-09-12T01:13:14.317Z",
+  "label": "baseline",
+  "node": "v24.14.1",
+  "unicode": "17.0",
+  "jsdom": "27.4.0",
+  "nativeBinarySha256": "78003112747436a6a794fa1fbd9bbc0817ed324595b041916263276eb0efe640",
+  "sourceHashes": {
+    "src/dom/attribute_operations.rs": "6cd0453a50a5c660b98a610131206e5a49a91a3b31b819b397021a4212021d7d",
+    "src/dom/attribute_index.rs": "3ae774646f1ec89f65ce4430fc3e6ca32041c25c73abef01979227e3f5be052e",
+    "src/dom/unicode_case.rs": "5175d63e62298a40c42bbff85fdd5492d0522ea0864dfa46b79a43d5c477fa24",
+    "benchmarks/attribute-names.cjs": "efa5e1b97ef2408eec79ce888ce5ffb7fcec06e7242ac6e5cd97d83d1405af17",
+    "Cargo.lock": "50a2942ea6604b035c22b46801beb220c28f815e47282ee29eaed479a8fdd3f1",
+    "package-lock.json": "bc4b504396cd63aaebb5ab83aa74c3214da1b7019f54e193f63feeb1a9ef8f6d"
+  },
+  "machine": {
+    "platform": "linux",
+    "arch": "x64",
+    "release": "6.6.87.2-microsoft-standard-WSL2",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "logicalCpus": 16,
+    "totalMemoryBytes": 8095199232
+  },
+  "methodology": {
+    "build": "Cargo release, thin LTO",
+    "workloads": [
+      {
+        "attributes": 128,
+        "iterations": 40
+      },
+      {
+        "attributes": 1024,
+        "iterations": 10
+      },
+      {
+        "attributes": 4096,
+        "iterations": 3
+      }
+    ],
+    "warmupSamples": 3,
+    "measuredSamplesPerProcess": 9,
+    "processOrders": [
+      [
+        "jsdom",
+        "rustdom"
+      ],
+      [
+        "rustdom",
+        "jsdom"
+      ]
+    ],
+    "timing": "Milliseconds per call. Includes DOM proxy enumeration and filtering symbol keys, or native call plus UTF-16 transfer. Excludes setup, module loading, GC, correctness checks and teardown.",
+    "correctness": "Every sample result matches all expected ordered names. Native release counters return to zero. Cross-engine Reflect.ownKeys digests match.",
+    "memory": "Public worker snapshots after close, event-loop turn and GC; not peak usage or proof of absence of leaks.",
+    "limitations": "Unique short names on one host, not general DOM throughput. Public DOM uses JS wrappers and native collections. NativeTree row is only the native boundary."
+  },
+  "runs": [
+    {
+      "engine": "jsdom",
+      "workloads": [
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.03672455000000809,
+            0.0400940750000018,
+            0.039170674999991204,
+            0.04126662500000293,
+            0.03731430000000273,
+            0.03968525000000227,
+            0.03566667499999312,
+            0.04018397500001356,
+            0.03491852500001187
+          ],
+          "outputHash": "cac3ecb19dc6eb60826cdda1e3851c20e9d47a8c2a99a043a020ffa1dabc0c83",
+          "memoryAfterCleanup": {
+            "rss": 119349248,
+            "heapTotal": 101068800,
+            "heapUsed": 30043024,
+            "external": 3035684,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            0.363060299999961,
+            0.3791610999999648,
+            0.3541125000000648,
+            0.3487822000000051,
+            0.35215870000001814,
+            0.3454232000000047,
+            0.3548416999999063,
+            0.35809879999997063,
+            0.35188359999992824
+          ],
+          "outputHash": "eeb9f4d32518addaf816f9a9f566b8a4748830d9f5871f750f02349430ed4fee",
+          "memoryAfterCleanup": {
+            "rss": 120115200,
+            "heapTotal": 101330944,
+            "heapUsed": 31233576,
+            "external": 3035724,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            2.058617333333435,
+            1.882584999999987,
+            1.8963113333332633,
+            1.8960573333327677,
+            1.9000796666665944,
+            1.9381513333331288,
+            1.8802439999999478,
+            1.8420406666670412,
+            1.8457940000001447
+          ],
+          "outputHash": "4e8063e7aa5880ba50993f42c4d89187d598ced552de34def72e02db7db19c40",
+          "memoryAfterCleanup": {
+            "rss": 134164480,
+            "heapTotal": 102641664,
+            "heapUsed": 29981296,
+            "external": 3035724,
+            "arrayBuffers": 495716
+          }
+        }
+      ]
+    },
+    {
+      "engine": "rustdom",
+      "workloads": [
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.10608322499999759,
+            0.10864179999998669,
+            0.11165997499999776,
+            0.11225117499998305,
+            0.11627412499999537,
+            0.10878842499998882,
+            0.11092317499999353,
+            0.11253952499998832,
+            0.1122575500000039
+          ],
+          "outputHash": "cac3ecb19dc6eb60826cdda1e3851c20e9d47a8c2a99a043a020ffa1dabc0c83",
+          "memoryAfterCleanup": {
+            "rss": 119902208,
+            "heapTotal": 100806656,
+            "heapUsed": 29968648,
+            "external": 3048955,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.053517424999995455,
+            0.0532499499999858,
+            0.05342875000001186,
+            0.05101474999999027,
+            0.05436037499998747,
+            0.05155064999999013,
+            0.054129924999983814,
+            0.05245425000000523,
+            0.052882375000012874
+          ],
+          "outputHash": "47cd69c3c4541251fbab344d82aeeef7d6d19aa4c471c1b8bc96be8136e071fb",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 129,
+            "releases": 129,
+            "mutations": 129,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 257,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            2.3336897000000136,
+            2.2718529000000673,
+            2.2739896000000046,
+            2.2807193000000554,
+            2.2521655999999894,
+            2.194203000000016,
+            2.1441737999999533,
+            2.191511300000002,
+            2.2846104000000196
+          ],
+          "outputHash": "eeb9f4d32518addaf816f9a9f566b8a4748830d9f5871f750f02349430ed4fee",
+          "memoryAfterCleanup": {
+            "rss": 123248640,
+            "heapTotal": 102117376,
+            "heapUsed": 29762976,
+            "external": 3048995,
+            "arrayBuffers": 495716
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            1.4736628000000564,
+            1.5775595999999497,
+            1.7972694999998566,
+            1.656630899999982,
+            1.7321694000000207,
+            1.6473829999998997,
+            1.7316177999999127,
+            1.6759437999999136,
+            1.5297366999999213
+          ],
+          "outputHash": "38e5bd810538c77f9716386cbea05a4326c14834ef0e9e2341e7e6ddf006e37b",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 1025,
+            "releases": 1025,
+            "mutations": 1025,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 2049,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            25.854563000000173,
+            25.36987600000005,
+            24.077888666666695,
+            22.79679966666663,
+            24.270218333333105,
+            23.928253333333487,
+            25.06056933333336,
+            24.646448999999848,
+            24.760512666666425
+          ],
+          "outputHash": "4e8063e7aa5880ba50993f42c4d89187d598ced552de34def72e02db7db19c40",
+          "memoryAfterCleanup": {
+            "rss": 143249408,
+            "heapTotal": 103661568,
+            "heapUsed": 30632848,
+            "external": 3048995,
+            "arrayBuffers": 495716
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            21.823673000000174,
+            22.51674566666649,
+            24.18206466666682,
+            22.574188000000504,
+            22.56984566666688,
+            21.337906999999785,
+            22.03375266666626,
+            22.616412000000008,
+            23.048996999999872
+          ],
+          "outputHash": "fca7bc42e47e41a80ffdde580464e2335593ffb5777de4b4a0bf904a8892f3bc",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 4097,
+            "releases": 4097,
+            "mutations": 4097,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 8193,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        }
+      ]
+    },
+    {
+      "engine": "rustdom",
+      "workloads": [
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.106419649999998,
+            0.1092034750000039,
+            0.1089274750000186,
+            0.11329635000001873,
+            0.1172924250000051,
+            0.11762909999997646,
+            0.12426679999998669,
+            0.11350282500002322,
+            0.11441580000000613
+          ],
+          "outputHash": "cac3ecb19dc6eb60826cdda1e3851c20e9d47a8c2a99a043a020ffa1dabc0c83",
+          "memoryAfterCleanup": {
+            "rss": 121249792,
+            "heapTotal": 100544512,
+            "heapUsed": 29966288,
+            "external": 3048955,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.05474497499999416,
+            0.054505124999968756,
+            0.0570292999999765,
+            0.05146132499999112,
+            0.05992070000002059,
+            0.05385212500000307,
+            0.053101199999991876,
+            0.05574900000001435,
+            0.0573826249999911
+          ],
+          "outputHash": "47cd69c3c4541251fbab344d82aeeef7d6d19aa4c471c1b8bc96be8136e071fb",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 129,
+            "releases": 129,
+            "mutations": 129,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 257,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            2.1481910000000424,
+            2.2148707000000285,
+            2.1950782000001707,
+            2.1152453000000606,
+            2.283308400000169,
+            2.3044275000000196,
+            2.0986264000001027,
+            2.2908379999998942,
+            2.3038918000000193
+          ],
+          "outputHash": "eeb9f4d32518addaf816f9a9f566b8a4748830d9f5871f750f02349430ed4fee",
+          "memoryAfterCleanup": {
+            "rss": 122814464,
+            "heapTotal": 101330944,
+            "heapUsed": 29761968,
+            "external": 3048995,
+            "arrayBuffers": 495716
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            1.6721362000000226,
+            1.702304499999991,
+            1.5269100000001345,
+            1.597009099999923,
+            1.493289300000106,
+            1.6537000000000261,
+            1.7032720000001063,
+            1.5339630000000397,
+            1.6510722000000897
+          ],
+          "outputHash": "38e5bd810538c77f9716386cbea05a4326c14834ef0e9e2341e7e6ddf006e37b",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 1025,
+            "releases": 1025,
+            "mutations": 1025,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 2049,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            24.492412999999942,
+            25.25740333333306,
+            24.54270400000011,
+            23.25591366666716,
+            26.905226666666447,
+            25.7885106666666,
+            24.30364700000003,
+            25.395400333332873,
+            25.200957666666607
+          ],
+          "outputHash": "4e8063e7aa5880ba50993f42c4d89187d598ced552de34def72e02db7db19c40",
+          "memoryAfterCleanup": {
+            "rss": 142917632,
+            "heapTotal": 103399424,
+            "heapUsed": 30632848,
+            "external": 3048995,
+            "arrayBuffers": 495716
+          }
+        },
+        {
+          "operation": "NativeTree.attributeNames",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            22.44120000000051,
+            23.11651833333296,
+            21.756781000000046,
+            22.525213666666485,
+            22.57098100000015,
+            22.208457000000028,
+            22.009857333333155,
+            23.51027733333346,
+            22.140586333333584
+          ],
+          "outputHash": "fca7bc42e47e41a80ffdde580464e2335593ffb5777de4b4a0bf904a8892f3bc",
+          "statisticsAfterRelease": {
+            "attributeCollections": 0,
+            "attributeOwners": 0,
+            "attributeHolders": 0,
+            "liveNodes": 0,
+            "capacity": 112,
+            "allocations": 4097,
+            "releases": 4097,
+            "mutations": 4097,
+            "reservedHandles": 0,
+            "dataNodes": 0,
+            "dataUpdates": 8193,
+            "serializations": 0,
+            "nativeQueries": 0,
+            "queryFallbacks": 0,
+            "selectorCacheHits": 0,
+            "selectorCacheSize": 0
+          }
+        }
+      ]
+    },
+    {
+      "engine": "jsdom",
+      "workloads": [
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 128,
+          "iterations": 40,
+          "samplesMs": [
+            0.043729875000008175,
+            0.04157294999999976,
+            0.05492785000001277,
+            0.041841599999997925,
+            0.05676432499999464,
+            0.039656600000012074,
+            0.040000149999991665,
+            0.03997772499999428,
+            0.03948307499999828
+          ],
+          "outputHash": "cac3ecb19dc6eb60826cdda1e3851c20e9d47a8c2a99a043a020ffa1dabc0c83",
+          "memoryAfterCleanup": {
+            "rss": 118591488,
+            "heapTotal": 100544512,
+            "heapUsed": 30031016,
+            "external": 3035684,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 1024,
+          "iterations": 10,
+          "samplesMs": [
+            0.4025698000000375,
+            0.39363290000001144,
+            0.39723700000004103,
+            0.3630833000000166,
+            0.37656609999994545,
+            0.3664361000000099,
+            0.3650249000000258,
+            0.3912373000000116,
+            0.3742776999999478
+          ],
+          "outputHash": "eeb9f4d32518addaf816f9a9f566b8a4748830d9f5871f750f02349430ed4fee",
+          "memoryAfterCleanup": {
+            "rss": 120463360,
+            "heapTotal": 101593088,
+            "heapUsed": 31233112,
+            "external": 3035724,
+            "arrayBuffers": 501860
+          }
+        },
+        {
+          "operation": "Reflect.ownKeys",
+          "attributes": 4096,
+          "iterations": 3,
+          "samplesMs": [
+            2.2045510000001136,
+            2.0180333333334297,
+            2.039921666666487,
+            1.990102000000358,
+            2.04094833333329,
+            2.0155109999996057,
+            2.0662260000002184,
+            1.9218193333332845,
+            1.9770669999998063
+          ],
+          "outputHash": "4e8063e7aa5880ba50993f42c4d89187d598ced552de34def72e02db7db19c40",
+          "memoryAfterCleanup": {
+            "rss": 137830400,
+            "heapTotal": 104476672,
+            "heapUsed": 34630384,
+            "external": 3035724,
+            "arrayBuffers": 501860
+          }
+        }
+      ]
+    }
+  ],
+  "summaries": [
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "jsdom",
+      "attributes": 128,
+      "count": 18,
+      "medianMs": 0.03998893749999297,
+      "p95Ms": 0.05676432499999464,
+      "minMs": 0.03491852500001187,
+      "maxMs": 0.05676432499999464
+    },
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "rustdom",
+      "attributes": 128,
+      "count": 18,
+      "medianMs": 0.11225436249999347,
+      "p95Ms": 0.12426679999998669,
+      "minMs": 0.10608322499999759,
+      "maxMs": 0.12426679999998669
+    },
+    {
+      "operation": "NativeTree.attributeNames",
+      "engine": "rustdom",
+      "attributes": 128,
+      "count": 18,
+      "medianMs": 0.05368477499999926,
+      "p95Ms": 0.05992070000002059,
+      "minMs": 0.05101474999999027,
+      "maxMs": 0.05992070000002059
+    },
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "jsdom",
+      "attributes": 1024,
+      "count": 18,
+      "medianMs": 0.3640541000000212,
+      "p95Ms": 0.4025698000000375,
+      "minMs": 0.3454232000000047,
+      "maxMs": 0.4025698000000375
+    },
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "rustdom",
+      "attributes": 1024,
+      "count": 18,
+      "medianMs": 2.2620092500000286,
+      "p95Ms": 2.3336897000000136,
+      "minMs": 2.0986264000001027,
+      "maxMs": 2.3336897000000136
+    },
+    {
+      "operation": "NativeTree.attributeNames",
+      "engine": "rustdom",
+      "attributes": 1024,
+      "count": 18,
+      "medianMs": 1.652386100000058,
+      "p95Ms": 1.7972694999998566,
+      "minMs": 1.4736628000000564,
+      "maxMs": 1.7972694999998566
+    },
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "jsdom",
+      "attributes": 4096,
+      "count": 18,
+      "medianMs": 1.9576091666664674,
+      "p95Ms": 2.2045510000001136,
+      "minMs": 1.8420406666670412,
+      "maxMs": 2.2045510000001136
+    },
+    {
+      "operation": "Reflect.ownKeys",
+      "engine": "rustdom",
+      "attributes": 4096,
+      "count": 18,
+      "medianMs": 24.70348083333314,
+      "p95Ms": 26.905226666666447,
+      "minMs": 22.79679966666663,
+      "maxMs": 26.905226666666447
+    },
+    {
+      "operation": "NativeTree.attributeNames",
+      "engine": "rustdom",
+      "attributes": 4096,
+      "count": 18,
+      "medianMs": 22.520979666666488,
+      "p95Ms": 24.18206466666682,
+      "minMs": 21.337906999999785,
+      "maxMs": 24.18206466666682
+    }
+  ]
+}

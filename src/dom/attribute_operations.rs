@@ -1,4 +1,6 @@
 //! DOM attribute lookup and mutation orchestration over canonical native records.
+use std::collections::HashSet;
+
 use super::{
     attribute_index::AttributeDelta,
     attributes::AttributeField,
@@ -211,12 +213,12 @@ impl TreeStore {
         let filter_uppercase = supported
             && html_document
             && data.namespace.as_ref().and_then(DomString::as_str) == Some(HTML_NAMESPACE);
-        let mut names = Vec::new();
-        for attribute in self.attribute_ids(element)? {
-            let name = self.attribute_key(attribute as NodeId)?;
-            if supported && names.contains(&name) {
-                continue;
-            }
+        let Some(index) = self.attribute_collections.elements.get(&id) else {
+            return Ok(Vec::new());
+        };
+        let mut names = Vec::with_capacity(index.ordered.len());
+        for &attribute in &index.ordered {
+            let name = self.attribute_key(attribute)?;
             if filter_uppercase
                 && std::char::decode_utf16(name.iter().copied()).any(|character| {
                     character
@@ -226,6 +228,19 @@ impl TreeStore {
                 continue;
             }
             names.push(name);
+        }
+        if supported {
+            // Borrow the completed output so deduplication never clones its UTF-16 payloads.
+            // RandomState protects caller-controlled names; retention preserves first-seen order.
+            let retained: Vec<bool> = {
+                let mut seen = HashSet::with_capacity(names.len());
+                names
+                    .iter()
+                    .map(|name| seen.insert(name.as_slice()))
+                    .collect()
+            };
+            let mut retained = retained.into_iter();
+            names.retain(|_| retained.next().expect("one decision per attribute name"));
         }
         Ok(names)
     }
@@ -349,13 +364,85 @@ mod tests {
     use super::*;
 
     #[test]
+    fn should_preserve_first_seen_names_across_large_namespace_duplicate_collections() {
+        let mut tree = TreeStore::new();
+        let element = tree.allocate().unwrap();
+        tree.initialize_attribute_collection(element).unwrap();
+        tree.set_element_metadata(
+            element,
+            serde_json::from_str(
+                r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let mut handles = Vec::new();
+        let mut all_names = Vec::new();
+        let mut supported_names = Vec::new();
+        for namespace in ["urn:first", "urn:second"] {
+            for index in 0..512 {
+                let name = if index % 11 == 0 {
+                    format!("UPPER-{index}")
+                } else {
+                    format!("name-{index}")
+                };
+                let qualified_name: Vec<_> = format!("p:{name}").encode_utf16().collect();
+                if namespace == "urn:first" && index % 11 != 0 {
+                    supported_names.push(qualified_name.clone());
+                }
+                all_names.push(qualified_name);
+                let attribute = tree.allocate().unwrap();
+                handles.push(attribute);
+                tree.initialize_attribute(
+                    attribute,
+                    &serde_json::json!({ "kind": 2,
+                    "name": name, "prefix": "p", "namespace": namespace, "value": "" })
+                    .to_string(),
+                )
+                .unwrap();
+                tree.append_attribute(element, attribute).unwrap();
+            }
+        }
+        let before = tree.statistics();
+        for _ in 0..12 {
+            assert_eq!(
+                tree.attribute_names(element, true, true).unwrap(),
+                supported_names
+            );
+            assert_eq!(
+                tree.attribute_names(element, false, true).unwrap(),
+                all_names
+            );
+            assert_eq!(
+                tree.attribute_names(element, true, false).unwrap(),
+                all_names[..512]
+            );
+        }
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        assert_eq!(tree.statistics().data_updates, before.data_updates);
+        assert_eq!(
+            tree.statistics().attribute_holders,
+            before.attribute_holders
+        );
+        tree.release(element).unwrap();
+        for attribute in handles {
+            tree.release(attribute).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.statistics().attribute_holders, 0.0);
+    }
+
+    #[test]
     fn should_use_host_unicode_tables_for_supported_attribute_names() {
         let mut tree = TreeStore::new();
         let element = tree.allocate().unwrap();
         tree.initialize_attribute_collection(element).unwrap();
-        tree.set_data(
+        tree.set_element_metadata(
             element,
-            r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+            serde_json::from_str(
+                r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml"}"#,
+            )
+            .unwrap(),
         )
         .unwrap();
         // A7CB acquired lowercase in Unicode 16; A7CE acquired it in Unicode 17.

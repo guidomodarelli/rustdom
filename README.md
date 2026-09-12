@@ -18,6 +18,13 @@ Los índices nativos conservan las peculiaridades observables de jsdom 27 al ree
 
 `isEqualNode`, `contains` y `compareDocumentPosition` ejecutan sus algoritmos en Rust sobre la estructura y los datos actuales. La igualdad recorre el árbol sin recursión y compara atributos sin depender de su orden. Los identificadores de `DocumentType` y el target de `ProcessingInstruction` son canónicos en Rust; los datos específicos de doctype se reservan únicamente para esos nodos. Las comparaciones conservan las particularidades de jsdom 27 para Attr, CDATA, templates y shadow roots. La creación de wrappers y las otras operaciones de Node todavía tienen trabajo pendiente de migración.
 
+La posición documental reutiliza índices de hermanos que se invalidan al mutar
+el padre. La caché vive dentro de cada registro Rust y se libera con él. El
+[informe de comparación](reports/validation/node-comparison.md) conserva la
+regresión que motivó este cambio y las validaciones realizadas.
+
+En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
+
 El [benchmark de colecciones nativas](reports/benchmarks/2026-09-12T00-20-27.127Z-linux-x64.md) conserva el costo de esta transición: 0,45× en reemplazos/búsquedas de colecciones, 0,67× en valores de atributos y mejoras en consultas repetidas y serialización. El siguiente trabajo debe reducir llamadas al puente y copias, manteniendo el estado y las decisiones en Rust.
 
 El [benchmark de esta migración](reports/benchmarks/2026-09-11T23-25-11.030Z-linux-x64.md) registra el costo de la transición: la carga de lectura/escritura de atributos mide 0,67× frente a jsdom y la construcción grande 0,76×. Consultas repetidas y serialización conservan mejoras en esa medición. Los resultados guían la migración pendiente de índices y operaciones completas; no se ocultan ni se interpreta esta etapa como una aceleración universal.
@@ -36,6 +43,8 @@ npm run test:wpt
 npm run test:memory
 npm run test:native-memory # Linux con Valgrind y símbolos de glibc
 npm run bench
+npm run bench -- node-position-1000 node-equality-100
+npm run test:memory -- jsdom rustdom
 ```
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:

@@ -101,3 +101,25 @@ test('should observe changed parentage and current descendant data without stale
     return observations;
   });
 });
+
+test('should invalidate positions when siblings are moved, removed and reinserted', () => {
+  compare((document) => {
+    const parent = document.createElement('section');
+    const other = document.createElement('nav');
+    document.body.append(parent, other);
+    const nodes = Array.from({ length: 20 }, () => document.createElement('span'));
+    parent.append(...nodes);
+    const positions = () => nodes.flatMap((left) => nodes.map((right) => left.compareDocumentPosition(right)));
+    const observed = [positions()];
+    for (let iteration = 0; iteration < 24; iteration++) {
+      const node = nodes[(iteration * 7) % nodes.length];
+      if (iteration % 3 === 0) other.append(node);
+      else if (iteration % 3 === 1) parent.prepend(node);
+      else node.remove();
+      observed.push(positions());
+    }
+    parent.append(...nodes.reverse());
+    observed.push(positions());
+    return observed;
+  });
+});

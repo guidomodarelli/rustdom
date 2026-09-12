@@ -143,6 +143,9 @@ impl TreeStore {
                 if left_attributes.len() != right_attributes.len() {
                     return Ok(false);
                 }
+                if left_attributes.is_empty() {
+                    return Ok(true);
+                }
                 let right_attributes: HashSet<_> = right_attributes.into_iter().collect();
                 left_attributes
                     .iter()
@@ -192,61 +195,77 @@ impl TreeStore {
         let mut descendant = node_id(descendant)?;
         self.links(ancestor)?;
         while descendant != 0 {
-            let links = self.links(descendant)?;
             if ancestor == descendant {
                 return Ok(true);
             }
-            descendant = links.parent;
+            descendant = self.links(descendant)?.parent;
         }
         Ok(false)
     }
 
-    fn ancestor_path(&self, mut id: NodeId) -> Result<Vec<NodeId>> {
-        let mut ancestors = Vec::new();
+    fn root_and_depth(&self, mut id: NodeId) -> Result<(NodeId, usize)> {
+        let mut root = 0;
+        let mut depth = 0;
         while id != 0 {
-            ancestors.push(id);
+            root = id;
+            depth += 1;
             id = self.links(id)?.parent;
         }
-        Ok(ancestors)
+        Ok((root, depth))
     }
 
-    fn compare_tree_position(&self, left: NodeId, right: NodeId) -> Result<u16> {
+    fn compare_tree_position(&mut self, mut left: NodeId, mut right: NodeId) -> Result<u16> {
         if left == right {
             return Ok(0);
         }
-        let left_path = self.ancestor_path(left)?;
-        let right_path = self.ancestor_path(right)?;
-        if left_path.contains(&right) {
-            return Ok(CONTAINS | PRECEDING);
-        }
-        if right_path.contains(&left) {
-            return Ok(CONTAINED_BY | FOLLOWING);
-        }
-        if left_path.last().is_none() || left_path.last() != right_path.last() {
+        if left == 0 || right == 0 {
             return Ok(DISCONNECTED | IMPLEMENTATION_SPECIFIC | FOLLOWING);
         }
-        let mut branch = None;
-        for (&left_ancestor, &right_ancestor) in left_path.iter().rev().zip(right_path.iter().rev())
-        {
-            if left_ancestor != right_ancestor {
-                branch = Some((left_ancestor, right_ancestor));
+        let left_parent = self.links(left)?.parent;
+        if left_parent != 0 && left_parent == self.links(right)?.parent {
+            return self.sibling_position(left, right);
+        }
+        let (left_root, mut left_depth) = self.root_and_depth(left)?;
+        let (right_root, mut right_depth) = self.root_and_depth(right)?;
+        if left_root == 0 || left_root != right_root {
+            return Ok(DISCONNECTED | IMPLEMENTATION_SPECIFIC | FOLLOWING);
+        }
+        while left_depth > right_depth {
+            left = self.links(left)?.parent;
+            left_depth -= 1;
+            if left == right {
+                return Ok(CONTAINS | PRECEDING);
+            }
+        }
+        while right_depth > left_depth {
+            right = self.links(right)?.parent;
+            right_depth -= 1;
+            if right == left {
+                return Ok(CONTAINED_BY | FOLLOWING);
+            }
+        }
+        loop {
+            let left_parent = self.links(left)?.parent;
+            let right_parent = self.links(right)?.parent;
+            if left_parent == right_parent {
                 break;
             }
+            left = left_parent;
+            right = right_parent;
         }
-        let (left_branch, right_branch) =
-            branch.expect("distinct nodes without an ancestor relationship");
-        let mut sibling = self.links(left_branch)?.previous;
-        while sibling != 0 {
-            if sibling == right_branch {
-                return Ok(PRECEDING);
-            }
-            sibling = self.links(sibling)?.previous;
-        }
-        Ok(FOLLOWING)
+        self.sibling_position(left, right)
+    }
+
+    fn sibling_position(&mut self, left: NodeId, right: NodeId) -> Result<u16> {
+        Ok(if self.sibling_index(right)? < self.sibling_index(left)? {
+            PRECEDING
+        } else {
+            FOLLOWING
+        })
     }
 
     /// Reproduce jsdom 27's Attr comparison ordering, including its observable identity quirks.
-    pub fn compare_document_position(&self, left: f64, right: f64) -> Result<u16> {
+    pub fn compare_document_position(&mut self, left: f64, right: f64) -> Result<u16> {
         let left = node_id(left)?;
         let right = node_id(right)?;
         let left_attribute = self.comparison_data(left)?.kind == ATTRIBUTE_NODE;

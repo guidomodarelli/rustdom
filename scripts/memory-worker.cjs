@@ -134,6 +134,8 @@ async function exerciseNodeComparisons(runtime) {
       const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
       const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
       assert.ok(root.isEqualNode(clone));
+      // Populate sibling-index caches in a subtree that must disappear while root stays alive.
+      assert.ok(clone.firstChild.compareDocumentPosition(clone.lastChild) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
       assert.equal(root.contains(clone), false);
       assert.ok(root.compareDocumentPosition(clone) & dom.window.Node.DOCUMENT_POSITION_DISCONNECTED);
       assert.ok(doctype.isEqualNode(doctype.cloneNode()));

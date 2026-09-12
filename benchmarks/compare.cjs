@@ -10,6 +10,8 @@ const { createHash } = require('node:crypto');
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
 /** Store reports in version control as requested; never replace results with marketing claims. */
 const outputDirectory = 'reports/benchmarks';
+/** Optional workload names reuse the exact fixtures and sampling of the full benchmark. */
+const requestedWorkloads = process.argv.slice(2);
 
 /** @param {string} directory - Owned source directory. @returns {string[]} Files included in the reproducibility digest. */
 function sourceFiles(directory) {
@@ -37,6 +39,7 @@ function summarize(values) {
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  requestedWorkloads,
   node: process.version, jsdom: require('jsdom/package.json').version,
   rustc: spawnSync('rustc', ['-Vv'], { encoding: 'utf8' }).stdout?.trim() || null,
   cargo: spawnSync('cargo', ['-V'], { encoding: 'utf8' }).stdout?.trim() || null,
@@ -63,7 +66,7 @@ const report = {
 for (const order of ORDERS) {
   for (const engine of order) {
     process.stderr.write(`Benchmark ${engine}, proceso ${report.runs.length + 1}/${ORDERS.length * 2}\n`);
-    const child = spawnSync(process.execPath, ['--expose-gc', 'benchmarks/worker.cjs', engine], {
+    const child = spawnSync(process.execPath, ['--expose-gc', 'benchmarks/worker.cjs', engine, ...requestedWorkloads], {
       encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 300_000,
     });
     if (child.error) throw child.error;

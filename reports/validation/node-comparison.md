@@ -21,6 +21,10 @@ hoja de ruta.
   nativos y una función hash aleatoria; no copia los valores de los atributos.
 - La contención recorre los padres. La posición documental considera además las
   relaciones de Attr de jsdom 27. No trata el host de un shadow root como padre.
+- La posición alinea las profundidades hasta el ancestro común sin crear vectores
+  de ancestros. Los índices de hermanos se guardan en sus registros nativos y se
+  invalidan por la versión del padre; el wrap de versión limpia los índices para
+  evitar reutilizar una época antigua. Cada prefijo se calcula una vez por versión.
 - Los IDs público y de sistema de doctype se guardan en una estructura opcional
   con asignación propia. Los demás nodos no reservan ambos buffers de texto.
 - Los metadatos nativos y el transporte Node-API preservan UTF-16, incluidos
@@ -65,9 +69,11 @@ no considera su texto en jsdom 27.
 
 La revisión del cambio abarca el almacenamiento, los nuevos métodos Node-API,
 el puente de wrappers, las pruebas y el estrés. No se agregan referencias
-persistentes N-API, listeners, timers ni caches de nodos para comparar.
-Las pilas, vectores y conjuntos de las operaciones se destruyen al retornar,
-también ante errores. Las claves prestadas no sobreviven a la llamada Rust.
+persistentes N-API, listeners ni timers. La caché de índice es un valor numérico
+dentro del registro del nodo; se libera con ese registro y no necesita un mapa
+separado ni referencias a objetos JavaScript. Las pilas, vectores y conjuntos
+temporales se destruyen al retornar, también ante errores. Las claves prestadas
+no sobreviven a la llamada Rust.
 
 Los tests Rust comparan dos árboles de 2.000 niveles, liberan sus 4.002 nodos y
 verifican que el almacenamiento vivo y los datos vuelven a cero. El estrés
@@ -93,3 +99,38 @@ el ejecutable Rust; el addon cargado y V8 se ejercen mediante el estrés de proc
 No se interpreta esta revisión ni una prueba finita como demostración absoluta
 de ausencia de fugas. Las estructuras temporales crecen con el tamaño de los
 árboles y atributos de la operación; no son caches persistentes.
+
+## Baseline y corrección del costo de posiciones
+
+El [baseline ejecutado](../benchmarks/2026-09-12T01-39-16.488Z-linux-x64.md)
+midió 1,54× frente a jsdom en igualdad, pero una regresión en posición: 2,94 ms
+con 250 hermanos y 8,35 ms con 1.000, frente a 0,78 y 0,98 ms de jsdom. La búsqueda
+por hermanos anteriores repetía trabajo que jsdom amortiza con índices.
+
+La caché nativa corrige esa complejidad y evita vectores por consulta; también se
+omite crear un conjunto hash cuando ambos elementos no tienen atributos. La
+validación conjunta con los fixes de atributos pasó 31 tests Rust, 138 Node,
+los runners reales, el corpus HTML5 y los 3.347 WPT en paridad. Los nuevos tests
+incluyen cambios de orden, movimientos entre padres, eliminación, liberación del
+padre y wrap de versión. Las nuevas mediciones y memoria se registran aparte;
+el baseline desfavorable se conserva.
+
+La [primera medición con caché](../benchmarks/2026-09-12T02-27-23.294Z-linux-x64.md)
+bajó el caso de 1.000 hermanos a 2,12 ms. La
+[medición focal posterior](../benchmarks/2026-09-12T02-47-34.363Z-linux-x64.md),
+con una vía directa entre hermanos, llegó a 1,77 ms frente a 0,97 ms de jsdom:
+aproximadamente 4,7× mejor que el primer baseline, pero todavía 0,55× frente al
+oráculo. La igualdad midió 1,56×. Queda costo en el enlace y las consultas nativas;
+no se presenta como aceleración universal.
+
+El [estrés final de ambos motores](../memory/2026-09-12T02-50-16.556Z-linux-x64.json)
+puebla los índices de hermanos en los clones antes de soltarlos. Pasó con cero
+nodos comparados, documentos y ventanas supervivientes; rustdom volvió a cero
+nodos/datos nativos, con heap +0,84 MiB y RSS +9,27 MiB. Se conservan también la
+[ejecución intermedia](../memory/2026-09-12T02-06-50.696Z-linux-x64.json) y sus
+datos de RSS (+11,43 MiB), sin descartar resultados por variación del allocator.
+
+`npm run bench -- node-position-1000 node-equality-100` reutiliza los mismos
+fixtures y muestreo para validaciones focales. `npm run test:memory -- jsdom rustdom`
+repite solo esos objetivos con los mismos escenarios y presupuestos. Sin argumentos,
+ambos comandos siguen ejecutando el conjunto completo.

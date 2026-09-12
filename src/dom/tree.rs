@@ -251,19 +251,19 @@ impl NativeTree {
     }
 
     #[napi]
-    pub fn compare_document_position(&self, left: f64, right: f64) -> Result<u16> {
+    pub fn compare_document_position(&mut self, left: f64, right: f64) -> Result<u16> {
         self.store
             .compare_document_position(left, right)
             .map_err(to_napi_error)
     }
 
-    /// Store lossless DOM data after private DOM construction or mutation.
+    /// Store lossless snapshot data; initialized attribute collections require metadata APIs.
     #[napi]
     pub fn set_data(&mut self, handle: f64, encoded: String) -> Result<()> {
         self.store.set_data(handle, &encoded).map_err(to_napi_error)
     }
 
-    /// Avoid JSON construction and decoding for ordinary HTML elements.
+    /// Store an HTML snapshot without JSON; reject an already initialized attribute collection.
     #[napi]
     pub fn set_html_element(
         &mut self,
@@ -272,7 +272,7 @@ impl NativeTree {
         attributes: Vec<String>,
     ) -> Result<()> {
         self.store
-            .replace_data(handle, html_data(name, attributes)?)
+            .replace_snapshot(handle, html_data(name, attributes)?)
             .map_err(to_napi_error)
     }
 
@@ -339,7 +339,7 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
-    /// Build derived selector/serializer data from canonical Attr records entirely in Rust.
+    /// Copy Attr records to snapshot data before an element's canonical collection is initialized.
     #[napi]
     pub fn set_element_from_attributes(
         &mut self,

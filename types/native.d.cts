@@ -30,8 +30,9 @@ export class NativeTree {
   equalNode(left: number, right: number): boolean;
   containsNode(ancestor: number, descendant: number): boolean;
   compareDocumentPosition(left: number, right: number): number;
+  /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
-  /** Direct transfer requires well-formed strings and alternating attribute name/value entries. */
+  /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */
   setHtmlElement(handle: number, name: string, attributes: string[]): void;
   /** Direct transfer for well-formed text, comments or containers. */
   setSimpleData(handle: number, kind: number, value: string): void;
@@ -39,11 +40,15 @@ export class NativeTree {
   initializePlainAttribute(handle: number, name: string, value: string): void;
   attributeField(handle: number, field: typeof AttributeField[keyof typeof AttributeField]): string | null;
   setAttributeValue(handle: number, value: string): void;
+  /** Copies Attr data into a snapshot; rejects an initialized attribute collection, even for an empty list. */
   setElementFromAttributes(handle: number, encoded: string, attributes: number[]): void;
+  /** Copies Attr data into an HTML snapshot; rejects an initialized attribute collection. */
   setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
   initializeAttributeCollection(element: number): void;
   setUnicodeVersion(version: string): void;
+  /** Updates element metadata while preserving its canonical attribute collection. */
   setElementMetadata(element: number, encoded: string): void;
+  /** Updates HTML element metadata while preserving its canonical attribute collection. */
   setHtmlElementMetadata(element: number, name: string): void;
   attributeIds(element: number): number[];
   attributeCount(element: number): number;

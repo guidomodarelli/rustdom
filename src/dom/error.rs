@@ -17,6 +17,7 @@ pub enum TreeError {
     NotDocumentType(u64),
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
+    AttributeCollectionInitialized(u64),
     UnsupportedUnicodeVersion(String),
     CharacterOffset { offset: u32, length: usize },
 }
@@ -33,6 +34,10 @@ impl fmt::Display for TreeError {
             Self::NotProcessingInstruction(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized ProcessingInstruction"
+            ),
+            Self::AttributeCollectionInitialized(id) => write!(
+                formatter,
+                "NativeTree: attribute collection for element {id} is initialized; use element metadata and attribute mutation APIs instead of a snapshot"
             ),
             Self::UnsupportedUnicodeVersion(version) => write!(
                 formatter,
