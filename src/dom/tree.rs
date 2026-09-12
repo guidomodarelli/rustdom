@@ -9,6 +9,7 @@ use super::{
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
+    range_content_queries::ContentSelection,
     range_control::RangeComparison as CoreRangeComparison,
     range_deletion::{DeletionKind, DeletionPlan},
     range_queries::PointRelation,
@@ -187,6 +188,34 @@ pub enum RangeDeletionKind {
     CharacterData,
     Tree,
     InconsistentRoots,
+}
+
+#[napi(object)]
+pub struct RangeContentSelection {
+    pub common_ancestor: f64,
+    pub first_partial: f64,
+    pub last_partial: f64,
+    pub contained: Vec<f64>,
+    pub has_doctype: bool,
+    pub collapse_node: f64,
+    pub collapse_offset: f64,
+}
+impl From<ContentSelection> for RangeContentSelection {
+    fn from(selection: ContentSelection) -> Self {
+        Self {
+            common_ancestor: selection.common as f64,
+            first_partial: selection.first_partial as f64,
+            last_partial: selection.last_partial as f64,
+            contained: selection
+                .contained
+                .into_iter()
+                .map(|node| node as f64)
+                .collect(),
+            has_doctype: selection.has_doctype,
+            collapse_node: selection.collapse.node as f64,
+            collapse_offset: selection.collapse.offset,
+        }
+    }
 }
 
 #[napi(object)]
@@ -504,6 +533,18 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_content_selection(
+        &mut self,
+        state: &NativeRange,
+    ) -> Result<Option<RangeContentSelection>> {
+        let (start, end) = state.raw_points()?;
+        self.store
+            .range_content_selection(start, end)
+            .map(|selection| selection.map(Into::into))
             .map_err(to_napi_error)
     }
 

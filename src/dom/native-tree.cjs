@@ -313,6 +313,16 @@ class NativeSymbolTree extends SymbolTree {
     plan.nodes = plan.nodes.map((id) => this._object(id));
     return plan;
   }
+  /** @param {object} range - Live Range implementation. @returns {object} Stable selection identities for cloneContents/extractContents. */
+  rangeContentSelection(range) {
+    const selection = this._arena.rangeContentSelection(range._nativeRange);
+    if (selection === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+    selection.commonAncestor = this._object(selection.commonAncestor);
+    selection.firstPartial = this._object(selection.firstPartial); selection.lastPartial = this._object(selection.lastPartial);
+    selection.contained = selection.contained.map((id) => this._object(id));
+    selection.collapseNode = this._object(selection.collapseNode);
+    return selection;
+  }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {
     const group = this._arena.normalizationGroup(this._ensure(node));

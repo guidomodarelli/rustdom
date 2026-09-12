@@ -53,6 +53,13 @@ assert.equal(copiedState.compareBoundaryPoints(context.Range.START_TO_START, liv
 liveState.deleteContents();
 assert.equal(liveState.collapsed, true); assert.equal(liveState.startOffset, 2);
 assert.equal(copiedState.startOffset, 2); assert.equal(frozenState.startOffset, 1);
+const contentRoot = context.document.createElement('div'); contentRoot.innerHTML = '<b>left</b><i>right</i>';
+context.document.body.append(contentRoot);
+const contentRange = context.document.createRange(); contentRange.setStart(contentRoot.firstChild.firstChild, 1);
+contentRange.setEnd(contentRoot.lastChild.firstChild, 2);
+assert.equal(contentRange.cloneContents().textContent, 'eftri');
+assert.equal(contentRange.extractContents().textContent, 'eftri');
+assert.equal(contentRange.collapsed, true); assert.equal(contentRoot.textContent, 'lght');
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });

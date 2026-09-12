@@ -84,6 +84,15 @@ function exerciseEnvironmentRanges(target) {
   text.insertData(0, '!');
   assert.equal(live.startOffset, 2); assert.equal(clone.startOffset, 2); assert.equal(frozen.startOffset, 1);
   rangeReferences.push(new WeakRef(live), new WeakRef(clone), new WeakRef(frozen));
+  const contentRoot = target.document.createElement('div'); contentRoot.innerHTML = '<b>left</b><i>right</i>';
+  target.document.body.append(contentRoot);
+  const contents = target.document.createRange(); contents.setStart(contentRoot.firstChild.firstChild, 1);
+  contents.setEnd(contentRoot.lastChild.firstChild, 2);
+  const copied = contents.cloneContents(); const extracted = contents.extractContents();
+  assert.equal(copied.textContent, 'eftri'); assert.equal(extracted.textContent, 'eftri');
+  assert.equal(contents.collapsed, true);
+  rangeReferences.push(new WeakRef(contents));
+  comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted));
 }
 
 /**
@@ -190,6 +199,15 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(firstRange.toString(), 'texttail');
       retainedTextResults.push(rangeText);
       rangeReferences.push(new WeakRef(wholeRange), new WeakRef(firstRange));
+      const contentTree = clone.cloneNode(true);
+      const contentRange = document.createRange();
+      contentRange.setStart(contentTree.firstChild.firstChild, 1);
+      contentRange.setEnd(contentTree.lastChild.firstChild, 3);
+      const copiedContents = contentRange.cloneContents();
+      const extractedContents = contentRange.extractContents();
+      assert.equal(copiedContents.textContent, extractedContents.textContent);
+      assert.equal(contentTree.children.length, 2); assert.equal(contentRange.collapsed, true);
+      rangeReferences.push(new WeakRef(contentRange));
       const removedParagraph = clone.children[10]; const removedText = removedParagraph.firstChild;
       wholeRange.setStart(clone.firstChild.firstChild, 2);
       wholeRange.setEnd(clone.lastChild.firstChild, 2);
@@ -211,7 +229,8 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(instruction.nodeValue, 'changed');
       assert.equal(doctype.nodeValue, null);
       return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction),
-        new WeakRef(removedParagraph), new WeakRef(removedText)];
+        new WeakRef(removedParagraph), new WeakRef(removedText), new WeakRef(contentTree),
+        new WeakRef(copiedContents), new WeakRef(extractedContents)];
     }
     for (let batch = 0; batch < batches; batch++) {
       const compared = [];

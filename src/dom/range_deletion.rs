@@ -2,7 +2,7 @@
 use super::{
     constants::{COMMENT_NODE, PROCESSING_INSTRUCTION_NODE, TEXT_NODE},
     error::{Result, TreeError},
-    range_state::{BoundaryPoint, query_offset},
+    range_state::BoundaryPoint,
     store::{NodeId, TreeStore},
 };
 
@@ -27,33 +27,6 @@ pub(crate) struct DeletionPlan {
 }
 
 impl TreeStore {
-    fn deletion_contains(
-        &mut self,
-        node: NodeId,
-        start: BoundaryPoint,
-        end: BoundaryPoint,
-    ) -> Result<Option<bool>> {
-        match self.compare_boundary_points_position(
-            node as f64,
-            0,
-            start.node as f64,
-            u64::from(query_offset(start.offset)),
-        )? {
-            None => return Ok(None),
-            Some(1) => {}
-            Some(_) => return Ok(Some(false)),
-        }
-        let length = self.range_node_length(node)?;
-        Ok(self
-            .compare_boundary_points_position(
-                node as f64,
-                length,
-                end.node as f64,
-                u64::from(query_offset(end.offset)),
-            )?
-            .map(|position| position == -1))
-    }
-
     pub fn range_deletion_plan(
         &mut self,
         start: BoundaryPoint,
@@ -101,7 +74,7 @@ impl TreeStore {
         let stop = self.after_subtree(end.node)?;
         let mut current = start.node;
         while current != 0 && current != stop {
-            let contained = self.deletion_contains(current, start, end)?;
+            let contained = self.range_contains_node(current, start, end)?;
             if contained.is_none() {
                 plan.kind = DeletionKind::InconsistentRoots;
                 return Ok(plan);
@@ -111,7 +84,7 @@ impl TreeStore {
                 let parent_contained = if parent == 0 {
                     Some(false)
                 } else {
-                    self.deletion_contains(parent, start, end)?
+                    self.range_contains_node(parent, start, end)?
                 };
                 match parent_contained {
                     None => {
@@ -129,24 +102,11 @@ impl TreeStore {
             }
             current = self.following_node(current)?;
         }
-        if !self.contains_node(start.node as f64, end.node as f64)? {
-            let mut reference = start.node;
-            loop {
-                let parent = self.links(reference)?.parent;
-                if parent == 0 {
-                    plan.kind = DeletionKind::InconsistentRoots;
-                    return Ok(plan);
-                }
-                if self.contains_node(parent as f64, end.node as f64)? {
-                    plan.collapse = BoundaryPoint {
-                        node: parent,
-                        offset: (self.sibling_index(reference)? + 1) as f64,
-                    };
-                    break;
-                }
-                reference = parent;
-            }
-        }
+        let Some(collapse) = self.range_collapse_point(start, end)? else {
+            plan.kind = DeletionKind::InconsistentRoots;
+            return Ok(plan);
+        };
+        plan.collapse = collapse;
         if plan.start_character {
             plan.start_count = self.range_node_length(start.node)? as f64 - start.offset;
         }
