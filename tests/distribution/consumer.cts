@@ -78,8 +78,16 @@ assert.deepEqual(tree.rangeBoundaryPlan(native.RangeBoundaryMode.SelectNode, sib
   namespaceHandle, 0, namespaceHandle, 2), {
   action: native.RangeBoundaryAction.BothStartFirst, node: namespaceHandle, startOffset: 1, endOffset: 2,
 });
+const rangeState = new native.NativeRange();
+rangeState.setStart(textHandle, 0); rangeState.setEnd(textHandle, 7);
+assert.equal(tree.rangeTextFromState(rangeState), 'native\ud800');
+assert.equal(tree.commonAncestorFromState(rangeState), textHandle);
+assert.equal(rangeState.collapsed, false);
+assert.ok(native.NativeRange.statistics().live > 0);
+assert.ok(rustdom.getNativeTreeStatistics().rangeStates.live > 0);
 tree.release(siblingHandle);
 tree.release(textHandle);
 tree.release(namespaceHandle);
 tree.release(handle);
 assert.equal(tree.statistics().liveNodes, 0);
+assert.equal(rangeState.endOffset, 7);

@@ -11,6 +11,8 @@ const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8
 const engines = { jsdom: require('jsdom'), rustdom: require('../../dist/index.cjs') };
 /** Wall-clock failsafe complements testharness.js's own timeout. */
 const TEST_TIMEOUT_MS = 30000;
+/** Virtual host shared by top-level fixtures, URL variants and the local resource loader. */
+const FIXTURE_HOST = 'web-platform.test';
 /** Keep the upstream assertions unchanged; replace only its browser report renderer. */
 const REPORTER = 'add_completion_callback((tests, status) => __wptDone(JSON.stringify({status:status.status,message:status.message,tests:tests.map(test=>({name:test.name,status:test.status,message:test.message}))})));';
 
@@ -36,6 +38,8 @@ for (const [file, expected] of Object.entries(manifest.files)) {
 async function run(engine, file) {
   let dom;
   let timer;
+  const fixtureUrl = new URL(file, `http://${FIXTURE_HOST}/`);
+  const sourceFile = decodeURIComponent(fixtureUrl.pathname.slice(1));
   try {
     return await new Promise((resolve, reject) => {
       timer = setTimeout(() => reject(new Error(`WPT timeout: ${file}`)), TEST_TIMEOUT_MS);
@@ -44,7 +48,7 @@ async function run(engine, file) {
         /** @param {string} address - Resource URL. @returns {Promise<Buffer>} Complete static content. */
         fetch(address) {
           const url = new URL(address);
-          assert.equal(url.hostname, 'web-platform.test', 'WPT resources must stay local');
+          assert.equal(url.hostname, FIXTURE_HOST, 'WPT resources must stay local');
           const target = path.resolve(root, '.' + decodeURIComponent(url.pathname));
           const relative = path.relative(root, target);
           assert.ok(!relative.startsWith('..') && !path.isAbsolute(relative), 'WPT resource escaped corpus');
@@ -55,12 +59,13 @@ async function run(engine, file) {
           return result;
         }
       }
-      const html = file.endsWith('.window.js')
-        ? `<!doctype html><script src="/resources/testharness.js"></script><script src="/resources/testharnessreport.js"></script><script src="/${file}"></script>`
-        : readFileSync(path.join(root, file));
+      const html = sourceFile.endsWith('.window.js')
+        ? `<!doctype html><script src="/resources/testharness.js"></script><script src="/resources/testharnessreport.js"></script><script src="/${sourceFile}"></script>`
+        : readFileSync(path.join(root, sourceFile));
+      fixtureUrl.pathname = fixtureUrl.pathname.replace(/\.window\.js$/, '.window.html');
       dom = new engine.JSDOM(html, {
-        url: `http://web-platform.test/${file.replace(/\.window\.js$/, '.window.html')}`,
-        contentType: mediaType(file),
+        url: fixtureUrl.href,
+        contentType: mediaType(sourceFile),
         runScripts: 'dangerously', resources: new FixtureResources(), pretendToBeVisual: true,
         beforeParse(window) { window.__wptDone = (json) => resolve(JSON.parse(json)); },
       });

@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics } from './index.cjs';
 
 /** A contextual parser attribute, including optional XML metadata. */
 export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
@@ -26,6 +26,21 @@ export const RangeBoundaryMode: { readonly Start: 0; readonly End: 1; readonly S
 export const RangeBoundaryAction: { readonly Start: 0; readonly End: 1; readonly BothStartFirst: 2; readonly BothEndFirst: 3; readonly InvalidNodeType: 4; readonly InvalidOffset: 5; readonly NoParent: 6; readonly InconsistentRoots: 7 };
 /** Node and offsets are zero for rejected plans; successful plans retain no native resources. */
 export interface RangeBoundaryPlan { action: typeof RangeBoundaryAction[keyof typeof RangeBoundaryAction]; node: number; startOffset: number; endOffset: number; }
+
+/** Independent snapshot; offsets preserve internal JavaScript Number values without revalidating public setters. */
+export interface NativeBoundaryPoint { node: number; offset: number; }
+/** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
+export class NativeRange {
+  constructor();
+  static statistics(): NativeRangeStatistics;
+  readonly start: NativeBoundaryPoint | null;
+  readonly end: NativeBoundaryPoint | null;
+  readonly startOffset: number;
+  readonly endOffset: number;
+  readonly collapsed: boolean;
+  setStart(node: number, offset: number): void;
+  setEnd(node: number, offset: number): void;
+}
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
@@ -64,6 +79,11 @@ export class NativeTree {
   rangeBoundaryPlan(mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number, start: number, startOffset: number, end: number, endOffset: number): RangeBoundaryPlan;
   /** Returns zero for distinct roots. */
   commonAncestor(left: number, right: number): number;
+  rangePointRelationFromState(state: NativeRange, node: number, offset: number): typeof RangePointRelation[keyof typeof RangePointRelation];
+  rangeIntersectsNodeFromState(state: NativeRange, node: number): boolean | null;
+  rangeTextFromState(state: NativeRange): string | null;
+  rangeBoundaryPlanFromState(state: NativeRange, mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number): RangeBoundaryPlan;
+  commonAncestorFromState(state: NativeRange): number;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */
