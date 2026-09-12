@@ -20,6 +20,7 @@ mod range_content_queries;
 mod range_control;
 mod range_deletion;
 mod range_geometry;
+mod range_insertion;
 mod range_queries;
 mod range_state;
 mod range_state_binding;

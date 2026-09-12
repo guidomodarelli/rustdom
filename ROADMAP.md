@@ -18,6 +18,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - deleteContents planifica nodos, texto parcial y colapso en Rust; el driver preserva las mutaciones y hooks actuales. Su WPT de iframes está bloqueado por la clonación de CDATA adoptada en HTML del jsdom fijado; el bloqueo y la evidencia permanecen explícitos y no cierran compatibilidad completa.
 - cloneContents/extractContents seleccionan ancestro, hijos parciales y contenidos en Rust, junto con el colapso de extracción; quedan creación de nodos/clones, recursión y entrega de mutaciones de sus drivers.
 - surroundContents valida nodos parciales y tipo de contenedor en Rust recorriendo ancestros; el driver de extracción/inserción y sus errores tardíos siguen usando los hooks actuales.
+- insertNode elige padre/referencia y calcula el offset en Rust en las etapas originales; quedan validación general de jerarquía y entrega de las mutaciones, splits y ajustes de rangos vivos.
 - Optimizar lecturas y creación/clonado de Range: el benchmark de estado nativo del 12/09 muestra aproximadamente 4× de costo frente a jsdom en esos patrones, aunque otras consultas son más rápidas.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.

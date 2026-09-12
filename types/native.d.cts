@@ -44,6 +44,8 @@ export interface RangeContentSelection { commonAncestor: number; firstPartial: n
   hasDoctype: boolean; collapseNode: number; collapseOffset: number; }
 /** surroundContents preflight; later mutation/hierarchy errors remain distinct. */
 export const RangeSurroundStatus: { readonly Ready: 0; readonly PartialNonText: 1; readonly InvalidParentType: 2; readonly InconsistentRoots: 3 };
+/** Initial insertion geometry, before hierarchy checks and host mutation hooks; zero reference means append. */
+export interface RangeInsertionPlan { startNode: number; startOffset: number; parent: number; reference: number; splitText: boolean; }
 /** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
 export class NativeRange {
   constructor();
@@ -106,6 +108,10 @@ export class NativeTree {
   /** Returns null for distinct roots; all endpoint handles must be allocated. */
   rangeContentSelection(state: NativeRange): RangeContentSelection | null;
   rangeSurroundStatus(state: NativeRange, parent: number): typeof RangeSurroundStatus[keyof typeof RangeSurroundStatus];
+  /** Returns null for an invalid start. Both endpoint handles and the inserted node must be allocated. */
+  rangeInsertionPlan(state: NativeRange, node: number): RangeInsertionPlan | null;
+  /** Re-reads topology after splitting/removing nodes. A zero reference means append. */
+  rangeInsertionOffset(node: number, parent: number, reference: number): number;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

@@ -12,6 +12,7 @@ use super::{
     range_content_queries::ContentSelection,
     range_control::RangeComparison as CoreRangeComparison,
     range_deletion::{DeletionKind, DeletionPlan},
+    range_insertion::InsertionPlan,
     range_queries::PointRelation,
     range_state_binding::NativeRange,
     range_surround::SurroundStatus,
@@ -197,6 +198,26 @@ pub enum RangeSurroundStatus {
     PartialNonText,
     InvalidParentType,
     InconsistentRoots,
+}
+
+#[napi(object)]
+pub struct RangeInsertionPlan {
+    pub start_node: f64,
+    pub start_offset: f64,
+    pub parent: f64,
+    pub reference: f64,
+    pub split_text: bool,
+}
+impl From<InsertionPlan> for RangeInsertionPlan {
+    fn from(plan: InsertionPlan) -> Self {
+        Self {
+            start_node: plan.start.node as f64,
+            start_offset: plan.start.offset,
+            parent: plan.parent as f64,
+            reference: plan.reference as f64,
+            split_text: plan.split_text,
+        }
+    }
 }
 
 #[napi(object)]
@@ -542,6 +563,31 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_insertion_plan(
+        &self,
+        state: &NativeRange,
+        node: f64,
+    ) -> Result<Option<RangeInsertionPlan>> {
+        let (start, end) = state.raw_points()?;
+        self.store
+            .range_insertion_plan(start, end, node)
+            .map(|plan| plan.map(Into::into))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_insertion_offset(
+        &mut self,
+        node: f64,
+        parent: f64,
+        reference: f64,
+    ) -> Result<f64> {
+        self.store
+            .range_insertion_offset(node, parent, reference)
             .map_err(to_napi_error)
     }
 

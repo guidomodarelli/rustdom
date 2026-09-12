@@ -387,6 +387,20 @@ if (nextHelperStart < 0 || nextHelperEnd < nextHelperStart) throw new Error('rus
 rangeSource = rangeSource.slice(0, nextHelperStart) + rangeSource.slice(nextHelperEnd);
 rangeSource = substituteOnce(rangeSource, 'const { nodeRoot, nodeLength, isInclusiveAncestor } = require("../helpers/node");',
   'const { nodeRoot, nodeLength } = require("../helpers/node");');
+const insertionStart = rangeSource.indexOf('function insertNodeInRange(node, range) {');
+const insertionValidity = rangeSource.indexOf('  parent._preInsertValidity(node, referenceNode);', insertionStart);
+if (insertionStart < 0 || insertionValidity < insertionStart) throw new Error('rustdom build: Range insertion preflight changed');
+rangeSource = rangeSource.slice(0, insertionStart) +
+  'function insertNodeInRange(node, range) {\n' +
+  '  const plan = domSymbolTree.rangeInsertionPlan(range, node, DOMException);\n' +
+  '  const startNode = plan.startNode;\n  const startOffset = plan.startOffset;\n' +
+  '  const parent = plan.parent;\n  let referenceNode = plan.reference;\n\n' + rangeSource.slice(insertionValidity);
+rangeSource = substituteOnce(rangeSource, '  if (startNode.nodeType === NODE_TYPE.TEXT_NODE) {\n    referenceNode = startNode.splitText(startOffset);',
+  '  if (plan.splitText) {\n    referenceNode = startNode.splitText(startOffset);');
+rangeSource = substituteOnce(rangeSource,
+  '  let newOffset = !referenceNode ? nodeLength(parent) : domSymbolTree.index(referenceNode);\n' +
+  '  newOffset += node.nodeType === NODE_TYPE.DOCUMENT_FRAGMENT_NODE ? nodeLength(node) : 1;',
+  '  const newOffset = domSymbolTree.rangeInsertionOffset(node, parent, referenceNode);');
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
