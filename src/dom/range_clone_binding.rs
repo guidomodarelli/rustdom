@@ -1,7 +1,8 @@
 //! V8-finalized clone controller. Instructions contain scalars; the host pins nodes for the synchronous operation.
 use super::{
-    napi_error::to_napi_error,
-    range_clone::{CloneAction, CloneMachine},
+    error::TreeError,
+    napi_error::to_range_operation_error,
+    range_contents::{ContentAction, ContentMachine},
     range_state_binding::{NativeRange, NativeRangeStatistics},
     store::TreeStore,
 };
@@ -35,8 +36,9 @@ pub struct RangeCloneInstruction {
     pub deep: bool,
     pub nodes: Option<Vec<f64>>,
 }
-impl From<CloneAction> for RangeCloneInstruction {
-    fn from(action: CloneAction) -> Self {
+impl TryFrom<ContentAction> for RangeCloneInstruction {
+    type Error = TreeError;
+    fn try_from(action: ContentAction) -> super::error::Result<Self> {
         let mut instruction = Self {
             kind: RangeCloneAction::Complete,
             node: 0.0,
@@ -47,16 +49,16 @@ impl From<CloneAction> for RangeCloneInstruction {
             nodes: None,
         };
         match action {
-            CloneAction::CreateFragment(node) => {
+            ContentAction::CreateFragment(node) => {
                 instruction.kind = RangeCloneAction::CreateFragment;
                 instruction.node = node as f64;
             }
-            CloneAction::CloneNode { node, deep } => {
+            ContentAction::CloneNode { node, deep } => {
                 instruction.kind = RangeCloneAction::CloneNode;
                 instruction.node = node as f64;
                 instruction.deep = deep;
             }
-            CloneAction::SliceData {
+            ContentAction::SliceData {
                 node,
                 offset,
                 count,
@@ -66,28 +68,33 @@ impl From<CloneAction> for RangeCloneInstruction {
                 instruction.offset = offset;
                 instruction.count = count;
             }
-            CloneAction::AppendChild { parent, node } => {
+            ContentAction::AppendChild { parent, node } => {
                 instruction.kind = RangeCloneAction::AppendChild;
                 instruction.parent = parent as f64;
                 instruction.node = node as f64;
             }
-            CloneAction::PinNodes(nodes) => {
+            ContentAction::PinNodes(nodes) => {
                 instruction.kind = RangeCloneAction::PinNodes;
                 instruction.nodes = Some(nodes.into_iter().map(|node| node as f64).collect());
             }
-            CloneAction::Complete(node) => instruction.node = node as f64,
-            CloneAction::InvalidDoctype => instruction.kind = RangeCloneAction::InvalidDoctype,
-            CloneAction::InconsistentRoots => {
+            ContentAction::Complete(node) => instruction.node = node as f64,
+            ContentAction::InvalidDoctype => instruction.kind = RangeCloneAction::InvalidDoctype,
+            ContentAction::InconsistentRoots => {
                 instruction.kind = RangeCloneAction::InconsistentRoots
             }
+            ContentAction::ReplaceData { .. } | ContentAction::Extracted { .. } => {
+                return Err(TreeError::RangeContentProtocol(
+                    "extraction effect reached a clone controller",
+                ));
+            }
         }
-        instruction
+        Ok(instruction)
     }
 }
 
 #[napi]
 pub struct NativeRangeClone {
-    machine: CloneMachine,
+    machine: ContentMachine,
 }
 impl NativeRangeClone {
     pub(super) fn step(
@@ -97,8 +104,8 @@ impl NativeRangeClone {
     ) -> Result<RangeCloneInstruction> {
         self.machine
             .step(tree, created)
-            .map(Into::into)
-            .map_err(to_napi_error)
+            .and_then(RangeCloneInstruction::try_from)
+            .map_err(|error| to_range_operation_error(error, "NativeRangeClone"))
     }
 }
 impl Drop for NativeRangeClone {
@@ -115,7 +122,7 @@ impl NativeRangeClone {
         LIVE_CLONES.fetch_add(1, Ordering::Relaxed);
         CREATED_CLONES.fetch_add(1, Ordering::Relaxed);
         Ok(Self {
-            machine: CloneMachine::new(start, end),
+            machine: ContentMachine::new(start, end),
         })
     }
     #[napi]

@@ -33,7 +33,7 @@ export interface NativeTreeStatistics {
 /** Counts for NativeRange boxes in this loaded addon, including worker environments; never retains instances. */
 export interface NativeRangeStatistics { live: number; created: number; released: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
-export interface NativeRuntimeStatistics extends NativeTreeStatistics { rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; }
+export interface NativeRuntimeStatistics extends NativeTreeStatistics { rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */
 export function getParserStatistics(): ParserStatistics;

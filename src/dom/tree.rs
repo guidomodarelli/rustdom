@@ -13,6 +13,7 @@ use super::{
     range_content_queries::ContentSelection,
     range_control::RangeComparison as CoreRangeComparison,
     range_deletion::{DeletionKind, DeletionPlan},
+    range_extract_binding::{NativeRangeExtract, RangeExtractInstruction},
     range_insertion::InsertionPlan,
     range_queries::PointRelation,
     range_state_binding::NativeRange,
@@ -565,6 +566,15 @@ impl NativeTree {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
             .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_extract_step(
+        &mut self,
+        operation: &mut NativeRangeExtract,
+        created: f64,
+    ) -> Result<RangeExtractInstruction> {
+        operation.step(&mut self.store, created)
     }
 
     #[napi]

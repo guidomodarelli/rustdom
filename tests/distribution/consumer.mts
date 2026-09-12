@@ -6,6 +6,7 @@ import nativeRuntime, {
   RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
+  NativeRangeExtract, RangeExtractAction,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -37,6 +38,9 @@ const cloneOperation = new NativeRangeClone(rangeState);
 const cloneInstruction = nativeTree.rangeCloneStep(cloneOperation, 0);
 assert.equal(cloneInstruction.kind, RangeCloneAction.CreateFragment); assert.equal(cloneInstruction.node, textHandle);
 cloneOperation.cancel(); assert.throws(() => nativeTree.rangeCloneStep(cloneOperation, 0), { code: 'InvalidArg' });
+const extractOperation = new NativeRangeExtract(rangeState);
+assert.equal(nativeTree.rangeExtractStep(extractOperation, 0).kind, RangeExtractAction.CreateFragment);
+extractOperation.cancel(); assert.throws(() => nativeTree.rangeExtractStep(extractOperation, 0), { code: 'InvalidArg' });
 assert.equal(nativeTree.rangePointRelationFromState(rangeState, textHandle, 4), RangePointRelation.Inside);
 assert.equal(nativeTree.rangePointRelationFromState(rangeState, textHandle, 99), RangePointRelation.InvalidOffset);
 const boundaryPlan = nativeTree.rangeBoundaryPlanFromState(rangeState, RangeBoundaryMode.SelectNode, textHandle, 0);
