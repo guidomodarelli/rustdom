@@ -46,13 +46,42 @@ function nativeBody(body) {
  * @returns {{globals: object, dispose: Function}} Compatible globals and a resource disposer.
  */
 function createWebPlatformBridge(window) {
-  const WindowAbortController = window.AbortController;
-  const originalAdd = window.EventTarget.prototype.addEventListener;
+  const realmReference = new WeakRef(window);
+  let WindowAbortController = window.AbortController;
+  let originalAdd = window.EventTarget.prototype.addEventListener;
   let toWindowSignals = new WeakMap();
   let toNodeSignals = new WeakMap();
   const connections = new Set();
   const objectUrls = new Set();
   const collectedSignals = new FinalizationRegistry((connection) => connections.delete(connection));
+
+  /**
+   * Resolve DOM constructors only when body consumption has finished.
+   * @returns {object} Live FormData and File constructors.
+   * @throws {TypeError} When teardown has released the destination realm.
+   */
+  function formDataConstructors() {
+    if (!window) throw new TypeError('rustdom formData: environment has been disposed');
+    return { FormData: window.FormData, File: window.File };
+  }
+
+  /**
+   * Read a form without retaining browser constructors across asynchronous body consumption.
+   * @param {Request|Response} body - Native body owner.
+   * @param {Function} original - Original native formData reader.
+   * @returns {Promise<FormData>} Values from the live DOM realm.
+   */
+  async function readBrowserFormData(body, original) {
+    try { return await readFormData(body, original, formDataConstructors); }
+    catch (error) {
+      // Normal Vitest redirects defaultView to its execution global; VM pools retain the window realm.
+      const ErrorConstructor = window?.document?.defaultView?.TypeError ?? TypeError;
+      if (error instanceof TypeError && !(error instanceof ErrorConstructor)) {
+        throw new ErrorConstructor(error.message, { cause: error });
+      }
+      throw error;
+    }
+  }
 
   /**
    * Translate a real signal and detach its propagation listener during disposal.
@@ -100,6 +129,7 @@ function createWebPlatformBridge(window) {
      * @param {object} [init] - Native RequestInit options.
      */
     constructor(input, init) {
+      if (arguments.length === 0) throw new TypeError('rustdom Request: a URL or Request argument is required');
       let options = init;
       if (init && typeof init === 'object') {
         const body = init.body;
@@ -111,14 +141,14 @@ function createWebPlatformBridge(window) {
           get(target, property) { return overrides.has(property) ? overrides.get(property) : Reflect.get(target, property, target); },
         });
       }
-      super(input, options);
+      super(input instanceof NodeRequest ? input : new NodeURL(input, realmReference.deref()?.document?.baseURI), options);
     }
 
     /** @param {*} value - Candidate request. @returns {boolean} Whether Node recognizes it. */
     static [Symbol.hasInstance](value) { return value instanceof NodeRequest; }
 
-    /** @returns {Promise<FormData>} Multipart values independent of the current global File. */
-    formData() { return readFormData(this, NodeRequest.prototype.formData); }
+    /** @returns {Promise<FormData>} FormData and Files from the originating realm while its environment remains active. */
+    formData() { return readBrowserFormData(this, NodeRequest.prototype.formData); }
 
     /** @returns {Request} A native clone retaining the interoperable formData method. */
     clone() { return Object.setPrototypeOf(super.clone(), Request.prototype); }
@@ -128,8 +158,8 @@ function createWebPlatformBridge(window) {
   class Response extends NodeResponse {
     /** @param {*} body - Native or jsdom body. @param {object} [init] - Response options. */
     constructor(body, init) { super(nativeBody(body), init); }
-    /** @returns {Promise<FormData>} Decoded multipart fields and native Files. */
-    formData() { return readFormData(this, NodeResponse.prototype.formData); }
+    /** @returns {Promise<FormData>} Decoded fields and Files readable by the originating realm's FileReader. */
+    formData() { return readBrowserFormData(this, NodeResponse.prototype.formData); }
     /** @returns {Response} A clone with the same body interoperability. */
     clone() { return Object.setPrototypeOf(super.clone(), Response.prototype); }
     /** @param {*} value - Candidate response. @returns {boolean} Whether it is a native Response. */
@@ -143,6 +173,7 @@ function createWebPlatformBridge(window) {
    * @returns {Promise<Response>} A real native response with compatible multipart decoding.
    */
   async function fetch(input, init) {
+    if (arguments.length === 0) throw new TypeError('rustdom fetch: a URL or Request argument is required');
     const response = await nodeFetch(new Request(input, init));
     return Object.setPrototypeOf(response, Response.prototype);
   }
@@ -170,6 +201,7 @@ function createWebPlatformBridge(window) {
     globals: { Request, Response, fetch, URL, AbortController: NodeAbortController, AbortSignal: NodeAbortSignal },
     /** @returns {void} Removes listeners, clears caches, and revokes outstanding object URLs. */
     dispose() {
+      if (!window) return;
       window.EventTarget.prototype.addEventListener = originalAdd;
       for (const connection of connections) {
         connection.source.deref()?.removeEventListener('abort', connection.listener);
@@ -180,6 +212,10 @@ function createWebPlatformBridge(window) {
       toNodeSignals = new WeakMap();
       for (const url of objectUrls) NodeURL.revokeObjectURL(url);
       objectUrls.clear();
+      // Published classes may outlive teardown; their shared closure must release realm-owned functions too.
+      window = null;
+      WindowAbortController = null;
+      originalAdd = null;
     },
   };
 }

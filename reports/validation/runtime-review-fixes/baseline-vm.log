@@ -1,0 +1,182 @@
+
+> @rustdom/rustdom@0.1.0-alpha.0 test:vm
+> vitest run --config vitest.vm.config.mjs
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90m/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8[39m
+
+ [31m❯[39m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs [2m([22m[2m7 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 29[2mms[22m[39m
+[31m   [31m×[31m should submit DOM FormData through a native Request without changing filenames[39m[32m 11[2mms[22m[39m
+[31m   [31m×[31m should preserve stream identity and transfer data when using native response bodies[39m[32m 1[2mms[22m[39m
+[31m   [31m×[31m should return DOM FormData and Files when decoding request and response clones[39m[32m 3[2mms[22m[39m
+[31m   [31m×[31m should resolve relative request and fetch URLs when the document URL changes[39m[32m 7[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 2[2mms[22m[39m
+[31m   [31m×[31m should retain body consumption and malformed multipart errors[39m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[46m vmForks [49m[39m tests/integration/realm.vm.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [31m❯[39m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs [2m([22m[2m7 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 27[2mms[22m[39m
+[31m   [31m×[31m should submit DOM FormData through a native Request without changing filenames[39m[32m 9[2mms[22m[39m
+[31m   [31m×[31m should preserve stream identity and transfer data when using native response bodies[39m[32m 1[2mms[22m[39m
+[31m   [31m×[31m should return DOM FormData and Files when decoding request and response clones[39m[32m 3[2mms[22m[39m
+[31m   [31m×[31m should resolve relative request and fetch URLs when the document URL changes[39m[32m 7[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 2[2mms[22m[39m
+[31m   [31m×[31m should retain body consumption and malformed multipart errors[39m[32m 2[2mms[22m[39m
+ [32m✓[39m [30m[42m vmThreads [49m[39m tests/integration/realm.vm.mjs [2m([22m[2m2 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 10 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould submit DOM FormData through a native Request without changing filenames
+[31m[1mAssertionError[22m: expected FormData { name: 'rustdom', file: File { size: 7, type: 'text/plain', name: 'content.txt', lastModified: 1789225386969 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m21:20[22m[39m
+    [90m 19|[39m   const request = new Request('http://localhost/upload', { method: 'PO…
+    [90m 20|[39m   const received = await request.formData();
+    [90m 21|[39m   expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                    [31m^[39m
+    [90m 22|[39m   expect(received.get('file')).toBeInstanceOf(File);
+    [90m 23|[39m   expect(received.get('name')).toBe('rustdom');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould preserve stream identity and transfer data when using native response bodies
+[31m[1mReferenceError[22m: ReadableStream is not defined[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m30:40[22m[39m
+    [90m 28|[39m test('should preserve stream identity and transfer data when using nat…
+    [90m 29|[39m   const response = new Response('stream body');
+    [90m 30|[39m   expect(response.body).toBeInstanceOf(ReadableStream);
+    [90m   |[39m                                        [31m^[39m
+    [90m 31|[39m   const chunks = [];
+    [90m 32|[39m   await response.body.pipeThrough(new TransformStream({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould return DOM FormData and Files when decoding request and response clones
+[31m[1mAssertionError[22m: expected FormData { tag: [ 'first', 'second' ], file: File { size: 3, type: 'application/octet-stream', name: 'binary.dat', lastModified: 1789225386977 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m49:22[22m[39m
+    [90m 47|[39m   for (const owner of [request.clone(), request, response.clone(), res…
+    [90m 48|[39m     const received = await owner.formData();
+    [90m 49|[39m     expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                      [31m^[39m
+    [90m 50|[39m     expect(received.getAll('tag')).toEqual(['first', 'second']);
+    [90m 51|[39m     const file = received.get('file');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould resolve relative request and fetch URLs when the document URL changes
+[31m[1mTypeError[22m: Failed to parse URL from /api[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+    [90m 75|[39m   try {
+    [90m 76|[39m     jsdom.reconfigure({ url: `${origin}/nested/page` });
+    [90m 77|[39m     expect(new Request('/api').url).toBe(`${origin}/api`);
+    [90m   |[39m            [31m^[39m
+    [90m 78|[39m     expect(new Request('../api').url).toBe(`${origin}/api`);
+    [90m 79|[39m     expect(new Request(new URL(`${origin}/absolute`)).url).toBe(`${ori…
+
+[31m[1mCaused by: TypeError[22m: Invalid URL[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_URL', input: '/api' }[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[42m vmThreads [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould retain body consumption and malformed multipart errors
+[31m[1mAssertionError[22m: expected error to be instance of TypeError[39m
+
+[32m- Expected:[39m
+[Function TypeError]
+
+[31m+ Received:[39m
+[TypeError: Body is unusable: Body has already been read]
+
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m128:35[22m[39m
+    [90m126|[39m   expect((await request.clone().formData()).get('field')).toBe('value'…
+    [90m127|[39m   expect((await request.formData()).get('field')).toBe('value');
+    [90m128|[39m   await expect(request.formData()).rejects.toThrow(TypeError);
+    [90m   |[39m                                   [31m^[39m
+    [90m129|[39m   const malformed = new Response('invalid', { headers: { 'content-type…
+    [90m130|[39m   await expect(malformed.formData()).rejects.toThrow(TypeError);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould submit DOM FormData through a native Request without changing filenames
+[31m[1mAssertionError[22m: expected FormData { name: 'rustdom', file: File { size: 7, type: 'text/plain', name: 'content.txt', lastModified: 1789225375005 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m21:20[22m[39m
+    [90m 19|[39m   const request = new Request('http://localhost/upload', { method: 'PO…
+    [90m 20|[39m   const received = await request.formData();
+    [90m 21|[39m   expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                    [31m^[39m
+    [90m 22|[39m   expect(received.get('file')).toBeInstanceOf(File);
+    [90m 23|[39m   expect(received.get('name')).toBe('rustdom');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould preserve stream identity and transfer data when using native response bodies
+[31m[1mReferenceError[22m: ReadableStream is not defined[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m30:40[22m[39m
+    [90m 28|[39m test('should preserve stream identity and transfer data when using nat…
+    [90m 29|[39m   const response = new Response('stream body');
+    [90m 30|[39m   expect(response.body).toBeInstanceOf(ReadableStream);
+    [90m   |[39m                                        [31m^[39m
+    [90m 31|[39m   const chunks = [];
+    [90m 32|[39m   await response.body.pipeThrough(new TransformStream({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould return DOM FormData and Files when decoding request and response clones
+[31m[1mAssertionError[22m: expected FormData { tag: [ 'first', 'second' ], file: File { size: 3, type: 'application/octet-stream', name: 'binary.dat', lastModified: 1789225375012 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m49:22[22m[39m
+    [90m 47|[39m   for (const owner of [request.clone(), request, response.clone(), res…
+    [90m 48|[39m     const received = await owner.formData();
+    [90m 49|[39m     expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                      [31m^[39m
+    [90m 50|[39m     expect(received.getAll('tag')).toEqual(['first', 'second']);
+    [90m 51|[39m     const file = received.get('file');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould resolve relative request and fetch URLs when the document URL changes
+[31m[1mTypeError[22m: Failed to parse URL from /api[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+    [90m 75|[39m   try {
+    [90m 76|[39m     jsdom.reconfigure({ url: `${origin}/nested/page` });
+    [90m 77|[39m     expect(new Request('/api').url).toBe(`${origin}/api`);
+    [90m   |[39m            [31m^[39m
+    [90m 78|[39m     expect(new Request('../api').url).toBe(`${origin}/api`);
+    [90m 79|[39m     expect(new Request(new URL(`${origin}/absolute`)).url).toBe(`${ori…
+
+[31m[1mCaused by: TypeError[22m: Invalid URL[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_URL', input: '/api' }[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[46m vmForks [49m[39m tests/integration/platform.vitest.mjs[2m > [22mshould retain body consumption and malformed multipart errors
+[31m[1mAssertionError[22m: expected error to be instance of TypeError[39m
+
+[32m- Expected:[39m
+[Function TypeError]
+
+[31m+ Received:[39m
+[TypeError: Body is unusable: Body has already been read]
+
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m128:35[22m[39m
+    [90m126|[39m   expect((await request.clone().formData()).get('field')).toBe('value'…
+    [90m127|[39m   expect((await request.formData()).get('field')).toBe('value');
+    [90m128|[39m   await expect(request.formData()).rejects.toThrow(TypeError);
+    [90m   |[39m                                   [31m^[39m
+    [90m129|[39m   const malformed = new Response('invalid', { headers: { 'content-type…
+    [90m130|[39m   await expect(malformed.formData()).rejects.toThrow(TypeError);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[31m10 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 12:02:42
+[2m   Duration [22m 24.49s[2m (environment 93%, import 3%, worker 3%)[22m
+

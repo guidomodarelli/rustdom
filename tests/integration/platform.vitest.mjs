@@ -1,5 +1,7 @@
 /** @file Exercises the Web API bridge in actual Vitest test execution. */
 import { test, expect } from 'vitest';
+import { createServer } from 'node:http';
+import { readDomFile } from './read-dom-file.cjs';
 
 test('should submit DOM FormData through a native Request without changing filenames', async () => {
   const form = new FormData();
@@ -7,9 +9,89 @@ test('should submit DOM FormData through a native Request without changing filen
   form.append('file', new Blob(['content'], { type: 'text/plain' }), 'content.txt');
   const request = new Request('http://localhost/upload', { method: 'POST', body: form });
   const received = await request.formData();
+  expect(received).toBeInstanceOf(FormData);
+  expect(received.get('file')).toBeInstanceOf(File);
   expect(received.get('name')).toBe('rustdom');
   expect(received.get('file').name).toBe('content.txt');
-  expect(await received.get('file').text()).toBe('content');
+  expect(await readDomFile(globalThis, received.get('file'))).toEqual([...new TextEncoder().encode('content')]);
+});
+
+test('should preserve stream identity and transfer data when using native response bodies', async () => {
+  const response = new Response('stream body');
+  expect(response.body).toBeInstanceOf(ReadableStream);
+  const chunks = [];
+  await response.body.pipeThrough(new TransformStream({
+    transform(chunk, controller) { controller.enqueue(new TextDecoder().decode(chunk).toUpperCase()); },
+  })).pipeTo(new WritableStream({ write(chunk) { chunks.push(chunk); } }));
+  expect(chunks.join('')).toBe('STREAM BODY');
+  const readable = new ReadableStream({ start(controller) { controller.enqueue('created'); controller.close(); } });
+  expect(await readable.getReader().read()).toEqual({ value: 'created', done: false });
+});
+
+test('should return DOM FormData and Files when decoding request and response clones', async () => {
+  const form = new FormData();
+  form.append('tag', 'first');
+  form.append('tag', 'second');
+  form.append('file', new File([new Uint8Array([0, 128, 255])], 'binary.dat', { type: 'application/octet-stream' }));
+  const request = new Request('http://localhost/upload', { method: 'POST', body: form });
+  const response = new Response(form);
+  for (const owner of [request.clone(), request, response.clone(), response]) {
+    const received = await owner.formData();
+    expect(received).toBeInstanceOf(FormData);
+    expect(received.getAll('tag')).toEqual(['first', 'second']);
+    const file = received.get('file');
+    expect(file).toBeInstanceOf(File);
+    expect(file.name).toBe('binary.dat');
+    expect(file.type).toBe('application/octet-stream');
+    expect(await readDomFile(globalThis, file)).toEqual([0, 128, 255]);
+  }
+  for (const owner of [new Request('http://localhost', { method: 'POST', body: new URLSearchParams('tag=first&tag=second') }),
+    new Response(new URLSearchParams('tag=first&tag=second'))]) {
+    for (const body of [owner.clone(), owner]) {
+      const received = await body.formData();
+      expect(received).toBeInstanceOf(FormData);
+      expect(received.getAll('tag')).toEqual(['first', 'second']);
+    }
+  }
+});
+
+test('should resolve relative request and fetch URLs when the document URL changes', async () => {
+  const server = createServer((request, response) => {
+    response.setHeader('content-type', 'application/x-www-form-urlencoded');
+    response.end(new URLSearchParams({ path: request.url }).toString());
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const previousUrl = window.location.href;
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    jsdom.reconfigure({ url: `${origin}/nested/page` });
+    expect(new Request('/api').url).toBe(`${origin}/api`);
+    expect(new Request('../api').url).toBe(`${origin}/api`);
+    expect(new Request(new URL(`${origin}/absolute`)).url).toBe(`${origin}/absolute`);
+    const existing = new Request('/original', { method: 'POST', body: 'request body' });
+    expect(await new Request(existing).text()).toBe('request body');
+    const response = await fetch('../api?tag=1');
+    expect(response.body).toBeInstanceOf(ReadableStream);
+    const received = await response.formData();
+    expect(received).toBeInstanceOf(FormData);
+    expect(received.get('path')).toBe('/api?tag=1');
+    history.replaceState(null, '', '/changed/page');
+    expect(new Request('next').url).toBe(`${origin}/changed/next`);
+    expect((await (await fetch('next')).formData()).get('path')).toBe('/changed/next');
+    const base = document.createElement('base');
+    base.href = '/assets/';
+    document.head.append(base);
+    try {
+      expect(new Request('next').url).toBe(`${origin}/assets/next`);
+      base.href = '/other/';
+      expect(new Request('next').url).toBe(`${origin}/other/next`);
+    } finally { base.remove(); }
+    await expect(fetch()).rejects.toThrow('a URL or Request argument is required');
+  } finally {
+    jsdom.reconfigure({ url: previousUrl });
+    server.closeAllConnections();
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 });
 
 test('should remove a DOM listener when a native AbortController aborts', () => {
