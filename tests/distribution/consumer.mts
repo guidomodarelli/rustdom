@@ -4,6 +4,7 @@ import runtime, { JSDOM, CookieJar, getNativeTreeStatistics } from '@rustdom/rus
 import nativeRuntime, {
   NativeTree, NativeRange, QueryMode, DocumentTypeField, RangePointRelation, RangeBoundaryMode,
   RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
+  RangeMutationKind, RangeEndpoint,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -41,6 +42,11 @@ const copiedRangeState = rangeState.copy();
 copiedRangeState.setStart(textHandle, 1);
 assert.equal(nativeTree.compareRangeStates(rangeState, 0, copiedRangeState), RangeComparison.Before);
 assert.equal(rangeState.startOffset, 0);
+assert.deepEqual(rangeState.splitTextPlan(textHandle, containerHandle, 4), [{ start: false, node: containerHandle, offset: 5 }]);
+assert.equal(rangeState.endOffset, 9);
+const mutableRange = rangeState.copy();
+assert.equal(mutableRange.applyTreeMutation(RangeMutationKind.SplitText, textHandle, containerHandle, 4, 0), RangeEndpoint.End);
+assert.deepEqual(mutableRange.end, { node: containerHandle, offset: 5 }); assert.equal(rangeState.endOffset, 9);
 assert.deepEqual(copiedRangeState.collapsePlan(false), { node: textHandle, offset: 9, updateStart: true });
 const deletionPlan = nativeTree.rangeDeletionPlan(rangeState);
 assert.equal(deletionPlan.kind, RangeDeletionKind.CharacterData);

@@ -93,6 +93,12 @@ assert.equal(tree.rangeSurroundStatus(rangeState, namespaceHandle), native.Range
 assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textHandle, startOffset: 0,
   parent: namespaceHandle, reference: textHandle, splitText: true });
 assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);
+assert.deepEqual(rangeState.characterDataPlan(textHandle, 1, 3, 2), [{ start: false, node: textHandle, offset: 6 }]);
+assert.equal(rangeState.endOffset, 7);
+const mutableRange = rangeState.copy(); mutableRange.applyCharacterData(textHandle, 1, 3, 2);
+assert.equal(mutableRange.endOffset, 6); assert.equal(rangeState.endOffset, 7);
+assert.equal(mutableRange.applyTreeMutation(native.RangeMutationKind.SplitText, textHandle, namespaceHandle, 2, 0), native.RangeEndpoint.End);
+assert.deepEqual(mutableRange.end, { node: namespaceHandle, offset: 4 });
 const copiedRangeState = rangeState.copy();
 assert.deepEqual(copiedRangeState.collapsePlan(false), { node: textHandle, offset: 7, updateStart: true });
 copiedRangeState.setStart(textHandle, 1);

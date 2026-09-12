@@ -4,6 +4,9 @@ import runtime from '../../dist/index.mjs';
 import nativeRuntime, { NativeRange, NativeTree, RangeSurroundStatus } from '../../dist/native.mjs';
 import { captureMemoryState, collectGarbage, waitForMemoryQuiescence } from '../../scripts/memory-endpoint.cjs';
 
+/** Keep result plans alive across GC to prove numeric snapshots do not retain native state or trees. */
+const retainedPlans = [];
+
 /** Retain only weak observations after a completed synchronous allocation frame.
  * @param {number} count - Number of original/copied native state pairs.
  * @returns {{ trees: WeakRef<object>[], states: WeakRef<object>[] }} Weak handles to every created instance.
@@ -21,6 +24,9 @@ function createTransientStates(count) {
     assert.equal(tree.rangeTextFromState(state), 'native');
     const copied = state.copy(); copied.setStart(text, 1);
     assert.equal(state.startOffset, 0);
+    const characterPlan = state.characterDataPlan(text, 1, 2, 4);
+    assert.deepEqual(characterPlan, [{ start: false, node: text, offset: 8 }]);
+    retainedPlans.push(characterPlan, state.splitTextPlan(text, parent, 2), state.removeDescendantPlan(text, parent, 0));
     states.push(new WeakRef(state), new WeakRef(copied));
   }
   tree.release(text); tree.release(parent);
@@ -61,9 +67,11 @@ async function main() {
   assert.equal(ranges.live, baseline.rangeStates.live);
   assert.equal(ranges.created - baseline.rangeStates.created, 2001);
   assert.equal(ranges.released - baseline.rangeStates.released, 2001);
+  assert.equal(retainedPlans.length, 3000);
   process.stdout.write(JSON.stringify({ capturedAt: new Date().toISOString(), node: process.version, pass: true,
     methodology: 'Named/default ESM exports stay imported. Negative control retains one state; five batches allocate 200 state/copy pairs and one tree each, explicitly release tree handles, then require two clear major-GC samples with no weak survivors and exact native lifetime baseline.',
     limitations: 'Finite retained-memory test; no peak-memory or universal leak guarantee. Heap and RSS include runtime/allocator retention.',
-    held, released, cycles, ranges, baseline: { native: baseline, memory: baselineMemory }, finalMemory }));
+    held, released, cycles, ranges, retainedPlans: retainedPlans.length,
+    baseline: { native: baseline, memory: baselineMemory }, finalMemory }));
 }
 main().catch((error) => { process.stderr.write(error.stack + '\n'); process.exitCode = 1; });

@@ -21,6 +21,7 @@ mod range_control;
 mod range_deletion;
 mod range_geometry;
 mod range_insertion;
+mod range_mutations;
 mod range_queries;
 mod range_state;
 mod range_state_binding;
