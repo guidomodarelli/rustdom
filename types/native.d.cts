@@ -45,6 +45,7 @@ export class NativeTree {
   compareBoundaryPointsPosition(left: number, leftOffset: number, right: number, rightOffset: number): -1 | 0 | 1 | null;
   rangePointRelation(node: number, offset: number, start: number, startOffset: number, end: number, endOffset: number): typeof RangePointRelation[keyof typeof RangePointRelation];
   rangeIntersectsNode(node: number, start: number, startOffset: number, end: number, endOffset: number): boolean | null;
+  rangeText(start: number, startOffset: number, end: number, endOffset: number): string | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

@@ -32,6 +32,7 @@ selectedRange.selectNodeContents(paragraph);
 assert.equal(selectedRange.comparePoint(paragraph.firstChild, 1), 0);
 assert.equal(selectedRange.intersectsNode(paragraph.firstChild), true);
 assert.equal(selectedRange.isPointInRange(paragraph.firstChild, 1), true);
+assert.equal(selectedRange.toString(), 'VM package appended');
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });
 assert.ok(context.document.body.contains(context.document.querySelector('p')));
 assert.ok(context.document.body.isEqualNode(context.document.body.cloneNode(true)));
