@@ -46,6 +46,10 @@ const frozenState = new context.StaticRange({ startContainer: paragraph.firstChi
 const copiedState = liveState.cloneRange();
 paragraph.firstChild.insertData(0, '!');
 assert.equal(liveState.startOffset, 2); assert.equal(copiedState.startOffset, 2); assert.equal(frozenState.startOffset, 1);
+copiedState.collapse(false);
+assert.equal(copiedState.collapsed, true);
+assert.equal(liveState.collapsed, false);
+assert.equal(copiedState.compareBoundaryPoints(context.Range.START_TO_START, liveState), 1);
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });

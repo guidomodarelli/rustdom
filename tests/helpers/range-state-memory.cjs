@@ -25,6 +25,7 @@ async function auditLiveDocumentSlots() {
         if (index % 4 === 1) transient.selectNodeContents(root);
         if (index % 4 === 2) { transient.setStart(root.firstChild, 0); transient.setEnd(root, 1); }
         if (index % 4 === 3) { transient.selectNodeContents(root); transient.selectNodeContents(other); }
+        if (index % 5 === 0) { const copy = transient.cloneRange(); copy.collapse(true); }
       }
     }
     for (let batch = 0; batch < 4; batch++) {

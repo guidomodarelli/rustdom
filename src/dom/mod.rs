@@ -16,6 +16,7 @@ mod node_text;
 mod normalization;
 mod queries;
 mod range_boundaries;
+mod range_control;
 mod range_queries;
 mod range_state;
 mod range_state_binding;

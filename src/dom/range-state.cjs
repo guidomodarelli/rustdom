@@ -12,7 +12,7 @@ function createAbstractRange(tree) {
     /** @param {object} globalObject - Owning realm. @param {unknown[]} args - WebIDL constructor arguments. @param {object} privateData - Optional initial endpoints. */
     constructor(globalObject, args, privateData) {
       this._globalObject = globalObject;
-      tree.initializeRangeState(this, privateData.start, privateData.end);
+      tree.initializeRangeState(this, privateData);
     }
     /** @returns {object|undefined} Snapshot preserving the old value across later live updates. */
     get _start() {

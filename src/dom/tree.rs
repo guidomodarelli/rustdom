@@ -9,6 +9,7 @@ use super::{
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
+    range_control::RangeComparison as CoreRangeComparison,
     range_queries::PointRelation,
     range_state_binding::NativeRange,
     store,
@@ -167,6 +168,16 @@ pub enum RangeBoundaryAction {
     InvalidOffset,
     NoParent,
     InconsistentRoots,
+}
+
+#[napi]
+pub enum RangeComparison {
+    Before = -1,
+    Equal = 0,
+    After = 1,
+    UnsupportedMethod = 2,
+    DifferentRoot = 3,
+    InconsistentRoots = 4,
 }
 
 #[napi(object)]
@@ -447,6 +458,26 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn compare_range_states(
+        &mut self,
+        current: &NativeRange,
+        how: u32,
+        source: &NativeRange,
+    ) -> Result<RangeComparison> {
+        self.store
+            .compare_ranges(how, current.inputs()?, source.inputs()?)
+            .map(|result| match result {
+                CoreRangeComparison::Before => RangeComparison::Before,
+                CoreRangeComparison::Equal => RangeComparison::Equal,
+                CoreRangeComparison::After => RangeComparison::After,
+                CoreRangeComparison::UnsupportedMethod => RangeComparison::UnsupportedMethod,
+                CoreRangeComparison::DifferentRoot => RangeComparison::DifferentRoot,
+                CoreRangeComparison::InconsistentRoots => RangeComparison::InconsistentRoots,
+            })
             .map_err(to_napi_error)
     }
 

@@ -110,6 +110,12 @@ async function measure(name, size) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
         }
+      } else if (name === 'range-control-1000') {
+        result = 0;
+        for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
+          const copy = lastRange.cloneRange(); copy.collapse(iteration % 2 === 0);
+          result += copy.compareBoundaryPoints(rangeComparisonMode, lastRange);
+        }
       } else if (name === 'range-state-read-1000') {
         result = 0;
         for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
@@ -245,6 +251,10 @@ async function measure(name, size) {
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
       if (name === 'range-state-read-1000') assert.equal(result, RANGE_STATE_ITERATIONS * 2);
+      if (name === 'range-control-1000') {
+        assert.equal(result, Math.floor(RANGE_STATE_ITERATIONS / 2));
+        assert.equal(lastRange.startOffset, 0); assert.equal(lastRange.endOffset, 2); assert.equal(lastRange.collapsed, false);
+      }
       if (name === 'range-state-lifecycle-1000') assert.equal(result, expectedStateUnits * 3 + RANGE_STATE_ITERATIONS);
       if (name === 'range-boundaries-100') {
         const expectedIndex = (RANGE_BOUNDARY_ITERATIONS - 1) % size;
@@ -298,6 +308,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-boundaries-100', size })),
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

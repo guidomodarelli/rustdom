@@ -34,6 +34,13 @@ pub struct NativeBoundaryPoint {
     pub node: f64,
     pub offset: f64,
 }
+
+#[napi(object)]
+pub struct NativeCollapsePlan {
+    pub node: f64,
+    pub offset: f64,
+    pub update_start: bool,
+}
 impl From<BoundaryPoint> for NativeBoundaryPoint {
     fn from(point: BoundaryPoint) -> Self {
         Self {
@@ -62,6 +69,11 @@ impl Drop for NativeRange {
 }
 
 impl NativeRange {
+    fn with_state(state: RangeState) -> Self {
+        CREATED_RANGES.fetch_add(1, Ordering::Relaxed);
+        LIVE_RANGES.fetch_add(1, Ordering::Relaxed);
+        Self { state }
+    }
     pub(super) fn inputs(&self) -> Result<((f64, u32), (f64, u32))> {
         let (start, end) = self.state.points().map_err(to_napi_error)?;
         Ok((
@@ -79,11 +91,20 @@ impl NativeRange {
     }
     #[napi(constructor)]
     pub fn new() -> Self {
-        CREATED_RANGES.fetch_add(1, Ordering::Relaxed);
-        LIVE_RANGES.fetch_add(1, Ordering::Relaxed);
-        Self {
-            state: RangeState::default(),
-        }
+        Self::with_state(RangeState::default())
+    }
+    #[napi]
+    pub fn copy(&self) -> Self {
+        Self::with_state(self.state.clone())
+    }
+    #[napi]
+    pub fn collapse_plan(&self, to_start: bool) -> Result<NativeCollapsePlan> {
+        let (point, update_start) = self.state.collapse_plan(to_start).map_err(to_napi_error)?;
+        Ok(NativeCollapsePlan {
+            node: point.node as f64,
+            offset: point.offset,
+            update_start,
+        })
     }
     #[napi]
     pub fn set_start(&mut self, node: f64, offset: f64) -> Result<()> {

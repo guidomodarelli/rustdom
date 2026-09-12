@@ -81,6 +81,11 @@ Los rangos recolectados también eliminan sus entradas débiles de los nodos
 que siguen vivos. El registro de limpieza contiene solo IDs y un WeakRef,
 evitando la acumulación de entradas expiradas en documentos de larga duración.
 
+`compareBoundaryPoints` selecciona y compara sus extremos en Rust, incluidos
+modo y raíces. `collapse` recibe un plan nativo y `cloneRange` copia el estado
+numérico sin reconstruir sus extremos en JavaScript. La nueva instancia
+mantiene referencias vivas independientes para los ajustes posteriores.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
