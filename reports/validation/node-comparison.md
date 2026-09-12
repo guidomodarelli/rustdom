@@ -82,6 +82,14 @@ nodos comparados observados y los 880 documentos y 880 ventanas de los otros
 escenarios; sus contadores de nodos y datos nativos volvieron a cero. El
 crecimiento de heap tras GC fue 0,84 MiB y el de RSS 4,23 MiB en esta ejecución.
 
+[Valgrind/Memcheck 3.18.1](../memory/2026-09-12T01-20-10.091Z-valgrind.json)
+ejecutó los 28 tests Rust reales en 285,81 segundos: cero errores de acceso,
+cero bytes definitivamente perdidos y cero indirectamente perdidos. El
+[log íntegro](../memory/2026-09-12T01-20-10.091Z-valgrind-0.log) conserva 48 bytes
+posiblemente perdidos en `std::thread`/el runner de tests y 544 bytes alcanzables
+en el manejo de stack del runtime Rust. No hay supresiones. Este chequeo cubre
+el ejecutable Rust; el addon cargado y V8 se ejercen mediante el estrés de proceso.
+
 No se interpreta esta revisión ni una prueba finita como demostración absoluta
 de ausencia de fugas. Las estructuras temporales crecen con el tamaño de los
 árboles y atributos de la operación; no son caches persistentes.

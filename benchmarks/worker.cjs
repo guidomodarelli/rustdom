@@ -71,9 +71,21 @@ async function measure(name, size) {
     } else {
       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
       const document = dom.window.document;
+      const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
+      const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
+      const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       global.gc?.();
       const start = performance.now();
-      if (name === 'innerHTML') {
+      if (name === 'node-equality-100') {
+        result = 0;
+        for (let iteration = 0; iteration < 100; iteration++) result += Number(comparisonRoot.isEqualNode(comparisonPeer));
+      } else if (name === 'node-position-1000') {
+        result = 0;
+        for (let iteration = 0; iteration < 1000; iteration++) {
+          const node = comparisonNodes[iteration % comparisonNodes.length];
+          result += comparisonNodes.at(-1).compareDocumentPosition(node) + Number(comparisonRoot.contains(node));
+        }
+      } else if (name === 'innerHTML') {
         document.body.innerHTML = html.slice(html.indexOf('<table>'), html.indexOf('</body>'));
       } else if (name === 'selectors-100') {
         for (let iteration = 0; iteration < 100; iteration++) {
@@ -125,6 +137,8 @@ async function measure(name, size) {
       if (name === 'character-data-100') assert.equal(result, 'Row ');
       if (name === 'attribute-data-100') assert.equal(result, 'value-99');
       if (name === 'attribute-collections-100') assert.equal(result, 'value-99');
+      if (name === 'node-equality-100') assert.equal(result, 100);
+      if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -156,10 +170,11 @@ async function main() {
   for (const size of [25, 250, 1000]) {
     for (const name of ['construct-native-eligible', 'innerHTML']) workloads.push(await measure(name, size));
   }
-  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100', 'attribute-collections-100']) {
+  for (const name of ['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100', 'attribute-collections-100', 'node-equality-100', 'node-position-1000']) {
     workloads.push(await measure(name, 250));
   }
   for (const name of ['environment-setup', 'environment-vm-setup']) workloads.push(await measure(name, 25));
+  workloads.push(await measure('node-position-1000', 1000));
   for (const size of [250, 1000]) workloads.push(await measure('serialize-utf8', size));
   const parserStatistics = runtime.getParserStatistics?.();
   const nativeTreeStatistics = runtime.getNativeTreeStatistics?.();
