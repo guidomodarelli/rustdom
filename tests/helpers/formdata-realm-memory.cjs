@@ -34,7 +34,14 @@ function completion(pending) {
  */
 function fixture(environment, mode) {
   let target = { setTimeout, clearTimeout };
-  const session = mode === 'vm' ? environment.setupVM({ jsdom: { runScripts: 'outside-only' } }) : environment.setup(target, {});
+  const options = { jsdom: { runScripts: 'outside-only', beforeParse(window) {
+    if (mode === 'normal') {
+      const originalFetch = window.fetch;
+      Object.defineProperty(window, 'fetch', { configurable: true,
+        get() { return this === window ? originalFetch : undefined; } });
+    }
+  } } };
+  const session = mode === 'vm' ? environment.setupVM(options) : environment.setup(target, options);
   if (mode === 'vm') target = session.getVmContext();
   const references = { documents: new WeakRef(target.document), windows: new WeakRef(target.jsdom.window) };
   const transports = [];
@@ -54,6 +61,7 @@ function fixture(environment, mode) {
     pending.push(completion(request.formData()), completion(response.formData()));
   }
   const retained = { Request: target.Request, Response: target.Response, fetch: target.fetch,
+    fetchAccessor: mode === 'normal' ? Object.getOwnPropertyDescriptor(target, 'fetch').get : null,
     requestMethod: target.Request.prototype.formData, responseMethod: target.Response.prototype.formData,
     owners, requestClone: new target.Request('http://localhost').clone(),
     responseClone: new target.Response('unused').clone(), session };
@@ -95,13 +103,15 @@ async function main() {
   const growth = first ? Object.fromEntries(['heapUsed', 'external', 'rss', 'arrayBuffers'].map((field) => [field, last[field] - first[field]])) : null;
   const report = { capturedAt: new Date().toISOString(), mode, node: process.version,
     fingerprints: Object.fromEntries(['src/environments/multipart.cjs', 'src/environments/web-platform.cjs',
+      'src/environments/window.cjs', 'src/environments/vitest.mjs',
       'dist/rustdom.node'].map((file) => [file, createHash('sha256').update(readFileSync(file)).digest('hex')])),
     machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
-    methodology: 'Real rustdom addon and public Vitest lifecycle. Two warmup batches, four measured batches, four environments each. Retain Request/Response constructors, methods, clones, instances, fetch and teardown callbacks. Hold native stream bodies open across teardown, require separate Document/Window WeakRefs and native owners to clear before completing pending reads, then require a second quiescent endpoint. Preserve every major-GC trace and heap/external/RSS sample.',
+    methodology: 'Real rustdom addon and public Vitest lifecycle. Two warmup batches, four measured batches, four environments each. Retain Request/Response constructors, methods, clones, instances, fetch, normal-pool accessor adapters and teardown callbacks. Hold native stream bodies open across teardown, require separate Document/Window WeakRefs and native owners to clear before completing pending reads, then require a second quiescent endpoint. Preserve every major-GC trace and heap/external/RSS sample.',
     limitations: 'Finite lifecycle coverage; retained allocator RSS is not a leak proof. Returned FormData/File values are deliberately not retained because DOM values legitimately own their realm. No peak-memory or sanitizer measurement.',
     baseline, warmupBatches: WARMUP_BATCHES, measuredBatches: MEASURED_BATCHES, environmentsPerBatch: ENVIRONMENTS_PER_BATCH,
     observedDocuments: references.documents.length, observedWindows: references.windows.length,
     retainedNativeOwners: held.length * 6, retainedReaderMethods: held.length * 2,
+    retainedAccessorAdapters: mode === 'normal' ? held.length : 0,
     batches, growth, pass: batches.length === WARMUP_BATCHES + MEASURED_BATCHES && batches.every((batch) =>
       batch.pending.reached && batch.settled.reached && batch.completions.every((result) => result === 'TypeError: rustdom formData: environment has been disposed')) };
   assert.equal(held.length, references.windows.length);

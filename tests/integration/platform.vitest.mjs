@@ -1,6 +1,7 @@
 /** @file Exercises the Web API bridge in actual Vitest test execution. */
 import { test, expect } from 'vitest';
 import { createServer } from 'node:http';
+import { runInThisContext } from 'node:vm';
 import { readDomFile } from './read-dom-file.cjs';
 
 test('should submit DOM FormData through a native Request without changing filenames', async () => {
@@ -128,4 +129,42 @@ test('should retain body consumption and malformed multipart errors', async () =
   await expect(request.formData()).rejects.toThrow(TypeError);
   const malformed = new Response('invalid', { headers: { 'content-type': 'multipart/form-data; boundary=example' } });
   await expect(malformed.formData()).rejects.toThrow(TypeError);
+});
+
+test('should preserve a host stream TypeError when native bodies fail in the current worker realm', async () => {
+  const failure = runInThisContext('new TypeError("Body is unusable: Body has already been read")');
+  for (const contentType of ['application/x-www-form-urlencoded', 'multipart/form-data; boundary=worker']) {
+    for (const Constructor of [Request, Response]) {
+      const stream = new ReadableStream({ start(controller) { controller.error(failure); } });
+      const headers = { 'content-type': contentType };
+      const owner = Constructor === Request
+        ? new Constructor('/upload', { method: 'POST', body: stream, duplex: 'half', headers })
+        : new Constructor(stream, { headers });
+      await expect(owner.formData()).rejects.toBe(failure);
+    }
+  }
+});
+
+test('should use captured form intrinsics when globals disappear during a pending body read', async () => {
+  const window = jsdom.window;
+  const OriginalFormData = window.FormData;
+  const OriginalFile = window.File;
+  const descriptors = { FormData: Object.getOwnPropertyDescriptor(window, 'FormData'), File: Object.getOwnPropertyDescriptor(window, 'File') };
+  const form = new OriginalFormData();
+  form.append('file', new OriginalFile(['content'], 'content.txt', { type: 'text/plain' }));
+  const encoded = new Response(form);
+  const bytes = new Uint8Array(await encoded.arrayBuffer());
+  let controller;
+  const stream = new ReadableStream({ start(createdController) { controller = createdController; } });
+  const pending = new Response(stream, { headers: encoded.headers }).formData();
+  try {
+    delete window.FormData;
+    delete window.File;
+    controller.enqueue(bytes);
+    controller.close();
+    const received = await pending;
+    expect(received.constructor).toBe(OriginalFormData);
+    expect(received.get('file').constructor).toBe(OriginalFile);
+    expect(await readDomFile(globalThis, received.get('file'))).toEqual([...new TextEncoder().encode('content')]);
+  } finally { Object.defineProperties(window, descriptors); }
 });

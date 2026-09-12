@@ -16,7 +16,7 @@ const hostGlobals = Object.fromEntries([
 /**
  * Create a real VM-capable JSDOM with Vitest-compatible options and tracked Web API resources.
  * @param {object} options - Vitest environmentOptions.
- * @returns {{dom: object, bridge: object}} The window owner and its resource bridge.
+ * @returns {{dom: object, bridge: object, managedGlobalNames: string[]}} The owner, bridge and original set of managed globals.
  */
 function createWindow(options = {}) {
   const { html = DEFAULT_HTML, url = DEFAULT_URL, runScripts = 'dangerously',
@@ -38,7 +38,8 @@ function createWindow(options = {}) {
         if (beforeParse !== undefined) beforeParse(window);
       },
     });
-    return { dom, bridge };
+    const managedGlobalNames = [...new Set([...Object.keys(hostGlobals), ...Object.keys(bridge.globals)])];
+    return { dom, bridge, managedGlobalNames };
   } catch (error) {
     try { bridge?.dispose(); }
     finally { initializingWindow?.close(); }

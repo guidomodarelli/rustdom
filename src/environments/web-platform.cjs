@@ -8,6 +8,9 @@ const NodeFormData = globalThis.FormData;
 const NodeAbortController = globalThis.AbortController;
 const NodeAbortSignal = globalThis.AbortSignal;
 const NodeResponse = globalThis.Response;
+/** Consume the actual native body even when application code overrides an instance method. */
+const nativeRequestArrayBuffer = NodeRequest.prototype.arrayBuffer;
+const nativeResponseArrayBuffer = NodeResponse.prototype.arrayBuffer;
 const nodeFetch = globalThis.fetch;
 const { readFormData } = require('./multipart.cjs');
 const { implForWrapper } = require('../../dist/vendor-jsdom/lib/jsdom/living/generated/utils.js');
@@ -49,6 +52,8 @@ function createWebPlatformBridge(window) {
   const realmReference = new WeakRef(window);
   let WindowAbortController = window.AbortController;
   let originalAdd = window.EventTarget.prototype.addEventListener;
+  // Capture intrinsic constructors before beforeParse or test code can replace their public globals.
+  let formDataRealm = { FormData: window.FormData, File: window.File };
   let toWindowSignals = new WeakMap();
   let toNodeSignals = new WeakMap();
   const connections = new Set();
@@ -61,26 +66,20 @@ function createWebPlatformBridge(window) {
    * @throws {TypeError} When teardown has released the destination realm.
    */
   function formDataConstructors() {
-    if (!window) throw new TypeError('rustdom formData: environment has been disposed');
-    return { FormData: window.FormData, File: window.File };
+    if (!formDataRealm) throw formDataError('rustdom formData: environment has been disposed');
+    return formDataRealm;
   }
 
   /**
-   * Read a form without retaining browser constructors across asynchronous body consumption.
-   * @param {Request|Response} body - Native body owner.
-   * @param {Function} original - Original native formData reader.
-   * @returns {Promise<FormData>} Values from the live DOM realm.
+   * Construct only errors whose consumption or parser provenance is controlled by the bridge.
+   * @param {string} message - Description of the failed body operation.
+   * @param {*} [cause] - Original parser error, when available.
+   * @returns {TypeError} An error belonging to the current execution global.
    */
-  async function readBrowserFormData(body, original) {
-    try { return await readFormData(body, original, formDataConstructors); }
-    catch (error) {
-      // Normal Vitest redirects defaultView to its execution global; VM pools retain the window realm.
-      const ErrorConstructor = window?.document?.defaultView?.TypeError ?? TypeError;
-      if (error instanceof TypeError && !(error instanceof ErrorConstructor)) {
-        throw new ErrorConstructor(error.message, { cause: error });
-      }
-      throw error;
-    }
+  function formDataError(message, cause) {
+    // Resolve this only at the failure site; pending body reads must not capture a realm constructor.
+    const ErrorConstructor = window?.document?.defaultView?.TypeError ?? TypeError;
+    return new ErrorConstructor(message, cause === undefined ? undefined : { cause });
   }
 
   /**
@@ -148,7 +147,7 @@ function createWebPlatformBridge(window) {
     static [Symbol.hasInstance](value) { return value instanceof NodeRequest; }
 
     /** @returns {Promise<FormData>} FormData and Files from the originating realm while its environment remains active. */
-    formData() { return readBrowserFormData(this, NodeRequest.prototype.formData); }
+    formData() { return readFormData(this, nativeRequestArrayBuffer, formDataConstructors, formDataError); }
 
     /** @returns {Request} A native clone retaining the interoperable formData method. */
     clone() { return Object.setPrototypeOf(super.clone(), Request.prototype); }
@@ -159,7 +158,7 @@ function createWebPlatformBridge(window) {
     /** @param {*} body - Native or jsdom body. @param {object} [init] - Response options. */
     constructor(body, init) { super(nativeBody(body), init); }
     /** @returns {Promise<FormData>} Decoded fields and Files readable by the originating realm's FileReader. */
-    formData() { return readBrowserFormData(this, NodeResponse.prototype.formData); }
+    formData() { return readFormData(this, nativeResponseArrayBuffer, formDataConstructors, formDataError); }
     /** @returns {Response} A clone with the same body interoperability. */
     clone() { return Object.setPrototypeOf(super.clone(), Response.prototype); }
     /** @param {*} value - Candidate response. @returns {boolean} Whether it is a native Response. */
@@ -214,6 +213,7 @@ function createWebPlatformBridge(window) {
       objectUrls.clear();
       // Published classes may outlive teardown; their shared closure must release realm-owned functions too.
       window = null;
+      formDataRealm = null;
       WindowAbortController = null;
       originalAdd = null;
     },
