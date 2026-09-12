@@ -770,4 +770,23 @@ mod tests {
         assert_eq!(tree.statistics().live_nodes, 0.0);
         assert!(tree.statistics().capacity < 256.0);
     }
+
+    #[test]
+    fn should_release_nameless_attribute_snapshots_without_retaining_data_or_links() {
+        let mut tree = TreeStore::new();
+        let root = tree.allocate().unwrap();
+        for _ in 0..1024 {
+            let attribute = tree.allocate().unwrap();
+            tree.set_data(attribute, r#"{"kind":2,"value":[0,55296]}"#)
+                .unwrap();
+            tree.append(root, attribute).unwrap();
+            assert!(tree.release(attribute).unwrap());
+            assert!(!tree.release(attribute).unwrap());
+            assert_eq!(tree.child_count(root as u64).unwrap(), 0);
+        }
+        tree.release(root).unwrap();
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.statistics().data_nodes, 0.0);
+        assert_eq!(tree.non_utf8_nodes, 0);
+    }
 }
