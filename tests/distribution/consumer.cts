@@ -63,6 +63,7 @@ assert.equal(tree.nodeLength(namespaceHandle), 2); assert.equal(tree.nodeLength(
 assert.equal(tree.textWriteAction(textHandle, false), native.NodeTextWriteAction.CharacterData);
 assert.equal(tree.textWriteAction(namespaceHandle, true), native.NodeTextWriteAction.ReplaceChildren);
 assert.equal(tree.preInsertConstraints(namespaceHandle, textHandle, 0), native.NodeInsertionStatus.Ready);
+assert.equal(tree.preReplaceConstraints(namespaceHandle, textHandle, textHandle), native.NodeInsertionStatus.Ready);
 assert.equal(tree.isFollowing(siblingHandle, textHandle), true);
 assert.deepEqual(tree.normalizationCandidates(namespaceHandle), [textHandle, siblingHandle]);
 const group = tree.normalizationGroup(textHandle);

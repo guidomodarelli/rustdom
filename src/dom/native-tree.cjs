@@ -407,6 +407,15 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} parent - Validated insertion parent. @param {object} node - Candidate node. @param {object|null} child - Reference child or append. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Throws in the parent's realm when native constraints reject insertion. */
   validateInsertionConstraints(parent, node, child, exceptionFactory) {
     const status = this._arena.preInsertConstraints(this._ensure(parent), this._ensure(node), child ? this._ensure(child) : 0);
+    this._assertNodeConstraints(parent, node, status, exceptionFactory);
+  }
+  /** @param {object} parent - Validated replacement parent. @param {object} node - Replacement node. @param {object} child - Child being replaced. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Preserves the distinct native replacement constraints and original exception realm. */
+  validateReplacementConstraints(parent, node, child, exceptionFactory) {
+    const status = this._arena.preReplaceConstraints(this._ensure(parent), this._ensure(node), this._ensure(child));
+    this._assertNodeConstraints(parent, node, status, exceptionFactory);
+  }
+  /** @param {object} parent - Receiver implementation. @param {object} node - Candidate implementation. @param {number} status - Shared native rejection vocabulary. @param {object} exceptionFactory - Original exception factory. @returns {void} Delivers a rejection after the native borrow has ended. */
+  _assertNodeConstraints(parent, node, status, exceptionFactory) {
     if (status === NodeInsertionStatus.Ready) return;
     let message;
     let name = 'HierarchyRequestError';

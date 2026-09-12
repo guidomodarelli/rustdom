@@ -294,6 +294,17 @@ nodeSource = nodeSource.slice(0, removedRangesStart) +
   '    for (const descendant of domSymbolTree.treeIterator(nodeImpl)) {\n' +
   '      domSymbolTree.adjustRemovedDescendantRanges(descendant, this, index);\n    }\n' +
   '    domSymbolTree.adjustRemovedParentRanges(this, index);\n\n' + nodeSource.slice(removedRangesEnd);
+/** Replacement retains its own Document rules and the original effects after validation. */
+const nodeReplacementStart = nodeSource.indexOf('  _replace(nodeImpl, childImpl) {');
+const nodeReplacementConstraintsStart = nodeSource.indexOf('    if (childImpl && domSymbolTree.parent(childImpl) !== this) {', nodeReplacementStart);
+const nodeReplacementEffectsStart = nodeSource.indexOf('    let referenceChildImpl = domSymbolTree.nextSibling(childImpl);', nodeReplacementStart);
+if (nodeReplacementStart < 0 || nodeReplacementConstraintsStart < nodeReplacementStart || nodeReplacementEffectsStart < nodeReplacementConstraintsStart) {
+  throw new Error('rustdom build: Node replacement constraint boundaries changed');
+}
+const nodeReplacementPrefix = substituteOnce(nodeSource.slice(nodeReplacementStart, nodeReplacementConstraintsStart),
+  '    const { nodeType, nodeName } = nodeImpl;\n', '');
+nodeSource = nodeSource.slice(0, nodeReplacementStart) + nodeReplacementPrefix +
+  '    domSymbolTree.validateReplacementConstraints(this, nodeImpl, childImpl, DOMException);\n\n' + nodeSource.slice(nodeReplacementEffectsStart);
 await writeFile(nodePath, nodeSource);
 const boundaryPointPath = resolve(destination, 'lib/jsdom/living/range/boundary-point.js');
 let boundaryPointSource = await readFile(boundaryPointPath, 'utf8');

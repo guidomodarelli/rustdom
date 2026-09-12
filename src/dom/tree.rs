@@ -5,7 +5,7 @@ use super::{
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
     napi_error::to_napi_error,
-    node_insertion::InsertionStatus,
+    node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
     queries::{QueryEngine, QueryKind, QueryRequest},
@@ -52,6 +52,18 @@ pub enum NodeInsertionStatus {
     InvalidNodeType = 2,
     InvalidParentForNode = 3,
     InvalidDocumentStructure = 4,
+}
+
+impl From<ConstraintStatus> for NodeInsertionStatus {
+    fn from(status: ConstraintStatus) -> Self {
+        match status {
+            ConstraintStatus::Ready => Self::Ready,
+            ConstraintStatus::ChildNotFound => Self::ChildNotFound,
+            ConstraintStatus::InvalidNodeType => Self::InvalidNodeType,
+            ConstraintStatus::InvalidParentForNode => Self::InvalidParentForNode,
+            ConstraintStatus::InvalidDocumentStructure => Self::InvalidDocumentStructure,
+        }
+    }
 }
 
 /// A transient read-only plan; the binding preserves the ordering of existing mutation/range hooks.
@@ -601,15 +613,19 @@ impl NativeTree {
     ) -> Result<NodeInsertionStatus> {
         self.store
             .pre_insert_constraints(parent, node, child)
-            .map(|status| match status {
-                InsertionStatus::Ready => NodeInsertionStatus::Ready,
-                InsertionStatus::ChildNotFound => NodeInsertionStatus::ChildNotFound,
-                InsertionStatus::InvalidNodeType => NodeInsertionStatus::InvalidNodeType,
-                InsertionStatus::InvalidParentForNode => NodeInsertionStatus::InvalidParentForNode,
-                InsertionStatus::InvalidDocumentStructure => {
-                    NodeInsertionStatus::InvalidDocumentStructure
-                }
-            })
+            .map(NodeInsertionStatus::from)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn pre_replace_constraints(
+        &self,
+        parent: f64,
+        node: f64,
+        child: f64,
+    ) -> Result<NodeInsertionStatus> {
+        self.store
+            .pre_replace_constraints(parent, node, child)
+            .map(NodeInsertionStatus::from)
             .map_err(to_napi_error)
     }
     #[napi]
