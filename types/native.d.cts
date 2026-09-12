@@ -44,6 +44,10 @@ export class NativeTree {
   setElementFromAttributes(handle: number, encoded: string, attributes: number[]): void;
   /** Copies Attr data into an HTML snapshot; rejects an initialized attribute collection. */
   setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
+  /**
+   * Initializes before metadata or after an empty Element snapshot; idempotent for existing collections.
+   * @throws InvalidArg for non-Element metadata or snapshot attributes without a canonical collection.
+   */
   initializeAttributeCollection(element: number): void;
   setUnicodeVersion(version: string): void;
   /** Selects bundled tables; returns false without changing state for an unknown profile. */

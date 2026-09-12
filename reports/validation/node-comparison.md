@@ -173,3 +173,15 @@ el watchdog. La unión pasó **48 tests Rust**. El
 original, el contraste con un algoritmo defectuoso y Memcheck completo sobre
 la base de atributos. Los checks del SHA final siguen siendo requisito para
 el checkpoint.
+
+## Transición explícita desde snapshots
+
+Se integró `2f128fe193c2e0678956c87ba5e5da96a6996a54`, conservando tanto
+`NonEmptyAttributeSnapshot` como los errores específicos de DocumentType y
+ProcessingInstruction. La unión pasó **51 tests Rust, 192 contratos Node,
+7 Jest, 11 Vitest, 4 VM y 1.784 casos HTML5**, con
+[3.347 WPT en paridad](../compatibility/2026-09-12T05-02-52.844Z-linux-wpt.json).
+
+La revisión posterior detectó que las mutaciones implícitas de atributos aún
+podían omitir ese guard. Ese hallazgo se corrige en el PR base antes del merge;
+esta validación no se presenta como solución de esas rutas pendientes.
