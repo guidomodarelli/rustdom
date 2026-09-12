@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     projects: ['vmForks', 'vmThreads'].map((pool) => ({
       test: { name: pool, pool, maxWorkers: 1, environment: './src/environments/vitest.mjs',
-        include: ['tests/integration/**/*.vm.mjs'] },
+        include: ['tests/integration/**/*.vm.mjs', 'tests/integration/platform.vitest.mjs'] },
     })),
   },
 });

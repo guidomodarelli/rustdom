@@ -1,0 +1,48 @@
+
+> @rustdom/rustdom@0.1.0-alpha.0 test:vitest
+> vitest run tests/integration/platform.vitest.mjs
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90m/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8[39m
+
+ [31m❯[39m tests/integration/platform.vitest.mjs [2m([22m[2m7 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 72[2mms[22m[39m
+   [32m✓[39m should submit DOM FormData through a native Request without changing filenames[32m 14[2mms[22m[39m
+   [32m✓[39m should preserve stream identity and transfer data when using native response bodies[32m 3[2mms[22m[39m
+   [32m✓[39m should return DOM FormData and Files when decoding request and response clones[32m 10[2mms[22m[39m
+   [32m✓[39m should resolve relative request and fetch URLs when the document URL changes[32m 30[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 5[2mms[22m[39m
+[31m   [31m×[31m should retain body consumption and malformed multipart errors[39m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m6 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 12:08:45
+[2m   Duration [22m 21.28s[2m (environment 98%, import 1%)[22m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/integration/platform.vitest.mjs[2m > [22mshould retain body consumption and malformed multipart errors
+[31m[1mAssertionError[22m: expected error to be instance of TypeError[39m
+
+[32m- Expected:[39m
+[Function TypeError]
+
+[31m+ Received:[39m
+[TypeError: Body is unusable: Body has already been read]
+
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m128:35[22m[39m
+    [90m126|[39m   expect((await request.clone().formData()).get('field')).toBe('value'…
+    [90m127|[39m   expect((await request.formData()).get('field')).toBe('value');
+    [90m128|[39m   await expect(request.formData()).rejects.toThrow(TypeError);
+    [90m   |[39m                                   [31m^[39m
+    [90m129|[39m   const malformed = new Response('invalid', { headers: { 'content-type…
+    [90m130|[39m   await expect(malformed.formData()).rejects.toThrow(TypeError);
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+npm notice
+npm notice New minor version of npm available! 11.11.0 -> 11.19.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.19.1
+npm notice To update run: npm install -g npm@11.19.1
+npm notice

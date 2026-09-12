@@ -4,7 +4,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const { runInContext } = require('node:vm');
+const { getEventListeners } = require('node:events');
 const { JSDOM } = require('../dist/index.cjs');
+const { readDomFile } = require('./integration/read-dom-file.cjs');
 
 test('should preserve Blob bytes and multipart filenames when using native Request', async () => {
   const { default: environment } = await import('../src/environments/vitest.mjs');
@@ -22,7 +24,9 @@ test('should preserve Blob bytes and multipart filenames when using native Reque
     const received = await request.formData();
     assert.deepEqual(received.getAll('tag'), ['first', 'second']);
     assert.equal(received.get('file').name, 'binary.dat');
-    assert.deepEqual([...new Uint8Array(await received.get('file').arrayBuffer())], [0, 128, 255]);
+    assert.ok(received instanceof target.FormData);
+    assert.ok(received.get('file') instanceof target.File);
+    assert.deepEqual(await readDomFile(target, received.get('file')), [0, 128, 255]);
   } finally { session.teardown(); }
 });
 
@@ -60,6 +64,23 @@ test('should propagate a private DOM signal to a native Request', async () => {
   } finally { session.teardown(); other.window.close(); }
 });
 
+test('should preserve native Request inputs and required arguments when resolving browser URLs', async () => {
+  const { default: environment } = await import('../src/environments/vitest.mjs');
+  const target = { setTimeout, clearTimeout };
+  const session = environment.setup(target, { jsdom: { url: 'http://localhost/nested/page' } });
+  const RetainedRequest = target.Request;
+  try {
+    assert.throws(() => new target.Request(), TypeError);
+    assert.equal(new target.Request(undefined).url, 'http://localhost/nested/undefined');
+    const native = new Request('http://localhost/native', { method: 'POST', body: 'native body' });
+    const received = new target.Request(native);
+    assert.equal(received.url, native.url);
+    assert.equal(received.method, 'POST');
+    assert.equal(await received.text(), 'native body');
+  } finally { session.teardown(); }
+  assert.equal(new RetainedRequest('http://localhost/after-close').url, 'http://localhost/after-close');
+});
+
 test('should revoke outstanding object URLs when an environment closes', async () => {
   const { default: environment } = await import('../src/environments/vitest.mjs');
   const target = { setTimeout, clearTimeout };
@@ -91,6 +112,80 @@ test('should close VM timers when reserved globals prevent initialization', asyn
   } } }), TypeError);
   await new Promise((resolve) => setTimeout(resolve, 40));
   assert.equal(fired, false);
+});
+
+test('should expose the Web API bridge before user callbacks and inline scripts execute', async () => {
+  const { default: environment } = await import('../src/environments/vitest.mjs');
+  let callbackCalls = 0;
+  const session = environment.setupVM({ jsdom: {
+    url: 'http://localhost/nested/page',
+    beforeParse(window) {
+      callbackCalls++;
+      assert.equal(window.document.body, null);
+      assert.equal(new window.Request('/callback').url, 'http://localhost/callback');
+      assert.ok(new window.Response('callback').body instanceof window.ReadableStream);
+      assert.equal(typeof window.WritableStream, 'function');
+      assert.equal(typeof window.TransformStream, 'function');
+      const controller = new AbortController();
+      const target = new window.EventTarget();
+      let calls = 0;
+      target.addEventListener('ready', () => calls++, { signal: controller.signal });
+      target.dispatchEvent(new window.Event('ready'));
+      controller.abort();
+      target.dispatchEvent(new window.Event('ready'));
+      assert.equal(calls, 1);
+    },
+    html: '<script>window.scriptResult = new Request("./script").url; window.streamReady = new Response("script").body instanceof ReadableStream;</script>',
+  } });
+  try {
+    assert.equal(callbackCalls, 1);
+    assert.equal(runInContext('scriptResult', session.getVmContext()), 'http://localhost/nested/script');
+    assert.equal(runInContext('streamReady', session.getVmContext()), true);
+  } finally { session.teardown(); }
+});
+
+test('should release callback resources when beforeParse aborts window construction', async () => {
+  const { default: environment } = await import('../src/environments/vitest.mjs');
+  const originalFailure = new Error('beforeParse rejected initialization');
+  let objectUrl;
+  let timerFired = false;
+  let window;
+  const controller = new AbortController();
+  assert.throws(() => environment.setupVM({ jsdom: { beforeParse(createdWindow) {
+    window = createdWindow;
+    createdWindow.setTimeout(() => { timerFired = true; }, 20);
+    objectUrl = createdWindow.URL.createObjectURL(new createdWindow.Blob(['owned resource']));
+    createdWindow.addEventListener('ready', () => {}, { signal: controller.signal });
+    assert.equal(getEventListeners(controller.signal, 'abort').length, 1);
+    throw originalFailure;
+  } } }), (error) => error === originalFailure);
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(timerFired, false);
+  assert.equal(window.document, undefined);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  await assert.rejects(fetch(objectUrl), TypeError);
+});
+
+test('should release early resources when document parsing fails after beforeParse returns', async () => {
+  const { default: environment } = await import('../src/environments/vitest.mjs');
+  const controller = new AbortController();
+  let window;
+  let objectUrl;
+  let timerFired = false;
+  assert.throws(() => environment.setupVM({ jsdom: {
+    contentType: 'application/xhtml+xml', html: '<root><unclosed></root>',
+    beforeParse(createdWindow) {
+      window = createdWindow;
+      createdWindow.setTimeout(() => { timerFired = true; }, 20);
+      createdWindow.addEventListener('ready', () => {}, { signal: controller.signal });
+      objectUrl = createdWindow.URL.createObjectURL(new createdWindow.Blob(['owned resource']));
+    },
+  } }), (error) => error.name === 'SyntaxError');
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(timerFired, false);
+  assert.equal(window.document, undefined);
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+  await assert.rejects(fetch(objectUrl), TypeError);
 });
 
 test('should restore global descriptors and stop window timers when teardown runs', async () => {

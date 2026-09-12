@@ -7,6 +7,8 @@ const { collectGarbage: settle, captureMemoryState, waitForMemoryQuiescence } = 
 const snapshots = [];
 /** Deliberately retain teardown callbacks to catch accidental closure ownership. */
 const retainedTeardowns = [];
+/** Retain published Web API classes to detect strong realm ownership after teardown. */
+const retainedWebConstructors = [];
 /** Observe targets without keeping them alive. */
 const references = [];
 /** Observe Window proxies too: close() can release a Document while a Window remains retained. */
@@ -109,6 +111,27 @@ function exerciseEnvironmentRanges(target) {
   rangeReferences.push(new WeakRef(contents));
   comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted), new WeakRef(surrounding),
     new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild));
+}
+
+/**
+ * Observe failed constructor cleanup while foreign signals remain strongly reachable.
+ * @param {object} environment - The actual Vitest environment.
+ * @param {string} mode - Normal or VM environment lifecycle.
+ * @returns {void} Retains only weak document/window references and the foreign controller.
+ */
+function exerciseFailedEnvironment(environment, mode) {
+  const controller = new AbortController();
+  retainedControllers.push(controller);
+  const options = { jsdom: { beforeParse(window) {
+    references.push(new WeakRef(window.document));
+    windowReferences.push(new WeakRef(window));
+    window.addEventListener('pending', () => {}, { signal: controller.signal });
+    window.URL.createObjectURL(new window.Blob(['x'.repeat(32 * 1024)]));
+    window.setInterval(() => {}, 60_000);
+    throw new Error('expected memory fixture initialization failure');
+  } } };
+  assert.throws(() => mode === 'vitest-vm' ? environment.setupVM(options) : environment.setup({}, options),
+    /expected memory fixture initialization failure/);
 }
 
 /**
@@ -323,9 +346,11 @@ async function main() {
         target.document.querySelector('p').addEventListener('click', () => {}, { signal: controller.signal });
         retainedControllers.push(controller);
         target.URL.createObjectURL(new target.Blob(['x'.repeat(32 * 1024)]));
+        retainedWebConstructors.push(target.Request, target.Response, target.URL);
         session.teardown();
         retainedTeardowns.push(session);
         target = null;
+        exerciseFailedEnvironment(environment, mode);
       } else exerciseWindow(runtime, `${batch}-${operation}`);
     }
     await settle();
@@ -367,6 +392,7 @@ async function main() {
     observedRanges: rangeReferences.length, survivingRanges,
     retainedTextResults: retainedTextResults.length,
     retainedTeardownCallbacks: retainedTeardowns.length,
+    retainedWebConstructors: retainedWebConstructors.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     initialAttributeState,
