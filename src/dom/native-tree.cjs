@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -404,6 +404,21 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} node - DOM implementation. @returns {number} Pinned DOM length in UTF-16 units or children. */
   nodeLength(node) { return this._arena.nodeLength(this._ensure(node)); }
+  /** @param {object} parent - Validated insertion parent. @param {object} node - Candidate node. @param {object|null} child - Reference child or append. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Throws in the parent's realm when native constraints reject insertion. */
+  validateInsertionConstraints(parent, node, child, exceptionFactory) {
+    const status = this._arena.preInsertConstraints(this._ensure(parent), this._ensure(node), child ? this._ensure(child) : 0);
+    if (status === NodeInsertionStatus.Ready) return;
+    let message;
+    let name = 'HierarchyRequestError';
+    switch (status) {
+      case NodeInsertionStatus.ChildNotFound: message = 'The child can not be found in the parent.'; name = 'NotFoundError'; break;
+      case NodeInsertionStatus.InvalidNodeType: message = `${node.nodeName} node can't be inserted in parent node.`; break;
+      case NodeInsertionStatus.InvalidParentForNode: message = `${node.nodeName} node can't be inserted in ${parent.nodeName} parent.`; break;
+      case NodeInsertionStatus.InvalidDocumentStructure: message = `Invalid insertion of ${node.nodeName} node in ${parent.nodeName} node.`; break;
+      default: throw new Error('rustdom Node insertion: unsupported native constraint status');
+    }
+    throw exceptionFactory.create(parent._globalObject, [message, name]);
+  }
   /** @param {object|null} ancestor - Candidate ancestor. @param {object|null} node - Descendant candidate. @returns {boolean} Parent-link ancestry only. */
   isInclusiveAncestor(ancestor, node) { return Boolean(ancestor && node) && this._arena.containsNode(this._ensure(ancestor), this._ensure(node)); }
   /** @param {object|null} node - Candidate following node. @param {object|null} reference - Reference node. @returns {boolean} Strict native preorder relation. */

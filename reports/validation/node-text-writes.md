@@ -21,7 +21,7 @@ Se agregan contratos de decisiones nativas y errores sin consumo de reservas,
 consumidores CJS/ESM y benchmarks de 1.000 escrituras alternadas de ambas
 propiedades. Pasaron **121 tests Rust**, Clippy/build y **19 contratos Node
 focales** de setters, lecturas de texto, topología y colecciones de atributos.
-La validación integral de este estado continúa.
+La validación integral y las mediciones finales se detallan más abajo.
 
 La primera prueba Rust expuso un problema adicional de liberación: setData
 aceptaba un snapshot Attr sin nombre, pero release intentaba obtener su nombre

@@ -6,7 +6,7 @@ import nativeRuntime, {
   RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
-  NativeRangeExtract, RangeExtractAction, NodeTextWriteAction,
+  NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -21,6 +21,12 @@ nativeTree.initializeDocumentType(doctype, 'html', 'public', 'system');
 assert.equal(NodeTextWriteAction, nativeRuntime.NodeTextWriteAction);
 assert.equal(nativeTree.textWriteAction(doctype, true), NodeTextWriteAction.Ignore);
 assert.equal(nativeTree.documentTypeField(doctype, DocumentTypeField.SystemId), 'system');
+const insertionDocument = nativeTree.allocate(); nativeTree.setData(insertionDocument, '{"kind":9}');
+assert.equal(NodeInsertionStatus, nativeRuntime.NodeInsertionStatus);
+assert.equal(nativeTree.preInsertConstraints(insertionDocument, doctype, 0), NodeInsertionStatus.Ready);
+nativeTree.append(insertionDocument, doctype);
+assert.equal(nativeTree.preInsertConstraints(insertionDocument, doctype, 0), NodeInsertionStatus.InvalidDocumentStructure);
+nativeTree.release(insertionDocument);
 nativeTree.release(doctype);
 assert.equal(nativeTree.statistics().liveNodes, 0);
 assert.equal(QueryMode.First, 1);

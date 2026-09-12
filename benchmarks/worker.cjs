@@ -30,6 +30,8 @@ const NODE_ROOT_ITERATIONS = 1000;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
+/** Measure accepted or rejected public insertions into a Document with many existing comments. */
+const DOCUMENT_INSERTION_ITERATIONS = 100;
 /** Public content operations sharing identical partial-boundary fixtures. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
@@ -63,6 +65,8 @@ async function measure(name, size) {
   const mutatesCharacterRanges = name === 'range-character-mutations-100';
   const textWriteProperty = name === 'node-value-writes-1000' ? 'nodeValue'
     : name === 'node-text-writes-1000' ? 'textContent' : null;
+  const insertsDocumentComments = name === 'document-comments-insert-100';
+  const rejectsDocumentElement = name === 'document-duplicate-element-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -76,6 +80,7 @@ async function measure(name, size) {
     let dom;
     let elapsed;
     let result;
+    let insertionDocument;
     let cleanup;
     let target;
     if (environment) {
@@ -106,6 +111,14 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
+      let documentInsertions;
+      if (insertsDocumentComments || rejectsDocumentElement) {
+        insertionDocument = document.implementation.createDocument(null, null);
+        if (rejectsDocumentElement) insertionDocument.appendChild(insertionDocument.createElement('root'));
+        for (let index = 0; index < size; index++) insertionDocument.appendChild(insertionDocument.createComment(`seed-${index}`));
+        documentInsertions = Array.from({ length: DOCUMENT_INSERTION_ITERATIONS }, (_, index) => rejectsDocumentElement
+          ? insertionDocument.createElement('candidate') : insertionDocument.createComment(`insert-${index}`));
+      }
       const textWriteContainer = textWriteProperty ? document.body.appendChild(document.createElement('div')) : null;
       if (textWriteContainer) textWriteContainer.append('initial');
       const originalWrittenText = textWriteContainer?.firstChild;
@@ -170,7 +183,15 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (textWriteProperty) {
+      if (documentInsertions) {
+        result = 0;
+        for (const candidate of documentInsertions) {
+          if (rejectsDocumentElement) {
+            try { insertionDocument.appendChild(candidate); }
+            catch (error) { result += Number(error.name === 'HierarchyRequestError'); }
+          } else { insertionDocument.appendChild(candidate); result++; }
+        }
+      } else if (textWriteProperty) {
         for (let iteration = 0; iteration < TEXT_WRITE_ITERATIONS; iteration++) {
           textWriteTarget[textWriteProperty] = TEXT_WRITE_VALUES[iteration % TEXT_WRITE_VALUES.length];
         }
@@ -348,6 +369,18 @@ async function measure(name, size) {
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
+      if (documentInsertions) {
+        assert.equal(result, DOCUMENT_INSERTION_ITERATIONS);
+        assert.equal(insertionDocument.childNodes.length, size + (rejectsDocumentElement ? 1 : DOCUMENT_INSERTION_ITERATIONS));
+        if (rejectsDocumentElement) {
+          assert.equal(insertionDocument.documentElement.localName, 'root');
+          for (const candidate of documentInsertions) assert.equal(candidate.parentNode, null);
+        } else {
+          for (const [index, candidate] of documentInsertions.entries()) {
+            assert.equal(insertionDocument.childNodes[size + index], candidate);
+          }
+        }
+      }
       if (textWriteProperty) {
         assert.equal(textWriteContainer.textContent, TEXT_WRITE_VALUES[(TEXT_WRITE_ITERATIONS - 1) % TEXT_WRITE_VALUES.length]);
         assert.equal(textWriteContainer.childNodes.length, 1);
@@ -414,10 +447,12 @@ async function measure(name, size) {
     assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
     const fragmentOutput = createsContextFragment || contentOperation === 'cloneContents' || contentOperation === 'extractContents'
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
-    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).digest('hex');
+    const insertionOutput = insertionDocument ? new dom.window.XMLSerializer().serializeToString(insertionDocument) : '';
+    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
     result = null;
+    insertionDocument = null;
     if (cleanup) await cleanup();
     else dom.window.close();
     cleanup = null;
@@ -448,6 +483,7 @@ async function main() {
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),

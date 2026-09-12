@@ -78,6 +78,9 @@ function exerciseWindow(runtime, identity) {
 function exerciseEnvironmentRanges(target) {
   const text = target.document.querySelector('p').firstChild;
   text.nodeValue = text.data;
+  const rejectedText = target.document.createTextNode('invalid document child');
+  assert.throws(() => target.document.appendChild(rejectedText), { name: 'HierarchyRequestError' });
+  assert.equal(rejectedText.parentNode, null); comparisonReferences.push(new WeakRef(rejectedText));
   assert.equal(text.getRootNode(), target.document); assert.equal(text.isConnected, true);
   const live = target.document.createRange(); live.setStart(text, 1); live.setEnd(text, 3);
   const clone = live.cloneRange();
@@ -182,6 +185,9 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(copiedText, 'text'.repeat(20));
       assert.equal(clone.firstChild.firstChild.nodeValue, 'text');
       clone.firstChild.firstChild.nodeValue = 'text';
+      const rejectedText = document.createTextNode('invalid document child');
+      assert.throws(() => document.appendChild(rejectedText), { name: 'HierarchyRequestError' });
+      assert.equal(rejectedText.parentNode, null); comparisonReferences.push(new WeakRef(rejectedText));
       retainedTextResults.push(copiedText);
       for (const paragraph of clone.children) {
         const empty = document.createTextNode('');

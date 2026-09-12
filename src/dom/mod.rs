@@ -12,6 +12,7 @@ mod namespaces;
 mod napi_error;
 mod node_comparison;
 mod node_geometry;
+mod node_insertion;
 mod node_metadata;
 mod node_text;
 mod normalization;
