@@ -1,6 +1,6 @@
 //! Canonical CharacterData storage and UTF-16 string operations, independent of JavaScript.
 use super::{
-    constants::{CDATA_SECTION_NODE, TEXT_NODE, is_character_data},
+    constants::{CDATA_SECTION_NODE, PROCESSING_INSTRUCTION_NODE, TEXT_NODE, is_character_data},
     data::{DomString, NodeData},
     error::{Result, TreeError},
     store::{NodeId, TreeStore, node_id},
@@ -25,10 +25,16 @@ impl TreeStore {
         if !is_character_data(kind) {
             return Err(TreeError::NotCharacterData(node_id(handle)?));
         }
+        let name = self
+            .data
+            .get(&node_id(handle)?)
+            .filter(|data| kind == PROCESSING_INSTRUCTION_NODE && data.kind == kind)
+            .and_then(|data| data.name.clone());
         self.replace_data(
             handle,
             NodeData {
                 kind,
+                name,
                 value: DomString::Utf16(value),
                 ..NodeData::default()
             },

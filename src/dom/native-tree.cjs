@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, QueryMode, AttributeField } = require('../../dist/native.cjs');
+const { NativeTree, QueryMode, AttributeField, DocumentTypeField } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 
 /**
@@ -70,7 +70,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} object - Mutated DOM implementation. @returns {void} Updates an indexed node's native data. */
   updateNodeData(object) {
     const record = this._node(object);
-    if (record.nativeCharacterKind !== undefined || record.nativeAttribute) return;
+    if (record.nativeCharacterKind !== undefined || record.nativeAttribute || record.nativeImmutableMetadata) return;
     if (record.nativeId !== undefined) {
       writeNodeData(this._arena, record.nativeId, object, (node) => this._ensure(node));
       record.nativeDataReady = true;
@@ -98,6 +98,30 @@ class NativeSymbolTree extends SymbolTree {
   replaceCharacterData(node, offset, count, value) { return this._arena.replaceCharacterData(this._identify(node), offset, count, value); }
   /** @param {object} node - Text or CDATA implementation. @returns {string} Adjacent text from the native tree. */
   wholeText(node) { return this._arena.wholeText(this._identify(node)); }
+
+  /** @param {object} node - DocumentType implementation. @param {object} data - Initial identifiers. @returns {void} */
+  initializeDocumentType(node, data) {
+    this._arena.initializeDocumentType(this._identify(node), data.name, data.publicId, data.systemId);
+    const record = this._node(node);
+    record.nativeDataReady = true;
+    record.nativeImmutableMetadata = true;
+  }
+  /** @param {object} node - DocumentType. @returns {string} Native qualified name. */
+  documentTypeName(node) { return this._arena.documentTypeField(this._identify(node), DocumentTypeField.Name); }
+  /** @param {object} node - DocumentType. @returns {string} Native public identifier. */
+  documentTypePublicId(node) { return this._arena.documentTypeField(this._identify(node), DocumentTypeField.PublicId); }
+  /** @param {object} node - DocumentType. @returns {string} Native system identifier. */
+  documentTypeSystemId(node) { return this._arena.documentTypeField(this._identify(node), DocumentTypeField.SystemId); }
+  /** @param {object} node - ProcessingInstruction. @param {string} target - Initial target. @returns {void} */
+  initializeProcessingInstructionTarget(node, target) { this._arena.initializeProcessingInstructionTarget(this._identify(node), target); }
+  /** @param {object} node - ProcessingInstruction. @returns {string} Native target. */
+  processingInstructionTarget(node) { return this._arena.processingInstructionTarget(this._identify(node)); }
+  /** @param {object} left - Context node. @param {object|null} right - Compared node. @returns {boolean} Native subtree equality. */
+  equalNode(left, right) { return right !== null && this._arena.equalNode(this._ensure(left), this._ensure(right)); }
+  /** @param {object} ancestor - Context node. @param {object|null} descendant - Candidate descendant. @returns {boolean} Native inclusive ancestry. */
+  containsNode(ancestor, descendant) { return descendant !== null && this._arena.containsNode(this._ensure(ancestor), this._ensure(descendant)); }
+  /** @param {object} left - Context node. @param {object} right - Compared node. @returns {number} Native document position bitmask. */
+  compareDocumentPosition(left, right) { return this._arena.compareDocumentPosition(this._ensure(left), this._ensure(right)); }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
   initializeAttribute(node, kind, data) {

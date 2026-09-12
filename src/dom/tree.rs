@@ -4,6 +4,7 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
+    node_metadata,
     queries::{QueryEngine, QueryKind, QueryRequest},
     store,
 };
@@ -100,6 +101,14 @@ pub enum AttributeField {
     QualifiedName = 4,
 }
 
+/// Immutable document type fields shared with the host binding.
+#[napi]
+pub enum DocumentTypeField {
+    Name = 0,
+    PublicId = 1,
+    SystemId = 2,
+}
+
 /// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
 fn to_napi_error(error: TreeError) -> Error {
     let status = if matches!(&error, TreeError::HandleExhausted) {
@@ -178,6 +187,74 @@ impl NativeTree {
     #[napi]
     pub fn reserve_handles(&mut self) -> Result<f64> {
         self.store.reserve_handles().map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn initialize_document_type(
+        &mut self,
+        handle: f64,
+        name: Utf16String,
+        public_id: Utf16String,
+        system_id: Utf16String,
+    ) -> Result<()> {
+        self.store
+            .initialize_document_type(handle, &name, &public_id, &system_id)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn document_type_field(
+        &self,
+        handle: f64,
+        field: DocumentTypeField,
+    ) -> Result<Utf16String> {
+        let field = match field {
+            DocumentTypeField::Name => node_metadata::DocumentTypeField::Name,
+            DocumentTypeField::PublicId => node_metadata::DocumentTypeField::PublicId,
+            DocumentTypeField::SystemId => node_metadata::DocumentTypeField::SystemId,
+        };
+        self.store
+            .document_type_field(handle, field)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn initialize_processing_instruction_target(
+        &mut self,
+        handle: f64,
+        target: Utf16String,
+    ) -> Result<()> {
+        self.store
+            .initialize_processing_instruction_target(handle, &target)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn processing_instruction_target(&self, handle: f64) -> Result<Utf16String> {
+        self.store
+            .processing_instruction_target(handle)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn equal_node(&self, left: f64, right: f64) -> Result<bool> {
+        self.store.equal_node(left, right).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn contains_node(&self, ancestor: f64, descendant: f64) -> Result<bool> {
+        self.store
+            .contains_node(ancestor, descendant)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn compare_document_position(&self, left: f64, right: f64) -> Result<u16> {
+        self.store
+            .compare_document_position(left, right)
+            .map_err(to_napi_error)
     }
 
     /// Store lossless DOM data after private DOM construction or mutation.

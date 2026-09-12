@@ -14,6 +14,14 @@ const TEST_TIMEOUT_MS = 30000;
 /** Keep the upstream assertions unchanged; replace only its browser report renderer. */
 const REPORTER = 'add_completion_callback((tests, status) => __wptDone(JSON.stringify({status:status.status,message:status.message,tests:tests.map(test=>({name:test.name,status:test.status,message:test.message}))})));';
 
+/** @param {string} file - Fixture path. @returns {string} Media type used for top-level and iframe parsing. */
+function mediaType(file) {
+  if (file.endsWith('.xhtml')) return 'application/xhtml+xml';
+  if (file.endsWith('.xml')) return 'application/xml';
+  if (file.endsWith('.svg')) return 'image/svg+xml';
+  return 'text/html';
+}
+
 for (const [file, expected] of Object.entries(manifest.files)) {
   assert.equal(createHash('sha256').update(readFileSync(path.join(root, file))).digest('hex'), expected,
     `WPT fixture integrity: ${file}`);
@@ -43,6 +51,7 @@ async function run(engine, file) {
           const content = url.pathname === '/resources/testharnessreport.js' ? Buffer.from(REPORTER) : readFileSync(target);
           const result = Promise.resolve(content);
           result.abort = () => {}; // The synchronous read is complete; no pending resource remains.
+          result.response = { headers: { 'content-type': mediaType(url.pathname) } };
           return result;
         }
       }
@@ -51,7 +60,7 @@ async function run(engine, file) {
         : readFileSync(path.join(root, file));
       dom = new engine.JSDOM(html, {
         url: `http://web-platform.test/${file.replace(/\.window\.js$/, '.window.html')}`,
-        contentType: file.endsWith('.xhtml') ? 'application/xhtml+xml' : 'text/html',
+        contentType: mediaType(file),
         runScripts: 'dangerously', resources: new FixtureResources(), pretendToBeVisual: true,
         beforeParse(window) { window.__wptDone = (json) => resolve(JSON.parse(json)); },
       });

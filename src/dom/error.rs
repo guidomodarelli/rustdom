@@ -14,6 +14,8 @@ pub enum TreeError {
     NotCharacterData(u64),
     NotAttribute(u64),
     NotElement(u64),
+    NotDocumentType(u64),
+    NotProcessingInstruction(u64),
     AttributeInUse(u64),
     UnsupportedUnicodeVersion(String),
     CharacterOffset { offset: u32, length: usize },
@@ -24,6 +26,14 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NotDocumentType(id) => write!(
+                formatter,
+                "NativeTree: node {id} is not an initialized DocumentType"
+            ),
+            Self::NotProcessingInstruction(id) => write!(
+                formatter,
+                "NativeTree: node {id} is not an initialized ProcessingInstruction"
+            ),
             Self::UnsupportedUnicodeVersion(version) => write!(
                 formatter,
                 "NativeTree: unsupported host Unicode version {version}"

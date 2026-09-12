@@ -14,6 +14,8 @@ export interface AttributeDelta { previous: number; changed: boolean; attached: 
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
 export const AttributeField: { readonly Name: 0; readonly Namespace: 1; readonly Prefix: 2; readonly Value: 3; readonly QualifiedName: 4 };
+/** Canonical DocumentType identifiers. */
+export const DocumentTypeField: { readonly Name: 0; readonly PublicId: 1; readonly SystemId: 2 };
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
@@ -21,6 +23,13 @@ export class NativeTree {
   readonly handleBatchSize: number;
   allocate(): number;
   reserveHandles(): number;
+  initializeDocumentType(handle: number, name: string, publicId: string, systemId: string): void;
+  documentTypeField(handle: number, field: typeof DocumentTypeField[keyof typeof DocumentTypeField]): string;
+  initializeProcessingInstructionTarget(handle: number, target: string): void;
+  processingInstructionTarget(handle: number): string;
+  equalNode(left: number, right: number): boolean;
+  containsNode(ancestor: number, descendant: number): boolean;
+  compareDocumentPosition(left: number, right: number): number;
   setData(handle: number, encoded: string): void;
   /** Direct transfer requires well-formed strings and alternating attribute name/value entries. */
   setHtmlElement(handle: number, name: string, attributes: string[]): void;

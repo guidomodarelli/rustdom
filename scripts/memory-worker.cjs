@@ -14,6 +14,8 @@ const windowReferences = [];
 const characterReferences = [];
 /** Track attached, removed and never-attached native-backed Attr values. */
 const attributeReferences = [];
+/** Observe compared subtrees and native immutable node metadata without retaining them. */
+const comparisonReferences = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
 const retainedControllers = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
@@ -113,6 +115,48 @@ async function exerciseAttributeChurn(runtime) {
 }
 
 /**
+ * Compare transient nodes against a live tree and verify that no comparison cache retains them.
+ * @param {object} runtime - Real jsdom-compatible engine.
+ * @returns {Promise<void>} Completes weak-reference and native-allocation checks before window teardown.
+ */
+async function exerciseNodeComparisons(runtime) {
+  const dom = new runtime.JSDOM('<!doctype html><section>' + '<p a="value">text</p>'.repeat(20) + '</section>');
+  const document = dom.window.document;
+  const root = document.querySelector('section');
+  const batches = 5;
+  const comparisonsPerBatch = 100;
+  try {
+    await settle();
+    const initial = runtime.getNativeTreeStatistics?.();
+    /** @returns {WeakRef<Node>[]} Compared nodes whose last strong test references end on return. */
+    function compareTransientNodes() {
+      const clone = root.cloneNode(true);
+      const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
+      const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
+      assert.ok(root.isEqualNode(clone));
+      assert.equal(root.contains(clone), false);
+      assert.ok(root.compareDocumentPosition(clone) & dom.window.Node.DOCUMENT_POSITION_DISCONNECTED);
+      assert.ok(doctype.isEqualNode(doctype.cloneNode()));
+      instruction.data = 'changed';
+      assert.equal(instruction.target, 'target');
+      return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction)];
+    }
+    for (let batch = 0; batch < batches; batch++) {
+      const compared = [];
+      for (let index = 0; index < comparisonsPerBatch; index++) compared.push(...compareTransientNodes());
+      await settle();
+      assert.equal(compared.filter((reference) => reference.deref()).length, 0, 'comparison retained transient nodes');
+      const current = runtime.getNativeTreeStatistics?.();
+      if (current) {
+        assert.equal(current.liveNodes, initial.liveNodes, 'comparison retained native nodes');
+        assert.equal(current.dataNodes, initial.dataNodes, 'comparison retained native metadata');
+      }
+      comparisonReferences.push(...compared);
+    }
+  } finally { dom.window.close(); }
+}
+
+/**
  * Run one isolated stress target and enforce conservative retained-growth budgets.
  * @returns {Promise<void>} Emits a machine-readable report and fails observed leaks.
  */
@@ -155,13 +199,14 @@ async function main() {
     await settle();
     if (batch >= WARMUP_BATCHES) snapshots.push({ batch, ...process.memoryUsage() });
   }
-  if (runtime) await exerciseAttributeChurn(runtime);
+  if (runtime) { await exerciseAttributeChurn(runtime); await exerciseNodeComparisons(runtime); }
   await settle();
   const terminalMemory = process.memoryUsage();
   const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
   const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
   const survivingCharacterData = characterReferences.filter((reference) => reference.deref() !== undefined).length;
   const survivingAttributes = attributeReferences.filter((reference) => reference.deref() !== undefined).length;
+  const survivingComparedNodes = comparisonReferences.filter((reference) => reference.deref() !== undefined).length;
   const nativeTree = nativeRuntime?.getNativeTreeStatistics();
   const first = snapshots[0];
   const last = terminalMemory;
@@ -177,12 +222,13 @@ async function main() {
     observedWindows: windowReferences.length, survivingWindows,
     observedCharacterData: characterReferences.length, survivingCharacterData,
     observedAttributes: attributeReferences.length, survivingAttributes,
+    observedComparedNodes: comparisonReferences.length, survivingComparedNodes,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     initialAttributeState,
     snapshots, terminalMemory, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
+    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 && survivingComparedNodes === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.attributeCollections === initialAttributeState.attributeCollections &&

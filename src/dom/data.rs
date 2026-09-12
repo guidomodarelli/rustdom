@@ -69,6 +69,13 @@ pub struct AttributeData {
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+pub struct DocumentTypeData {
+    pub public_id: DomString,
+    pub system_id: DomString,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 pub struct NodeData {
     pub kind: u16,
     pub name: Option<DomString>,
@@ -78,6 +85,8 @@ pub struct NodeData {
     pub attributes: Vec<AttributeData>,
     pub template_content: f64,
     pub is_value: Option<DomString>,
+    // Allocate doctype-specific strings only for doctypes, not for every DOM node.
+    pub doctype: Option<Box<DocumentTypeData>>,
 }
 
 impl NodeData {
