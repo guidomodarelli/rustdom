@@ -10,8 +10,9 @@ const report = { capturedAt: new Date().toISOString(), node: process.version,
   nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
   environmentSourceSha256: createHash('sha256').update(readFileSync('src/environments/vitest.mjs')).digest('hex'),
   workerSourceSha256: createHash('sha256').update(readFileSync('scripts/memory-worker.cjs')).digest('hex'),
+  endpointSourceSha256: createHash('sha256').update(readFileSync('scripts/memory-endpoint.cjs')).digest('hex'),
   machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
-  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; explicit asynchronous major GC and event-loop drainage; terminal memory and WeakRef checks observe the same quiescent endpoint. All per-batch samples are retained.',
+  methodology: 'Fresh process per target; warmup; repeated construction/parsing/teardown; every explicit Document and Window fixture is observed. The terminal endpoint requires two clear samples across separate asynchronous major-GC/event-loop rounds, all WeakRefs cleared and native lifetime counts exactly at baseline, within 12 rounds and 10 seconds checked between rounds. Terminal memory, WeakRef counts and native counters come from the same synchronous sample. All retry traces and per-batch samples are retained.',
   limitations: 'Finite stress tests cannot prove zero leaks. RSS includes allocator retention. This is not a peak-memory benchmark, ASan/LSan run, or exhaustive native dependency audit.',
   results: [] };
 

@@ -1,6 +1,7 @@
 /** @file Stresses real lifecycle paths and measures retained references and post-GC memory. */
 'use strict';
 const assert = require('node:assert/strict');
+const { collectGarbage: settle, captureMemoryState, waitForMemoryQuiescence } = require('./memory-endpoint.cjs');
 
 /** Retain small result records, never the DOM objects whose collection is measured. */
 const snapshots = [];
@@ -14,6 +15,11 @@ const windowReferences = [];
 const characterReferences = [];
 /** Track attached, removed and never-attached native-backed Attr values. */
 const attributeReferences = [];
+/** Every explicit fixture participates in the same final liveness observation. */
+const observedReferences = { documents: references, windows: windowReferences,
+  characterData: characterReferences, attributes: attributeReferences };
+/** Preserve collection progress as numbers and memory samples without retaining DOM fixtures. */
+const quiescenceChecks = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
 const retainedControllers = [];
 /** Warm module caches and native allocators before judging bounded retained growth. */
@@ -22,18 +28,6 @@ const WARMUP_BATCHES = 3;
 const MEASURED_BATCHES = 8;
 /** Use several documents per batch while allowing pending readiness callbacks to settle. */
 const OPERATIONS_PER_BATCH = 40;
-
-/**
- * Drain readiness/finalization callbacks and request explicit asynchronous major collections.
- * @returns {Promise<void>} Completes collections after the current JavaScript stack has unwound.
- */
-async function settle() {
-  for (let turn = 0; turn < 2; turn++) {
-    await new Promise((resolve) => setImmediate(resolve));
-    await global.gc({ type: 'major', execution: 'async' });
-  }
-  await new Promise((resolve) => setImmediate(resolve));
-}
 
 /**
  * Create and release a document, its observers, listeners, and outstanding timer.
@@ -80,8 +74,10 @@ function exerciseWindow(runtime, identity) {
  * @returns {Promise<void>} Verifies collection before releasing the owning document.
  */
 async function exerciseAttributeChurn(runtime) {
-  const dom = new runtime.JSDOM('<!doctype html><div></div>');
-  const element = dom.window.document.querySelector('div');
+  let dom = new runtime.JSDOM('<!doctype html><div></div>');
+  let element = dom.window.document.querySelector('div');
+  references.push(new WeakRef(dom.window.document));
+  windowReferences.push(new WeakRef(dom.window));
   /** Fixed stress size, independent of production allocation policy. */
   const batches = 5;
   const attributesPerBatch = 200;
@@ -99,7 +95,9 @@ async function exerciseAttributeChurn(runtime) {
       const removed = [];
       for (let index = 0; index < attributesPerBatch; index++) removed.push(replace(batch * attributesPerBatch + index));
       element.removeAttribute('data-churn');
-      await settle();
+      const endpoint = await waitForMemoryQuiescence({ label: `attribute-churn-${batch}`,
+        sample: () => captureMemoryState({ attributes: removed }, runtime), expectedNative: initial });
+      quiescenceChecks.push(endpoint);
       assert.equal(removed.filter((reference) => reference.deref()).length, 0, 'removed Attr retained by a live element');
       assert.ok(dom.window.document.body.contains(element));
       const current = runtime.getNativeTreeStatistics?.();
@@ -109,7 +107,12 @@ async function exerciseAttributeChurn(runtime) {
       }
       attributeReferences.push(...removed);
     }
-  } finally { dom.window.close(); }
+  } finally {
+    dom.window.close();
+    // Completed async scopes may outlive their last await; release the test's own strong roots.
+    element = null;
+    dom = null;
+  }
 }
 
 /**
@@ -155,14 +158,19 @@ async function main() {
     await settle();
     if (batch >= WARMUP_BATCHES) snapshots.push({ batch, ...process.memoryUsage() });
   }
-  if (runtime) await exerciseAttributeChurn(runtime);
-  await settle();
-  const terminalMemory = process.memoryUsage();
-  const survivingDocuments = references.filter((reference) => reference.deref() !== undefined).length;
-  const survivingWindows = windowReferences.filter((reference) => reference.deref() !== undefined).length;
-  const survivingCharacterData = characterReferences.filter((reference) => reference.deref() !== undefined).length;
-  const survivingAttributes = attributeReferences.filter((reference) => reference.deref() !== undefined).length;
-  const nativeTree = nativeRuntime?.getNativeTreeStatistics();
+  if (runtime) {
+    const preceding = await waitForMemoryQuiescence({ label: 'before-attribute-churn', expectedNative: initialAttributeState,
+      sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+    quiescenceChecks.push(preceding);
+    await exerciseAttributeChurn(runtime);
+  }
+  const endpoint = await waitForMemoryQuiescence({ label: 'terminal', expectedNative: initialAttributeState,
+    sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+  quiescenceChecks.push(endpoint);
+  const terminalMemory = endpoint.state.memory;
+  const { documents: survivingDocuments, windows: survivingWindows,
+    characterData: survivingCharacterData, attributes: survivingAttributes } = endpoint.state.survivors;
+  const nativeTree = endpoint.state.nativeTree;
   const first = snapshots[0];
   const last = terminalMemory;
   const growth = { heapUsed: last.heapUsed - first.heapUsed, external: last.external - first.external,
@@ -181,8 +189,9 @@ async function main() {
     retainedForeignSignals: retainedControllers.length,
     nativeTree, initialNativeNodes, initialNativeData,
     initialAttributeState,
-    snapshots, terminalMemory, growth, budgets,
-    pass: survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
+    snapshots, terminalMemory, growth, budgets, quiescenceChecks,
+    pass: quiescenceChecks.every((check) => check.reached) &&
+      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.attributeCollections === initialAttributeState.attributeCollections &&
