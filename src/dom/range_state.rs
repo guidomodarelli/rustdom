@@ -10,7 +10,7 @@ pub(crate) struct BoundaryPoint {
     pub offset: f64,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct RangeState {
     start: Option<BoundaryPoint>,
     end: Option<BoundaryPoint>,
@@ -47,6 +47,15 @@ impl RangeState {
         let (start, end) = self.points()?;
         Ok(start.node == end.node && start.offset == end.offset)
     }
+    /// Select the retained point and which host ownership edge must be moved.
+    pub fn collapse_plan(&self, to_start: bool) -> Result<(BoundaryPoint, bool)> {
+        let (start, end) = self.points()?;
+        Ok(if to_start {
+            (start, false)
+        } else {
+            (end, true)
+        })
+    }
 }
 
 /// Preserve the existing Node-API u32 argument conversion for internal query snapshots.
@@ -62,6 +71,29 @@ pub(super) fn query_offset(offset: f64) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn should_clone_independently_and_plan_collapse_without_changing_either_state() {
+        let mut original = RangeState::default();
+        original.set_start(1.0, -0.0).unwrap();
+        original.set_end(2.0, 9.0).unwrap();
+        let mut clone = original.clone();
+        assert_eq!(
+            clone.collapse_plan(true).unwrap(),
+            (original.start().unwrap(), false)
+        );
+        assert_eq!(
+            clone.collapse_plan(false).unwrap(),
+            (original.end().unwrap(), true)
+        );
+        clone.set_start(2.0, 3.0).unwrap();
+        assert_eq!(original.start().unwrap().node, 1);
+        assert_eq!(
+            original.start().unwrap().offset.to_bits(),
+            (-0.0f64).to_bits()
+        );
+        assert_eq!(clone.start().unwrap().offset, 3.0);
+        assert!(RangeState::default().collapse_plan(true).is_err());
+    }
     #[test]
     fn should_preserve_independent_endpoint_snapshots_and_collapsed_state() {
         let mut state = RangeState::default();

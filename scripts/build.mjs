@@ -261,7 +261,8 @@ await writeFile(abstractRangePath, '"use strict";\n' +
 const rangePath = resolve(destination, 'lib/jsdom/living/range/Range-impl.js');
 let rangeSource = await readFile(rangePath, 'utf8');
 rangeSource = substituteOnce(rangeSource, '    this._weakRef = new WeakRef(this);',
-  '    this._weakRef = new WeakRef(this);\n    domSymbolTree.registerLiveRange(this);');
+  '    this._weakRef = new WeakRef(this);\n    domSymbolTree.registerLiveRange(this);\n' +
+  '    if (privateData.nativeCopy) { domSymbolTree.attachRangeCopy(this); return; }');
 const liveRangeStart = rangeSource.indexOf('  _setLiveRangeStart(node, offset) {');
 const liveRangeEnd = rangeSource.indexOf('\n}\n\n\nfunction nextNodeDescendant', liveRangeStart);
 if (liveRangeStart < 0 || liveRangeEnd < liveRangeStart) throw new Error('rustdom build: live Range state boundary changed');
@@ -276,7 +277,7 @@ const rangeCollapseEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#
 if (rangeSettersStart < 0 || rangeSettersEnd < rangeSettersStart || rangeCollapseStart < rangeSettersStart || rangeCollapseEnd < rangeCollapseStart) {
   throw new Error('rustdom build: Range setter boundaries changed');
 }
-const rangeCollapse = rangeSource.slice(rangeCollapseStart, rangeCollapseEnd);
+const rangeCollapse = '  collapse(toStart) { domSymbolTree.collapseRange(this, toStart); }\n\n';
 rangeSource = rangeSource.slice(0, rangeSettersStart) +
   '  get commonAncestorContainer() { return domSymbolTree.rangeCommonAncestor(this); }\n\n' +
   '  setStart(node, offset) { setBoundaryPointStart(this, node, offset); }\n' +
@@ -287,6 +288,22 @@ rangeSource = rangeSource.slice(0, rangeSettersStart) +
   '  selectNode(node) { selectNodeWithinRange(node, this); }\n' +
   '  selectNodeContents(node) { domSymbolTree.setRangeBoundary(this, node, 0, "SelectContents", DOMException); }\n\n' +
   rangeSource.slice(rangeSettersEnd);
+const rangeComparisonStart = rangeSource.indexOf('  compareBoundaryPoints(how, sourceRange) {');
+const rangeComparisonEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-deletecontents', rangeComparisonStart);
+if (rangeComparisonStart < 0 || rangeComparisonEnd < rangeComparisonStart) throw new Error('rustdom build: Range comparison boundary changed');
+rangeSource = rangeSource.slice(0, rangeComparisonStart) +
+  '  compareBoundaryPoints(how, sourceRange) { return domSymbolTree.compareRanges(this, how, sourceRange, DOMException); }\n\n' +
+  rangeSource.slice(rangeComparisonEnd);
+const rangeModesStart = rangeSource.indexOf('const RANGE_COMPARISON_TYPE = {');
+const rangeModesEnd = rangeSource.indexOf('class RangeImpl', rangeModesStart);
+if (rangeModesStart < 0 || rangeModesEnd < rangeModesStart) throw new Error('rustdom build: Range comparison mode constants changed');
+rangeSource = rangeSource.slice(0, rangeModesStart) + rangeSource.slice(rangeModesEnd);
+const rangeCloneStart = rangeSource.indexOf('  cloneRange() {');
+const rangeCloneEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-detach', rangeCloneStart);
+if (rangeCloneStart < 0 || rangeCloneEnd < rangeCloneStart) throw new Error('rustdom build: Range clone boundary changed');
+rangeSource = rangeSource.slice(0, rangeCloneStart) +
+  '  cloneRange() { return Range.createImpl(this._globalObject, [], domSymbolTree.cloneRangeData(this)); }\n\n' +
+  rangeSource.slice(rangeCloneEnd);
 const rangeBoundaryHelpersStart = rangeSource.indexOf('// https://dom.spec.whatwg.org/#concept-range-bp-set');
 const rangeBoundaryHelpersEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#contained', rangeBoundaryHelpersStart);
 if (rangeBoundaryHelpersStart < 0 || rangeBoundaryHelpersEnd < rangeBoundaryHelpersStart) {

@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -11,6 +11,9 @@ const BOUNDARY_ROOT_ERROR_MESSAGE = 'Internal Error: Boundary points should have
 const RANGE_INVALID_TYPE_MESSAGE = "DocumentType Node can't be used as boundary point.";
 const RANGE_OFFSET_MESSAGE = 'Offset out of bound.';
 const RANGE_NO_PARENT_MESSAGE = 'The given Node has no parent.';
+/** Pinned public comparison diagnostic, independent of which endpoint pair is selected. */
+const RANGE_COMPARISON_METHOD_MESSAGE = "The comparison method provided must be one of 'START_TO_START', 'START_TO_END', 'END_TO_END', " +
+  "or 'END_TO_START'.";
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -151,13 +154,53 @@ class NativeSymbolTree extends SymbolTree {
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
   /** @param {object} root - Inclusive normalization context. @returns {object[]} Snapshot of Text candidates. */
   normalizationCandidates(root) { return this._arena.normalizationCandidates(this._ensure(root)).map((id) => this._object(id)); }
-  /** @param {object} range - Range or StaticRange implementation. @param {object|undefined} start - Initial boundary. @param {object|undefined} end - Initial boundary. @returns {void} */
-  initializeRangeState(range, start, end) {
+  /** @param {object} range - Range or StaticRange implementation. @param {object} data - Private constructor endpoints or an independent native copy. @returns {void} */
+  initializeRangeState(range, data) {
+    if (data.nativeCopy) {
+      range._nativeRange = data.nativeCopy;
+      range._rangeStartNode = data.startNode; range._rangeEndNode = data.endNode;
+      return;
+    }
+    const { start, end } = data;
     range._nativeRange = new NativeRange();
     range._rangeStartNode = start?.node;
     range._rangeEndNode = end?.node;
     if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
     if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
+  }
+  /** @param {object} range - Source Range implementation. @returns {object} Independent numeric state with GC-visible endpoint identities. */
+  cloneRangeData(range) {
+    return { nativeCopy: range._nativeRange.copy(), startNode: range._rangeStartNode, endNode: range._rangeEndNode };
+  }
+  /** @param {object} range - New clone with copied native state and a registered WeakRef. @returns {void} Attaches live ownership without rewriting native values. */
+  attachRangeCopy(range) {
+    const start = range._rangeStartNode; const end = range._rangeEndNode;
+    range._rangeRegistration.start = this._ensure(start);
+    if (!start._referencedRanges.has(range._weakRef)) start._referencedRanges.add(range._weakRef);
+    range._rangeRegistration.end = this._ensure(end);
+    if (!end._referencedRanges.has(range._weakRef)) end._referencedRanges.add(range._weakRef);
+  }
+  /** @param {object} range - Live Range implementation. @param {boolean} toStart - Public converted direction. @returns {void} Applies the native collapse decision to the correct ownership edge. */
+  collapseRange(range, toStart) {
+    const plan = range._nativeRange.collapsePlan(Boolean(toStart));
+    const node = this._object(plan.node);
+    if (plan.updateStart) range._setLiveRangeStart(node, plan.offset);
+    else range._setLiveRangeEnd(node, plan.offset);
+  }
+  /** @param {object} range - Receiver Range. @param {number} how - Converted comparison method. @param {object} source - Other Range. @param {object} exceptionFactory - Original DOMException factory. @returns {number} Native relative ordering. */
+  compareRanges(range, how, source, exceptionFactory) {
+    const result = this._arena.compareRangeStates(range._nativeRange, how, source._nativeRange);
+    switch (result) {
+      case RangeComparison.Before: return -1;
+      case RangeComparison.Equal: return 0;
+      case RangeComparison.After: return 1;
+      case RangeComparison.UnsupportedMethod:
+        throw exceptionFactory.create(range._globalObject, [RANGE_COMPARISON_METHOD_MESSAGE, 'NotSupportedError']);
+      case RangeComparison.DifferentRoot:
+        throw exceptionFactory.create(range._globalObject, ['The two Ranges are not in the same tree.', 'WrongDocumentError']);
+      case RangeComparison.InconsistentRoots: throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+      default: throw new Error(`NativeTree: unsupported range comparison result ${result}`);
+    }
   }
   /** @param {object} range - Live Range whose WeakRef was just created. @returns {void} Registers cleanup without a strong path back to the Range. */
   registerLiveRange(range) {

@@ -29,6 +29,10 @@ export interface RangeBoundaryPlan { action: typeof RangeBoundaryAction[keyof ty
 
 /** Independent snapshot; offsets preserve internal JavaScript Number values without revalidating public setters. */
 export interface NativeBoundaryPoint { node: number; offset: number; }
+/** Transient collapse decision; numeric state changes only when the host applies the selected endpoint update. */
+export interface NativeCollapsePlan extends NativeBoundaryPoint { updateStart: boolean; }
+/** Ordering or rejection returned by a complete native Range comparison. */
+export const RangeComparison: { readonly Before: -1; readonly Equal: 0; readonly After: 1; readonly UnsupportedMethod: 2; readonly DifferentRoot: 3; readonly InconsistentRoots: 4 };
 /** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
 export class NativeRange {
   constructor();
@@ -40,6 +44,8 @@ export class NativeRange {
   readonly collapsed: boolean;
   setStart(node: number, offset: number): void;
   setEnd(node: number, offset: number): void;
+  copy(): NativeRange;
+  collapsePlan(toStart: boolean): NativeCollapsePlan;
 }
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
@@ -84,6 +90,7 @@ export class NativeTree {
   rangeTextFromState(state: NativeRange): string | null;
   rangeBoundaryPlanFromState(state: NativeRange, mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number): RangeBoundaryPlan;
   commonAncestorFromState(state: NativeRange): number;
+  compareRangeStates(current: NativeRange, how: number, source: NativeRange): typeof RangeComparison[keyof typeof RangeComparison];
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

@@ -14,6 +14,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - El stringifier de Range reúne el texto seleccionado en Rust; se conservan las particularidades de CDATA y UTF-16 del jsdom de referencia.
 - Los ocho setters/selecciones y commonAncestorContainer deciden en Rust; las referencias vivas y ajustes durante otras mutaciones todavía conservan responsabilidades JS.
 - Los extremos numéricos de Range/StaticRange y collapsed son canónicos en Rust. JS mantiene ownership visible a V8 y snapshots para consumidores existentes; quedan los algoritmos de ajuste por mutaciones, Selection y otros métodos.
+- La comparación pública de Range, los planes de collapse y la copia de su estado se ejecutan en Rust; quedan operaciones de contenidos y ajustes de rangos por otras mutaciones.
 - Optimizar lecturas y creación/clonado de Range: el benchmark de estado nativo del 12/09 muestra aproximadamente 4× de costo frente a jsdom en esos patrones, aunque otras consultas son más rápidas.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
