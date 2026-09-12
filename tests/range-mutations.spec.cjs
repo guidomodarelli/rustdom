@@ -24,9 +24,10 @@ function inspectMutations(engine) {
     try {
       const document = dom.window.document; const root = document.querySelector('main');
       const text = root.firstChild; const middle = root.querySelector('span'); const end = root.lastChild;
-      root.insertBefore(document.createTextNode('joined'), middle);
-      const points = [[root, 0], [root, 1], [root, 3], [root, root.childNodes.length], [text, 0], [text, 3],
-        [text, text.length], [middle.firstChild, 1], [middle.firstChild, 5], [end, 2]];
+      const joined = document.createTextNode('joined'); root.insertBefore(joined, middle);
+      const points = [[root, 0], [root, 1], [root, 2], [root, 3], [root, root.childNodes.length], [text, 0], [text, 3],
+        [text, text.length], [joined, 0], [joined, 3], [joined, joined.length],
+        [middle.firstChild, 1], [middle.firstChild, 5], [end, 2]];
       const ranges = points.flatMap(([start, startOffset]) => points.map(([finish, endOffset]) => {
         const range = document.createRange(); range.setStart(start, startOffset); range.setEnd(finish, endOffset); return range;
       }));
@@ -63,8 +64,74 @@ function inspectMutations(engine) {
   return observations;
 }
 
-test('should preserve 100 live ranges and their copies through each of 12 real DOM mutations', () => {
+test('should preserve 196 live ranges and their copies through each of 12 real DOM mutations', () => {
   assert.deepEqual(inspectMutations(engines.rustdom), inspectMutations(engines.jsdom));
+});
+
+/** Exercise retained-node ownership and the pinned joined-only relocation during normalize. */
+test('should preserve joined Text endpoints according to retained-node range ownership when normalizing', () => {
+  for (const engine of Object.values(engines)) {
+    const dom = new engine.JSDOM('<main>ab😀cd</main>');
+    try {
+      const document = dom.window.document; const root = document.querySelector('main');
+      const retained = root.firstChild; const joined = document.createTextNode('joined'); root.append(joined);
+      const spanning = document.createRange(); spanning.setStart(retained, 1); spanning.setEnd(joined, 3);
+      const joinedOnly = document.createRange(); joinedOnly.setStart(joined, 1); joinedOnly.setEnd(joined, 4);
+      const spanningCopy = spanning.cloneRange(); const joinedCopy = joinedOnly.cloneRange();
+      const frozen = new dom.window.StaticRange({ startContainer: joined, startOffset: 1, endContainer: joined, endOffset: 4 });
+      const before = describeRange(spanning);
+
+      root.normalize();
+
+      assert.equal(root.firstChild, retained); assert.equal(root.childNodes.length, 1);
+      assert.equal(retained.data, 'ab😀cdjoined'); assert.equal(joined.parentNode, null);
+      for (const range of [spanning, spanningCopy]) {
+        assert.equal(range.startContainer, retained); assert.equal(range.startOffset, 1);
+        assert.equal(range.endContainer, retained); assert.equal(range.endOffset, 9);
+        assert.equal(range.toString(), 'b😀cdjoi');
+      }
+      // Pinned jsdom visits the retained Text's live ranges, so joined-only ranges relocate during removal.
+      for (const range of [joinedOnly, joinedCopy]) {
+        assert.equal(range.startContainer, root); assert.equal(range.startOffset, 1);
+        assert.equal(range.endContainer, root); assert.equal(range.endOffset, 1);
+        assert.equal(range.collapsed, true);
+      }
+      assert.equal(frozen.startContainer, joined); assert.equal(frozen.endContainer, joined);
+      assert.equal(frozen.startOffset, 1); assert.equal(frozen.endOffset, 4);
+      assert.equal(before.endOffset, 3); assert.equal(before.end.value, 'joined');
+      retained.insertData(0, '!');
+      assert.equal(spanning.startOffset, 2); assert.equal(spanning.endOffset, 10);
+      assert.deepEqual(describeRange(spanningCopy), describeRange(spanning));
+      assert.equal(joinedOnly.startOffset, 1); assert.equal(joinedOnly.endOffset, 1);
+    } finally { dom.window.close(); }
+  }
+});
+
+/** Exercise the strict parent-offset removal boundary with live copies and a StaticRange. */
+test('should keep parent offsets equal to the removed subtree index while decrementing later offsets', () => {
+  for (const engine of Object.values(engines)) {
+    const dom = new engine.JSDOM('<main><i></i><b></b><span>removed</span><em></em></main>');
+    try {
+      const document = dom.window.document; const root = document.querySelector('main');
+      const removed = root.querySelector('span'); const range = document.createRange();
+      range.setStart(root, 2); range.setEnd(root, 3); const copy = range.cloneRange();
+      const frozen = new dom.window.StaticRange({ startContainer: root, startOffset: 2, endContainer: root, endOffset: 3 });
+      const before = describeRange(range);
+
+      removed.remove();
+
+      for (const liveRange of [range, copy]) {
+        assert.equal(liveRange.startContainer, root); assert.equal(liveRange.startOffset, 2);
+        assert.equal(liveRange.endContainer, root); assert.equal(liveRange.endOffset, 2);
+        assert.equal(liveRange.collapsed, true);
+      }
+      assert.equal(root.childNodes.length, 3); assert.equal(root.childNodes[2].nodeName, 'EM');
+      assert.equal(removed.parentNode, null);
+      assert.equal(frozen.startContainer, root); assert.equal(frozen.startOffset, 2);
+      assert.equal(frozen.endContainer, root); assert.equal(frozen.endOffset, 3);
+      assert.equal(before.startOffset, 2); assert.equal(before.endOffset, 3);
+    } finally { dom.window.close(); }
+  }
 });
 
 test('should preserve the pinned insertion adjustment when the other endpoint belongs to a Text node', () => {
