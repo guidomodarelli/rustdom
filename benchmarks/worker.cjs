@@ -30,8 +30,8 @@ const NODE_ROOT_ITERATIONS = 1000;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
-/** Measure accepted or rejected public insertions into a Document with many existing comments. */
-const DOCUMENT_INSERTION_ITERATIONS = 100;
+/** Measure public insertions and replacements in Documents with many existing comments. */
+const DOCUMENT_MUTATION_ITERATIONS = 100;
 /** Public content operations sharing identical partial-boundary fixtures. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
@@ -67,6 +67,8 @@ async function measure(name, size) {
     : name === 'node-text-writes-1000' ? 'textContent' : null;
   const insertsDocumentComments = name === 'document-comments-insert-100';
   const rejectsDocumentElement = name === 'document-duplicate-element-100';
+  const replacesDocumentComments = name === 'document-comments-replace-100';
+  const replacesDocumentElement = name === 'document-root-replace-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -111,12 +113,15 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      let documentInsertions;
-      if (insertsDocumentComments || rejectsDocumentElement) {
+      let documentCandidates;
+      let documentReplacementTargets;
+      if (insertsDocumentComments || rejectsDocumentElement || replacesDocumentComments || replacesDocumentElement) {
         insertionDocument = document.implementation.createDocument(null, null);
-        if (rejectsDocumentElement) insertionDocument.appendChild(insertionDocument.createElement('root'));
+        if (rejectsDocumentElement || replacesDocumentElement) insertionDocument.appendChild(insertionDocument.createElement('root'));
         for (let index = 0; index < size; index++) insertionDocument.appendChild(insertionDocument.createComment(`seed-${index}`));
-        documentInsertions = Array.from({ length: DOCUMENT_INSERTION_ITERATIONS }, (_, index) => rejectsDocumentElement
+        documentReplacementTargets = replacesDocumentComments ? [...insertionDocument.childNodes].slice(0, DOCUMENT_MUTATION_ITERATIONS)
+          : replacesDocumentElement ? [insertionDocument.documentElement] : null;
+        documentCandidates = Array.from({ length: DOCUMENT_MUTATION_ITERATIONS }, (_, index) => rejectsDocumentElement || replacesDocumentElement
           ? insertionDocument.createElement('candidate') : insertionDocument.createComment(`insert-${index}`));
       }
       const textWriteContainer = textWriteProperty ? document.body.appendChild(document.createElement('div')) : null;
@@ -183,10 +188,15 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (documentInsertions) {
+      if (documentCandidates) {
         result = 0;
-        for (const candidate of documentInsertions) {
-          if (rejectsDocumentElement) {
+        for (let index = 0; index < documentCandidates.length; index++) {
+          const candidate = documentCandidates[index];
+          if (replacesDocumentComments || replacesDocumentElement) {
+            const previous = replacesDocumentComments ? documentReplacementTargets[index]
+              : index === 0 ? documentReplacementTargets[0] : documentCandidates[index - 1];
+            insertionDocument.replaceChild(candidate, previous); result++;
+          } else if (rejectsDocumentElement) {
             try { insertionDocument.appendChild(candidate); }
             catch (error) { result += Number(error.name === 'HierarchyRequestError'); }
           } else { insertionDocument.appendChild(candidate); result++; }
@@ -369,16 +379,21 @@ async function measure(name, size) {
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
-      if (documentInsertions) {
-        assert.equal(result, DOCUMENT_INSERTION_ITERATIONS);
-        assert.equal(insertionDocument.childNodes.length, size + (rejectsDocumentElement ? 1 : DOCUMENT_INSERTION_ITERATIONS));
+      if (documentCandidates) {
+        assert.equal(result, DOCUMENT_MUTATION_ITERATIONS);
+        assert.equal(insertionDocument.childNodes.length, size + (rejectsDocumentElement || replacesDocumentElement ? 1 : insertsDocumentComments ? DOCUMENT_MUTATION_ITERATIONS : 0));
         if (rejectsDocumentElement) {
           assert.equal(insertionDocument.documentElement.localName, 'root');
-          for (const candidate of documentInsertions) assert.equal(candidate.parentNode, null);
+          for (const candidate of documentCandidates) assert.equal(candidate.parentNode, null);
+        } else if (replacesDocumentElement) {
+          assert.equal(insertionDocument.documentElement, documentCandidates.at(-1));
+          assert.equal(documentReplacementTargets[0].parentNode, null);
+          for (const candidate of documentCandidates.slice(0, -1)) assert.equal(candidate.parentNode, null);
         } else {
-          for (const [index, candidate] of documentInsertions.entries()) {
-            assert.equal(insertionDocument.childNodes[size + index], candidate);
+          for (const [index, candidate] of documentCandidates.entries()) {
+            assert.equal(insertionDocument.childNodes[(replacesDocumentComments ? 0 : size) + index], candidate);
           }
+          if (replacesDocumentComments) for (const previous of documentReplacementTargets) assert.equal(previous.parentNode, null);
         }
       }
       if (textWriteProperty) {
@@ -484,6 +499,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
+    ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),

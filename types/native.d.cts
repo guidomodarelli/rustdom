@@ -124,6 +124,8 @@ export class NativeTree {
   nodeRoot(handle: number): number;
   /** Read-only child membership, node-kind and Document constraints; caller handles parent validity and host-inclusive cycles first. */
   preInsertConstraints(parent: number, node: number, child: number): typeof NodeInsertionStatus[keyof typeof NodeInsertionStatus];
+  /** Replacement's distinct Document constraints; all handles must be allocated and child cannot be zero. Parent/cycle gates remain with the caller. */
+  preReplaceConstraints(parent: number, node: number, child: number): typeof NodeInsertionStatus[keyof typeof NodeInsertionStatus];
   /** Select nodeValue (false) or textContent (true) effects without changing native state. */
   textWriteAction(handle: number, textContent: boolean): typeof NodeTextWriteAction[keyof typeof NodeTextWriteAction];
   nodeLength(handle: number): number;

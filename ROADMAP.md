@@ -9,6 +9,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas. Los setters de texto deciden en Rust el efecto por tipo; quedan sus factories y drivers de mutación, reflexión WebIDL y otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
 - Las restricciones de inserción posteriores a los controles de contenedor/ciclos consultan Rust: referencia, tipos y estructura de Document. Esos controles previos, adopción y entrega de mutaciones conservan sus drivers pendientes de migración.
+- Las restricciones de replaceChild reutilizan el módulo nativo común y preservan sus reglas distintas de Document y exclusión del hijo reemplazado. El driver de adopción, remoción, inserción y observadores continúa pendiente.
 - Los helpers genéricos de raíz, longitud, ascendencia y orden de árbol usan Rust. Se mantienen separados los enlaces padre/hijo, Attr owners y shadow hosts; quedan recorridos compuestos y algoritmos generales de mutación/creación.
 - La planificación de normalize y sus ajustes de rangos usan Rust; queda la entrega de mutaciones y hooks.
 - La comparación de puntos de Range usa el árbol Rust; las conversiones WebIDL y otras operaciones de la plataforma siguen pendientes.
@@ -27,6 +28,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - extractContents comparte la pila Rust y controla las etapas de texto, movimientos y colapso; el puente conserva factories y efectos. Quedan la copia concreta de nodos, hooks de mutación y otros algoritmos DOM generales.
 - Optimizar lecturas y creación/clonado de Range: el benchmark de estado nativo del 12/09 muestra aproximadamente 4× de costo frente a jsdom en esos patrones, aunque otras consultas son más rápidas.
 - Optimizar escrituras completas de Node: el benchmark de setters del 12/09 muestra 3,5–4× de costo para nodeValue y aproximadamente 1,9× para textContent frente a jsdom.
+- Optimizar el reemplazo repetido del elemento raíz de Document: el benchmark del módulo compartido muestra ratios de 0,78×/0,89× frente a jsdom; el reemplazo de comentarios queda cerca de la paridad con mejoras pequeñas.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.

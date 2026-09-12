@@ -138,6 +138,9 @@ de atributos, CharacterData y reemplazo de hijos, incluidas escrituras idéntica
 La pertenencia del hijo de referencia, los tipos de nodo insertables y las
 restricciones de estructura de Document se comprueban en Rust. Los controles
 previos de tipo del contenedor y ciclos que incluyen hosts conservan su driver.
+Las restricciones de `replaceChild` comparten las comprobaciones comunes en
+Rust y conservan sus reglas específicas de Document, exclusión del hijo
+reemplazado e identidad de nodos. Los efectos de reemplazo mantienen su driver.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

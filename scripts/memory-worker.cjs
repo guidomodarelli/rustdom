@@ -106,6 +106,9 @@ function exerciseEnvironmentRanges(target) {
   contents.collapse(false); contents.insertNode(insertionFragment);
   assert.equal(contentRoot.lastChild, inserted); assert.equal(contents.endOffset, 2);
   assert.equal(insertionFragment.childNodes.length, 0);
+  const replacement = target.document.createElement('strong'); replacement.textContent = 'replacement';
+  assert.equal(contentRoot.replaceChild(replacement, inserted), inserted); assert.equal(inserted.parentNode, null);
+  comparisonReferences.push(new WeakRef(replacement));
   const contextual = contents.createContextualFragment('<em>context</em>');
   assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
   rangeReferences.push(new WeakRef(contents));
@@ -259,6 +262,9 @@ async function exerciseNodeComparisons(runtime) {
       contentRange.collapse(false); contentRange.insertNode(insertionFragment);
       assert.equal(contentTree.lastChild, inserted); assert.equal(contentRange.endOffset, 2);
       assert.equal(insertionFragment.childNodes.length, 0);
+      const replacement = document.createElement('strong'); replacement.textContent = 'replacement';
+      assert.equal(contentTree.replaceChild(replacement, inserted), inserted); assert.equal(inserted.parentNode, null);
+      comparisonReferences.push(new WeakRef(replacement));
       const contextual = contentRange.createContextualFragment('<em>context</em>');
       assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
       rangeReferences.push(new WeakRef(contentRange));

@@ -26,6 +26,7 @@ assert.equal(NodeInsertionStatus, nativeRuntime.NodeInsertionStatus);
 assert.equal(nativeTree.preInsertConstraints(insertionDocument, doctype, 0), NodeInsertionStatus.Ready);
 nativeTree.append(insertionDocument, doctype);
 assert.equal(nativeTree.preInsertConstraints(insertionDocument, doctype, 0), NodeInsertionStatus.InvalidDocumentStructure);
+assert.equal(nativeTree.preReplaceConstraints(insertionDocument, doctype, doctype), NodeInsertionStatus.Ready);
 nativeTree.release(insertionDocument);
 nativeTree.release(doctype);
 assert.equal(nativeTree.statistics().liveNodes, 0);
