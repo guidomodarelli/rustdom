@@ -22,6 +22,8 @@ pub(crate) struct Links {
     pub next: NodeId,
     pub first: NodeId,
     pub last: NodeId,
+    // Mirrors the kind at the single metadata commit boundary; None means no metadata yet.
+    pub node_kind: Option<u16>,
     child_count: u64,
     children_version: u32,
     // Parent version and index + 1; the cache is reclaimed with this node record.
@@ -92,13 +94,28 @@ impl TreeStore {
     }
 
     pub(crate) fn activate(&mut self, id: NodeId) -> Result<()> {
-        if self.nodes.contains_key(&id) {
+        self.activate_with_kind(id, None)
+    }
+
+    /// Metadata commits update the kind in the same lookup that activates the record.
+    /// Ordinary topology activation preserves any existing metadata kind.
+    fn activate_with_kind(&mut self, id: NodeId, kind: Option<u16>) -> Result<()> {
+        if let Some(record) = self.nodes.get_mut(&id) {
+            if kind.is_some() {
+                record.node_kind = kind;
+            }
             return Ok(());
         }
         if !self.reserved.remove(&id) {
             return Err(TreeError::UnknownHandle(id));
         }
-        self.nodes.insert(id, Links::default());
+        self.nodes.insert(
+            id,
+            Links {
+                node_kind: kind,
+                ..Links::default()
+            },
+        );
         self.allocations += 1;
         Ok(())
     }
@@ -357,7 +374,7 @@ impl TreeStore {
         };
         // No fallible validation may follow the first activation: reservations and counters
         // are observable state, even before any metadata is inserted.
-        self.activate(id)?;
+        self.activate_with_kind(id, Some(data.kind))?;
         if let Some(template) = template {
             self.activate(template)?;
         }
@@ -562,6 +579,52 @@ mod tests {
             assert_eq!(allocation_state(&tree), before);
             assert_eq!(tree.descendants(root).unwrap(), vec![root, child]);
         }
+    }
+
+    #[test]
+    fn should_follow_metadata_retyping_in_constraints_without_changing_failed_writes() {
+        use super::super::node_constraints::ConstraintStatus;
+        println!(
+            "Native Links record size: {} bytes",
+            std::mem::size_of::<Links>()
+        );
+        let mut tree = TreeStore::new();
+        let document = tree.allocate().unwrap();
+        tree.set_data(document, r#"{"kind":9}"#).unwrap();
+        let child = tree.allocate().unwrap();
+        tree.append(document, child).unwrap();
+        let candidate = tree.allocate().unwrap();
+        tree.set_data(candidate, r#"{"kind":1,"name":"candidate"}"#)
+            .unwrap();
+        assert!(
+            tree.pre_insert_constraints(document, candidate, 0.0)
+                .is_err()
+        );
+        tree.set_data(child, r#"{"kind":1,"name":"root"}"#).unwrap();
+        assert_eq!(
+            tree.pre_insert_constraints(document, candidate, 0.0)
+                .unwrap(),
+            ConstraintStatus::InvalidDocumentStructure
+        );
+        tree.set_character_data(child, 8, vec![65]).unwrap();
+        assert_eq!(
+            tree.pre_insert_constraints(document, candidate, 0.0)
+                .unwrap(),
+            ConstraintStatus::Ready
+        );
+        tree.set_data(child, r#"{"kind":1,"name":"root"}"#).unwrap();
+        tree.initialize_attribute_collection(child).unwrap();
+        assert!(tree.set_character_data(child, 8, vec![66]).is_err());
+        assert_eq!(
+            tree.pre_insert_constraints(document, candidate, 0.0)
+                .unwrap(),
+            ConstraintStatus::InvalidDocumentStructure
+        );
+        for handle in [child, candidate, document] {
+            tree.release(handle).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.statistics().data_nodes, 0.0);
     }
 
     #[test]

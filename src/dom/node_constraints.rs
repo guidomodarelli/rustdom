@@ -20,7 +20,7 @@ pub(crate) enum ConstraintStatus {
 
 impl TreeStore {
     fn constraint_kind(&self, id: NodeId) -> Result<u16> {
-        Ok(self.data.get(&id).ok_or(TreeError::MissingData(id))?.kind)
+        self.links(id)?.node_kind.ok_or(TreeError::MissingData(id))
     }
 
     fn constraint_handles(
@@ -76,10 +76,11 @@ impl TreeStore {
     fn has_child_kind(&self, parent: NodeId, kind: u16, excluded: NodeId) -> Result<bool> {
         let mut child = self.links(parent)?.first;
         while child != 0 {
-            if child != excluded && self.constraint_kind(child)? == kind {
+            let links = self.links(child)?;
+            if child != excluded && links.node_kind.ok_or(TreeError::MissingData(child))? == kind {
                 return Ok(true);
             }
-            child = self.links(child)?.next;
+            child = links.next;
         }
         Ok(false)
     }
@@ -89,10 +90,11 @@ impl TreeStore {
         let mut has_text = false;
         let mut child = self.links(node)?.first;
         while child != 0 {
-            let kind = self.constraint_kind(child)?;
+            let links = self.links(child)?;
+            let kind = links.node_kind.ok_or(TreeError::MissingData(child))?;
             element_count += usize::from(kind == ELEMENT_NODE);
             has_text |= kind == TEXT_NODE;
-            child = self.links(child)?.next;
+            child = links.next;
         }
         Ok((element_count, has_text))
     }
@@ -103,13 +105,14 @@ impl TreeStore {
         let mut first = 0;
         let mut child = self.links(parent)?.first;
         while child != 0 {
-            if self.constraint_kind(child)? == ELEMENT_NODE {
+            let links = self.links(child)?;
+            if links.node_kind.ok_or(TreeError::MissingData(child))? == ELEMENT_NODE {
                 count += 1;
                 if first == 0 {
                     first = child;
                 }
             }
-            child = self.links(child)?.next;
+            child = links.next;
         }
         Ok((count, first))
     }
