@@ -148,7 +148,21 @@ Jest, Vitest, sus pools VM, el corpus HTML5 y los
 El [paquete instalado mediante npm y pnpm](../distribution/2026-09-12T03-27-58.028Z-linux-x64.json)
 aprobó los **18 controles**, incluido el nuevo caso de perfil Unicode desconocido.
 
-El checkpoint sigue pendiente de los controles remotos y la revisión. Se investiga
-por separado el endpoint de GC que dejó cinco registros nativos en un job macOS,
-y un timeout del arnés Valgrind de Linux. No se declara resuelto ninguno de esos
-incidentes a partir de esta validación local.
+El checkpoint sigue pendiente de los controles remotos y la revisión.
+
+## Integración del endpoint verificable de memoria
+
+Se incorporó `89c110d49379930a95ed878d1e62a8d89105fa63` y se extendió su
+observación a los fixtures de comparación: **882 Document y Window**, además
+de los nodos transitorios. Las raíces locales se sueltan en `finally`; los
+endpoints de cada batch y del cierre exigen dos muestras claras y los contadores
+nativos en baseline, sin cambiar presupuestos. El caso con un Document retenido
+sigue fallando deliberadamente con cinco nodos nativos y pasa al soltarlo.
+
+Después de reconstruir el addon integrado, pasaron los dos controles negativos
+reales y el [estrés de ambos motores](../memory/2026-09-12T03-59-22.440Z-linux-x64.json).
+Los 882 Document/Window y los 1.500 nodos comparados se recolectaron; rustdom
+volvió a cero registros nativos, con heap +0,89 MiB y RSS +7,10 MiB. Se reutilizan
+los benchmarks de producción anteriores porque esta integración solo modifica
+el arnés y su observación de recursos. El timeout de Valgrind se corrige por
+separado y los checks del SHA final siguen siendo requisito para el checkpoint.
