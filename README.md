@@ -116,6 +116,12 @@ de consulta en la API nativa, que permiten inspeccionar una decisión sin aplica
 de un body sintético. Conserva el parser existente para ese contexto, sus
 namespaces, el documento propietario y el comportamiento de scripts al insertar.
 
+El control de `cloneContents` usa una pila Rust para decidir efectos y
+subclonaciones. El puente mantiene los nodos visibles a V8 durante la operación
+y ejecuta las factories y hooks de clonación actuales. Los frames internos
+no requieren construir rangos JavaScript adicionales; `rangeClones` registra
+el ciclo de vida de los controladores nativos.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

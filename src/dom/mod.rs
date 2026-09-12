@@ -16,6 +16,8 @@ mod node_text;
 mod normalization;
 mod queries;
 mod range_boundaries;
+mod range_clone;
+mod range_clone_binding;
 mod range_content_queries;
 mod range_context;
 mod range_control;

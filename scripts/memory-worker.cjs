@@ -394,6 +394,7 @@ async function main() {
         nativeTree.attributeOwners === initialAttributeState.attributeOwners &&
         nativeTree.attributeHolders === initialAttributeState.attributeHolders &&
         nativeTree.rangeStates.live === initialAttributeState.rangeStates.live &&
+        nativeTree.rangeClones.live === initialAttributeState.rangeClones.live &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
