@@ -59,3 +59,11 @@ No registró errores de acceso ni pérdidas definitivas o indirectas. Los logs
 conservan las asignaciones posibles/alcanzables del runtime de tests sin
 supresiones. Este análisis cubre el ejecutable de tests Rust; las pruebas de
 GC anteriores ejercen adicionalmente el addon real y sus resultados en V8.
+
+## Integración de las fases anteriores
+
+La unión con namespaces y `2f128fe193c2e0678956c87ba5e5da96a6996a54` pasó
+**57 tests Rust, 198 contratos Node, 7 Jest, 11 Vitest, 4 VM y 1.784 casos HTML5**.
+Los [3.525 WPT](../compatibility/2026-09-12T05-22-55.882Z-linux-wpt.json) mantienen
+paridad. El PR base sigue corrigiendo las transiciones implícitas de atributos
+detectadas por su revisión posterior; esta validación no cierra ese hallazgo.
