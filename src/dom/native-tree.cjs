@@ -382,6 +382,12 @@ class NativeSymbolTree extends SymbolTree {
     selection.collapseNode = this._object(selection.collapseNode);
     return selection;
   }
+  /** @param {object} range - Receiver Range. @returns {object|null} Existing context element or a request for the synthetic body. */
+  rangeFragmentContext(range) {
+    const context = this._arena.rangeFragmentContext(range._nativeRange, range._rangeStartNode._ownerDocument._parsingMode === 'html');
+    if (context === null) throw new Error('Internal error: Invalid range start node');
+    return this._object(context);
+  }
   /** @param {object} range - Receiver Range. @param {object} node - Inserted node. @param {object} exceptionFactory - Original DOMException factory. @returns {object} Initial insertion geometry with stable node identities. */
   rangeInsertionPlan(range, node, exceptionFactory) {
     const plan = this._arena.rangeInsertionPlan(range._nativeRange, this._ensure(node));

@@ -99,9 +99,11 @@ function exerciseEnvironmentRanges(target) {
   contents.collapse(false); contents.insertNode(insertionFragment);
   assert.equal(contentRoot.lastChild, inserted); assert.equal(contents.endOffset, 2);
   assert.equal(insertionFragment.childNodes.length, 0);
+  const contextual = contents.createContextualFragment('<em>context</em>');
+  assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
   rangeReferences.push(new WeakRef(contents));
   comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted), new WeakRef(surrounding),
-    new WeakRef(inserted), new WeakRef(insertionFragment));
+    new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild));
 }
 
 /**
@@ -224,6 +226,8 @@ async function exerciseNodeComparisons(runtime) {
       contentRange.collapse(false); contentRange.insertNode(insertionFragment);
       assert.equal(contentTree.lastChild, inserted); assert.equal(contentRange.endOffset, 2);
       assert.equal(insertionFragment.childNodes.length, 0);
+      const contextual = contentRange.createContextualFragment('<em>context</em>');
+      assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
       rangeReferences.push(new WeakRef(contentRange));
       const removedParagraph = clone.children[10]; const removedText = removedParagraph.firstChild;
       wholeRange.setStart(clone.firstChild.firstChild, 2);
@@ -248,7 +252,7 @@ async function exerciseNodeComparisons(runtime) {
       return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction),
         new WeakRef(removedParagraph), new WeakRef(removedText), new WeakRef(contentTree),
         new WeakRef(copiedContents), new WeakRef(extractedContents), new WeakRef(surrounding),
-        new WeakRef(inserted), new WeakRef(insertionFragment)];
+        new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild)];
     }
     for (let batch = 0; batch < batches; batch++) {
       const compared = [];
