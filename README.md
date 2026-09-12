@@ -59,16 +59,27 @@ de CDATA del jsdom fijado para priorizar compatibilidad.
 
 `Range.toString()` recorre el árbol y reúne las porciones seleccionadas de Text
 en Rust, preservando unidades UTF-16 aisladas y la exclusión de CDATA propia
-de jsdom 27. El resultado se copia a V8 sin retener nodos. La representación
-y otras mutaciones de Range siguen pendientes de migración.
+de jsdom 27. El resultado se copia a V8 sin retener nodos. Otras operaciones
+de contenido y mutación de Range siguen pendientes de migración.
 
 Las decisiones de `setStart`, `setEnd`, sus variantes Before/After,
 `selectNode` y `selectNodeContents` se calculan en Rust, que devuelve las
 actualizaciones en el orden original. `commonAncestorContainer` también
 recorre la topología nativa. La capa JS entrega esas actualizaciones a las
-referencias vivas y conserva el realm de cada excepción; la representación
-de Range y los ajustes de sus extremos durante otras mutaciones siguen
-pendientes de migración.
+referencias vivas y conserva el realm de cada excepción. Los algoritmos que
+ajustan los extremos durante otras mutaciones todavía tienen trabajo pendiente.
+
+`Range` y `StaticRange` almacenan sus extremos numéricos en un `NativeRange`
+Rust. El binding mantiene referencias fuertes a los nodos para que V8 pueda
+observar su ownership; las lecturas internas conservan snapshots independientes.
+Las consultas nativas reciben ese estado directamente. Los contadores
+`getNativeTreeStatistics().rangeStates` permiten observar creación y destrucción
+de las instancias nativas sin mantener un registro de objetos vivos. Quedan
+algoritmos de mutación, Selection y otros métodos de Range por migrar.
+
+Los rangos recolectados también eliminan sus entradas débiles de los nodos
+que siguen vivos. El registro de limpieza contiene solo IDs y un WeakRef,
+evitando la acumulación de entradas expiradas en documentos de larga duración.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

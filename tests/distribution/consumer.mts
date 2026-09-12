@@ -39,6 +39,13 @@ assert.equal(selectedRange.toString(), 'package');
 assert.equal(selectedRange.commonAncestorContainer, paragraph.firstChild);
 selectedRange.selectNode(paragraph);
 assert.equal(selectedRange.commonAncestorContainer, context.document.body);
+const liveState = context.document.createRange();
+liveState.setStart(paragraph.firstChild, 1); liveState.setEnd(paragraph.firstChild, 3);
+const frozenState = new context.StaticRange({ startContainer: paragraph.firstChild, startOffset: 1,
+  endContainer: paragraph.firstChild, endOffset: 3 });
+const copiedState = liveState.cloneRange();
+paragraph.firstChild.insertData(0, '!');
+assert.equal(liveState.startOffset, 2); assert.equal(copiedState.startOffset, 2); assert.equal(frozenState.startOffset, 1);
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });

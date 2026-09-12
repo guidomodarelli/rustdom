@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum TreeError {
     InvalidHandle,
+    UninitializedRange,
     UnknownHandle(u64),
     AlreadyAttached(u64),
     SelfSibling(u64),
@@ -29,6 +30,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UninitializedRange => write!(
+                formatter,
+                "NativeRange: the requested boundary is not initialized"
+            ),
             Self::NotDocumentType(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized DocumentType"

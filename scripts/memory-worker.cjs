@@ -74,6 +74,18 @@ function exerciseWindow(runtime, identity) {
   dom.window.close();
 }
 
+/** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
+function exerciseEnvironmentRanges(target) {
+  const text = target.document.querySelector('p').firstChild;
+  const live = target.document.createRange(); live.setStart(text, 1); live.setEnd(text, 3);
+  const clone = live.cloneRange();
+  const frozen = new target.jsdom.window.StaticRange({ startContainer: text, startOffset: 1,
+    endContainer: text, endOffset: 3 });
+  text.insertData(0, '!');
+  assert.equal(live.startOffset, 2); assert.equal(clone.startOffset, 2); assert.equal(frozen.startOffset, 1);
+  rangeReferences.push(new WeakRef(live), new WeakRef(clone), new WeakRef(frozen));
+}
+
 /**
  * Keep an element alive while removing many attributes, so delayed cleanup cannot hide behind window.close().
  * @param {object} runtime - Real jsdom-compatible engine.
@@ -247,6 +259,7 @@ async function main() {
         references.push(new WeakRef(target.document));
         windowReferences.push(new WeakRef(target.jsdom.window));
         target.document.body.innerHTML = '<p>created and released</p>';
+        exerciseEnvironmentRanges(target);
         const controller = new AbortController();
         target.document.querySelector('p').addEventListener('click', () => {}, { signal: controller.signal });
         retainedControllers.push(controller);
@@ -306,6 +319,7 @@ async function main() {
         nativeTree.attributeCollections === initialAttributeState.attributeCollections &&
         nativeTree.attributeOwners === initialAttributeState.attributeOwners &&
         nativeTree.attributeHolders === initialAttributeState.attributeHolders &&
+        nativeTree.rangeStates.live === initialAttributeState.rangeStates.live &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

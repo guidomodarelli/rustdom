@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -31,6 +31,15 @@ class NativeSymbolTree extends SymbolTree {
     this._collected = new FinalizationRegistry((id) => {
       objects.delete(id);
       arena.release(id);
+    });
+    // Holdings contain only numeric IDs and a WeakRef to the target, never a node or window.
+    this._collectedRanges = new FinalizationRegistry((registration) => {
+      const start = objects.get(registration.start)?.deref();
+      if (start) start._referencedRanges.delete(registration.reference);
+      if (registration.end !== registration.start) {
+        const end = objects.get(registration.end)?.deref();
+        if (end) end._referencedRanges.delete(registration.reference);
+      }
     });
   }
 
@@ -142,6 +151,40 @@ class NativeSymbolTree extends SymbolTree {
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
   /** @param {object} root - Inclusive normalization context. @returns {object[]} Snapshot of Text candidates. */
   normalizationCandidates(root) { return this._arena.normalizationCandidates(this._ensure(root)).map((id) => this._object(id)); }
+  /** @param {object} range - Range or StaticRange implementation. @param {object|undefined} start - Initial boundary. @param {object|undefined} end - Initial boundary. @returns {void} */
+  initializeRangeState(range, start, end) {
+    range._nativeRange = new NativeRange();
+    range._rangeStartNode = start?.node;
+    range._rangeEndNode = end?.node;
+    if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+    if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
+  }
+  /** @param {object} range - Live Range whose WeakRef was just created. @returns {void} Registers cleanup without a strong path back to the Range. */
+  registerLiveRange(range) {
+    const registration = { reference: range._weakRef, start: 0, end: 0 };
+    range._rangeRegistration = registration;
+    this._collectedRanges.register(range, registration);
+  }
+  /** @param {object} range - Live Range implementation. @param {object} node - New start node. @param {number} offset - Internal offset, already computed by the caller. @returns {void} */
+  setLiveRangeStart(range, node, offset) {
+    const id = this._ensure(node);
+    const previous = range._rangeStartNode;
+    if (previous && previous !== node && previous !== range._rangeEndNode) previous._referencedRanges.delete(range._weakRef);
+    range._rangeRegistration.start = id;
+    if (!node._referencedRanges.has(range._weakRef)) node._referencedRanges.add(range._weakRef);
+    range._nativeRange.setStart(id, offset);
+    range._rangeStartNode = node;
+  }
+  /** @param {object} range - Live Range implementation. @param {object} node - New end node. @param {number} offset - Internal offset, already computed by the caller. @returns {void} */
+  setLiveRangeEnd(range, node, offset) {
+    const id = this._ensure(node);
+    const previous = range._rangeEndNode;
+    if (previous && previous !== node && previous !== range._rangeStartNode) previous._referencedRanges.delete(range._weakRef);
+    range._rangeRegistration.end = id;
+    if (!node._referencedRanges.has(range._weakRef)) node._referencedRanges.add(range._weakRef);
+    range._nativeRange.setEnd(id, offset);
+    range._rangeEndNode = node;
+  }
   /** @param {object} left - Boundary with node/offset. @param {object} right - Other boundary. @returns {number} Native relative order with the pinned same-root diagnostic. */
   compareBoundaryPointsPosition(left, right) {
     const result = this._arena.compareBoundaryPointsPosition(this._ensure(left.node), left.offset,
@@ -151,8 +194,7 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} range - Live Range implementation. @param {object} node - Query node. @param {number} offset - Converted WebIDL offset. @param {object} exceptionFactory - Pinned DOMException factory. @returns {number|null} Relation or distinct-root signal. */
   rangePointPosition(range, node, offset, exceptionFactory) {
-    const result = this._arena.rangePointRelation(this._ensure(node), offset,
-      this._ensure(range._start.node), range._start.offset, this._ensure(range._end.node), range._end.offset);
+    const result = this._arena.rangePointRelationFromState(range._nativeRange, this._ensure(node), offset);
     switch (result) {
       case RangePointRelation.Before: return -1;
       case RangePointRelation.Inside: return 0;
@@ -168,13 +210,14 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} range - Live Range implementation. @param {object} node - Candidate intersection. @returns {boolean} Native overlap decision. */
   rangeIntersectsNode(range, node) {
-    const result = this._arena.rangeIntersectsNode(this._ensure(node), this._ensure(range._start.node),
-      range._start.offset, this._ensure(range._end.node), range._end.offset);
+    const result = this._arena.rangeIntersectsNodeFromState(range._nativeRange, this._ensure(node));
     if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
   }
   /** @param {object} left - First endpoint node. @param {object} right - Second endpoint node. @returns {object|null} Original inclusive common ancestor identity. */
   commonAncestor(left, right) { return this._object(this._arena.commonAncestor(this._ensure(left), this._ensure(right))); }
+  /** @param {object} range - Range implementation with initialized native state. @returns {object|null} Original ancestor identity. */
+  rangeCommonAncestor(range) { return this._object(this._arena.commonAncestorFromState(range._nativeRange)); }
   /**
    * Apply ordered live-reference updates after Rust accepts the requested boundary change.
    * @param {object} range - Live Range implementation.
@@ -186,8 +229,7 @@ class NativeSymbolTree extends SymbolTree {
    */
   setRangeBoundary(range, node, offset, modeName, exceptionFactory) {
     const mode = RangeBoundaryMode[modeName];
-    const plan = this._arena.rangeBoundaryPlan(mode, this._ensure(node), offset,
-      this._ensure(range._start.node), range._start.offset, this._ensure(range._end.node), range._end.offset);
+    const plan = this._arena.rangeBoundaryPlanFromState(range._nativeRange, mode, this._ensure(node), offset);
     if (plan.action === RangeBoundaryAction.NoParent) {
       throw exceptionFactory.create(mode === RangeBoundaryMode.SelectNode ? node._globalObject : range._globalObject,
         [RANGE_NO_PARENT_MESSAGE, 'InvalidNodeTypeError']);
@@ -213,8 +255,7 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} range - Live Range implementation. @returns {string} Native UTF-16 stringification without retained nodes. */
   rangeText(range) {
-    const result = this._arena.rangeText(this._ensure(range._start.node), range._start.offset,
-      this._ensure(range._end.node), range._end.offset);
+    const result = this._arena.rangeTextFromState(range._nativeRange);
     if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
   }
@@ -416,7 +457,8 @@ class NativeSymbolTree extends SymbolTree {
 
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
-    return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize };
+    return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
+      rangeStates: NativeRange.statistics() };
   }
 }
 

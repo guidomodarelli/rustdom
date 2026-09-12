@@ -49,6 +49,7 @@ await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
+await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 
 /** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
 const attributePath = resolve(destination, 'lib/jsdom/living/attributes/Attr-impl.js');
@@ -247,8 +248,26 @@ boundaryPointSource = boundaryPointSource.slice(0, boundaryPointStart) +
   'function compareBoundaryPointsPosition(bpA, bpB) {\n' +
   '  return domSymbolTree.compareBoundaryPointsPosition(bpA, bpB);\n}\n\n' + boundaryPointSource.slice(boundaryPointEnd);
 await writeFile(boundaryPointPath, boundaryPointSource);
+const abstractRangePath = resolve(destination, 'lib/jsdom/living/range/AbstractRange-impl.js');
+const abstractRangeSource = await readFile(abstractRangePath, 'utf8');
+if (!abstractRangeSource.includes('class AbstractRangeImpl') ||
+    !abstractRangeSource.includes('    this._start = start;\n    this._end = end;')) {
+  throw new Error('rustdom build: AbstractRange state initialization changed');
+}
+await writeFile(abstractRangePath, '"use strict";\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'const { createAbstractRange } = require("../../../../../range-state.cjs");\n' +
+  'module.exports = { implementation: createAbstractRange(domSymbolTree) };\n');
 const rangePath = resolve(destination, 'lib/jsdom/living/range/Range-impl.js');
 let rangeSource = await readFile(rangePath, 'utf8');
+rangeSource = substituteOnce(rangeSource, '    this._weakRef = new WeakRef(this);',
+  '    this._weakRef = new WeakRef(this);\n    domSymbolTree.registerLiveRange(this);');
+const liveRangeStart = rangeSource.indexOf('  _setLiveRangeStart(node, offset) {');
+const liveRangeEnd = rangeSource.indexOf('\n}\n\n\nfunction nextNodeDescendant', liveRangeStart);
+if (liveRangeStart < 0 || liveRangeEnd < liveRangeStart) throw new Error('rustdom build: live Range state boundary changed');
+rangeSource = rangeSource.slice(0, liveRangeStart) +
+  '  _setLiveRangeStart(node, offset) { domSymbolTree.setLiveRangeStart(this, node, offset); }\n' +
+  '  _setLiveRangeEnd(node, offset) { domSymbolTree.setLiveRangeEnd(this, node, offset); }\n' + rangeSource.slice(liveRangeEnd);
 /** Keep only live-reference delivery in JS; Rust selects boundaries and their update order. */
 const rangeSettersStart = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer');
 const rangeSettersEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-compareboundarypoints', rangeSettersStart);
@@ -259,7 +278,7 @@ if (rangeSettersStart < 0 || rangeSettersEnd < rangeSettersStart || rangeCollaps
 }
 const rangeCollapse = rangeSource.slice(rangeCollapseStart, rangeCollapseEnd);
 rangeSource = rangeSource.slice(0, rangeSettersStart) +
-  '  get commonAncestorContainer() { return domSymbolTree.commonAncestor(this._start.node, this._end.node); }\n\n' +
+  '  get commonAncestorContainer() { return domSymbolTree.rangeCommonAncestor(this); }\n\n' +
   '  setStart(node, offset) { setBoundaryPointStart(this, node, offset); }\n' +
   '  setEnd(node, offset) { setBoundaryPointEnd(this, node, offset); }\n' +
   ['StartBefore', 'StartAfter', 'EndBefore', 'EndAfter'].map((mode) =>

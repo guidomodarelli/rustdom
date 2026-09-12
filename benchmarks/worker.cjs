@@ -17,6 +17,8 @@ const MEASURED_SAMPLES = 9;
 const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
 /** Each iteration executes all eight setter/selection decisions against real row nodes. */
 const RANGE_BOUNDARY_ITERATIONS = 100;
+/** Measure both read-heavy access and complete Range/StaticRange lifetimes through public APIs. */
+const RANGE_STATE_ITERATIONS = 1000;
 
 /**
  * Build reproducible HTML with attributes, decoded entities, and table insertion modes.
@@ -80,8 +82,12 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const rangeNodes = name.startsWith('range-') && !stringifyReads ? [...document.querySelectorAll('tr')] : null;
-      const ranges = rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
+      const ranges = name === 'range-state-lifecycle-1000' ? null : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
+      const stateTextNodes = name === 'range-state-lifecycle-1000'
+        ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : null;
+      const expectedStateUnits = stateTextNodes ? Array.from({ length: RANGE_STATE_ITERATIONS },
+        (_, index) => stateTextNodes[index % size].length).reduce((total, length) => total + length, 0) : 0;
       const rangeComparisonMode = dom.window.Range.START_TO_START;
       const rangePointNodes = name === 'range-text-point-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
@@ -103,6 +109,23 @@ async function measure(name, size) {
       if (stringifyReads) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
+        }
+      } else if (name === 'range-state-read-1000') {
+        result = 0;
+        for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
+          result += lastRange.startOffset + lastRange.endOffset + Number(lastRange.collapsed);
+        }
+      } else if (name === 'range-state-lifecycle-1000') {
+        result = 0;
+        for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
+          const text = stateTextNodes[iteration % size];
+          const range = document.createRange(); range.selectNodeContents(text);
+          const clone = range.cloneRange();
+          const frozen = new dom.window.StaticRange({ startContainer: text, startOffset: 0,
+            endContainer: text, endOffset: text.length });
+          clone.setStart(text, 1);
+          result += range.endOffset + clone.endOffset + frozen.endOffset +
+            Number(range.startOffset === 0 && clone.startOffset === 1 && frozen.startOffset === 0);
         }
       } else if (name === 'range-boundaries-100') {
         result = 0;
@@ -221,6 +244,8 @@ async function measure(name, size) {
       }
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
+      if (name === 'range-state-read-1000') assert.equal(result, RANGE_STATE_ITERATIONS * 2);
+      if (name === 'range-state-lifecycle-1000') assert.equal(result, expectedStateUnits * 3 + RANGE_STATE_ITERATIONS);
       if (name === 'range-boundaries-100') {
         const expectedIndex = (RANGE_BOUNDARY_ITERATIONS - 1) % size;
         assert.equal(result, RANGE_BOUNDARY_ITERATIONS);
@@ -272,6 +297,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-boundaries-100', size })),
+    ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

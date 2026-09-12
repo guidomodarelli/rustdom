@@ -4,11 +4,13 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
+    napi_error::to_napi_error,
     node_metadata,
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
     range_queries::PointRelation,
+    range_state_binding::NativeRange,
     store,
 };
 use napi::{
@@ -209,16 +211,6 @@ impl From<BoundaryPlan> for RangeBoundaryPlan {
             end_offset: end as f64,
         }
     }
-}
-
-/// Convert errors only at the JavaScript boundary; core tests never need Node symbols.
-fn to_napi_error(error: TreeError) -> Error {
-    let status = if matches!(&error, TreeError::HandleExhausted) {
-        Status::GenericFailure
-    } else {
-        Status::InvalidArg
-    };
-    Error::new(status, error.to_string())
 }
 
 /// Decode a flat primitive array without allocating a JSON envelope per element.
@@ -456,6 +448,51 @@ impl NativeTree {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
             .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_point_relation_from_state(
+        &mut self,
+        state: &NativeRange,
+        node: f64,
+        offset: u32,
+    ) -> Result<RangePointRelation> {
+        let (start, end) = state.inputs()?;
+        self.range_point_relation(node, offset, start.0, start.1, end.0, end.1)
+    }
+
+    #[napi]
+    pub fn range_intersects_node_from_state(
+        &mut self,
+        state: &NativeRange,
+        node: f64,
+    ) -> Result<Option<bool>> {
+        let (start, end) = state.inputs()?;
+        self.range_intersects_node(node, start.0, start.1, end.0, end.1)
+    }
+
+    #[napi]
+    pub fn range_text_from_state(&mut self, state: &NativeRange) -> Result<Option<Utf16String>> {
+        let (start, end) = state.inputs()?;
+        self.range_text(start.0, start.1, end.0, end.1)
+    }
+
+    #[napi]
+    pub fn range_boundary_plan_from_state(
+        &mut self,
+        state: &NativeRange,
+        mode: RangeBoundaryMode,
+        node: f64,
+        offset: u32,
+    ) -> Result<RangeBoundaryPlan> {
+        let (start, end) = state.inputs()?;
+        self.range_boundary_plan(mode, node, offset, start.0, start.1, end.0, end.1)
+    }
+
+    #[napi]
+    pub fn common_ancestor_from_state(&self, state: &NativeRange) -> Result<f64> {
+        let (start, end) = state.inputs()?;
+        self.common_ancestor(start.0, end.0)
     }
 
     /// Primitive endpoints avoid allocating temporary input objects at each Node-API call.
