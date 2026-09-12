@@ -103,6 +103,10 @@ impl TreeStore {
         Ok(())
     }
 
+    pub(crate) fn child_count(&self, id: NodeId) -> Result<u64> {
+        Ok(self.links(id)?.child_count)
+    }
+
     pub(crate) fn links(&self, id: NodeId) -> Result<Links> {
         self.nodes
             .get(&id)

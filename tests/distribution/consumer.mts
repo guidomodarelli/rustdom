@@ -31,6 +31,8 @@ const selectedRange = context.document.createRange();
 selectedRange.selectNodeContents(paragraph);
 assert.equal(selectedRange.comparePoint(paragraph.firstChild, 1), 0);
 assert.equal(selectedRange.intersectsNode(paragraph.firstChild), true);
+assert.equal(selectedRange.isPointInRange(paragraph.firstChild, 1), true);
+assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });
 assert.ok(context.document.body.contains(context.document.querySelector('p')));
 assert.ok(context.document.body.isEqualNode(context.document.body.cloneNode(true)));
 context.document.body.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:vm');

@@ -10,9 +10,9 @@ impl TreeStore {
     pub fn compare_boundary_points_position(
         &mut self,
         left: f64,
-        left_offset: u32,
+        left_offset: u64,
         right: f64,
-        right_offset: u32,
+        right_offset: u64,
     ) -> Result<Option<i32>> {
         let mut left = node_id(left)?;
         let mut right = node_id(right)?;
@@ -33,13 +33,11 @@ impl TreeStore {
         while left_depth > right_depth {
             let parent = self.links(left)?.parent;
             if parent == right {
-                return Ok(Some(
-                    if self.sibling_index(left)? < u64::from(right_offset) {
-                        -1
-                    } else {
-                        1
-                    },
-                ));
+                return Ok(Some(if self.sibling_index(left)? < right_offset {
+                    -1
+                } else {
+                    1
+                }));
             }
             left = parent;
             left_depth -= 1;
@@ -47,13 +45,11 @@ impl TreeStore {
         while right_depth > left_depth {
             let parent = self.links(right)?.parent;
             if parent == left {
-                return Ok(Some(
-                    if self.sibling_index(right)? < u64::from(left_offset) {
-                        1
-                    } else {
-                        -1
-                    },
-                ));
+                return Ok(Some(if self.sibling_index(right)? < left_offset {
+                    1
+                } else {
+                    -1
+                }));
             }
             right = parent;
             right_depth -= 1;
@@ -119,7 +115,7 @@ mod tests {
             }
         }
         assert_eq!(
-            tree.compare_boundary_points_position(root, u32::MAX, deep, 0)
+            tree.compare_boundary_points_position(root, u64::from(u32::MAX), deep, 0)
                 .unwrap(),
             Some(1)
         );

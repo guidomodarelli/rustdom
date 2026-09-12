@@ -1,10 +1,12 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, QueryMode, AttributeField, DocumentTypeField } = require('../../dist/native.cjs');
+const { NativeTree, QueryMode, AttributeField, DocumentTypeField, RangePointRelation } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
+/** Preserve the pinned private comparator's diagnostic for inconsistent roots. */
+const BOUNDARY_ROOT_ERROR_MESSAGE = 'Internal Error: Boundary points should have the same root!';
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -140,7 +142,31 @@ class NativeSymbolTree extends SymbolTree {
   compareBoundaryPointsPosition(left, right) {
     const result = this._arena.compareBoundaryPointsPosition(this._ensure(left.node), left.offset,
       this._ensure(right.node), right.offset);
-    if (result === null) throw new Error('Internal Error: Boundary points should have the same root!');
+    if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+    return result;
+  }
+  /** @param {object} range - Live Range implementation. @param {object} node - Query node. @param {number} offset - Converted WebIDL offset. @param {object} exceptionFactory - Pinned DOMException factory. @returns {number|null} Relation or distinct-root signal. */
+  rangePointPosition(range, node, offset, exceptionFactory) {
+    const result = this._arena.rangePointRelation(this._ensure(node), offset,
+      this._ensure(range._start.node), range._start.offset, this._ensure(range._end.node), range._end.offset);
+    switch (result) {
+      case RangePointRelation.Before: return -1;
+      case RangePointRelation.Inside: return 0;
+      case RangePointRelation.After: return 1;
+      case RangePointRelation.DifferentRoot: return null;
+      case RangePointRelation.InvalidNodeType:
+        throw exceptionFactory.create(node._globalObject, ["DocumentType Node can't be used as boundary point.", 'InvalidNodeTypeError']);
+      case RangePointRelation.InvalidOffset:
+        throw exceptionFactory.create(node._globalObject, ['Offset out of bound.', 'IndexSizeError']);
+      case RangePointRelation.InconsistentRoots: throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+      default: throw new Error(`NativeTree: unsupported range point result ${result}`);
+    }
+  }
+  /** @param {object} range - Live Range implementation. @param {object} node - Candidate intersection. @returns {boolean} Native overlap decision. */
+  rangeIntersectsNode(range, node) {
+    const result = this._arena.rangeIntersectsNode(this._ensure(node), this._ensure(range._start.node),
+      range._start.offset, this._ensure(range._end.node), range._end.offset);
+    if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
   }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */

@@ -18,6 +18,8 @@ export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 
 export const AttributeField: { readonly Name: 0; readonly Namespace: 1; readonly Prefix: 2; readonly Value: 3; readonly QualifiedName: 4 };
 /** Canonical DocumentType identifiers. */
 export const DocumentTypeField: { readonly Name: 0; readonly PublicId: 1; readonly SystemId: 2 };
+/** Native Range decision vocabulary; DOM bindings create errors in the relevant realm. */
+export const RangePointRelation: { readonly Before: -1; readonly Inside: 0; readonly After: 1; readonly DifferentRoot: 2; readonly InvalidNodeType: 3; readonly InvalidOffset: 4; readonly InconsistentRoots: 5 };
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
@@ -41,6 +43,8 @@ export class NativeTree {
   normalizationGroup(handle: number): NormalizationGroup | null;
   /** Returns null for distinct tree roots; offsets remain subject to public Range validation. */
   compareBoundaryPointsPosition(left: number, leftOffset: number, right: number, rightOffset: number): -1 | 0 | 1 | null;
+  rangePointRelation(node: number, offset: number, start: number, startOffset: number, end: number, endOffset: number): typeof RangePointRelation[keyof typeof RangePointRelation];
+  rangeIntersectsNode(node: number, start: number, startOffset: number, end: number, endOffset: number): boolean | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

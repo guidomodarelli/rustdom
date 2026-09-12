@@ -14,6 +14,7 @@ mod node_metadata;
 mod node_text;
 mod normalization;
 mod queries;
+mod range_queries;
 mod selector_element;
 mod selector_syntax;
 mod serialization;

@@ -78,6 +78,8 @@ async function measure(name, size) {
       const ranges = rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
       const rangeComparisonMode = dom.window.Range.START_TO_START;
+      const rangePointNodes = name === 'range-text-point-1000'
+        ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
       const textRoot = name === 'text-content-100' || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
@@ -97,10 +99,10 @@ async function measure(name, size) {
           const range = ranges[iteration % size];
           result += lastRange.compareBoundaryPoints(rangeComparisonMode, range) - range.compareBoundaryPoints(rangeComparisonMode, lastRange);
         }
-      } else if (name === 'range-point-1000') {
+      } else if (name === 'range-point-1000' || name === 'range-text-point-1000') {
         result = 0;
         for (let iteration = 0; iteration < 1000; iteration++) {
-          const node = rangeNodes[iteration % size];
+          const node = rangePointNodes[iteration % size];
           result += lastRange.comparePoint(node, 0) + Number(lastRange.isPointInRange(node, 0)) + Number(lastRange.intersectsNode(node));
         }
       } else if (name.startsWith('normalize-')) {
@@ -193,7 +195,7 @@ async function measure(name, size) {
       }
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
-      if (name === 'range-point-1000') assert.equal(result, -1000 + 3 * Math.floor(1000 / size));
+      if (name === 'range-point-1000' || name === 'range-text-point-1000') assert.equal(result, -1000 + 3 * Math.floor(1000 / size));
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -230,7 +232,7 @@ async function main() {
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
-    ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
   ];
   const requested = new Set(process.argv.slice(3));
