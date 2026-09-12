@@ -79,6 +79,15 @@ pub(crate) fn node_id(value: f64) -> Result<NodeId> {
 }
 
 impl TreeStore {
+    /// Check a handle's allocation eligibility without materializing its reserved record.
+    fn validate_activation(&self, id: NodeId) -> Result<()> {
+        if self.nodes.contains_key(&id) || self.reserved.contains(&id) {
+            Ok(())
+        } else {
+            Err(TreeError::UnknownHandle(id))
+        }
+    }
+
     pub(crate) fn activate(&mut self, id: NodeId) -> Result<()> {
         if self.nodes.contains_key(&id) {
             return Ok(());
@@ -258,9 +267,19 @@ impl TreeStore {
             }
             data.attributes = self.snapshot_attributes(id)?;
         }
+        let template = if data.template_content == 0.0 {
+            None
+        } else {
+            self.validate_activation(id)?;
+            let template = node_id(data.template_content)?;
+            self.validate_activation(template)?;
+            Some(template)
+        };
+        // No fallible validation may follow the first activation: reservations and counters
+        // are observable state, even before any metadata is inserted.
         self.activate(id)?;
-        if data.template_content != 0.0 {
-            self.activate(node_id(data.template_content)?)?;
+        if let Some(template) = template {
+            self.activate(template)?;
         }
         let unsafe_data = usize::from(data.has_non_utf8());
         if let Some(previous) = self.data.insert(id, data) {
@@ -408,6 +427,104 @@ impl TreeStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn allocation_state(tree: &TreeStore) -> [f64; 8] {
+        let statistics = tree.statistics();
+        [
+            statistics.live_nodes,
+            statistics.capacity,
+            statistics.allocations,
+            statistics.releases,
+            statistics.mutations,
+            statistics.reserved_handles,
+            statistics.data_nodes,
+            statistics.data_updates,
+        ]
+    }
+
+    #[test]
+    fn should_validate_all_metadata_handles_before_activating_either_record() {
+        let mut tree = TreeStore::new();
+        let reserved = tree.reserve_handles().unwrap();
+        for template_content in [
+            -1.0,
+            1.5,
+            f64::NAN,
+            f64::INFINITY,
+            MAX_NODE_HANDLE as f64 + 1.0,
+            reserved + HANDLE_BATCH_SIZE as f64,
+        ] {
+            let before = allocation_state(&tree);
+            let result = tree.replace_data(
+                reserved,
+                NodeData {
+                    kind: super::super::constants::ELEMENT_NODE,
+                    template_content,
+                    ..NodeData::default()
+                },
+            );
+            assert!(matches!(
+                result,
+                Err(TreeError::InvalidHandle | TreeError::UnknownHandle(_))
+            ));
+            assert_eq!(allocation_state(&tree), before);
+        }
+        let unknown = reserved + HANDLE_BATCH_SIZE as f64;
+        let before = allocation_state(&tree);
+        assert!(matches!(
+            tree.replace_data(
+                unknown,
+                NodeData {
+                    template_content: reserved,
+                    ..NodeData::default()
+                }
+            ),
+            Err(TreeError::UnknownHandle(_))
+        ));
+        assert_eq!(allocation_state(&tree), before);
+    }
+
+    #[test]
+    fn should_preserve_shared_self_and_active_template_handle_allocation() {
+        let mut tree = TreeStore::new();
+        let first = tree.reserve_handles().unwrap();
+        let template = first + 1.0;
+        for handle in [first, first + 2.0] {
+            tree.replace_data(
+                handle,
+                NodeData {
+                    template_content: template,
+                    ..NodeData::default()
+                },
+            )
+            .unwrap();
+        }
+        assert_eq!(tree.statistics().allocations, 3.0);
+        tree.replace_data(
+            first,
+            NodeData {
+                template_content: first,
+                ..NodeData::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(tree.statistics().allocations, 3.0);
+        let self_template = first + 3.0;
+        tree.replace_data(
+            self_template,
+            NodeData {
+                template_content: self_template,
+                ..NodeData::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(tree.statistics().allocations, 4.0);
+        for offset in 0..HANDLE_BATCH_SIZE {
+            tree.release(first + offset as f64).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.statistics().reserved_handles, 0.0);
+    }
 
     #[test]
     fn should_materialize_reserved_handles_without_reusing_released_ones() {
