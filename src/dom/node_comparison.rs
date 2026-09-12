@@ -203,7 +203,7 @@ impl TreeStore {
         Ok(false)
     }
 
-    fn root_and_depth(&self, mut id: NodeId) -> Result<(NodeId, usize)> {
+    pub(super) fn root_and_depth(&self, mut id: NodeId) -> Result<(NodeId, usize)> {
         let mut root = 0;
         let mut depth = 0;
         while id != 0 {

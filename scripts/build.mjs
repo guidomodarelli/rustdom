@@ -236,6 +236,17 @@ nodeSource = nodeSource.slice(0, normalizationRangesStart) +
   normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
   nodeSource.slice(normalizationRangesEnd);
 await writeFile(nodePath, nodeSource);
+const boundaryPointPath = resolve(destination, 'lib/jsdom/living/range/boundary-point.js');
+let boundaryPointSource = await readFile(boundaryPointPath, 'utf8');
+boundaryPointSource = substituteOnce(boundaryPointSource,
+  'const { nodeRoot, isFollowing, isInclusiveAncestor } = require("../helpers/node");\n', '');
+const boundaryPointStart = boundaryPointSource.indexOf('function compareBoundaryPointsPosition(bpA, bpB) {');
+const boundaryPointEnd = boundaryPointSource.indexOf('module.exports = {', boundaryPointStart);
+if (boundaryPointStart < 0 || boundaryPointEnd < boundaryPointStart) throw new Error('rustdom build: boundary-point comparator changed');
+boundaryPointSource = boundaryPointSource.slice(0, boundaryPointStart) +
+  'function compareBoundaryPointsPosition(bpA, bpB) {\n' +
+  '  return domSymbolTree.compareBoundaryPointsPosition(bpA, bpB);\n}\n\n' + boundaryPointSource.slice(boundaryPointEnd);
+await writeFile(boundaryPointPath, boundaryPointSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
 let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');

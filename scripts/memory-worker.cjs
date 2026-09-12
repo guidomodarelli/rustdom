@@ -19,9 +19,11 @@ const attributeReferences = [];
 const comparisonReferences = [];
 /** Keep copied string results alive to catch ownership accidentally shared with native nodes. */
 const retainedTextResults = [];
+/** Observe real Range wrappers without keeping their boundary nodes alive. */
+const rangeReferences = [];
 /** Every explicit fixture participates in the same final liveness observation. */
 const observedReferences = { documents: references, windows: windowReferences,
-  characterData: characterReferences, attributes: attributeReferences, comparedNodes: comparisonReferences };
+  characterData: characterReferences, attributes: attributeReferences, comparedNodes: comparisonReferences, ranges: rangeReferences };
 /** Preserve collection progress as numbers and memory samples without retaining DOM fixtures. */
 const quiescenceChecks = [];
 /** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
@@ -153,6 +155,15 @@ async function exerciseNodeComparisons(runtime) {
       }
       clone.normalize();
       assert.equal(clone.textContent, 'texttail'.repeat(20));
+      const wholeRange = document.createRange();
+      const firstRange = document.createRange();
+      wholeRange.selectNodeContents(clone);
+      firstRange.selectNodeContents(clone.firstChild);
+      assert.equal(wholeRange.compareBoundaryPoints(dom.window.Range.START_TO_START, firstRange), -1);
+      assert.equal(wholeRange.comparePoint(clone.firstChild.firstChild, 0), 0);
+      assert.equal(wholeRange.isPointInRange(clone.lastChild.firstChild, 0), true);
+      assert.equal(wholeRange.intersectsNode(clone.lastChild), true);
+      rangeReferences.push(new WeakRef(wholeRange), new WeakRef(firstRange));
       const namespace = 'urn:' + 'n'.repeat(8192);
       clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
       assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);
@@ -250,7 +261,7 @@ async function main() {
   const terminalMemory = endpoint.state.memory;
   const { documents: survivingDocuments, windows: survivingWindows,
     characterData: survivingCharacterData, attributes: survivingAttributes,
-    comparedNodes: survivingComparedNodes } = endpoint.state.survivors;
+    comparedNodes: survivingComparedNodes, ranges: survivingRanges } = endpoint.state.survivors;
   const nativeTree = endpoint.state.nativeTree;
   const first = snapshots[0];
   const last = terminalMemory;
@@ -267,6 +278,7 @@ async function main() {
     observedCharacterData: characterReferences.length, survivingCharacterData,
     observedAttributes: attributeReferences.length, survivingAttributes,
     observedComparedNodes: comparisonReferences.length, survivingComparedNodes,
+    observedRanges: rangeReferences.length, survivingRanges,
     retainedTextResults: retainedTextResults.length,
     retainedTeardownCallbacks: retainedTeardowns.length,
     retainedForeignSignals: retainedControllers.length,
@@ -274,7 +286,7 @@ async function main() {
     initialAttributeState,
     snapshots, terminalMemory, growth, budgets, quiescenceChecks,
     pass: quiescenceChecks.every((check) => check.reached) &&
-      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 && survivingComparedNodes === 0 &&
+      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 && survivingComparedNodes === 0 && survivingRanges === 0 &&
       (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
         nativeTree.dataNodes === initialNativeData &&
         nativeTree.attributeCollections === initialAttributeState.attributeCollections &&

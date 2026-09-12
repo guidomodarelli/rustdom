@@ -66,6 +66,8 @@ assert.equal(group.originalLength, 'native\ud800'.length);
 assert.equal(group.appendedData, ' tail');
 assert.deepEqual(group.siblings, [siblingHandle]);
 assert.equal(tree.nodeValue(textHandle), 'native\ud800');
+assert.equal(tree.compareBoundaryPointsPosition(namespaceHandle, 0, textHandle, 0), -1);
+assert.equal(tree.compareBoundaryPointsPosition(textHandle, 0, siblingHandle, 0), -1);
 tree.release(siblingHandle);
 tree.release(textHandle);
 tree.release(namespaceHandle);

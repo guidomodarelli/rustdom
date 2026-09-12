@@ -136,6 +136,13 @@ class NativeSymbolTree extends SymbolTree {
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
   /** @param {object} root - Inclusive normalization context. @returns {object[]} Snapshot of Text candidates. */
   normalizationCandidates(root) { return this._arena.normalizationCandidates(this._ensure(root)).map((id) => this._object(id)); }
+  /** @param {object} left - Boundary with node/offset. @param {object} right - Other boundary. @returns {number} Native relative order with the pinned same-root diagnostic. */
+  compareBoundaryPointsPosition(left, right) {
+    const result = this._arena.compareBoundaryPointsPosition(this._ensure(left.node), left.offset,
+      this._ensure(right.node), right.offset);
+    if (result === null) throw new Error('Internal Error: Boundary points should have the same root!');
+    return result;
+  }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {
     const group = this._arena.normalizationGroup(this._ensure(node));
