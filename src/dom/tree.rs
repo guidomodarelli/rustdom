@@ -319,6 +319,19 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn compare_boundary_points_position(
+        &mut self,
+        left: f64,
+        left_offset: u32,
+        right: f64,
+        right_offset: u32,
+    ) -> Result<Option<i32>> {
+        self.store
+            .compare_boundary_points_position(left, left_offset, right, right_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
     pub fn normalization_group(&self, handle: f64) -> Result<Option<NormalizationGroup>> {
         self.store
             .normalization_group(handle)

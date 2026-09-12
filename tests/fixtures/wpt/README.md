@@ -16,3 +16,8 @@ nativo de getters se verifica también contra esos setters y sus efectos reales.
 
 La suite `normalization` agrega el fixture original de Node.normalize, incluidos
 fragmentos, textos vacíos y la exclusión de CDATA, comentarios y otros nodos.
+
+La suite `boundary-points` incorpora comparaciones, puntos e intersecciones de
+Range, incluidos binding y shadow DOM. Los casos comparten `dom/common.js` de
+la misma revisión; los errores de preparación de rangos también quedan en el
+reporte y no se presentan como aserciones de estándares aprobadas.

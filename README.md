@@ -45,6 +45,12 @@ rangos y los hooks siguen en JavaScript y conservan su orden, incluso si un
 callback síncrono modifica siblings. Esta etapa no completa la migración de
 normalización ni de rangos.
 
+La comparación de puntos de rango usa Rust para resolver raíces, ancestros,
+índices de hijos y orden, evitando recorrer todos los nodos siguientes. Las
+operaciones públicas de Range mantienen sus validaciones y las limitaciones
+de jsdom fijadas por los tests; la representación y las mutaciones de Range
+todavía tienen responsabilidades en JavaScript.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

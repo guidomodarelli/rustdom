@@ -39,6 +39,8 @@ export class NativeTree {
   textContent(handle: number): string | null;
   normalizationCandidates(handle: number): number[];
   normalizationGroup(handle: number): NormalizationGroup | null;
+  /** Returns null for distinct tree roots; offsets remain subject to public Range validation. */
+  compareBoundaryPointsPosition(left: number, leftOffset: number, right: number, rightOffset: number): -1 | 0 | 1 | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

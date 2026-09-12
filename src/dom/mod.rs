@@ -3,6 +3,7 @@ mod attribute_index;
 mod attribute_operations;
 mod attribute_view;
 mod attributes;
+mod boundary_points;
 mod character_data;
 mod constants;
 mod data;
