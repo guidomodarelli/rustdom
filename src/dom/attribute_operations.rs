@@ -37,8 +37,18 @@ impl TreeStore {
             .filter(|data| data.kind == ELEMENT_NODE)
             .ok_or(TreeError::NotElement(id))
     }
+    /// Initialize canonical ownership without silently replacing snapshot-only attributes.
     pub fn initialize_attribute_collection(&mut self, handle: f64) -> Result<()> {
         let id = node_id(handle)?;
+        if let Some(data) = self.data.get(&id) {
+            if data.kind != ELEMENT_NODE {
+                return Err(TreeError::NotElement(id));
+            }
+            if !data.attributes.is_empty() && !self.attribute_collections.elements.contains_key(&id)
+            {
+                return Err(TreeError::NonEmptyAttributeSnapshot(id));
+            }
+        }
         self.activate(id)?;
         self.attribute_collections.initialize(id);
         Ok(())
@@ -376,6 +386,93 @@ impl TreeStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_reject_nonempty_snapshot_collection_initialization_atomically() {
+        let mut tree = TreeStore::new();
+        let element = tree.allocate().unwrap();
+        tree.set_data(element, r#"{"kind":1,"name":"div","namespace":"http://www.w3.org/1999/xhtml","attributes":[{"name":"id","value":"retained"}]}"#).unwrap();
+        let before = tree.statistics();
+        for _ in 0..32 {
+            assert!(
+                matches!(tree.initialize_attribute_collection(element), Err(TreeError::NonEmptyAttributeSnapshot(id)) if id == element as u64)
+            );
+        }
+        let after = tree.statistics();
+        assert_eq!(after.live_nodes, before.live_nodes);
+        assert_eq!(after.allocations, before.allocations);
+        assert_eq!(after.reserved_handles, before.reserved_handles);
+        assert_eq!(after.attribute_collections, before.attribute_collections);
+        assert_eq!(after.data_updates, before.data_updates);
+        assert_eq!(after.mutations, before.mutations);
+        assert_eq!(after.serializations, before.serializations);
+        assert!(tree.attribute_ids(element).unwrap().is_empty());
+        assert_eq!(
+            String::from_utf16(&tree.serialize_html(element, true, false).unwrap()).unwrap(),
+            "<div id=\"retained\"></div>"
+        );
+        tree.release(element).unwrap();
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+    }
+
+    #[test]
+    fn should_preserve_early_empty_and_idempotent_canonical_initialization() {
+        let mut tree = TreeStore::new();
+        let first = tree.reserve_handles().unwrap();
+        tree.initialize_attribute_collection(first).unwrap();
+        assert_eq!(tree.statistics().allocations, 1.0);
+        let metadata = || NodeData {
+            kind: ELEMENT_NODE,
+            name: Some(DomString::Text("div".into())),
+            namespace: Some(DomString::Text(HTML_NAMESPACE.into())),
+            ..NodeData::default()
+        };
+        tree.set_element_metadata(first, metadata()).unwrap();
+        let second = first + 1.0;
+        tree.replace_snapshot(second, metadata()).unwrap();
+        tree.initialize_attribute_collection(second).unwrap();
+        let attribute = first + 2.0;
+        tree.initialize_attribute(attribute, r#"{"kind":2,"name":"id","value":"retained"}"#)
+            .unwrap();
+        tree.append_attribute(first, attribute).unwrap();
+        let before = tree.statistics();
+        tree.initialize_attribute_collection(first).unwrap();
+        assert_eq!(
+            tree.statistics().attribute_collections,
+            before.attribute_collections
+        );
+        assert_eq!(tree.statistics().data_updates, before.data_updates);
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        assert_eq!(tree.attribute_ids(first).unwrap(), vec![attribute]);
+        assert_eq!(tree.attribute_owner(attribute).unwrap(), first);
+        for offset in 0..super::super::store::HANDLE_BATCH_SIZE {
+            tree.release(first + offset as f64).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.statistics().attribute_collections, 0.0);
+    }
+
+    #[test]
+    fn should_reject_non_element_metadata_before_creating_an_attribute_collection() {
+        let mut tree = TreeStore::new();
+        let handle = tree.allocate().unwrap();
+        tree.set_data(handle, r#"{"kind":3,"value":"retained"}"#)
+            .unwrap();
+        let before = tree.statistics();
+        assert!(
+            matches!(tree.initialize_attribute_collection(handle), Err(TreeError::NotElement(id)) if id == handle as u64)
+        );
+        assert_eq!(
+            tree.statistics().attribute_collections,
+            before.attribute_collections
+        );
+        assert_eq!(tree.statistics().data_updates, before.data_updates);
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        assert_eq!(
+            tree.character_data(handle).unwrap(),
+            "retained".encode_utf16().collect::<Vec<_>>()
+        );
+    }
 
     #[test]
     fn should_preserve_first_seen_names_across_large_namespace_duplicate_collections() {

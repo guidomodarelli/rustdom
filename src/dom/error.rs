@@ -18,6 +18,7 @@ pub enum TreeError {
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
     AttributeCollectionInitialized(u64),
+    NonEmptyAttributeSnapshot(u64),
     UnsupportedUnicodeVersion(String),
     InvalidUnicodeCaseChanges,
     CharacterOffset { offset: u32, length: usize },
@@ -35,6 +36,10 @@ impl fmt::Display for TreeError {
             Self::NotProcessingInstruction(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized ProcessingInstruction"
+            ),
+            Self::NonEmptyAttributeSnapshot(id) => write!(
+                formatter,
+                "NativeTree: element {id} contains snapshot attributes; cannot initialize a canonical attribute collection from a nonempty snapshot"
             ),
             Self::InvalidUnicodeCaseChanges => write!(
                 formatter,

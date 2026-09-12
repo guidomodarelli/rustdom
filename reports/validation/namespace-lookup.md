@@ -83,3 +83,12 @@ con cero supervivientes entre 882 Document/Window y 1.500 nodos comparados;
 los contadores nativos volvieron a cero. Rustdom registró heap +0,91 MiB y
 RSS +5,65 MiB. Esta validación ejerció el addon reconstruido con el resultado
 prestado y su fallback UTF-16.
+
+## Unión con la transición explícita de atributos
+
+La integración de `2f128fe193c2e0678956c87ba5e5da96a6996a54` pasó formato,
+Clippy, **54 tests Rust, 195 contratos Node, 7 Jest, 11 Vitest, 4 VM y 1.784
+casos HTML5**. Los [3.433 WPT](../compatibility/2026-09-12T05-14-05.416Z-linux-wpt.json)
+mantienen paridad y los ocho fallos de estándares compartidos ya documentados.
+Las rutas de mutación implícita que la revisión detectó después se corrigen en
+el PR base; esta unión conserva explícitamente ese trabajo pendiente.
