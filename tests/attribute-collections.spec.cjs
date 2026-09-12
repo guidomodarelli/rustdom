@@ -92,11 +92,11 @@ test('should preserve Unicode supported-property names and template metadata', (
     try {
       const document = dom.window.document;
       const element = document.createElement('div');
-      for (const name of ['a', 'A', 'Ä', 'ä', 'İ', 'Σ', 'σ', '𐐀', '𐐨', '\ua7ce', '\ua7d2', '\ua7d4']) element.setAttributeNode(document.createAttributeNS(null, name));
+      for (const name of ['a', 'A', 'Ä', 'ä', 'ß', 'ﬀ', 'İ', 'Σ', 'σ', '𐐀', '𐐨', '\ua7cb', '\ua7ce', '\ua7d2', '\ua7d4']) element.setAttributeNode(document.createAttributeNS(null, name));
       const names = Reflect.ownKeys(element.attributes).filter((name) => typeof name === 'string');
       const template = document.createElement('template');
       template.innerHTML = '<p title="inert">inside</p>';
-      const own = ['Ä', 'ä', 'İ', 'Σ', '\ua7ce', '\ua7d2', '\ua7d4'].map((name) => [name, Object.hasOwn(element.attributes, name)]);
+      const own = ['Ä', 'ä', 'ß', 'ﬀ', 'İ', 'Σ', '\ua7cb', '\ua7ce', '\ua7d2', '\ua7d4'].map((name) => [name, Object.hasOwn(element.attributes, name)]);
       return { names, own, html: element.outerHTML, template: template.outerHTML };
     } finally { dom.window.close(); }
   };

@@ -36,7 +36,7 @@ también define `U_UNICODE_VERSION` como 16.0. Node permite compilaciones con
 por lo que el perfil se selecciona usando la versión efectiva del host,
 sin inferirla únicamente desde la versión de Node.
 
-## Equivalencia de Unicode 15.0 y15.1
+## Equivalencia de Unicode 15.0 y 15.1
 
 Se descargaron los archivos oficiales de Unicode desde el repositorio
 `unicode-org/unicodetools`, en
@@ -78,7 +78,28 @@ Validación ejecutada en el clone efímero, con Rust 1.98.1 sobre WSL Ubuntu 22.
 
 - `cargo test --lib`: 21 tests aprobados.
 - `cargo clippy --locked --all-targets -- -D warnings`: aprobado.
+- `npm run build`: addon release y runtime privado compilados correctamente.
 - `git diff --check`: aprobado.
+
+Se integró mediante rebase la corrección de expectativas del consumidor publicada
+en `27db2af3d41dec23a5945c638d5ce8378477f1f2`. El cambio remoto afectaba tests de
+la misma superficie y reportes de distribución; se trató como drift relacionado.
+Después del rebase se ejecutaron:
+
+- `cargo fmt -- --check`: aprobado.
+- `cargo test --locked --lib`: 21 tests aprobados.
+- `node --test tests/attribute-collections.spec.cjs`, con Node 22.12.0: 5/5.
+- El mismo comando, con Node 24.14.1: 5/5.
+
+El test público incluye ahora `ß`, `ﬀ` y U+A7CB, además de U+A7CE y los casos
+anteriores. Compara enumeración, acceso de propiedades propias, serialización y
+metadata de templates contra jsdom 27.4.0 independiente. También se comprobó la
+creación y enumeración de esos atributos con un probe del addon real en ambos
+hosts. El build y Clippy previos se conservaron porque el rebase no modificó
+fuentes de producción ni dependencias.
+
+Unicode 15.1 se prueba directamente mediante la API de almacenamiento Rust;
+no se ejecutó un binario Node compilado con ICU 15.1 en esta validación.
 
 ## Memoria
 
