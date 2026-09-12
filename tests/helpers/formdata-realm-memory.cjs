@@ -108,6 +108,8 @@ async function main() {
   const report = { capturedAt: new Date().toISOString(), mode, node: process.version,
     fingerprints: Object.fromEntries(['src/environments/multipart.cjs', 'src/environments/web-platform.cjs',
       'src/environments/window.cjs', 'src/environments/vitest.mjs', 'src/environments/lifecycle.cjs',
+      'src/environments/window-errors.cjs', 'src/environments/mime-type.cjs',
+      'tests/helpers/formdata-realm-memory.cjs', 'scripts/memory-endpoint.cjs', 'package-lock.json',
       'dist/rustdom.node'].map((file) => [file, createHash('sha256').update(readFileSync(file)).digest('hex')])),
     machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model },
     methodology: 'Real rustdom addon and public Vitest lifecycle. Two warmup batches, four measured batches, four environments each. Retain Request/Response constructors, methods, clones, instances, fetch, normal-pool accessor adapters and teardown callbacks. Hold native stream bodies open across teardown, require separate Document/Window WeakRefs and native owners to clear before completing pending reads, then require a second quiescent endpoint. Preserve every major-GC trace and heap/external/RSS sample.',

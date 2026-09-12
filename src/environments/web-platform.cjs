@@ -71,6 +71,7 @@ function createWebPlatformBridge(window, executionTypeError) {
   let eventTargetPrototype = window.EventTarget.prototype;
   let originalAdd = eventTargetPrototype.addEventListener;
   let originalRemove = eventTargetPrototype.removeEventListener;
+  let originalBaseURI = Object.getOwnPropertyDescriptor(window.Node.prototype, 'baseURI').get;
   // Capture intrinsic constructors before beforeParse or test code can replace their public globals.
   let formDataRealm = { FormData: window.FormData, File: window.File,
     append: window.FormData.prototype.append, TypeError: executionTypeError };
@@ -86,20 +87,26 @@ function createWebPlatformBridge(window, executionTypeError) {
    * @throws {TypeError} When teardown has released the destination realm.
    */
   function formDataConstructors() {
-    if (!formDataRealm) throw formDataError('rustdom formData: environment has been disposed');
+    if (!formDataRealm) throw createWebApiTypeError('rustdom formData: environment has been disposed');
     return formDataRealm;
   }
 
   /**
-   * Construct only errors whose consumption or parser provenance is controlled by the bridge.
-   * @param {string} message - Description of the failed body operation.
+   * Construct only argument, consumption or parser errors controlled by the bridge.
+   * @param {string} message - Description of the failed Web API operation.
    * @param {*} [cause] - Original parser error, when available.
    * @returns {TypeError} An error belonging to the current execution global.
    */
-  function formDataError(message, cause) {
+  function createWebApiTypeError(message, cause) {
     // Resolve this only at the failure site; pending body reads must not capture a realm constructor.
     const ErrorConstructor = formDataRealm?.TypeError ?? HostTypeError;
     return new ErrorConstructor(message, cause === undefined ? undefined : { cause });
+  }
+
+  /** @returns {string|undefined} The live document's intrinsic base URL, or no base after disposal. */
+  function documentBaseURI() {
+    const document = realmReference.deref()?.document;
+    return document && originalBaseURI ? apply(originalBaseURI, document, []) : undefined;
   }
 
   /**
@@ -150,7 +157,7 @@ function createWebPlatformBridge(window, executionTypeError) {
      * @param {object} [init] - Native RequestInit options.
      */
     constructor(input, init) {
-      if (arguments.length === 0) throw new HostTypeError('rustdom Request: a URL or Request argument is required');
+      if (arguments.length === 0) throw createWebApiTypeError('rustdom Request: a URL or Request argument is required');
       let options = init;
       if (init && typeof init === 'object') {
         const body = init.body;
@@ -162,14 +169,14 @@ function createWebPlatformBridge(window, executionTypeError) {
           get(target, property) { return overrides.has(property) ? overrides.get(property) : Reflect.get(target, property, target); },
         });
       }
-      super(input instanceof NodeRequest ? input : new NodeURL(input, realmReference.deref()?.document?.baseURI), options);
+      super(input instanceof NodeRequest ? input : new NodeURL(input, documentBaseURI()), options);
     }
 
     /** @param {*} value - Candidate request. @returns {boolean} Whether Node recognizes it. */
     static [Symbol.hasInstance](value) { return value instanceof NodeRequest; }
 
     /** @returns {Promise<FormData>} FormData and Files from the originating realm while its environment remains active. */
-    formData() { return readFormData(this, nativeRequestBody, formDataConstructors, formDataError); }
+    formData() { return readFormData(this, nativeRequestBody, formDataConstructors, createWebApiTypeError); }
 
     /** @returns {Request} A native clone retaining the interoperable formData method. */
     clone() { return Object.setPrototypeOf(super.clone(), Request.prototype); }
@@ -180,7 +187,7 @@ function createWebPlatformBridge(window, executionTypeError) {
     /** @param {*} body - Native or jsdom body. @param {object} [init] - Response options. */
     constructor(body, init) { super(nativeBody(body), init); }
     /** @returns {Promise<FormData>} Decoded fields and Files readable by the originating realm's FileReader. */
-    formData() { return readFormData(this, nativeResponseBody, formDataConstructors, formDataError); }
+    formData() { return readFormData(this, nativeResponseBody, formDataConstructors, createWebApiTypeError); }
     /** @returns {Response} A clone with the same body interoperability. */
     clone() { return Object.setPrototypeOf(super.clone(), Response.prototype); }
     /** @param {*} value - Candidate response. @returns {boolean} Whether it is a native Response. */
@@ -194,7 +201,7 @@ function createWebPlatformBridge(window, executionTypeError) {
    * @returns {Promise<Response>} A real native response with compatible multipart decoding.
    */
   async function fetch(input, init) {
-    if (arguments.length === 0) throw new HostTypeError('rustdom fetch: a URL or Request argument is required');
+    if (arguments.length === 0) throw createWebApiTypeError('rustdom fetch: a URL or Request argument is required');
     const response = await nodeFetch(new Request(input, init));
     return Object.setPrototypeOf(response, Response.prototype);
   }
@@ -246,6 +253,7 @@ function createWebPlatformBridge(window, executionTypeError) {
         WindowAbortController = null;
         originalAdd = null;
         originalRemove = null;
+        originalBaseURI = null;
         eventTargetPrototype = null;
       }
     },

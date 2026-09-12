@@ -49,6 +49,63 @@ function contentTypes(values) {
 
 for (const mode of ['normal', 'vm']) {
   for (const mutation of ['replace', 'delete']) {
+    test(`should preserve intrinsic ${mode} argument errors after beforeParse ${mutation}s TypeError`, async () => {
+      const environment = (await import('../src/environments/vitest.mjs')).default;
+      const context = openEnvironment(environment, mode, (window, host) => {
+        for (const global of [window, host]) {
+          if (mutation === 'replace') global.TypeError = class ReplacementTypeError extends HostError {};
+          else delete global.TypeError;
+        }
+      });
+      const RetainedRequest = context.target.Request;
+      const retainedFetch = context.target.fetch;
+      try {
+        const isOriginal = (error) => error.constructor === context.OriginalTypeError && error instanceof context.OriginalTypeError;
+        assert.throws(() => new context.target.Request(), isOriginal);
+        await assert.rejects(context.target.fetch(), isOriginal);
+      } finally { context.session.teardown(); }
+      assert.throws(() => new RetainedRequest(), HostTypeError);
+      await assert.rejects(retainedFetch(), HostTypeError);
+    });
+  }
+
+  for (const location of ['document', 'Document.prototype', 'Node.prototype']) {
+    for (const mutation of ['getter', 'value']) {
+      test(`should use the intrinsic ${mode} baseURI after beforeParse shadows ${location} with a ${mutation}`, async () => {
+        const environment = (await import('../src/environments/vitest.mjs')).default;
+        let calls = 0;
+        const context = openEnvironment(environment, mode, (window) => {
+          const owner = location === 'document' ? window.document : location === 'Document.prototype' ? window.Document.prototype : window.Node.prototype;
+          const shadow = mutation === 'getter'
+            ? { get() { calls++; throw new HostError('shadow baseURI must not run'); } }
+            : { value: 'https://forged.invalid/wrong/' };
+          Object.defineProperty(owner, 'baseURI', { ...shadow, configurable: true });
+        });
+        const RetainedRequest = context.target.Request;
+        try {
+          context.window.history.replaceState(null, '', '/original/page');
+          assert.equal(new RetainedRequest('child').url, 'http://localhost:3000/original/child');
+          const base = context.window.document.createElement('base');
+          base.href = '/assets/';
+          context.window.document.head.append(base);
+          assert.equal(new RetainedRequest('child').url, 'http://localhost:3000/assets/child');
+          base.href = '/changed/';
+          assert.equal(new RetainedRequest('child').url, 'http://localhost:3000/changed/child');
+          base.remove();
+          context.window.history.replaceState(null, '', '/history/page');
+          assert.equal(new RetainedRequest('child').url, 'http://localhost:3000/history/child');
+          assert.equal(new RetainedRequest('https://example.test/absolute').url, 'https://example.test/absolute');
+          const native = new HostRequest('https://example.test/native', { method: 'POST', body: 'native body' });
+          assert.equal(await new RetainedRequest(native).text(), 'native body');
+          assert.equal(calls, 0);
+        } finally { context.session.teardown(); }
+        assert.equal(new RetainedRequest('https://example.test/closed').url, 'https://example.test/closed');
+        assert.throws(() => new RetainedRequest('relative'), HostTypeError);
+      });
+    }
+  }
+
+  for (const mutation of ['replace', 'delete']) {
     for (const timing of ['beforeParse', 'pending']) {
       test(`should preserve the original ${mode} TypeError when ${mutation} happens at ${timing}`, async () => {
         const environment = (await import('../src/environments/vitest.mjs')).default;

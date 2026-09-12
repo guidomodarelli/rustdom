@@ -63,8 +63,10 @@ test('should resolve relative request and fetch URLs when the document URL chang
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const previousUrl = window.location.href;
+  const baseDescriptor = Object.getOwnPropertyDescriptor(document, 'baseURI');
   const origin = `http://127.0.0.1:${server.address().port}`;
   try {
+    Object.defineProperty(document, 'baseURI', { configurable: true, get() { throw new Error('shadow baseURI must not run'); } });
     jsdom.reconfigure({ url: `${origin}/nested/page` });
     expect(new Request('/api').url).toBe(`${origin}/api`);
     expect(new Request('../api').url).toBe(`${origin}/api`);
@@ -89,6 +91,8 @@ test('should resolve relative request and fetch URLs when the document URL chang
     } finally { base.remove(); }
     await expect(fetch()).rejects.toThrow('a URL or Request argument is required');
   } finally {
+    if (baseDescriptor) Object.defineProperty(document, 'baseURI', baseDescriptor);
+    else delete document.baseURI;
     jsdom.reconfigure({ url: previousUrl });
     server.closeAllConnections();
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -175,12 +179,18 @@ test('should create intrinsic body errors when the current worker TypeError glob
   for (const mutation of ['replace', 'delete']) {
     const owner = new Response('invalid', { headers: { 'content-type': 'text/plain' } });
     let failure;
+    let requestFailure;
+    let fetchFailure;
     try {
       if (mutation === 'replace') globalThis.TypeError = class ReplacementTypeError extends Error {};
       else delete globalThis.TypeError;
       try { await owner.formData(); } catch (error) { failure = error; }
+      try { new Request(); } catch (error) { requestFailure = error; }
+      try { await fetch(); } catch (error) { fetchFailure = error; }
     } finally { Object.defineProperty(globalThis, 'TypeError', descriptor); }
     expect(failure.constructor).toBe(OriginalTypeError);
+    expect(requestFailure.constructor).toBe(OriginalTypeError);
+    expect(fetchFailure.constructor).toBe(OriginalTypeError);
   }
 });
 
