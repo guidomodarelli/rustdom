@@ -23,6 +23,7 @@ mod range_geometry;
 mod range_queries;
 mod range_state;
 mod range_state_binding;
+mod range_surround;
 mod range_text;
 mod selector_element;
 mod selector_syntax;

@@ -89,6 +89,7 @@ assert.equal(deletion.startCount, 7);
 assert.equal(tree.getCharacterData(textHandle), 'native\ud800');
 const contents = tree.rangeContentSelection(rangeState);
 assert.ok(contents); assert.equal(contents.commonAncestor, textHandle); assert.deepEqual(contents.contained, []);
+assert.equal(tree.rangeSurroundStatus(rangeState, namespaceHandle), native.RangeSurroundStatus.Ready);
 const copiedRangeState = rangeState.copy();
 assert.deepEqual(copiedRangeState.collapsePlan(false), { node: textHandle, offset: 7, updateStart: true });
 copiedRangeState.setStart(textHandle, 1);

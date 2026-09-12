@@ -1,7 +1,10 @@
 /** Exercises named/default ESM exports, native contracts and the installed Vitest VM adapter. */
 import assert from 'node:assert/strict';
 import runtime, { JSDOM, CookieJar, getNativeTreeStatistics } from '@rustdom/rustdom';
-import { NativeTree, QueryMode, DocumentTypeField } from '@rustdom/rustdom/native';
+import nativeRuntime, {
+  NativeTree, NativeRange, QueryMode, DocumentTypeField, RangePointRelation, RangeBoundaryMode,
+  RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
+} from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
 assert.equal(runtime.JSDOM, JSDOM);
@@ -16,6 +19,41 @@ assert.equal(nativeTree.documentTypeField(doctype, DocumentTypeField.SystemId), 
 nativeTree.release(doctype);
 assert.equal(nativeTree.statistics().liveNodes, 0);
 assert.equal(QueryMode.First, 1);
+
+// Named ESM bindings must operate on the same addon classes and status objects as the default export.
+assert.equal(nativeRuntime.NativeRange, NativeRange);
+const containerHandle = nativeTree.allocate();
+nativeTree.setHtmlElement(containerHandle, 'section', []);
+const textHandle = nativeTree.allocate();
+nativeTree.setCharacterData(textHandle, 3, 'installed Range');
+nativeTree.append(containerHandle, textHandle);
+const rangeState = new NativeRange();
+rangeState.setStart(textHandle, 0);
+rangeState.setEnd(textHandle, 9);
+assert.equal(nativeTree.rangeTextFromState(rangeState), 'installed');
+assert.equal(nativeTree.rangePointRelationFromState(rangeState, textHandle, 4), RangePointRelation.Inside);
+assert.equal(nativeTree.rangePointRelationFromState(rangeState, textHandle, 99), RangePointRelation.InvalidOffset);
+const boundaryPlan = nativeTree.rangeBoundaryPlanFromState(rangeState, RangeBoundaryMode.SelectNode, textHandle, 0);
+assert.deepEqual(boundaryPlan, {
+  action: RangeBoundaryAction.BothStartFirst, node: containerHandle, startOffset: 0, endOffset: 1,
+});
+const copiedRangeState = rangeState.copy();
+copiedRangeState.setStart(textHandle, 1);
+assert.equal(nativeTree.compareRangeStates(rangeState, 0, copiedRangeState), RangeComparison.Before);
+assert.equal(rangeState.startOffset, 0);
+assert.deepEqual(copiedRangeState.collapsePlan(false), { node: textHandle, offset: 9, updateStart: true });
+const deletionPlan = nativeTree.rangeDeletionPlan(rangeState);
+assert.equal(deletionPlan.kind, RangeDeletionKind.CharacterData);
+assert.equal(deletionPlan.startCount, 9);
+assert.equal(nativeTree.rangeSurroundStatus(rangeState, containerHandle), RangeSurroundStatus.Ready);
+const fragmentHandle = nativeTree.allocate();
+nativeTree.setSimpleData(fragmentHandle, 11, '');
+assert.equal(nativeTree.rangeSurroundStatus(rangeState, fragmentHandle), RangeSurroundStatus.InvalidParentType);
+assert.equal(nativeTree.getCharacterData(textHandle), 'installed Range');
+for (const nodeHandle of [textHandle, containerHandle, fragmentHandle]) nativeTree.release(nodeHandle);
+assert.equal(nativeTree.statistics().liveNodes, 0);
+// Numeric endpoint state survives handle release without owning the corresponding native nodes.
+assert.equal(rangeState.endOffset, 9);
 dom.window.close();
 assert.ok(environment.setupVM);
 const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' } });
@@ -60,6 +98,9 @@ contentRange.setEnd(contentRoot.lastChild.firstChild, 2);
 assert.equal(contentRange.cloneContents().textContent, 'eftri');
 assert.equal(contentRange.extractContents().textContent, 'eftri');
 assert.equal(contentRange.collapsed, true); assert.equal(contentRoot.textContent, 'lght');
+const surrounding = context.document.createElement('section');
+contentRange.selectNodeContents(contentRoot); contentRange.surroundContents(surrounding);
+assert.equal(contentRoot.firstChild, surrounding); assert.equal(surrounding.textContent, 'lght');
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });

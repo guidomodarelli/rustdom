@@ -91,8 +91,11 @@ function exerciseEnvironmentRanges(target) {
   const copied = contents.cloneContents(); const extracted = contents.extractContents();
   assert.equal(copied.textContent, 'eftri'); assert.equal(extracted.textContent, 'eftri');
   assert.equal(contents.collapsed, true);
+  const surrounding = target.document.createElement('section');
+  contents.selectNodeContents(contentRoot); contents.surroundContents(surrounding);
+  assert.equal(contentRoot.firstChild, surrounding); assert.equal(surrounding.textContent, 'lght');
   rangeReferences.push(new WeakRef(contents));
-  comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted));
+  comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted), new WeakRef(surrounding));
 }
 
 /**
@@ -207,6 +210,9 @@ async function exerciseNodeComparisons(runtime) {
       const extractedContents = contentRange.extractContents();
       assert.equal(copiedContents.textContent, extractedContents.textContent);
       assert.equal(contentTree.children.length, 2); assert.equal(contentRange.collapsed, true);
+      const surrounding = document.createElement('div');
+      contentRange.selectNodeContents(contentTree); contentRange.surroundContents(surrounding);
+      assert.equal(contentTree.firstChild, surrounding); assert.equal(surrounding.children.length, 2);
       rangeReferences.push(new WeakRef(contentRange));
       const removedParagraph = clone.children[10]; const removedText = removedParagraph.firstChild;
       wholeRange.setStart(clone.firstChild.firstChild, 2);
@@ -230,7 +236,7 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(doctype.nodeValue, null);
       return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction),
         new WeakRef(removedParagraph), new WeakRef(removedText), new WeakRef(contentTree),
-        new WeakRef(copiedContents), new WeakRef(extractedContents)];
+        new WeakRef(copiedContents), new WeakRef(extractedContents), new WeakRef(surrounding)];
     }
     for (let batch = 0; batch < batches; batch++) {
       const compared = [];

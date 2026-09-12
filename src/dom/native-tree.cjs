@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -322,6 +322,19 @@ class NativeSymbolTree extends SymbolTree {
     selection.contained = selection.contained.map((id) => this._object(id));
     selection.collapseNode = this._object(selection.collapseNode);
     return selection;
+  }
+  /** @param {object} range - Receiver Range. @param {object} parent - Requested surrounding node. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Preserves native preflight error ordering in the receiver realm. */
+  validateRangeSurround(range, parent, exceptionFactory) {
+    const status = this._arena.rangeSurroundStatus(range._nativeRange, this._ensure(parent));
+    switch (status) {
+      case RangeSurroundStatus.Ready: return;
+      case RangeSurroundStatus.PartialNonText:
+        throw exceptionFactory.create(range._globalObject, ['The Range has partially contains a non-Text node.', 'InvalidStateError']);
+      case RangeSurroundStatus.InvalidParentType:
+        throw exceptionFactory.create(range._globalObject, ['Invalid element type.', 'InvalidNodeTypeError']);
+      case RangeSurroundStatus.InconsistentRoots: throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+      default: throw new Error(`NativeTree: unsupported surround status ${status}`);
+    }
   }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {
