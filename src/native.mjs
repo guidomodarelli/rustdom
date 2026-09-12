@@ -6,6 +6,7 @@ export const {
   RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
+  NativeRangeExtract, RangeExtractAction,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;

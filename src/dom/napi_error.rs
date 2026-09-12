@@ -10,3 +10,13 @@ pub(super) fn to_napi_error(error: TreeError) -> Error {
     };
     Error::new(status, error.to_string())
 }
+
+/// Keep each public controller's protocol errors specific while sharing the content state machine.
+pub(super) fn to_range_operation_error(error: TreeError, operation: &str) -> Error {
+    match error {
+        TreeError::RangeContentProtocol(reason) => {
+            Error::new(Status::InvalidArg, format!("{operation}: {reason}"))
+        }
+        other => to_napi_error(other),
+    }
+}

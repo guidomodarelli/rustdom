@@ -1,4 +1,4 @@
-//! Iterative cloneContents control. The host executes effects only after native borrows end.
+//! Shared iterative Range content control. The host executes effects only after native borrows end.
 use super::{
     constants::{COMMENT_NODE, PROCESSING_INSTRUCTION_NODE, TEXT_NODE},
     error::{Result, TreeError},
@@ -8,7 +8,7 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum CloneAction {
+pub(crate) enum ContentAction {
     CreateFragment(NodeId),
     CloneNode {
         node: NodeId,
@@ -27,6 +27,15 @@ pub(crate) enum CloneAction {
     Complete(NodeId),
     InvalidDoctype,
     InconsistentRoots,
+    ReplaceData {
+        node: NodeId,
+        offset: f64,
+        count: f64,
+    },
+    Extracted {
+        fragment: NodeId,
+        collapse: Option<BoundaryPoint>,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -37,8 +46,10 @@ enum Phase {
     First,
     SingleSlice,
     SingleAppend,
+    SingleRemove,
     FirstSlice,
     FirstAppend,
+    FirstRemove,
     FirstElementAppend,
     FirstChild,
     AwaitFirstChild,
@@ -47,6 +58,7 @@ enum Phase {
     Last,
     LastSlice,
     LastAppend,
+    LastRemove,
     LastElementAppend,
     LastChild,
     AwaitLastChild,
@@ -81,19 +93,33 @@ enum CreatedNode {
 }
 
 /// Frames and results contain IDs only. Completion/cancellation immediately releases frame buffers.
-pub(crate) struct CloneMachine {
+pub(crate) struct ContentMachine {
     frames: Vec<Frame>,
     waiting: Option<CreatedNode>,
-    completed: Option<NodeId>,
+    completed: Option<(NodeId, Option<BoundaryPoint>)>,
     canceled: bool,
+    extracting: bool,
 }
-impl CloneMachine {
+impl ContentMachine {
     pub fn new(start: BoundaryPoint, end: BoundaryPoint) -> Self {
         Self {
             frames: vec![Frame::new(start, end)],
             waiting: None,
             completed: None,
             canceled: false,
+            extracting: false,
+        }
+    }
+    pub fn for_extraction(start: BoundaryPoint, end: BoundaryPoint) -> Self {
+        let mut machine = Self::new(start, end);
+        machine.extracting = true;
+        machine
+    }
+    fn finished_action(&self, fragment: NodeId, collapse: Option<BoundaryPoint>) -> ContentAction {
+        if self.extracting {
+            ContentAction::Extracted { fragment, collapse }
+        } else {
+            ContentAction::Complete(fragment)
         }
     }
     pub fn cancel(&mut self) {
@@ -105,40 +131,46 @@ impl CloneMachine {
         self.completed.is_some()
     }
 
-    pub fn step(&mut self, tree: &mut TreeStore, created: f64) -> Result<CloneAction> {
+    pub fn step(&mut self, tree: &mut TreeStore, created: f64) -> Result<ContentAction> {
         if self.canceled {
-            return Err(TreeError::RangeCloneProtocol("operation was canceled"));
+            return Err(TreeError::RangeContentProtocol("operation was canceled"));
         }
         if let Some(destination) = self.waiting {
             let id = node_id(created)?;
             tree.links(id)?;
-            let frame = self.frames.last_mut().ok_or(TreeError::RangeCloneProtocol(
-                "no frame is waiting for a node",
-            ))?;
+            let frame = self
+                .frames
+                .last_mut()
+                .ok_or(TreeError::RangeContentProtocol(
+                    "no frame is waiting for a node",
+                ))?;
             match destination {
                 CreatedNode::Fragment => frame.fragment = id,
                 CreatedNode::Clone => frame.cloned = id,
             }
             self.waiting = None;
         } else if created != 0.0 {
-            return Err(TreeError::RangeCloneProtocol(
+            return Err(TreeError::RangeContentProtocol(
                 "step received a node without a pending creation",
             ));
         }
-        if let Some(fragment) = self.completed {
-            return Ok(CloneAction::Complete(fragment));
+        if let Some((fragment, collapse)) = self.completed {
+            return Ok(self.finished_action(fragment, collapse));
         }
         loop {
-            let frame = self.frames.last_mut().ok_or(TreeError::RangeCloneProtocol(
-                "operation has no active frame",
-            ))?;
+            let frame = self
+                .frames
+                .last_mut()
+                .ok_or(TreeError::RangeContentProtocol(
+                    "operation has no active frame",
+                ))?;
             match frame.phase {
                 Phase::Fragment => {
                     tree.links(frame.start.node)?;
                     tree.links(frame.end.node)?;
                     frame.phase = Phase::Check;
                     self.waiting = Some(CreatedNode::Fragment);
-                    return Ok(CloneAction::CreateFragment(frame.start.node));
+                    return Ok(ContentAction::CreateFragment(frame.start.node));
                 }
                 Phase::Check => {
                     if frame.start.node == frame.end.node && frame.start.offset == frame.end.offset
@@ -149,7 +181,7 @@ impl CloneMachine {
                     {
                         frame.phase = Phase::SingleSlice;
                         self.waiting = Some(CreatedNode::Clone);
-                        return Ok(CloneAction::CloneNode {
+                        return Ok(ContentAction::CloneNode {
                             node: frame.start.node,
                             deep: false,
                         });
@@ -159,28 +191,40 @@ impl CloneMachine {
                 }
                 Phase::SingleSlice => {
                     frame.phase = Phase::SingleAppend;
-                    return Ok(CloneAction::SliceData {
+                    return Ok(ContentAction::SliceData {
                         node: frame.cloned,
                         offset: frame.start.offset,
                         count: frame.end.offset - frame.start.offset,
                     });
                 }
                 Phase::SingleAppend => {
-                    frame.phase = Phase::Complete;
-                    return Ok(CloneAction::AppendChild {
+                    frame.phase = if self.extracting {
+                        Phase::SingleRemove
+                    } else {
+                        Phase::Complete
+                    };
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
+                    });
+                }
+                Phase::SingleRemove => {
+                    frame.phase = Phase::Complete;
+                    return Ok(ContentAction::ReplaceData {
+                        node: frame.start.node,
+                        offset: frame.start.offset,
+                        count: frame.end.offset - frame.start.offset,
                     });
                 }
                 Phase::Selection => {
                     let Some(selection) = tree.range_content_selection(frame.start, frame.end)?
                     else {
                         self.cancel();
-                        return Ok(CloneAction::InconsistentRoots);
+                        return Ok(ContentAction::InconsistentRoots);
                     };
                     if selection.has_doctype {
                         self.cancel();
-                        return Ok(CloneAction::InvalidDoctype);
+                        return Ok(ContentAction::InvalidDoctype);
                     }
                     let mut pins = Vec::with_capacity(selection.contained.len() + 5);
                     pins.extend(
@@ -197,7 +241,7 @@ impl CloneMachine {
                     pins.extend(selection.contained.iter().copied());
                     frame.selection = Some(selection);
                     frame.phase = Phase::First;
-                    return Ok(CloneAction::PinNodes(pins));
+                    return Ok(ContentAction::PinNodes(pins));
                 }
                 Phase::First => {
                     let first = frame
@@ -216,7 +260,7 @@ impl CloneMachine {
                         Phase::FirstElementAppend
                     };
                     self.waiting = Some(CreatedNode::Clone);
-                    return Ok(CloneAction::CloneNode {
+                    return Ok(ContentAction::CloneNode {
                         node: if is_character {
                             frame.start.node
                         } else {
@@ -230,22 +274,36 @@ impl CloneMachine {
                     let count =
                         tree.range_node_length(frame.start.node)? as f64 - frame.start.offset;
                     frame.phase = Phase::FirstAppend;
-                    return Ok(CloneAction::SliceData {
+                    return Ok(ContentAction::SliceData {
                         node: frame.cloned,
                         offset: frame.start.offset,
                         count,
                     });
                 }
                 Phase::FirstAppend => {
-                    frame.phase = Phase::Contents;
-                    return Ok(CloneAction::AppendChild {
+                    frame.phase = if self.extracting {
+                        Phase::FirstRemove
+                    } else {
+                        Phase::Contents
+                    };
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
                     });
                 }
+                Phase::FirstRemove => {
+                    let count =
+                        tree.range_node_length(frame.start.node)? as f64 - frame.start.offset;
+                    frame.phase = Phase::Contents;
+                    return Ok(ContentAction::ReplaceData {
+                        node: frame.start.node,
+                        offset: frame.start.offset,
+                        count,
+                    });
+                }
                 Phase::FirstElementAppend => {
                     frame.phase = Phase::FirstChild;
-                    return Ok(CloneAction::AppendChild {
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
                     });
@@ -270,15 +328,21 @@ impl CloneMachine {
                     let selection = frame.selection.as_ref().expect("selection prepared");
                     if let Some(&node) = selection.contained.get(frame.contained_index) {
                         frame.contained_index += 1;
+                        if self.extracting {
+                            return Ok(ContentAction::AppendChild {
+                                parent: frame.fragment,
+                                node,
+                            });
+                        }
                         frame.phase = Phase::ContainedAppend;
                         self.waiting = Some(CreatedNode::Clone);
-                        return Ok(CloneAction::CloneNode { node, deep: true });
+                        return Ok(ContentAction::CloneNode { node, deep: true });
                     }
                     frame.phase = Phase::Last;
                 }
                 Phase::ContainedAppend => {
                     frame.phase = Phase::Contents;
-                    return Ok(CloneAction::AppendChild {
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
                     });
@@ -300,29 +364,41 @@ impl CloneMachine {
                         Phase::LastElementAppend
                     };
                     self.waiting = Some(CreatedNode::Clone);
-                    return Ok(CloneAction::CloneNode {
+                    return Ok(ContentAction::CloneNode {
                         node: if is_character { frame.end.node } else { last },
                         deep: false,
                     });
                 }
                 Phase::LastSlice => {
                     frame.phase = Phase::LastAppend;
-                    return Ok(CloneAction::SliceData {
+                    return Ok(ContentAction::SliceData {
                         node: frame.cloned,
                         offset: 0.0,
                         count: frame.end.offset,
                     });
                 }
                 Phase::LastAppend => {
-                    frame.phase = Phase::Complete;
-                    return Ok(CloneAction::AppendChild {
+                    frame.phase = if self.extracting {
+                        Phase::LastRemove
+                    } else {
+                        Phase::Complete
+                    };
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
                     });
                 }
+                Phase::LastRemove => {
+                    frame.phase = Phase::Complete;
+                    return Ok(ContentAction::ReplaceData {
+                        node: frame.end.node,
+                        offset: 0.0,
+                        count: frame.end.offset,
+                    });
+                }
                 Phase::LastElementAppend => {
                     frame.phase = Phase::LastChild;
-                    return Ok(CloneAction::AppendChild {
+                    return Ok(ContentAction::AppendChild {
                         parent: frame.fragment,
                         node: frame.cloned,
                     });
@@ -345,28 +421,29 @@ impl CloneMachine {
                 }
                 Phase::Complete => {
                     let fragment = frame.fragment;
+                    let collapse = frame.selection.as_ref().map(|selection| selection.collapse);
                     self.frames.pop();
                     if let Some(parent) = self.frames.last_mut() {
                         parent.phase = match parent.phase {
                             Phase::AwaitFirstChild => Phase::Contents,
                             Phase::AwaitLastChild => Phase::Complete,
                             _ => {
-                                return Err(TreeError::RangeCloneProtocol(
+                                return Err(TreeError::RangeContentProtocol(
                                     "child completed outside a pending subclone",
                                 ));
                             }
                         };
-                        return Ok(CloneAction::AppendChild {
+                        return Ok(ContentAction::AppendChild {
                             parent: parent.cloned,
                             node: fragment,
                         });
                     }
                     self.frames = Vec::new();
-                    self.completed = Some(fragment);
-                    return Ok(CloneAction::Complete(fragment));
+                    self.completed = Some((fragment, collapse));
+                    return Ok(self.finished_action(fragment, collapse));
                 }
                 Phase::AwaitFirstChild | Phase::AwaitLastChild => {
-                    return Err(TreeError::RangeCloneProtocol(
+                    return Err(TreeError::RangeContentProtocol(
                         "pending subclone has no frame",
                     ));
                 }
@@ -400,18 +477,175 @@ mod tests {
     }
 
     #[test]
-    fn should_deliver_character_clone_effects_in_order_without_changing_the_source() {
+    fn should_extract_character_data_after_appending_the_clone_without_explicit_collapse() {
         let mut tree = TreeStore::new();
         let source = node(&mut tree, r#"{"kind":3,"value":"abcd"}"#);
-        let mut operation = CloneMachine::new(point(source, 1.0), point(source, 3.0));
+        let mut operation = ContentMachine::for_extraction(point(source, 1.0), point(source, 3.0));
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(source)
+            ContentAction::CreateFragment(source)
         );
         let fragment = node(&mut tree, r#"{"kind":11}"#);
         assert_eq!(
             operation.step(&mut tree, fragment as f64).unwrap(),
-            CloneAction::CloneNode {
+            ContentAction::CloneNode {
+                node: source,
+                deep: false
+            }
+        );
+        let copied = node(&mut tree, r#"{"kind":3,"value":"abcd"}"#);
+        assert_eq!(
+            operation.step(&mut tree, copied as f64).unwrap(),
+            ContentAction::SliceData {
+                node: copied,
+                offset: 1.0,
+                count: 2.0
+            }
+        );
+        let slice = tree.substring_data(copied as f64, 1, 2).unwrap();
+        tree.set_character_data(copied as f64, TEXT_NODE, slice)
+            .unwrap();
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::AppendChild {
+                parent: fragment,
+                node: copied
+            }
+        );
+        tree.append(fragment as f64, copied as f64).unwrap();
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::ReplaceData {
+                node: source,
+                offset: 1.0,
+                count: 2.0
+            }
+        );
+        tree.replace_character_data(source as f64, 1, 2, &[])
+            .unwrap();
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::Extracted {
+                fragment,
+                collapse: None
+            }
+        );
+        assert_eq!(
+            tree.character_data(source as f64).unwrap(),
+            &"ad".encode_utf16().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            tree.character_data(copied as f64).unwrap(),
+            &"bc".encode_utf16().collect::<Vec<_>>()
+        );
+        assert_eq!(operation.frames.capacity(), 0);
+    }
+
+    #[test]
+    fn should_move_contained_identities_and_keep_the_original_collapse_point() {
+        let mut tree = TreeStore::new();
+        let root = node(&mut tree, r#"{"kind":1,"name":"main"}"#);
+        let first = node(&mut tree, r#"{"kind":1,"name":"b"}"#);
+        let last = node(&mut tree, r#"{"kind":1,"name":"i"}"#);
+        tree.append(root as f64, first as f64).unwrap();
+        tree.append(root as f64, last as f64).unwrap();
+        let mut operation = ContentMachine::for_extraction(point(root, 0.0), point(root, 2.0));
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::CreateFragment(root)
+        );
+        let fragment = node(&mut tree, r#"{"kind":11}"#);
+        assert!(matches!(
+            operation.step(&mut tree, fragment as f64).unwrap(),
+            ContentAction::PinNodes(_)
+        ));
+        for original in [first, last] {
+            assert_eq!(
+                operation.step(&mut tree, 0.0).unwrap(),
+                ContentAction::AppendChild {
+                    parent: fragment,
+                    node: original
+                }
+            );
+            tree.remove(original as f64).unwrap();
+            tree.append(fragment as f64, original as f64).unwrap();
+        }
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::Extracted {
+                fragment,
+                collapse: Some(point(root, 0.0))
+            }
+        );
+        assert_eq!(tree.links(fragment).unwrap().first, first);
+        assert_eq!(tree.links(fragment).unwrap().last, last);
+        assert_eq!(tree.child_count(root).unwrap(), 0);
+    }
+
+    #[test]
+    fn should_read_first_removal_length_again_after_the_append_effect() {
+        let mut tree = TreeStore::new();
+        let root = node(&mut tree, r#"{"kind":1,"name":"main"}"#);
+        let first = node(&mut tree, r#"{"kind":3,"value":"left"}"#);
+        let last = node(&mut tree, r#"{"kind":3,"value":"right"}"#);
+        tree.append(root as f64, first as f64).unwrap();
+        tree.append(root as f64, last as f64).unwrap();
+        let mut operation = ContentMachine::for_extraction(point(first, 1.0), point(last, 2.0));
+        operation.step(&mut tree, 0.0).unwrap();
+        let fragment = node(&mut tree, r#"{"kind":11}"#);
+        assert!(matches!(
+            operation.step(&mut tree, fragment as f64).unwrap(),
+            ContentAction::PinNodes(_)
+        ));
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::CloneNode {
+                node: first,
+                deep: false
+            }
+        );
+        let copied = node(&mut tree, r#"{"kind":3,"value":"left"}"#);
+        assert_eq!(
+            operation.step(&mut tree, copied as f64).unwrap(),
+            ContentAction::SliceData {
+                node: copied,
+                offset: 1.0,
+                count: 3.0
+            }
+        );
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::AppendChild {
+                parent: fragment,
+                node: copied
+            }
+        );
+        tree.append(fragment as f64, copied as f64).unwrap();
+        tree.set_character_data(first as f64, TEXT_NODE, "leftmore".encode_utf16().collect())
+            .unwrap();
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::ReplaceData {
+                node: first,
+                offset: 1.0,
+                count: 7.0
+            }
+        );
+    }
+
+    #[test]
+    fn should_deliver_character_clone_effects_in_order_without_changing_the_source() {
+        let mut tree = TreeStore::new();
+        let source = node(&mut tree, r#"{"kind":3,"value":"abcd"}"#);
+        let mut operation = ContentMachine::new(point(source, 1.0), point(source, 3.0));
+        assert_eq!(
+            operation.step(&mut tree, 0.0).unwrap(),
+            ContentAction::CreateFragment(source)
+        );
+        let fragment = node(&mut tree, r#"{"kind":11}"#);
+        assert_eq!(
+            operation.step(&mut tree, fragment as f64).unwrap(),
+            ContentAction::CloneNode {
                 node: source,
                 deep: false
             }
@@ -420,7 +654,7 @@ mod tests {
         let instruction = operation.step(&mut tree, cloned as f64).unwrap();
         assert_eq!(
             instruction,
-            CloneAction::SliceData {
+            ContentAction::SliceData {
                 node: cloned,
                 offset: 1.0,
                 count: 2.0
@@ -431,7 +665,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::AppendChild {
+            ContentAction::AppendChild {
                 parent: fragment,
                 node: cloned
             }
@@ -439,7 +673,7 @@ mod tests {
         tree.append(fragment as f64, cloned as f64).unwrap();
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::Complete(fragment)
+            ContentAction::Complete(fragment)
         );
         assert_eq!(
             tree.character_data(source as f64).unwrap(),
@@ -461,7 +695,7 @@ mod tests {
         }
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::Complete(fragment)
+            ContentAction::Complete(fragment)
         );
     }
 
@@ -475,19 +709,19 @@ mod tests {
         tree.append(root as f64, first as f64).unwrap();
         tree.append(first as f64, start as f64).unwrap();
         tree.append(root as f64, end as f64).unwrap();
-        let mut operation = CloneMachine::new(point(start, 1.0), point(end, 2.0));
+        let mut operation = ContentMachine::new(point(start, 1.0), point(end, 2.0));
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(start)
+            ContentAction::CreateFragment(start)
         );
         let fragment = node(&mut tree, r#"{"kind":11}"#);
         assert!(matches!(
             operation.step(&mut tree, fragment as f64).unwrap(),
-            CloneAction::PinNodes(_)
+            ContentAction::PinNodes(_)
         ));
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CloneNode {
+            ContentAction::CloneNode {
                 node: first,
                 deep: false
             }
@@ -495,7 +729,7 @@ mod tests {
         let copied_first = node(&mut tree, r#"{"kind":1,"name":"b"}"#);
         assert_eq!(
             operation.step(&mut tree, copied_first as f64).unwrap(),
-            CloneAction::AppendChild {
+            ContentAction::AppendChild {
                 parent: fragment,
                 node: copied_first
             }
@@ -505,10 +739,11 @@ mod tests {
         tree.append(first as f64, added as f64).unwrap();
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(start)
+            ContentAction::CreateFragment(start)
         );
         let child_fragment = node(&mut tree, r#"{"kind":11}"#);
-        let CloneAction::PinNodes(pins) = operation.step(&mut tree, child_fragment as f64).unwrap()
+        let ContentAction::PinNodes(pins) =
+            operation.step(&mut tree, child_fragment as f64).unwrap()
         else {
             panic!("Subclone must pin its current selection");
         };
@@ -528,27 +763,27 @@ mod tests {
         let root = node(&mut tree, r#"{"kind":1,"name":"html"}"#);
         tree.append(document as f64, doctype as f64).unwrap();
         tree.append(document as f64, root as f64).unwrap();
-        let mut operation = CloneMachine::new(point(document, 0.0), point(document, 2.0));
+        let mut operation = ContentMachine::new(point(document, 0.0), point(document, 2.0));
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(document)
+            ContentAction::CreateFragment(document)
         );
         let fragment = node(&mut tree, r#"{"kind":11}"#);
         assert_eq!(
             operation.step(&mut tree, fragment as f64).unwrap(),
-            CloneAction::InvalidDoctype
+            ContentAction::InvalidDoctype
         );
         assert!(operation.step(&mut tree, 0.0).is_err());
         assert_eq!(tree.child_count(document).unwrap(), 2);
         let detached = node(&mut tree, r#"{"kind":3,"value":"detached"}"#);
-        let mut disconnected = CloneMachine::new(point(root, 0.0), point(detached, 1.0));
+        let mut disconnected = ContentMachine::new(point(root, 0.0), point(detached, 1.0));
         assert_eq!(
             disconnected.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(root)
+            ContentAction::CreateFragment(root)
         );
         assert_eq!(
             disconnected.step(&mut tree, fragment as f64).unwrap(),
-            CloneAction::InconsistentRoots
+            ContentAction::InconsistentRoots
         );
     }
 
@@ -558,13 +793,13 @@ mod tests {
         let source = tree.allocate().unwrap() as NodeId;
         let reserved = tree.reserve_handles().unwrap() as NodeId;
         let before = tree.statistics();
-        let mut invalid = CloneMachine::new(point(source, 0.0), point(reserved, 0.0));
+        let mut invalid = ContentMachine::new(point(source, 0.0), point(reserved, 0.0));
         assert!(invalid.step(&mut tree, 0.0).is_err());
-        let mut operation = CloneMachine::new(point(source, 0.0), point(source, 0.0));
+        let mut operation = ContentMachine::new(point(source, 0.0), point(source, 0.0));
         assert!(operation.step(&mut tree, source as f64).is_err());
         assert_eq!(
             operation.step(&mut tree, 0.0).unwrap(),
-            CloneAction::CreateFragment(source)
+            ContentAction::CreateFragment(source)
         );
         assert!(operation.step(&mut tree, 0.0).is_err());
         assert!(operation.step(&mut tree, reserved as f64).is_err());
@@ -573,7 +808,7 @@ mod tests {
         let fragment = node(&mut tree, r#"{"kind":11}"#);
         assert_eq!(
             operation.step(&mut tree, fragment as f64).unwrap(),
-            CloneAction::Complete(fragment)
+            ContentAction::Complete(fragment)
         );
         operation.cancel();
         operation.cancel();

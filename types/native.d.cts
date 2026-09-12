@@ -93,6 +93,17 @@ export class NativeRangeClone {
   cancel(): void;
   static statistics(): NativeRangeStatistics;
 }
+/** Extraction extends the shared content effects with removal of original CharacterData. */
+export const RangeExtractAction: { readonly CreateFragment: 0; readonly CloneNode: 1; readonly SliceData: 2; readonly AppendChild: 3; readonly PinNodes: 4; readonly Complete: 5; readonly InvalidDoctype: 6; readonly InconsistentRoots: 7; readonly ReplaceData: 8 };
+/** Complete carries parent/offset for the final root-Range collapse; zero parent preserves the mutation-driven position. */
+export interface RangeExtractInstruction extends Omit<RangeCloneInstruction, 'kind'> { kind: typeof RangeExtractAction[keyof typeof RangeExtractAction]; }
+/** Numeric extraction controller; no ownership of DOM nodes or the source Range. */
+export class NativeRangeExtract {
+  constructor(state: NativeRange);
+  readonly complete: boolean;
+  cancel(): void;
+  static statistics(): NativeRangeStatistics;
+}
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
   constructor();
@@ -144,6 +155,7 @@ export class NativeTree {
   rangeFragmentContext(state: NativeRange, htmlDocument: boolean): number | null;
   /** Advances numeric control only; created must be zero except when supplying an allocated result of the preceding creation. */
   rangeCloneStep(operation: NativeRangeClone, created: number): RangeCloneInstruction;
+  rangeExtractStep(operation: NativeRangeExtract, created: number): RangeExtractInstruction;
   /** Returns null for an invalid start. Both endpoint handles and the inserted node must be allocated. */
   rangeInsertionPlan(state: NativeRange, node: number): RangeInsertionPlan | null;
   /** Re-reads topology after splitting/removing nodes. A zero reference means append. */

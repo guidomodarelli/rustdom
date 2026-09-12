@@ -8,20 +8,21 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas; quedan setters de Node y reflexión WebIDL, entre otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
-- La planificación de normalize usa Rust; quedan su driver de mutaciones y los ajustes de rangos.
-- La comparación de puntos de Range usa el árbol Rust; quedan estado, conversiones WebIDL y otras operaciones de Range.
-- comparePoint, isPointInRange e intersectsNode toman sus decisiones en Rust; quedan el estado, la entrega de referencias vivas y otras operaciones de Range.
+- La planificación de normalize y sus ajustes de rangos usan Rust; queda la entrega de mutaciones y hooks.
+- La comparación de puntos de Range usa el árbol Rust; las conversiones WebIDL y otras operaciones de la plataforma siguen pendientes.
+- comparePoint, isPointInRange e intersectsNode toman sus decisiones en Rust; el puente entrega las referencias vivas.
 - El stringifier de Range reúne el texto seleccionado en Rust; se conservan las particularidades de CDATA y UTF-16 del jsdom de referencia.
-- Los ocho setters/selecciones y commonAncestorContainer deciden en Rust; las referencias vivas y ajustes durante otras mutaciones todavía conservan responsabilidades JS.
-- Los extremos numéricos de Range/StaticRange y collapsed son canónicos en Rust. JS mantiene ownership visible a V8 y snapshots para consumidores existentes; quedan los algoritmos de ajuste por mutaciones, Selection y otros métodos.
-- La comparación pública de Range, los planes de collapse y la copia de su estado se ejecutan en Rust; quedan operaciones de contenidos y ajustes de rangos por otras mutaciones.
+- Los ocho setters/selecciones y commonAncestorContainer deciden en Rust; el puente conserva las referencias visibles a V8.
+- Los extremos numéricos de Range/StaticRange y collapsed son canónicos en Rust. JS mantiene ownership visible a V8 y snapshots; Selection y validaciones WebIDL generales siguen pendientes.
+- La comparación pública de Range, los planes de collapse y la copia de su estado se ejecutan en Rust.
 - deleteContents planifica nodos, texto parcial y colapso en Rust; el driver preserva las mutaciones y hooks actuales. Su WPT de iframes está bloqueado por la clonación de CDATA adoptada en HTML del jsdom fijado; el bloqueo y la evidencia permanecen explícitos y no cierran compatibilidad completa.
-- cloneContents/extractContents seleccionan ancestro, hijos parciales y contenidos en Rust, junto con el colapso de extracción; quedan creación de nodos/clones, recursión y entrega de mutaciones de sus drivers.
+- cloneContents/extractContents seleccionan ancestro, hijos parciales y contenidos en Rust, junto con el colapso de extracción; sus pilas de control nativas se detallan abajo.
 - surroundContents valida nodos parciales y tipo de contenedor en Rust recorriendo ancestros; el driver de extracción/inserción y sus errores tardíos siguen usando los hooks actuales.
-- insertNode elige padre/referencia y calcula el offset en Rust en las etapas originales; quedan validación general de jerarquía y entrega de las mutaciones, splits y ajustes de rangos vivos.
+- insertNode elige padre/referencia y calcula el offset en Rust en las etapas originales; quedan validación general de jerarquía y entrega de mutaciones/splits.
 - Los ajustes de extremos por CharacterData, splitText, inserción, eliminación y normalize se calculan y aplican en Rust. JS conserva enumeración de rangos débiles y entrega de cambios de identidad; quedan los drivers de operaciones y otros métodos de Range/Selection.
 - createContextualFragment selecciona contexto y body sintético en Rust; la creación del body y el parser conservan sus drivers actuales, incluidas las rutas XML y scripts pendientes de migración integral.
-- cloneContents controla selección, orden de efectos y subclonaciones mediante una pila Rust; JS conserva factories, copia concreta de nodos/cloningSteps y entrega de append/substring. El driver de extractContents sigue pendiente.
+- cloneContents controla selección, orden de efectos y subclonaciones mediante una pila Rust; JS conserva factories, copia concreta de nodos/cloningSteps y entrega de append/substring.
+- extractContents comparte la pila Rust y controla las etapas de texto, movimientos y colapso; el puente conserva factories y efectos. Quedan la copia concreta de nodos, hooks de mutación y otros algoritmos DOM generales.
 - Optimizar lecturas y creación/clonado de Range: el benchmark de estado nativo del 12/09 muestra aproximadamente 4× de costo frente a jsdom en esos patrones, aunque otras consultas son más rápidas.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
