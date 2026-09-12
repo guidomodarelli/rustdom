@@ -74,9 +74,18 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
+      const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
+      if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (name === 'node-equality-100') {
+      if (name === 'namespace-lookup-1000') {
+        result = 0;
+        for (let iteration = 0; iteration < 1000; iteration++) {
+          result += Number(namespaceNode.lookupNamespaceURI('p') === 'urn:benchmark');
+          result += Number(namespaceNode.lookupPrefix('urn:benchmark') === 'p');
+          result += Number(namespaceNode.isDefaultNamespace('http://www.w3.org/1999/xhtml'));
+        }
+      } else if (name === 'node-equality-100') {
         result = 0;
         for (let iteration = 0; iteration < 100; iteration++) result += Number(comparisonRoot.isEqualNode(comparisonPeer));
       } else if (name === 'node-position-1000') {
@@ -138,6 +147,7 @@ async function measure(name, size) {
       if (name === 'attribute-data-100') assert.equal(result, 'value-99');
       if (name === 'attribute-collections-100') assert.equal(result, 'value-99');
       if (name === 'node-equality-100') assert.equal(result, 100);
+      if (name === 'namespace-lookup-1000') assert.equal(result, 3000);
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
@@ -170,7 +180,7 @@ async function main() {
   const plan = [
     ...[25, 250, 1000].flatMap((size) => ['construct-native-eligible', 'innerHTML'].map((name) => ({ name, size }))),
     ...['construct-script-compatible', 'selectors-100', 'mutations-100', 'character-data-100', 'attribute-data-100',
-      'attribute-collections-100', 'node-equality-100', 'node-position-1000'].map((name) => ({ name, size: 250 })),
+      'attribute-collections-100', 'node-equality-100', 'node-position-1000', 'namespace-lookup-1000'].map((name) => ({ name, size: 250 })),
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

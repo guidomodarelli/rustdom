@@ -139,6 +139,11 @@ async function exerciseNodeComparisons(runtime) {
       const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
       const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
       assert.ok(root.isEqualNode(clone));
+      const namespace = 'urn:' + 'n'.repeat(8192);
+      clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
+      assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);
+      assert.equal(clone.firstChild.lookupPrefix(namespace), 'transient');
+      assert.ok(clone.firstChild.isDefaultNamespace('http://www.w3.org/1999/xhtml'));
       // Populate sibling-index caches in a subtree that must disappear while root stays alive.
       assert.ok(clone.firstChild.compareDocumentPosition(clone.lastChild) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
       assert.equal(root.contains(clone), false);

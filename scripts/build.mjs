@@ -198,7 +198,26 @@ const equalMethodEnd = nodeSource.indexOf('  isSameNode(node) {', equalMethodSta
 if (equalMethodStart < 0 || equalMethodEnd < equalMethodStart) throw new Error('rustdom build: Node.isEqualNode boundary changed');
 nodeSource = nodeSource.slice(0, equalMethodStart) +
   '  isEqualNode(node) { return domSymbolTree.equalNode(this, node); }\n\n' + nodeSource.slice(equalMethodEnd);
+nodeSource = substituteOnce(nodeSource, 'const { clone, locateNamespacePrefix, locateNamespace } = require("../node");',
+  'const { clone } = require("../node");');
+const namespaceStart = nodeSource.indexOf('  lookupPrefix(namespace) {');
+const namespaceEnd = nodeSource.indexOf('  contains(other) {', namespaceStart);
+if (namespaceStart < 0 || namespaceEnd < namespaceStart) throw new Error('rustdom build: Node namespace boundary changed');
+nodeSource = nodeSource.slice(0, namespaceStart) +
+  '  lookupPrefix(namespace) { return domSymbolTree.lookupPrefix(this, namespace); }\n\n' +
+  '  lookupNamespaceURI(prefix) { return domSymbolTree.lookupNamespaceURI(this, prefix); }\n\n' +
+  '  isDefaultNamespace(namespace) { return domSymbolTree.isDefaultNamespace(this, namespace); }\n\n' + nodeSource.slice(namespaceEnd);
 await writeFile(nodePath, nodeSource);
+/** All public namespace callers now reach Rust; remove the unused recursive helpers. */
+const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
+let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');
+const namespaceHelpersStart = nodeHelpers.indexOf('// https://dom.spec.whatwg.org/#locate-a-namespace-prefix');
+if (namespaceHelpersStart < 0 || !nodeHelpers.slice(namespaceHelpersStart).includes('exports.locateNamespace =')) {
+  throw new Error('rustdom build: namespace helpers boundary changed');
+}
+nodeHelpers = substituteOnce(nodeHelpers.slice(0, namespaceHelpersStart),
+  'const { HTML_NS, XMLNS_NS } = require("./helpers/namespaces");', 'const { HTML_NS } = require("./helpers/namespaces");');
+await writeFile(nodeHelpersPath, nodeHelpers);
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
 await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
   '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',

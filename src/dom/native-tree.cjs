@@ -124,6 +124,12 @@ class NativeSymbolTree extends SymbolTree {
   containsNode(ancestor, descendant) { return descendant !== null && this._arena.containsNode(this._ensure(ancestor), this._ensure(descendant)); }
   /** @param {object} left - Context node. @param {object} right - Compared node. @returns {number} Native document position bitmask. */
   compareDocumentPosition(left, right) { return this._arena.compareDocumentPosition(this._ensure(left), this._ensure(right)); }
+  /** @param {object} node - Context node. @param {string|null} prefix - Requested prefix. @returns {string|null} Native namespace lookup. */
+  lookupNamespaceURI(node, prefix) { return this._arena.lookupNamespaceUri(this._ensure(node), prefix); }
+  /** @param {object} node - Context node. @param {string|null} namespace - Requested URI. @returns {string|null} Native prefix lookup. */
+  lookupPrefix(node, namespace) { return this._arena.lookupPrefix(this._ensure(node), namespace); }
+  /** @param {object} node - Context node. @param {string|null} namespace - Requested URI. @returns {boolean} Native default namespace comparison. */
+  isDefaultNamespace(node, namespace) { return this._arena.isDefaultNamespace(this._ensure(node), namespace); }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
   initializeAttribute(node, kind, data) {

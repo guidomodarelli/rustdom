@@ -10,9 +10,17 @@ use super::{
 };
 use napi::{
     Error, JsValue, Result, Status,
-    bindgen_prelude::{ArrayBuffer, Float64Array, Unknown, Utf16String},
+    bindgen_prelude::{ArrayBuffer, Either, Float64Array, Unknown, Utf16String},
 };
 use napi_derive::napi;
+
+/// Node-API copies borrowed UTF-8 directly into V8; preserve isolated UTF-16 units on the fallback.
+fn namespace_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>> {
+    value.map(|value| match value {
+        DomString::Text(value) => Either::A(value.as_str()),
+        DomString::Utf16(value) => Either::B(value.clone().into()),
+    })
+}
 
 #[napi(object)]
 pub struct TreeLinks {
@@ -247,6 +255,41 @@ impl NativeTree {
     pub fn contains_node(&self, ancestor: f64, descendant: f64) -> Result<bool> {
         self.store
             .contains_node(ancestor, descendant)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn lookup_namespace_uri(
+        &self,
+        handle: f64,
+        prefix: Option<Utf16String>,
+    ) -> Result<Option<Either<&str, Utf16String>>> {
+        self.store
+            .lookup_namespace_uri(handle, prefix.as_deref())
+            .map(namespace_result)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn lookup_prefix(
+        &self,
+        handle: f64,
+        namespace: Option<Utf16String>,
+    ) -> Result<Option<Either<&str, Utf16String>>> {
+        self.store
+            .lookup_prefix(handle, namespace.as_deref())
+            .map(namespace_result)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn is_default_namespace(
+        &self,
+        handle: f64,
+        namespace: Option<Utf16String>,
+    ) -> Result<bool> {
+        self.store
+            .is_default_namespace(handle, namespace.as_deref())
             .map_err(to_napi_error)
     }
 
