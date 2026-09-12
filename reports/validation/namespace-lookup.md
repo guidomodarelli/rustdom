@@ -92,3 +92,17 @@ casos HTML5**. Los [3.433 WPT](../compatibility/2026-09-12T05-14-05.416Z-linux-w
 mantienen paridad y los ocho fallos de estándares compartidos ya documentados.
 Las rutas de mutación implícita que la revisión detectó después se corrigen en
 el PR base; esta unión conserva explícitamente ese trabajo pendiente.
+
+## Integración de la frontera completa de atributos
+
+La unión con `21817575405bfe642f640134884bcc7597a5f191` y la comparación
+integrada pasó **59 tests Rust, 237 contratos Node, 7 Jest, 11 Vitest, 4 VM y
+1.784 casos HTML5**. Los [3.433 WPT](../compatibility/2026-09-12T06-10-35.489Z-linux-wpt.json)
+mantienen paridad. El fix base de atributos ya quedó integrado en main con
+revisión limpia y el checkpoint010; esta fase conserva su revisión independiente.
+
+El [estrés final de esta unión](../memory/2026-09-12T06-13-21.110Z-linux-x64.json)
+pasó en ambos motores con cero supervivientes entre 882 Document/Window y
+1.500 nodos comparados. Los registros nativos de nodos, datos, colecciones,
+owners y holders volvieron a cero. Rustdom registró heap +0,91 MiB y RSS
++11,25 MiB; se conserva esa variación sin atribuirla a una mejora de memoria.
