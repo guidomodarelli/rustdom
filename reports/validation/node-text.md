@@ -89,3 +89,17 @@ pasó las tres pruebas de texto sin errores, pérdidas definitivas/indirectas ni
 supresiones. Permanecen los 48 bytes posibles y 544 alcanzables del runtime.
 El ejecutable fue `9982e6bcc3a7960219fd5d52c6ffbd5a75d71ba2e6c0254177782be6f29bbe88`
 (SHA-256); no se presenta ese análisis focal como repetición de Memcheck completo.
+
+## Unión final con los guards completos
+
+La unión con namespaces y `21817575405bfe642f640134884bcc7597a5f191` pasó
+**62 tests Rust, 240 contratos Node, 7 Jest, 11 Vitest, 4 VM y 1.784 casos HTML5**.
+Los [3.525 WPT](../compatibility/2026-09-12T06-19-47.177Z-linux-wpt.json) mantienen
+paridad, con los 92 casos de texto aprobados. Los fixes de atributos y las
+comparaciones ya están en main, con sus checkpoints10 y11 y revisiones limpias.
+
+El [estrés de la unión final](../memory/2026-09-12T06-22-18.022Z-linux-x64.json)
+pasó en ambos motores con los 500 strings retenidos deliberadamente. Se
+recolectaron 882 Document/Window y 1.500 nodos comparados; los registros nativos
+de nodos, datos, colecciones, owners y holders volvieron a cero. Rustdom
+registró heap +0,97 MiB y RSS +11,08 MiB, conservados en el informe.
