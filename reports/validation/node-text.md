@@ -67,3 +67,25 @@ La unión con namespaces y `2f128fe193c2e0678956c87ba5e5da96a6996a54` pasó
 Los [3.525 WPT](../compatibility/2026-09-12T05-22-55.882Z-linux-wpt.json) mantienen
 paridad. El PR base sigue corrigiendo las transiciones implícitas de atributos
 detectadas por su revisión posterior; esta validación no cierra ese hallazgo.
+
+## Copia directa de buffers
+
+El agregado copia ahora los buffers UTF-16 por slices y reutiliza los enlaces
+ya leídos al comenzar el ascenso. Conserva el fallback UTF-8 y el mismo orden,
+sin agregar caches ni referencias persistentes. Pasaron Clippy, **57 tests Rust**,
+los tres contratos públicos y los [92 WPT de texto](../compatibility/2026-09-12T05-27-13.602Z-linux-wpt.json).
+
+El [benchmark posterior](../benchmarks/2026-09-12T05-43-20.255Z-linux-x64.md)
+midió **3,561 ms** para 250 filas y **21,015 ms** para 1.000: aproximadamente
+12 % y 13 % menos que el baseline Rust anterior. jsdom midió 10,709 ms y
+43,873 ms; los ratios de esa ejecución son **3,01× y 2,09×**. Las muestras y
+la variación del oráculo quedan visibles; no se compara el tiempo de suites.
+
+El [estrés posterior](../memory/2026-09-12T05-29-11.679Z-linux-x64.json) pasó
+con 500 strings retenidos y cero supervivientes entre 882 Document/Window y
+1.500 nodos comparados. Rustdom registró heap +0,97 MiB y RSS +12,81 MiB.
+El [Memcheck focal](../memory/2026-09-12T05-32-45Z-text-slices-valgrind.log)
+pasó las tres pruebas de texto sin errores, pérdidas definitivas/indirectas ni
+supresiones. Permanecen los 48 bytes posibles y 544 alcanzables del runtime.
+El ejecutable fue `9982e6bcc3a7960219fd5d52c6ffbd5a75d71ba2e6c0254177782be6f29bbe88`
+(SHA-256); no se presenta ese análisis focal como repetición de Memcheck completo.

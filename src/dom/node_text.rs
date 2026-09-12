@@ -38,16 +38,18 @@ impl TreeStore {
                 .get(&current)
                 .ok_or(TreeError::MissingData(current))?;
             if matches!(data.kind, TEXT_NODE | CDATA_SECTION_NODE) {
-                output.extend(data.value.units());
+                match &data.value {
+                    DomString::Utf16(units) => output.extend_from_slice(units),
+                    DomString::Text(text) => output.extend(text.encode_utf16()),
+                }
             }
-            let links = self.links(current)?;
+            let mut links = self.links(current)?;
             if links.first != 0 {
                 current = links.first;
                 continue;
             }
             // Walk upward only as far as the requested root, without a stack of node handles.
             loop {
-                let links = self.links(current)?;
                 if links.next != 0 {
                     current = links.next;
                     break;
@@ -57,6 +59,7 @@ impl TreeStore {
                     current = 0;
                     break;
                 }
+                links = self.links(current)?;
             }
         }
         Ok(Some(NodeText::Descendants(output)))
