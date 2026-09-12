@@ -14,6 +14,7 @@ use super::{
     range_deletion::{DeletionKind, DeletionPlan},
     range_queries::PointRelation,
     range_state_binding::NativeRange,
+    range_surround::SurroundStatus,
     store,
 };
 use napi::{
@@ -187,6 +188,14 @@ pub enum RangeDeletionKind {
     Empty,
     CharacterData,
     Tree,
+    InconsistentRoots,
+}
+
+#[napi]
+pub enum RangeSurroundStatus {
+    Ready,
+    PartialNonText,
+    InvalidParentType,
     InconsistentRoots,
 }
 
@@ -533,6 +542,24 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_surround_status(
+        &self,
+        state: &NativeRange,
+        parent: f64,
+    ) -> Result<RangeSurroundStatus> {
+        let (start, end) = state.raw_points()?;
+        self.store
+            .range_surround_status(start, end, parent)
+            .map(|status| match status {
+                SurroundStatus::Ready => RangeSurroundStatus::Ready,
+                SurroundStatus::PartialNonText => RangeSurroundStatus::PartialNonText,
+                SurroundStatus::InvalidParentType => RangeSurroundStatus::InvalidParentType,
+                SurroundStatus::InconsistentRoots => RangeSurroundStatus::InconsistentRoots,
+            })
             .map_err(to_napi_error)
     }
 

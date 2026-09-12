@@ -372,6 +372,21 @@ const containedHelperEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#
 if (containedHelperStart < 0 || containedHelperEnd < containedHelperStart) throw new Error('rustdom build: contained helper changed');
 rangeSource = rangeSource.slice(0, containedHelperStart) + rangeSource.slice(containedHelperEnd);
 rangeSource = substituteOnce(rangeSource, 'const { compareBoundaryPointsPosition } = require("./boundary-point");\n', '');
+const surroundStart = rangeSource.indexOf('  surroundContents(newParent) {');
+const surroundWork = rangeSource.indexOf('    const fragment = extractRange(this);', surroundStart);
+if (surroundStart < 0 || surroundWork < surroundStart) throw new Error('rustdom build: surroundContents preflight changed');
+rangeSource = rangeSource.slice(0, surroundStart) +
+  '  surroundContents(newParent) {\n    domSymbolTree.validateRangeSurround(this, newParent, DOMException);\n\n' + rangeSource.slice(surroundWork);
+const partialHelperStart = rangeSource.indexOf('// https://dom.spec.whatwg.org/#partially-contained');
+const partialHelperEnd = rangeSource.indexOf('// https://dom.spec.whatwg.org/#concept-range-insert', partialHelperStart);
+if (partialHelperStart < 0 || partialHelperEnd < partialHelperStart) throw new Error('rustdom build: partial containment helper changed');
+rangeSource = rangeSource.slice(0, partialHelperStart) + rangeSource.slice(partialHelperEnd);
+const nextHelperStart = rangeSource.indexOf('function nextNodeDescendant(node) {');
+const nextHelperEnd = rangeSource.indexOf('function setBoundaryPointStart(range, node, offset)', nextHelperStart);
+if (nextHelperStart < 0 || nextHelperEnd < nextHelperStart) throw new Error('rustdom build: Range next-descendant helper changed');
+rangeSource = rangeSource.slice(0, nextHelperStart) + rangeSource.slice(nextHelperEnd);
+rangeSource = substituteOnce(rangeSource, 'const { nodeRoot, nodeLength, isInclusiveAncestor } = require("../helpers/node");',
+  'const { nodeRoot, nodeLength } = require("../helpers/node");');
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

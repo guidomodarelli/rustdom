@@ -46,6 +46,7 @@ async function measure(name, size) {
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const contentOperation = RANGE_CONTENT_OPERATIONS[name];
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
+  const surroundsContent = name === 'range-surround-contents';
   const environment = name.startsWith('environment-')
     ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
       : (await import('../src/environments/vitest.mjs')).default
@@ -86,10 +87,13 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
-      const rangeNodes = name.startsWith('range-') && !stringifyReads ? [...document.querySelectorAll('tr')] : null;
+      const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent ? [...document.querySelectorAll('tr')] : null;
       const ranges = name === 'range-state-lifecycle-1000' || contentOperation ? null
         : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
+      const surroundRange = surroundsContent ? document.createRange() : null;
+      const surrounding = surroundsContent ? document.createElement('section') : null;
+      if (surroundRange) { surroundRange.selectNode(document.querySelector('table')); surrounding.innerHTML = '<em>old</em>'; }
       const contentRange = contentOperation ? document.createRange() : null;
       if (contentRange) {
         contentRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
@@ -104,7 +108,7 @@ async function measure(name, size) {
       const rangePointNodes = name === 'range-text-point-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
-      const textRoot = name === 'text-content-100' || stringifyReads || contentOperation || name.startsWith('normalize-') ? document.querySelector('table') : null;
+      const textRoot = name === 'text-content-100' || stringifyReads || contentOperation || surroundsContent || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
       let consumedTextUnits = 0;
       const stringifyRange = stringifyReads ? document.createRange() : null;
@@ -122,6 +126,8 @@ async function measure(name, size) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
         }
+      } else if (surroundsContent) {
+        surroundRange.surroundContents(surrounding);
       } else if (contentOperation) {
         result = contentRange[contentOperation]();
       } else if (name === 'range-control-1000') {
@@ -265,6 +271,12 @@ async function measure(name, size) {
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
       if (name === 'range-state-read-1000') assert.equal(result, RANGE_STATE_ITERATIONS * 2);
+      if (surroundsContent) {
+        assert.equal(document.body.firstChild, surrounding); assert.equal(surrounding.firstChild, textRoot);
+        assert.equal(surrounding.textContent, expectedText);
+        assert.equal(surroundRange.startContainer, document.body);
+        assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
+      }
       if (removesContent) {
         assert.equal(document.querySelectorAll('tr').length, 2);
         assert.equal(document.querySelector('table').textContent, `Row ${String(size - 1).at(-1)}`);
@@ -339,6 +351,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_CONTENT_OPERATIONS).map((name) => ({ name, size }))),
+    ...[250, 1000].map((size) => ({ name: 'range-surround-contents', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
