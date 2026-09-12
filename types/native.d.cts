@@ -80,6 +80,19 @@ export class NativeRange {
   applyTreeMutation(kind: typeof RangeMutationKind[keyof typeof RangeMutationKind], source: number, target: number, index: number, count: number): number;
 }
 
+/** Effect instructions for cloneContents; only a creation requests a nonzero completed-node handle on the next step. */
+export const RangeCloneAction: { readonly CreateFragment: 0; readonly CloneNode: 1; readonly SliceData: 2; readonly AppendChild: 3; readonly PinNodes: 4; readonly Complete: 5; readonly InvalidDoctype: 6; readonly InconsistentRoots: 7 };
+/** Numeric instruction; unused scalar fields are zero/false, and nodes exists only for PinNodes. */
+export interface RangeCloneInstruction { kind: typeof RangeCloneAction[keyof typeof RangeCloneAction]; node: number; parent: number;
+  offset: number; count: number; deep: boolean; nodes?: number[]; }
+/** Snapshot controller. It owns no DOM nodes or source Range; the host retains and delivers referenced nodes synchronously. */
+export class NativeRangeClone {
+  constructor(state: NativeRange);
+  readonly complete: boolean;
+  /** Releases frame buffers immediately; further steps reject. Idempotent after failure/completion. */
+  cancel(): void;
+  static statistics(): NativeRangeStatistics;
+}
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
   constructor();
@@ -129,6 +142,8 @@ export class NativeTree {
   rangeSurroundStatus(state: NativeRange, parent: number): typeof RangeSurroundStatus[keyof typeof RangeSurroundStatus];
   /** Null rejects the start type; zero requests a synthetic body. Both endpoint handles must already be allocated. */
   rangeFragmentContext(state: NativeRange, htmlDocument: boolean): number | null;
+  /** Advances numeric control only; created must be zero except when supplying an allocated result of the preceding creation. */
+  rangeCloneStep(operation: NativeRangeClone, created: number): RangeCloneInstruction;
   /** Returns null for an invalid start. Both endpoint handles and the inserted node must be allocated. */
   rangeInsertionPlan(state: NativeRange, node: number): RangeInsertionPlan | null;
   /** Re-reads topology after splitting/removing nodes. A zero reference means append. */

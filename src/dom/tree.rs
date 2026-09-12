@@ -9,6 +9,7 @@ use super::{
     node_text::NodeText,
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
+    range_clone_binding::{NativeRangeClone, RangeCloneInstruction},
     range_content_queries::ContentSelection,
     range_control::RangeComparison as CoreRangeComparison,
     range_deletion::{DeletionKind, DeletionPlan},
@@ -564,6 +565,15 @@ impl NativeTree {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
             .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_clone_step(
+        &mut self,
+        operation: &mut NativeRangeClone,
+        created: f64,
+    ) -> Result<RangeCloneInstruction> {
+        operation.step(&mut self.store, created)
     }
 
     #[napi]

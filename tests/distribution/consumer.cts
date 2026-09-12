@@ -91,6 +91,18 @@ const contents = tree.rangeContentSelection(rangeState);
 assert.ok(contents); assert.equal(contents.commonAncestor, textHandle); assert.deepEqual(contents.contained, []);
 assert.equal(tree.rangeSurroundStatus(rangeState, namespaceHandle), native.RangeSurroundStatus.Ready);
 assert.equal(tree.rangeFragmentContext(rangeState, true), namespaceHandle);
+const cloneOperation = new native.NativeRangeClone(rangeState);
+assert.equal(tree.rangeCloneStep(cloneOperation, 0).kind, native.RangeCloneAction.CreateFragment);
+const cloneFragment = tree.allocate(); tree.setSimpleData(cloneFragment, 11, '');
+assert.equal(tree.rangeCloneStep(cloneOperation, cloneFragment).kind, native.RangeCloneAction.CloneNode);
+const clonedText = tree.allocate(); tree.setCharacterData(clonedText, 3, tree.getCharacterData(textHandle));
+const sliceInstruction = tree.rangeCloneStep(cloneOperation, clonedText);
+assert.equal(sliceInstruction.kind, native.RangeCloneAction.SliceData);
+tree.setCharacterData(clonedText, 3, tree.substringData(clonedText, sliceInstruction.offset, sliceInstruction.count));
+const appendInstruction = tree.rangeCloneStep(cloneOperation, 0); tree.append(appendInstruction.parent, appendInstruction.node);
+assert.equal(tree.rangeCloneStep(cloneOperation, 0).kind, native.RangeCloneAction.Complete);
+assert.equal(cloneOperation.complete, true); assert.equal(tree.textContent(cloneFragment), 'native\ud800');
+cloneOperation.cancel(); tree.release(clonedText); tree.release(cloneFragment);
 assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textHandle, startOffset: 0,
   parent: namespaceHandle, reference: textHandle, splitText: true });
 assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);

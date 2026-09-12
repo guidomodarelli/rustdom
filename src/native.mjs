@@ -5,6 +5,7 @@ export const {
   NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField,
   RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
   RangeMutationKind, RangeEndpoint,
+  NativeRangeClone, RangeCloneAction,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;
