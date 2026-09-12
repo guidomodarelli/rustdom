@@ -107,3 +107,40 @@ duración completa de una suite Jest/Vitest.
 
 Muestras crudas, hardware y fingerprints:
 [`2026-09-12T02-22-23.362Z-linux-x64-unicode-host.json`](../benchmarks/2026-09-12T02-22-23.362Z-linux-x64-unicode-host.json).
+
+## Integración concurrente y distribución
+
+Se integraron por rebase los cambios de activación de metadata y operaciones
+hasta `36642afd25193e567c5b9c2e5a1dbc2346a976d9`. Se clasificó el drift como
+relacionado porque afecta `TreeStore`, consultas y serialización. No hubo
+conflictos ni cambios en los módulos propios del perfil Unicode. La unión pasó:
+
+- `cargo fmt -- --check` y 29 tests Rust.
+- Un build release nuevo del addon y del runtime.
+- 44 tests Node 24: Unicode, colecciones, activación de metadata y operaciones.
+
+Los logs están en
+[`unicode-host-after-rebase-rust.log`](unicode-host-after-rebase-rust.log) y
+[`unicode-host-after-rebase-node24.log`](unicode-host-after-rebase-node24.log).
+Se conserva la matriz Node 22 previa para la superficie Unicode sin cambios.
+Clippy y el typecheck previos también se conservan; no se afirma que se hayan
+repetido sobre el rebase. El benchmark mide los módulos Unicode sin cambios,
+con el fingerprint del binario utilizado antes de integrar los otros fixes.
+
+La allowlist de `scripts/package.mjs` incluye `host-unicode.cjs`.
+`scripts/package-check.mjs` ahora ejecuta `tests/distribution/unicode-host.cjs`
+contra las instalaciones reales de npm y pnpm. Para este fix se ejecutó además
+un consumidor focal del tgz fuera del checkout, instalado con npm en `/tmp`:
+
+- Instalación real: aprobada.
+- Node 24.14.1 con identificador desconocido y tablas reales Unicode 17: aprobado.
+- Node 22.12.0 con identificador desconocido y tablas reales Unicode 16: aprobado.
+- Comparación de nombres, propiedades y HTML contra jsdom independiente: aprobada.
+- Consumidor temporal eliminado después de verificar su ruta y marker.
+
+SHA-256 del tgz probado:
+`7f868d757a559805a90a20af8b0a29d9a014eb4dec46c4029f12441a4c8acb6f`.
+Evidencia:
+[`unicode-host-focal.json`](../distribution/unicode-host-focal.json).
+La matriz completa npm/pnpm de este nuevo gate queda para CI; no se declara
+ejecutada localmente en este fix.

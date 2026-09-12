@@ -75,6 +75,7 @@ try {
     };
     run(`${manager}-types`, [packageBin('typescript', 'tsc')], directory);
     run(`${manager}-commonjs`, [join(directory, 'compiled/consumer.cjs')], directory);
+    run(`${manager}-unicode-host`, [join(directory, 'types/unicode-host.cjs')], directory);
     run(`${manager}-esm-vm`, [join(directory, 'compiled/consumer.mjs')], directory);
     run(`${manager}-worker-assets`, [join(directory, 'compiled/worker-assets.mjs')], directory);
     run(`${manager}-jest`, [packageBin('jest', 'jest'), '--runInBand'], directory);
