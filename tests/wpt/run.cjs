@@ -76,12 +76,18 @@ async function run(engine, file) {
 /** @returns {Promise<void>} Saves complete observations, including shared upstream failures and any mismatch. */
 async function main() {
   const requested = process.argv.slice(2);
-  const suites = requested.length ? requested : Object.keys(manifest.suites);
+  // Keep unsupported bootstrap paths reproducible by explicit request, without counting them as coverage.
+  const blockedSuites = manifest.blockedSuites || {};
+  const suites = requested.length ? requested : Object.keys(manifest.suites).filter((suite) => !blockedSuites[suite]);
   for (const suite of suites) assert.ok(manifest.suites[suite], `Unknown WPT suite: ${suite}`);
   const report = { capturedAt: new Date().toISOString(), node: process.version, platform: process.platform,
     wptRevision: manifest.revision, jsdom: require('jsdom/package.json').version, suites,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
+    blockedSuites, complete: Object.keys(blockedSuites).length === 0,
     results: [], pass: true };
+  for (const [suite, blocker] of Object.entries(blockedSuites)) {
+    process.stdout.write(`BLOQUEADO ${suite}: ${blocker.reason}; no se cuenta como cobertura aprobada.\n`);
+  }
   for (const file of suites.flatMap((suite) => manifest.suites[suite])) {
     try {
       const expected = await run(engines.jsdom, file);

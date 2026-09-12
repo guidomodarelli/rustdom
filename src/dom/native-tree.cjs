@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -301,6 +301,17 @@ class NativeSymbolTree extends SymbolTree {
     const result = this._arena.rangeTextFromState(range._nativeRange);
     if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
+  }
+  /** @param {object} range - Live Range implementation. @returns {object|null} Stable original identities and ordered work for deleteContents. */
+  rangeDeletionPlan(range) {
+    const plan = this._arena.rangeDeletionPlan(range._nativeRange);
+    if (plan.kind === RangeDeletionKind.Empty) return null;
+    if (plan.kind === RangeDeletionKind.InconsistentRoots) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+    plan.characterDataOnly = plan.kind === RangeDeletionKind.CharacterData;
+    plan.startNode = this._object(plan.startNode); plan.endNode = this._object(plan.endNode);
+    plan.collapseNode = this._object(plan.collapseNode);
+    plan.nodes = plan.nodes.map((id) => this._object(id));
+    return plan;
   }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {

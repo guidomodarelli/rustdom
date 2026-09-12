@@ -33,6 +33,12 @@ export interface NativeBoundaryPoint { node: number; offset: number; }
 export interface NativeCollapsePlan extends NativeBoundaryPoint { updateStart: boolean; }
 /** Ordering or rejection returned by a complete native Range comparison. */
 export const RangeComparison: { readonly Before: -1; readonly Equal: 0; readonly After: 1; readonly UnsupportedMethod: 2; readonly DifferentRoot: 3; readonly InconsistentRoots: 4 };
+/** Read-only deletion action, delivered to existing mutation hooks by the host. */
+export const RangeDeletionKind: { readonly Empty: 0; readonly CharacterData: 1; readonly Tree: 2; readonly InconsistentRoots: 3 };
+/** Original endpoints and outermost removal identities; no mutation is applied by this plan. */
+export interface RangeDeletionPlan { kind: typeof RangeDeletionKind[keyof typeof RangeDeletionKind]; startNode: number; startOffset: number;
+  startCount: number; endNode: number; endOffset: number; startCharacter: boolean; endCharacter: boolean; nodes: number[];
+  collapseNode: number; collapseOffset: number; }
 /** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
 export class NativeRange {
   constructor();
@@ -91,6 +97,7 @@ export class NativeTree {
   rangeBoundaryPlanFromState(state: NativeRange, mode: typeof RangeBoundaryMode[keyof typeof RangeBoundaryMode], node: number, offset: number): RangeBoundaryPlan;
   commonAncestorFromState(state: NativeRange): number;
   compareRangeStates(current: NativeRange, how: number, source: NativeRange): typeof RangeComparison[keyof typeof RangeComparison];
+  rangeDeletionPlan(state: NativeRange): RangeDeletionPlan;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */

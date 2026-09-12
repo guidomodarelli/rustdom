@@ -6,26 +6,6 @@ use super::{
 };
 
 impl TreeStore {
-    fn after_subtree(&self, mut node: NodeId) -> Result<NodeId> {
-        while node != 0 {
-            let links = self.links(node)?;
-            if links.next != 0 {
-                return Ok(links.next);
-            }
-            node = links.parent;
-        }
-        Ok(0)
-    }
-
-    fn following_node(&self, node: NodeId) -> Result<NodeId> {
-        let first = self.links(node)?.first;
-        if first != 0 {
-            Ok(first)
-        } else {
-            self.after_subtree(node)
-        }
-    }
-
     fn is_text(&self, node: NodeId) -> Result<bool> {
         Ok(self
             .data

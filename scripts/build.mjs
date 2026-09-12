@@ -294,6 +294,18 @@ if (rangeComparisonStart < 0 || rangeComparisonEnd < rangeComparisonStart) throw
 rangeSource = rangeSource.slice(0, rangeComparisonStart) +
   '  compareBoundaryPoints(how, sourceRange) { return domSymbolTree.compareRanges(this, how, sourceRange, DOMException); }\n\n' +
   rangeSource.slice(rangeComparisonEnd);
+const rangeDeleteStart = rangeSource.indexOf('  deleteContents() {');
+const rangeDeleteEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#dom-range-extractcontents', rangeDeleteStart);
+if (rangeDeleteStart < 0 || rangeDeleteEnd < rangeDeleteStart) throw new Error('rustdom build: Range deletion boundary changed');
+rangeSource = rangeSource.slice(0, rangeDeleteStart) +
+  '  deleteContents() {\n' +
+  '    const plan = domSymbolTree.rangeDeletionPlan(this);\n    if (!plan) return;\n' +
+  '    if (plan.characterDataOnly) {\n      plan.startNode.replaceData(plan.startOffset, plan.startCount, "");\n      return;\n    }\n' +
+  '    if (plan.startCharacter) plan.startNode.replaceData(plan.startOffset, plan.startCount, "");\n' +
+  '    for (const node of plan.nodes) {\n      const parent = domSymbolTree.parent(node);\n      parent.removeChild(node);\n    }\n' +
+  '    if (plan.endCharacter) plan.endNode.replaceData(0, plan.endOffset, "");\n' +
+  '    this._setLiveRangeStart(plan.collapseNode, plan.collapseOffset);\n' +
+  '    this._setLiveRangeEnd(plan.collapseNode, plan.collapseOffset);\n  }\n\n' + rangeSource.slice(rangeDeleteEnd);
 const rangeModesStart = rangeSource.indexOf('const RANGE_COMPARISON_TYPE = {');
 const rangeModesEnd = rangeSource.indexOf('class RangeImpl', rangeModesStart);
 if (rangeModesStart < 0 || rangeModesEnd < rangeModesStart) throw new Error('rustdom build: Range comparison mode constants changed');

@@ -10,6 +10,7 @@ use super::{
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
     range_control::RangeComparison as CoreRangeComparison,
+    range_deletion::{DeletionKind, DeletionPlan},
     range_queries::PointRelation,
     range_state_binding::NativeRange,
     store,
@@ -178,6 +179,51 @@ pub enum RangeComparison {
     UnsupportedMethod = 2,
     DifferentRoot = 3,
     InconsistentRoots = 4,
+}
+
+#[napi]
+pub enum RangeDeletionKind {
+    Empty,
+    CharacterData,
+    Tree,
+    InconsistentRoots,
+}
+
+#[napi(object)]
+pub struct RangeDeletionPlan {
+    pub kind: RangeDeletionKind,
+    pub start_node: f64,
+    pub start_offset: f64,
+    pub start_count: f64,
+    pub end_node: f64,
+    pub end_offset: f64,
+    pub start_character: bool,
+    pub end_character: bool,
+    pub nodes: Vec<f64>,
+    pub collapse_node: f64,
+    pub collapse_offset: f64,
+}
+impl From<DeletionPlan> for RangeDeletionPlan {
+    fn from(plan: DeletionPlan) -> Self {
+        Self {
+            kind: match plan.kind {
+                DeletionKind::Empty => RangeDeletionKind::Empty,
+                DeletionKind::CharacterData => RangeDeletionKind::CharacterData,
+                DeletionKind::Tree => RangeDeletionKind::Tree,
+                DeletionKind::InconsistentRoots => RangeDeletionKind::InconsistentRoots,
+            },
+            start_node: plan.start.node as f64,
+            start_offset: plan.start.offset,
+            start_count: plan.start_count,
+            end_node: plan.end.node as f64,
+            end_offset: plan.end.offset,
+            start_character: plan.start_character,
+            end_character: plan.end_character,
+            nodes: plan.nodes.into_iter().map(|node| node as f64).collect(),
+            collapse_node: plan.collapse.node as f64,
+            collapse_offset: plan.collapse.offset,
+        }
+    }
 }
 
 #[napi(object)]
@@ -458,6 +504,15 @@ impl NativeTree {
     ) -> Result<Option<bool>> {
         self.store
             .range_intersects_node(node, start, start_offset, end, end_offset)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn range_deletion_plan(&mut self, state: &NativeRange) -> Result<RangeDeletionPlan> {
+        let (start, end) = state.raw_points()?;
+        self.store
+            .range_deletion_plan(start, end)
+            .map(Into::into)
             .map_err(to_napi_error)
     }
 
