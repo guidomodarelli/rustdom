@@ -103,6 +103,11 @@ const appendInstruction = tree.rangeCloneStep(cloneOperation, 0); tree.append(ap
 assert.equal(tree.rangeCloneStep(cloneOperation, 0).kind, native.RangeCloneAction.Complete);
 assert.equal(cloneOperation.complete, true); assert.equal(tree.textContent(cloneFragment), 'native\ud800');
 cloneOperation.cancel(); tree.release(clonedText); tree.release(cloneFragment);
+const extractOperation = new native.NativeRangeExtract(rangeState);
+const extractInstruction = tree.rangeExtractStep(extractOperation, 0);
+assert.equal(extractInstruction.kind, native.RangeExtractAction.CreateFragment);
+assert.equal(extractInstruction.node, textHandle);
+extractOperation.cancel(); assert.throws(() => tree.rangeExtractStep(extractOperation, 0), { code: 'InvalidArg' });
 assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textHandle, startOffset: 0,
   parent: namespaceHandle, reference: textHandle, splitText: true });
 assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);

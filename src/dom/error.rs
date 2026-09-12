@@ -5,7 +5,7 @@ use std::fmt;
 pub enum TreeError {
     InvalidHandle,
     UninitializedRange,
-    RangeCloneProtocol(&'static str),
+    RangeContentProtocol(&'static str),
     UnknownHandle(u64),
     AlreadyAttached(u64),
     SelfSibling(u64),
@@ -31,7 +31,7 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RangeCloneProtocol(reason) => write!(formatter, "NativeRangeClone: {reason}"),
+            Self::RangeContentProtocol(reason) => write!(formatter, "NativeRangeContent: {reason}"),
             Self::UninitializedRange => write!(
                 formatter,
                 "NativeRange: the requested boundary is not initialized"

@@ -1,9 +1,9 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
-const { cloneContents } = require('./range-clone-driver.cjs');
+const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -384,7 +384,11 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} range - Receiver Range. @param {object} fragmentFactory - Existing fragment factory. @param {Function} cloneNode - Existing clone hook. @param {object} exceptionFactory - Existing error factory. @returns {object} Cloned fragment. */
   cloneRangeContents(range, fragmentFactory, cloneNode, exceptionFactory) {
-    return cloneContents(this, range, fragmentFactory, cloneNode, exceptionFactory);
+    return runContents(this, range, fragmentFactory, cloneNode, exceptionFactory, 'clone');
+  }
+  /** @param {object} range - Receiver Range. @param {object} fragmentFactory - Existing fragment factory. @param {Function} cloneNode - Existing clone hook. @param {object} exceptionFactory - Existing error factory. @returns {object} Extracted fragment after ordered mutations. */
+  extractRangeContents(range, fragmentFactory, cloneNode, exceptionFactory) {
+    return runContents(this, range, fragmentFactory, cloneNode, exceptionFactory, 'extract');
   }
   /** @param {object} range - Receiver Range. @returns {object|null} Existing context element or a request for the synthetic body. */
   rangeFragmentContext(range) {
@@ -615,7 +619,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
-      rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics() };
+      rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }
 

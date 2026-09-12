@@ -71,7 +71,7 @@ test('should reject foreign native classes and incomplete state before creating 
 });
 
 test('should release clone controllers and DOM roots after successful and rejected operations', (context) => {
-  const child = spawnSync(process.execPath, ['--expose-gc', path.join(__dirname, 'helpers/range-clone-memory.cjs')], {
+  const child = spawnSync(process.execPath, ['--expose-gc', path.join(__dirname, 'helpers/range-content-memory.cjs'), 'clone'], {
     cwd: path.join(__dirname, '..'), encoding: 'utf8', timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
   });
   if (child.error) throw child.error;

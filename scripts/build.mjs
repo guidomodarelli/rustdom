@@ -51,8 +51,8 @@ await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
-const cloneDriverSource = await readFile('src/dom/range-clone-driver.cjs', 'utf8');
-await writeFile('dist/range-clone-driver.cjs', substituteOnce(cloneDriverSource,
+const contentDriverSource = await readFile('src/dom/range-content-driver.cjs', 'utf8');
+await writeFile('dist/range-content-driver.cjs', substituteOnce(contentDriverSource,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 
 /** Keep Attr metadata canonical in Rust while existing DOM hooks retain ownership edges. */
@@ -453,6 +453,14 @@ if (cloneDriverStart < 0 || cloneDriverEnd < cloneDriverStart) throw new Error('
 rangeSource = rangeSource.slice(0, cloneDriverStart) +
   'function cloneRange(range) {\n' +
   '  return domSymbolTree.cloneRangeContents(range, DocumentFragment, clone, DOMException);\n}\n\n' + rangeSource.slice(cloneDriverEnd);
+const extractDriverStart = rangeSource.indexOf('function extractRange(range) {');
+const extractDriverEnd = rangeSource.indexOf('module.exports = {', extractDriverStart);
+if (extractDriverStart < 0 || extractDriverEnd < extractDriverStart) throw new Error('rustdom build: extractContents driver boundary changed');
+rangeSource = rangeSource.slice(0, extractDriverStart) +
+  'function extractRange(range) {\n' +
+  '  return domSymbolTree.extractRangeContents(range, DocumentFragment, clone, DOMException);\n}\n\n' + rangeSource.slice(extractDriverEnd);
+rangeSource = substituteOnce(rangeSource, 'const { nodeRoot, nodeLength } = require("../helpers/node");',
+  'const { nodeRoot } = require("../helpers/node");');
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
