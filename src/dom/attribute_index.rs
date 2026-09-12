@@ -1,16 +1,28 @@
 //! Ordered Attr collections, qualified-name caches and ownership without JavaScript references.
 use super::store::NodeId;
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::HashMap;
+use rustc_hash::{FxBuildHasher, FxHashSet};
+#[path = "attribute_storage.rs"]
+mod storage;
+use storage::{CompactMap, CompactSet, compact_vector};
+
+type NodeMap<Value> = CompactMap<NodeId, Value, FxBuildHasher>;
+type NodeSet = CompactSet<NodeId, FxBuildHasher>;
 
 #[derive(Default)]
 pub struct AttributeIndex {
     pub ordered: Vec<NodeId>,
-    pub names: HashMap<Vec<u16>, Vec<NodeId>>,
-    references: FxHashMap<NodeId, usize>,
+    pub names: CompactMap<Vec<u16>, Vec<NodeId>>,
+    references: NodeMap<usize>,
 }
 
 impl AttributeIndex {
+    /// Occupancy is independent for ordering, legacy name aliases and their reference counts.
+    fn compact(&mut self) {
+        compact_vector(&mut self.ordered);
+        self.names.compact();
+        self.references.compact();
+    }
+
     fn retain(&mut self, id: NodeId) {
         *self.references.entry(id).or_default() += 1;
     }
@@ -28,11 +40,11 @@ impl AttributeIndex {
 
 #[derive(Default)]
 pub struct AttributeCollections {
-    pub elements: FxHashMap<NodeId, AttributeIndex>,
-    pub owners: FxHashMap<NodeId, NodeId>,
-    holders: FxHashMap<NodeId, FxHashSet<NodeId>>,
+    pub elements: NodeMap<AttributeIndex>,
+    pub owners: NodeMap<NodeId>,
+    holders: NodeMap<NodeSet>,
     // Constructor-only owner links are not collection references.
-    loose_owners: FxHashMap<NodeId, FxHashSet<NodeId>>,
+    loose_owners: NodeMap<NodeSet>,
 }
 
 /// Only GC-visible references change in the host; ordering and lookup decisions stay native.
@@ -47,7 +59,7 @@ pub struct AttributeDelta {
 
 impl AttributeCollections {
     pub fn holder_count(&self) -> usize {
-        self.holders.values().map(FxHashSet::len).sum()
+        self.holders.values().map(|holders| holders.len()).sum()
     }
     pub fn set_initial_owner(&mut self, attribute: NodeId, element: NodeId) {
         self.owners.insert(attribute, element);
@@ -61,6 +73,9 @@ impl AttributeCollections {
             attributes.remove(&attribute);
             if attributes.is_empty() {
                 self.loose_owners.remove(&element);
+                self.loose_owners.compact();
+            } else {
+                attributes.compact();
             }
         }
     }
@@ -85,11 +100,15 @@ impl AttributeCollections {
                     holders.remove(&element);
                     if holders.is_empty() {
                         self.holders.remove(&id);
+                    } else {
+                        holders.compact();
                     }
                 }
                 released.push(id);
             }
         }
+        self.holders.compact();
+        self.owners.compact();
         released
     }
 
@@ -135,11 +154,14 @@ impl AttributeCollections {
             }
             if entry.is_empty() {
                 index.names.remove(name);
+            } else {
+                compact_vector(entry);
             }
         }
         if let Some(id) = evicted {
             index.release(id);
         }
+        index.compact();
         self.owners.remove(&attribute);
         let released = self.finish(element, &[attribute, evicted.unwrap_or(attribute)]);
         AttributeDelta {
@@ -183,6 +205,7 @@ impl AttributeCollections {
             index.release(id);
         }
         index.retain(new);
+        index.compact();
         self.owners.remove(&old);
         self.remove_loose_owner(new, element);
         self.owners.insert(new, element);
@@ -216,6 +239,8 @@ impl AttributeCollections {
                     holders.remove(&id);
                     if holders.is_empty() {
                         self.holders.remove(attribute);
+                    } else {
+                        holders.compact();
                     }
                 }
             }
@@ -241,10 +266,17 @@ impl AttributeCollections {
                 entry.retain(|&attribute| attribute != id);
                 if entry.is_empty() {
                     index.names.remove(name);
+                } else {
+                    compact_vector(entry);
                 }
             }
             index.references.remove(&id);
+            index.compact();
         }
+        self.elements.compact();
+        self.owners.compact();
+        self.holders.compact();
+        self.loose_owners.compact();
         if self.elements.is_empty() {
             self.elements.shrink_to_fit();
         }
@@ -260,6 +292,10 @@ impl AttributeCollections {
         affected
     }
 }
+
+#[cfg(test)]
+#[path = "attribute_capacity_tests.rs"]
+mod capacity_tests;
 
 #[cfg(test)]
 mod tests {

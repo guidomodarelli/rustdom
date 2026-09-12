@@ -1,0 +1,12 @@
+{
+  "scenario": "Standard Rust HashMap with all hashes colliding, filled to capacity, then removed entries",
+  "initialCapacityRequest": 4096,
+  "peakCapacity": 7168,
+  "attemptedCompaction": "capacity > 64 && len <= capacity / 4; shrink_to(max(16, 2 * len))",
+  "measurement": "Separate local diagnostic process with a counting System allocator, subtracting allocated bytes before table creation. No production allocator replacement or diagnostic exports.",
+  "results": [
+    { "remainingEntries": 0, "reportedCapacity": 0, "capacityAfterOneInsertion": 7168, "peakAllocatedBytes": 139280, "retainedAllocatedBytes": 139280, "allocatedBytesAfterDrop": 0 },
+    { "remainingEntries": 8, "reportedCapacity": 8, "capacityAfterOneInsertion": 7168, "peakAllocatedBytes": 139280, "retainedAllocatedBytes": 139280, "allocatedBytesAfterDrop": 0 }
+  ],
+  "regressionTest": "attribute_storage.rs exercises both map states and a set with an actual colliding hasher; the post-compaction reinsertion must preserve entries and use capacity below 256."
+}

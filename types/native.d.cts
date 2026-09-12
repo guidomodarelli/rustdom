@@ -46,6 +46,10 @@ export class NativeTree {
   setHtmlElementFromAttributes(handle: number, name: string, attributes: number[]): void;
   initializeAttributeCollection(element: number): void;
   setUnicodeVersion(version: string): void;
+  /** Selects bundled tables; returns false without changing state for an unknown profile. */
+  trySetUnicodeVersion(version: string): boolean;
+  /** Copies a Uint32Array's complete non-shared buffer of strictly increasing host lowercase-change scalars. */
+  setHostUnicodeCaseChanges(changes: ArrayBuffer): void;
   /** Updates element metadata while preserving its canonical attribute collection. */
   setElementMetadata(element: number, encoded: string): void;
   /** Updates HTML element metadata while preserving its canonical attribute collection. */

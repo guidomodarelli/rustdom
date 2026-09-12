@@ -9,8 +9,8 @@ use super::{
     store,
 };
 use napi::{
-    Error, Result, Status,
-    bindgen_prelude::{Float64Array, Utf16String},
+    Error, JsValue, Result, Status,
+    bindgen_prelude::{ArrayBuffer, Float64Array, Unknown, Utf16String},
 };
 use napi_derive::napi;
 
@@ -378,6 +378,27 @@ impl NativeTree {
     pub fn set_unicode_version(&mut self, version: String) -> Result<()> {
         self.store
             .set_unicode_version(&version)
+            .map_err(to_napi_error)
+    }
+    /// Select bundled tables if available; return false without changing state otherwise.
+    #[napi]
+    pub fn try_set_unicode_version(&mut self, version: String) -> bool {
+        self.store.try_set_unicode_version(&version)
+    }
+    /// Install the host's sorted set of scalars whose default lowercase differs.
+    #[napi]
+    pub fn set_host_unicode_case_changes(&mut self, changes: Unknown<'_>) -> Result<()> {
+        if !changes.is_arraybuffer()? {
+            return Err(to_napi_error(TreeError::InvalidUnicodeCaseChanges));
+        }
+        // SAFETY: the native ArrayBuffer brand was checked without invoking JavaScript;
+        // SharedArrayBuffer and other objects cannot reach napi-rs's borrowed byte view.
+        let changes = unsafe { changes.cast::<ArrayBuffer<'_>>()? };
+        if changes.is_detached()? {
+            return Err(to_napi_error(TreeError::InvalidUnicodeCaseChanges));
+        }
+        self.store
+            .set_host_unicode_case_buffer(&changes)
             .map_err(to_napi_error)
     }
     #[napi]

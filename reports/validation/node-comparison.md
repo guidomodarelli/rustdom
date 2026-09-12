@@ -134,3 +134,21 @@ datos de RSS (+11,43 MiB), sin descartar resultados por variación del allocator
 fixtures y muestreo para validaciones focales. `npm run test:memory -- jsdom rustdom`
 repite solo esos objetivos con los mismos escenarios y presupuestos. Sin argumentos,
 ambos comandos siguen ejecutando el conjunto completo.
+
+## Unión con los fixes finales de atributos
+
+Se integró `0d13903b083edf0ae4df650919927b3e43a1dfb3`, incluyendo el fallback
+Unicode, la validación de reservas previa a mutaciones y la compactación de índices.
+Los conflictos se resolvieron conservando tanto el preflight como la invalidación
+de índices de hermanos y los errores de las nuevas APIs de metadata.
+
+La unión pasó formato, Clippy, **46 tests Rust y 178 contratos Node**, además de
+Jest, Vitest, sus pools VM, el corpus HTML5 y los
+[3.347 WPT en paridad](../compatibility/2026-09-12T03-17-06.142Z-linux-wpt.json).
+El [paquete instalado mediante npm y pnpm](../distribution/2026-09-12T03-27-58.028Z-linux-x64.json)
+aprobó los **18 controles**, incluido el nuevo caso de perfil Unicode desconocido.
+
+El checkpoint sigue pendiente de los controles remotos y la revisión. Se investiga
+por separado el endpoint de GC que dejó cinco registros nativos en un job macOS,
+y un timeout del arnés Valgrind de Linux. No se declara resuelto ninguno de esos
+incidentes a partir de esta validación local.

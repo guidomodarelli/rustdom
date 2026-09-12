@@ -19,6 +19,7 @@ pub enum TreeError {
     AttributeInUse(u64),
     AttributeCollectionInitialized(u64),
     UnsupportedUnicodeVersion(String),
+    InvalidUnicodeCaseChanges,
     CharacterOffset { offset: u32, length: usize },
 }
 
@@ -34,6 +35,10 @@ impl fmt::Display for TreeError {
             Self::NotProcessingInstruction(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized ProcessingInstruction"
+            ),
+            Self::InvalidUnicodeCaseChanges => write!(
+                formatter,
+                "NativeTree: host Unicode case changes require an attached buffer of complete, strictly increasing valid u32 scalar values"
             ),
             Self::AttributeCollectionInitialized(id) => write!(
                 formatter,
