@@ -13,3 +13,6 @@ estados y mensajes, conservando también los fallos compartidos con jsdom.
 La suite `node-text` incluye lecturas/escrituras de `nodeValue` y `textContent`,
 además de registros de MutationObserver producidos por las escrituras. El cambio
 nativo de getters se verifica también contra esos setters y sus efectos reales.
+
+La suite `normalization` agrega el fixture original de Node.normalize, incluidos
+fragmentos, textos vacíos y la exclusión de CDATA, comentarios y otros nodos.

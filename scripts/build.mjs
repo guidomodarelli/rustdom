@@ -214,6 +214,27 @@ for (const property of ['nodeValue', 'textContent']) {
   nodeSource = nodeSource.slice(0, getterStart) +
     `  get ${property}() { return domSymbolTree.${property}(this); }\n\n` + nodeSource.slice(setterStart);
 }
+const normalizeStart = nodeSource.indexOf('  normalize() {');
+const normalizeDataEnd = nodeSource.indexOf('      node.replaceData(length, 0, data);', normalizeStart);
+if (normalizeStart < 0 || normalizeDataEnd < normalizeStart) throw new Error('rustdom build: Node.normalize planning boundary changed');
+nodeSource = nodeSource.slice(0, normalizeStart) +
+  '  normalize() {\n    for (const node of domSymbolTree.normalizationCandidates(this)) {\n' +
+  '      const group = domSymbolTree.normalizationGroup(node);\n      if (group === null) continue;\n' +
+  '      const parentNode = group.parent;\n      let length = group.originalLength;\n' +
+  '      if (length === 0) { parentNode._remove(node); continue; }\n' +
+  '      const continuousExclusiveTextNodes = group.siblings;\n' +
+  '      const data = group.appendedData;\n' + nodeSource.slice(normalizeDataEnd);
+const normalizationRangesStart = nodeSource.indexOf('      let currentNode = domSymbolTree.nextSibling(node);', normalizeStart);
+const normalizationRangesEnd = nodeSource.indexOf('      for (const continuousExclusiveTextNode of continuousExclusiveTextNodes)', normalizationRangesStart);
+if (normalizationRangesStart < 0 || normalizationRangesEnd < normalizationRangesStart) {
+  throw new Error('rustdom build: Node.normalize range boundary changed');
+}
+const normalizationRanges = nodeSource.slice(normalizationRangesStart, normalizationRangesEnd).trimEnd();
+// Check after replaceData: a synchronous hook can create live ranges before this point.
+nodeSource = nodeSource.slice(0, normalizationRangesStart) +
+  '      if (node._referencedRanges.size !== 0 || parentNode._referencedRanges.size !== 0) {\n' +
+  normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
+  nodeSource.slice(normalizationRangesEnd);
 await writeFile(nodePath, nodeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

@@ -10,6 +10,8 @@ export interface TreeLinks {
 }
 /** Host GC-reference changes after a native attribute mutation. */
 export interface AttributeDelta { previous: number; changed: boolean; attached: number; detached: number; released: number[]; }
+/** Read-only normalization decision; mutation and range hooks run after the plan is returned. */
+export interface NormalizationGroup { parent: number; originalLength: number; appendedData: string; siblings: number[]; }
 /** Query modes accepted by the native matcher. */
 export const QueryMode: { readonly All: 0; readonly First: 1; readonly Matches: 2; readonly Closest: 3 };
 /** Canonical Attr metadata fields. */
@@ -35,6 +37,8 @@ export class NativeTree {
   isDefaultNamespace(handle: number, namespace: string | null): boolean;
   nodeValue(handle: number): string | null;
   textContent(handle: number): string | null;
+  normalizationCandidates(handle: number): number[];
+  normalizationGroup(handle: number): NormalizationGroup | null;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */
