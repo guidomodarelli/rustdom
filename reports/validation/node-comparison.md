@@ -164,5 +164,12 @@ reales y el [estrés de ambos motores](../memory/2026-09-12T03-59-22.440Z-linux-
 Los 882 Document/Window y los 1.500 nodos comparados se recolectaron; rustdom
 volvió a cero registros nativos, con heap +0,89 MiB y RSS +7,10 MiB. Se reutilizan
 los benchmarks de producción anteriores porque esta integración solo modifica
-el arnés y su observación de recursos. El timeout de Valgrind se corrige por
-separado y los checks del SHA final siguen siendo requisito para el checkpoint.
+el arnés y su observación de recursos.
+
+Se integró también `4a7003adc9e71a725b91c4ed2b20bc6e148cad1d`, que reduce
+el costo de preparación de los tests con colisiones sin cambiar producción ni
+el watchdog. La unión pasó **48 tests Rust**. El
+[análisis del costo del arnés](valgrind-test-cost/README.md) conserva el fallo
+original, el contraste con un algoritmo defectuoso y Memcheck completo sobre
+la base de atributos. Los checks del SHA final siguen siendo requisito para
+el checkpoint.
