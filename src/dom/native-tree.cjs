@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
@@ -295,6 +295,65 @@ class NativeSymbolTree extends SymbolTree {
         range._setLiveRangeEnd(target, plan.endOffset); range._setLiveRangeStart(target, plan.startOffset); break;
       default: throw new Error(`NativeTree: unsupported range boundary action ${plan.action}`);
     }
+  }
+  /** @param {object} range - Live Range with updated native offsets. @param {number} moved - Native endpoint-move flags. @returns {void} Moves only changed V8 ownership edges, in start/end order. */
+  applyRangeMoves(range, moved) {
+    if (moved & RangeEndpoint.Start) {
+      const point = range._nativeRange.start;
+      range._setLiveRangeStart(this._object(point.node), point.offset);
+    }
+    if (moved & RangeEndpoint.End) {
+      const point = range._nativeRange.end;
+      range._setLiveRangeEnd(this._object(point.node), point.offset);
+    }
+  }
+  /** @param {object} node - Changed CharacterData. @param {number} offset - Validated start. @param {number} count - Clamped removal length. @param {number} insertedLength - Inserted UTF-16 units. @returns {void} */
+  adjustCharacterDataRanges(node, offset, count, insertedLength) {
+    if (node._referencedRanges.size === 0) return;
+    const id = this._ensure(node);
+    for (const range of node._liveRanges()) range._nativeRange.applyCharacterData(id, offset, count, insertedLength);
+  }
+  /** @param {object} node - Original Text. @param {object} target - Split tail. @param {number} offset - Split position. @returns {void} */
+  adjustSplitTextRanges(node, target, offset) {
+    if (node._referencedRanges.size === 0) return;
+    const sourceId = this._ensure(node); const targetId = this._ensure(target);
+    for (const range of node._liveRanges()) this.applyRangeMoves(range, range._nativeRange.applyTreeMutation(RangeMutationKind.SplitText, sourceId, targetId, offset, 0));
+  }
+  /** @param {object} parent - Split Text's parent. @param {number} index - Original Text's current index. @returns {void} */
+  adjustSplitParentRanges(parent, index) {
+    if (parent._referencedRanges.size === 0) return;
+    const id = this._ensure(parent);
+    for (const range of parent._liveRanges()) range._nativeRange.applyTreeMutation(RangeMutationKind.SplitParent, id, id, index, 0);
+  }
+  /** @param {object} parent - Insertion parent. @param {number} index - Reference index. @param {number} count - Captured inserted count. @returns {void} */
+  adjustInsertedRanges(parent, index, count) {
+    if (parent._referencedRanges.size === 0) return;
+    const id = this._ensure(parent);
+    for (const range of parent._liveRanges()) this.applyRangeMoves(range, range._nativeRange.applyTreeMutation(RangeMutationKind.Insert, id, id, index, count));
+  }
+  /** @param {object} node - Descendant visited before removal. @param {object} parent - Removal parent. @param {number} index - Removal position. @returns {void} */
+  adjustRemovedDescendantRanges(node, parent, index) {
+    if (node._referencedRanges.size === 0) return;
+    const sourceId = this._ensure(node); const parentId = this._ensure(parent);
+    for (const range of node._liveRanges()) this.applyRangeMoves(range, range._nativeRange.applyTreeMutation(RangeMutationKind.RemoveDescendant, sourceId, parentId, index, 0));
+  }
+  /** @param {object} parent - Removal parent. @param {number} index - Removal position. @returns {void} */
+  adjustRemovedParentRanges(parent, index) {
+    if (parent._referencedRanges.size === 0) return;
+    const id = this._ensure(parent);
+    for (const range of parent._liveRanges()) range._nativeRange.applyTreeMutation(RangeMutationKind.RemoveParent, id, id, index, 0);
+  }
+  /** @param {object} node - Retained Text whose existing range set is iterated. @param {object} current - Continuous Text. @param {number} length - Previously accumulated UTF-16 length. @returns {void} */
+  adjustNormalizedTextRanges(node, current, length) {
+    if (node._referencedRanges.size === 0) return;
+    const sourceId = this._ensure(current); const targetId = this._ensure(node);
+    for (const range of node._liveRanges()) this.applyRangeMoves(range, range._nativeRange.applyTreeMutation(RangeMutationKind.NormalizeText, sourceId, targetId, 0, length));
+  }
+  /** @param {object} parent - Normalization parent. @param {object} target - Retained Text. @param {number} index - Continuous Text's current index. @param {number} length - Previously accumulated length. @returns {void} */
+  adjustNormalizedParentRanges(parent, target, index, length) {
+    if (parent._referencedRanges.size === 0) return;
+    const parentId = this._ensure(parent); const targetId = this._ensure(target);
+    for (const range of parent._liveRanges()) this.applyRangeMoves(range, range._nativeRange.applyTreeMutation(RangeMutationKind.NormalizeParent, parentId, targetId, index, length));
   }
   /** @param {object} range - Live Range implementation. @returns {string} Native UTF-16 stringification without retained nodes. */
   rangeText(range) {

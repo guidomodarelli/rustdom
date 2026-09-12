@@ -2,7 +2,9 @@
 use super::{
     error::TreeError,
     napi_error::to_napi_error,
+    range_mutations::{END_MOVED, RangeUpdate, START_MOVED, TreeMutation},
     range_state::{BoundaryPoint, RangeState, query_offset},
+    store::node_id,
 };
 use napi::Result;
 use napi_derive::napi;
@@ -33,6 +35,51 @@ fn native_range_statistics() -> NativeRangeStatistics {
 pub struct NativeBoundaryPoint {
     pub node: f64,
     pub offset: f64,
+}
+
+#[napi(object)]
+pub struct NativeRangeUpdate {
+    pub start: bool,
+    pub node: f64,
+    pub offset: f64,
+}
+
+/// Finite tree-mutation phases; the host keeps their original ordering and live-range enumeration.
+#[napi]
+pub enum RangeMutationKind {
+    SplitText,
+    SplitParent,
+    Insert,
+    RemoveDescendant,
+    RemoveParent,
+    NormalizeText,
+    NormalizeParent,
+}
+/// Bit flags identify the only changes that require moving a V8-owned node reference.
+#[napi]
+pub enum RangeEndpoint {
+    Start = 1,
+    End = 2,
+}
+// NAPI requires literal enum discriminants; keep them checked against the core's bit contract.
+const _: () =
+    assert!(RangeEndpoint::Start as u32 == START_MOVED && RangeEndpoint::End as u32 == END_MOVED);
+impl From<RangeUpdate> for NativeRangeUpdate {
+    fn from(update: RangeUpdate) -> Self {
+        Self {
+            start: update.start,
+            node: update.point.node as f64,
+            offset: update.point.offset,
+        }
+    }
+}
+
+fn updates_result(
+    updates: super::error::Result<Vec<RangeUpdate>>,
+) -> Result<Vec<NativeRangeUpdate>> {
+    updates
+        .map(|updates| updates.into_iter().map(Into::into).collect())
+        .map_err(to_napi_error)
 }
 
 #[napi(object)]
@@ -108,6 +155,185 @@ impl NativeRange {
             offset: point.offset,
             update_start,
         })
+    }
+    #[napi]
+    pub fn apply_character_data(
+        &mut self,
+        node: f64,
+        offset: f64,
+        count: f64,
+        inserted_length: f64,
+    ) -> Result<()> {
+        let updates = self
+            .state
+            .character_data_plan(
+                node_id(node).map_err(to_napi_error)?,
+                offset,
+                count,
+                inserted_length,
+            )
+            .map_err(to_napi_error)?;
+        self.state
+            .apply_mutation_updates(updates)
+            .map_err(to_napi_error)?;
+        Ok(())
+    }
+    #[napi]
+    pub fn apply_tree_mutation(
+        &mut self,
+        kind: RangeMutationKind,
+        source: f64,
+        target: f64,
+        index: f64,
+        count: f64,
+    ) -> Result<u32> {
+        let source = node_id(source).map_err(to_napi_error)?;
+        let target = node_id(target).map_err(to_napi_error)?;
+        let mutation = match kind {
+            RangeMutationKind::SplitText => TreeMutation::SplitText {
+                source,
+                target,
+                offset: index,
+            },
+            RangeMutationKind::SplitParent => TreeMutation::SplitParent {
+                parent: source,
+                index,
+            },
+            RangeMutationKind::Insert => TreeMutation::Insert {
+                parent: source,
+                index,
+                count,
+            },
+            RangeMutationKind::RemoveDescendant => TreeMutation::RemoveDescendant {
+                source,
+                parent: target,
+                index,
+            },
+            RangeMutationKind::RemoveParent => TreeMutation::RemoveParent {
+                parent: source,
+                index,
+            },
+            RangeMutationKind::NormalizeText => TreeMutation::NormalizeText {
+                source,
+                target,
+                length: count,
+            },
+            RangeMutationKind::NormalizeParent => TreeMutation::NormalizeParent {
+                parent: source,
+                target,
+                index,
+                length: count,
+            },
+        };
+        let updates = self
+            .state
+            .tree_mutation_plan(mutation)
+            .map_err(to_napi_error)?;
+        self.state
+            .apply_mutation_updates(updates)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn character_data_plan(
+        &self,
+        node: f64,
+        offset: f64,
+        count: f64,
+        inserted_length: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.character_data_plan(
+            node_id(node).map_err(to_napi_error)?,
+            offset,
+            count,
+            inserted_length,
+        ))
+    }
+    #[napi]
+    pub fn split_text_plan(
+        &self,
+        source: f64,
+        target: f64,
+        offset: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.tree_mutation_plan(TreeMutation::SplitText {
+            source: node_id(source).map_err(to_napi_error)?,
+            target: node_id(target).map_err(to_napi_error)?,
+            offset,
+        }))
+    }
+    #[napi]
+    pub fn split_parent_plan(&self, parent: f64, index: f64) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.tree_mutation_plan(TreeMutation::SplitParent {
+            parent: node_id(parent).map_err(to_napi_error)?,
+            index,
+        }))
+    }
+    #[napi]
+    pub fn insert_plan(
+        &self,
+        parent: f64,
+        index: f64,
+        count: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.tree_mutation_plan(TreeMutation::Insert {
+            parent: node_id(parent).map_err(to_napi_error)?,
+            index,
+            count,
+        }))
+    }
+    #[napi]
+    pub fn remove_descendant_plan(
+        &self,
+        source: f64,
+        parent: f64,
+        index: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(
+            self.state
+                .tree_mutation_plan(TreeMutation::RemoveDescendant {
+                    source: node_id(source).map_err(to_napi_error)?,
+                    parent: node_id(parent).map_err(to_napi_error)?,
+                    index,
+                }),
+        )
+    }
+    #[napi]
+    pub fn remove_parent_plan(&self, parent: f64, index: f64) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.tree_mutation_plan(TreeMutation::RemoveParent {
+            parent: node_id(parent).map_err(to_napi_error)?,
+            index,
+        }))
+    }
+    #[napi]
+    pub fn normalize_text_plan(
+        &self,
+        source: f64,
+        target: f64,
+        length: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(self.state.tree_mutation_plan(TreeMutation::NormalizeText {
+            source: node_id(source).map_err(to_napi_error)?,
+            target: node_id(target).map_err(to_napi_error)?,
+            length,
+        }))
+    }
+    #[napi]
+    pub fn normalize_parent_plan(
+        &self,
+        parent: f64,
+        target: f64,
+        index: f64,
+        length: f64,
+    ) -> Result<Vec<NativeRangeUpdate>> {
+        updates_result(
+            self.state
+                .tree_mutation_plan(TreeMutation::NormalizeParent {
+                    parent: node_id(parent).map_err(to_napi_error)?,
+                    target: node_id(target).map_err(to_napi_error)?,
+                    index,
+                    length,
+                }),
+        )
     }
     #[napi]
     pub fn set_start(&mut self, node: f64, offset: f64) -> Result<()> {

@@ -31,6 +31,12 @@ export interface RangeBoundaryPlan { action: typeof RangeBoundaryAction[keyof ty
 export interface NativeBoundaryPoint { node: number; offset: number; }
 /** Transient collapse decision; numeric state changes only when the host applies the selected endpoint update. */
 export interface NativeCollapsePlan extends NativeBoundaryPoint { updateStart: boolean; }
+/** Ordered host-reference update; plans never change the original state or own the referenced node. */
+export interface NativeRangeUpdate extends NativeBoundaryPoint { start: boolean; }
+/** Tree mutation stages used by the host; all arguments are already derived from a validated DOM operation. */
+export const RangeMutationKind: { readonly SplitText: 0; readonly SplitParent: 1; readonly Insert: 2; readonly RemoveDescendant: 3; readonly RemoveParent: 4; readonly NormalizeText: 5; readonly NormalizeParent: 6 };
+/** Bit flags identifying changed node identities; zero means only offsets changed or no adjustment was needed. */
+export const RangeEndpoint: { readonly Start: 1; readonly End: 2 };
 /** Ordering or rejection returned by a complete native Range comparison. */
 export const RangeComparison: { readonly Before: -1; readonly Equal: 0; readonly After: 1; readonly UnsupportedMethod: 2; readonly DifferentRoot: 3; readonly InconsistentRoots: 4 };
 /** Read-only deletion action, delivered to existing mutation hooks by the host. */
@@ -59,6 +65,19 @@ export class NativeRange {
   setEnd(node: number, offset: number): void;
   copy(): NativeRange;
   collapsePlan(toStart: boolean): NativeCollapsePlan;
+  /** Mutation inputs come from the host's validated DOM operation. Handles must be positive safe integers; no tree is owned or consulted. */
+  characterDataPlan(node: number, offset: number, count: number, insertedLength: number): NativeRangeUpdate[];
+  splitTextPlan(source: number, target: number, offset: number): NativeRangeUpdate[];
+  splitParentPlan(parent: number, index: number): NativeRangeUpdate[];
+  insertPlan(parent: number, index: number, count: number): NativeRangeUpdate[];
+  removeDescendantPlan(source: number, parent: number, index: number): NativeRangeUpdate[];
+  removeParentPlan(parent: number, index: number): NativeRangeUpdate[];
+  normalizeTextPlan(source: number, target: number, length: number): NativeRangeUpdate[];
+  normalizeParentPlan(parent: number, target: number, index: number, length: number): NativeRangeUpdate[];
+  /** Updates offsets in place; node identities remain unchanged. No DOM nodes are owned or consulted. */
+  applyCharacterData(node: number, offset: number, count: number, insertedLength: number): void;
+  /** Updates numeric state and returns RangeEndpoint move bits. The host must synchronously move changed ownership edges before exposing the Range again. */
+  applyTreeMutation(kind: typeof RangeMutationKind[keyof typeof RangeMutationKind], source: number, target: number, index: number, count: number): number;
 }
 
 /** Owns a native forest. Handles are positive safe integers and are never reused. */

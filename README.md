@@ -106,6 +106,12 @@ el offset después de dividir o retirar nodos. Las dos consultas conservan
 las lecturas posteriores a callbacks, sin cambiar el orden de los hooks
 de jerarquía, inserción ni actualización de rangos vivos.
 
+Rust calcula y aplica los extremos de rangos vivos por cambios de CharacterData,
+splitText, inserción, eliminación y normalize. Si cambia la identidad de un
+nodo, el puente actualiza la referencia que V8 necesita para su recolección;
+los cambios de offset permanecen dentro de Rust. También hay planes numéricos
+de consulta en la API nativa, que permiten inspeccionar una decisión sin aplicarla.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
