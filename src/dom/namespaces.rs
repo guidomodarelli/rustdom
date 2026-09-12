@@ -18,7 +18,10 @@ fn same_units(value: Option<&DomString>, expected: Option<&[u16]>) -> bool {
 }
 
 fn same_text(value: Option<&DomString>, expected: &str) -> bool {
-    value.is_some_and(|value| value.units().eq(expected.encode_utf16()))
+    value.is_some_and(|value| match value {
+        DomString::Text(value) => value == expected,
+        DomString::Utf16(value) => value.iter().copied().eq(expected.encode_utf16()),
+    })
 }
 
 impl TreeStore {
@@ -58,7 +61,11 @@ impl TreeStore {
         })
     }
 
-    fn locate_namespace(&self, handle: f64, prefix: Option<&[u16]>) -> Result<Option<&DomString>> {
+    pub fn lookup_namespace_uri(
+        &self,
+        handle: f64,
+        prefix: Option<&[u16]>,
+    ) -> Result<Option<&DomString>> {
         let mut element = self.namespace_start(node_id(handle)?)?;
         let prefix = prefix.filter(|prefix| !prefix.is_empty());
         while element != 0 {
@@ -89,19 +96,9 @@ impl TreeStore {
         Ok(None)
     }
 
-    pub fn lookup_namespace_uri(
-        &self,
-        handle: f64,
-        prefix: Option<&[u16]>,
-    ) -> Result<Option<Vec<u16>>> {
-        Ok(self
-            .locate_namespace(handle, prefix)?
-            .map(|namespace| namespace.units().collect()))
-    }
-
     pub fn is_default_namespace(&self, handle: f64, namespace: Option<&[u16]>) -> Result<bool> {
         Ok(same_units(
-            self.locate_namespace(handle, None)?,
+            self.lookup_namespace_uri(handle, None)?,
             namespace.filter(|namespace| !namespace.is_empty()),
         ))
     }
@@ -110,7 +107,7 @@ impl TreeStore {
         &self,
         handle: f64,
         namespace: Option<&[u16]>,
-    ) -> Result<Option<Vec<u16>>> {
+    ) -> Result<Option<&DomString>> {
         let id = node_id(handle)?;
         self.namespace_data(id)?;
         let Some(namespace) = namespace.filter(|namespace| !namespace.is_empty()) else {
@@ -119,8 +116,8 @@ impl TreeStore {
         let mut element = self.namespace_start(id)?;
         while element != 0 {
             let data = self.namespace_data(element)?;
-            if same_units(data.namespace.as_ref(), Some(namespace)) && data.prefix.is_some() {
-                return Ok(data.prefix.as_ref().map(|prefix| prefix.units().collect()));
+            if data.prefix.is_some() && same_units(data.namespace.as_ref(), Some(namespace)) {
+                return Ok(data.prefix.as_ref());
             }
             for attribute in self.attribute_views(element)? {
                 let attribute = attribute?;
@@ -128,7 +125,7 @@ impl TreeStore {
                 if same_text(attribute.prefix, XMLNS_NAME)
                     && same_units(Some(attribute.value), Some(namespace))
                 {
-                    return Ok(Some(attribute.name.units().collect()));
+                    return Ok(Some(attribute.name));
                 }
             }
             element = self.namespace_parent(element)?;
@@ -149,6 +146,9 @@ mod tests {
     fn units(value: &str) -> Vec<u16> {
         value.encode_utf16().collect()
     }
+    fn observed(result: Result<Option<&DomString>>) -> Option<Vec<u16>> {
+        result.unwrap().map(|value| value.units().collect())
+    }
 
     #[test]
     fn should_follow_live_declarations_and_preserve_element_namespace_precedence() {
@@ -166,29 +166,26 @@ mod tests {
         );
         tree.append_attribute(parent, declaration).unwrap();
         assert_eq!(
-            tree.lookup_namespace_uri(child, Some(&units("p"))).unwrap(),
+            observed(tree.lookup_namespace_uri(child, Some(&units("p")))),
             Some(units("urn:own"))
         );
         assert_eq!(
-            tree.lookup_prefix(child, Some(&units("urn:declared")))
-                .unwrap(),
+            observed(tree.lookup_prefix(child, Some(&units("urn:declared")))),
             Some(units("p"))
         );
         tree.set_attribute_value(declaration, &units("urn:updated"))
             .unwrap();
         assert_eq!(
-            tree.lookup_prefix(child, Some(&units("urn:updated")))
-                .unwrap(),
+            observed(tree.lookup_prefix(child, Some(&units("urn:updated")))),
             Some(units("p"))
         );
         assert_eq!(
-            tree.lookup_prefix(child, Some(&units("urn:declared")))
-                .unwrap(),
+            observed(tree.lookup_prefix(child, Some(&units("urn:declared")))),
             None
         );
         tree.remove(child).unwrap();
         assert_eq!(
-            tree.lookup_namespace_uri(child, Some(&units("p"))).unwrap(),
+            observed(tree.lookup_namespace_uri(child, Some(&units("p")))),
             None
         );
         for handle in [parent, child, declaration] {
@@ -216,7 +213,7 @@ mod tests {
         tree.append_attribute(element, attribute).unwrap();
         for handle in [document, element, text, attribute] {
             assert_eq!(
-                tree.lookup_namespace_uri(handle, Some(&[])).unwrap(),
+                observed(tree.lookup_namespace_uri(handle, Some(&[]))),
                 Some(units("urn:root"))
             );
             assert!(
@@ -226,12 +223,12 @@ mod tests {
         }
         for handle in [doctype, fragment] {
             assert!(tree.is_default_namespace(handle, Some(&[])).unwrap());
-            assert_eq!(tree.lookup_namespace_uri(handle, None).unwrap(), None);
+            assert_eq!(observed(tree.lookup_namespace_uri(handle, None)), None);
         }
         tree.remove(element).unwrap();
         tree.append(fragment, element).unwrap();
-        assert_eq!(tree.lookup_namespace_uri(document, None).unwrap(), None);
-        assert_eq!(tree.lookup_namespace_uri(fragment, None).unwrap(), None);
+        assert_eq!(observed(tree.lookup_namespace_uri(document, None)), None);
+        assert_eq!(observed(tree.lookup_namespace_uri(fragment, None)), None);
         for handle in [attribute, text, element, document, doctype, fragment] {
             tree.release(handle).unwrap();
         }
@@ -246,16 +243,15 @@ mod tests {
             r#"{"kind":1,"name":"root","attributes":[{"name":"xmlns","namespace":"http://www.w3.org/2000/xmlns/","prefix":null,"value":[55296]},{"name":"p","namespace":"http://www.w3.org/2000/xmlns/","prefix":"xmlns","value":""}]}"#,
         );
         assert_eq!(
-            tree.lookup_namespace_uri(element, None).unwrap(),
+            observed(tree.lookup_namespace_uri(element, None)),
             Some(vec![55296])
         );
         assert!(tree.is_default_namespace(element, Some(&[55296])).unwrap());
         assert_eq!(
-            tree.lookup_namespace_uri(element, Some(&units("p")))
-                .unwrap(),
+            observed(tree.lookup_namespace_uri(element, Some(&units("p")))),
             None
         );
-        assert_eq!(tree.lookup_prefix(element, Some(&[])).unwrap(), None);
+        assert_eq!(observed(tree.lookup_prefix(element, Some(&[]))), None);
         tree.release(element).unwrap();
         assert!(tree.lookup_namespace_uri(element, None).is_err());
     }

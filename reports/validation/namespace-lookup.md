@@ -61,3 +61,25 @@ La integración posterior de los fixtures eficientes de Valgrind del commit
 `4a7003adc9e71a725b91c4ed2b20bc6e148cad1d` pasó los **51 tests Rust** de esta
 rama. El cambio de CI está limitado a `cfg(test)` y no modifica las consultas,
 el binario de producción medido ni los controles de memoria del DOM.
+
+## Transferencia de resultados sin copia intermedia UTF-8
+
+Las consultas devuelven ahora préstamos de la metadata nativa. Para strings
+UTF-8, la implementación de `ToNapiValue` de napi-rs copia directamente a V8,
+sin construir un `Vec<u16>` intermedio. Las unidades UTF-16 aisladas conservan
+su conversión sin pérdida. También se evita comparar la URI propia de elementos
+sin prefijo y las constantes UTF-8 se comparan directamente. No se incorporan
+caches, referencias JavaScript ni bloques `unsafe` propios.
+
+Pasaron Clippy, **51 tests Rust**, los tres contratos públicos y los
+[3.433 WPT en paridad](../compatibility/2026-09-12T04-15-03.655Z-linux-wpt.json).
+El [nuevo benchmark](../benchmarks/2026-09-12T04-16-08.784Z-linux-x64.md) dio
+**2,211 ms** frente al baseline de 2,438 ms, aproximadamente 9 % menos. jsdom
+midió 1,186 ms: el ratio es **0,54×**, todavía desfavorable. No se atribuye una
+aceleración general a este cambio ni se oculta el costo restante del enlace.
+
+El [estrés posterior](../memory/2026-09-12T04-16-46.986Z-linux-x64.json) pasó
+con cero supervivientes entre 882 Document/Window y 1.500 nodos comparados;
+los contadores nativos volvieron a cero. Rustdom registró heap +0,91 MiB y
+RSS +5,65 MiB. Esta validación ejerció el addon reconstruido con el resultado
+prestado y su fallback UTF-16.
