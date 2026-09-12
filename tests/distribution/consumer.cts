@@ -25,6 +25,11 @@ const instruction = dom.window.document.createProcessingInstruction('target', 'b
 instruction.data = 'after';
 assert.equal(instruction.target, 'target');
 assert.ok(instruction.isEqualNode(dom.window.document.createProcessingInstruction('target', 'after')));
+const namespaced = dom.window.document.createElementNS('urn:installed', 'p:item');
+paragraph.appendChild(namespaced);
+assert.equal(namespaced.lookupNamespaceURI('p'), 'urn:installed');
+assert.equal(namespaced.lookupPrefix('urn:installed'), 'p');
+assert.equal(namespaced.isDefaultNamespace('urn:installed'), false);
 dom.window.close();
 
 const tree = new native.NativeTree();
@@ -37,5 +42,11 @@ assert.equal(tree.documentTypeField(doctypeHandle, native.DocumentTypeField.Publ
 assert.equal(tree.compareDocumentPosition(handle, doctypeHandle), 37);
 assert.equal(tree.equalNode(handle, doctypeHandle), false);
 tree.release(doctypeHandle);
+const namespaceHandle = tree.allocate();
+tree.setData(namespaceHandle, JSON.stringify({ kind: 1, name: 'item', prefix: 'p', namespace: 'urn:native' }));
+assert.equal(tree.lookupNamespaceUri(namespaceHandle, 'p'), 'urn:native');
+assert.equal(tree.lookupPrefix(namespaceHandle, 'urn:native'), 'p');
+assert.equal(tree.isDefaultNamespace(namespaceHandle, null), true);
+tree.release(namespaceHandle);
 tree.release(handle);
 assert.equal(tree.statistics().liveNodes, 0);

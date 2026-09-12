@@ -5,3 +5,7 @@ Fuente: web-platform-tests, commit `8d124dbe46f46f55531f28f13eccf1113f794c12`, u
 `npm run test:wpt` ejecuta las suites incluidas. También acepta `character-data`, `attributes` o `node-comparison` para una ejecución focal. Usa el harness real de WPT, recursos locales y un reporter mínimo que transfiere resultados al proceso. Los documentos XML/XHTML y sus iframes reciben el tipo de contenido correspondiente. Compara resultados, nombres y mensajes de fallo contra un jsdom independiente. Una coincidencia en fallos conocidos se registra como paridad, no como conformidad con el estándar; un harness incompleto o sin tests hace fallar la ejecución.
 
 Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad. El manifiesto permite ampliar la cobertura sin cambiar los tests upstream. Para recuperar cualquier archivo, usar su blob en la revisión fijada; `.gitattributes` evita conversiones de saltos de línea que alterarían los hashes.
+
+La suite `namespaces` incluye las consultas de prefijo, URI y namespace por defecto,
+con los fixtures originales HTML y XHTML. Se aplica la misma comparación de
+estados y mensajes, conservando también los fallos compartidos con jsdom.

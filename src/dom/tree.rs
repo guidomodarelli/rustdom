@@ -251,6 +251,41 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn lookup_namespace_uri(
+        &self,
+        handle: f64,
+        prefix: Option<Utf16String>,
+    ) -> Result<Option<Utf16String>> {
+        self.store
+            .lookup_namespace_uri(handle, prefix.as_deref())
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn lookup_prefix(
+        &self,
+        handle: f64,
+        namespace: Option<Utf16String>,
+    ) -> Result<Option<Utf16String>> {
+        self.store
+            .lookup_prefix(handle, namespace.as_deref())
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn is_default_namespace(
+        &self,
+        handle: f64,
+        namespace: Option<Utf16String>,
+    ) -> Result<bool> {
+        self.store
+            .is_default_namespace(handle, namespace.as_deref())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
     pub fn compare_document_position(&mut self, left: f64, right: f64) -> Result<u16> {
         self.store
             .compare_document_position(left, right)

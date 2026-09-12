@@ -30,6 +30,9 @@ export class NativeTree {
   equalNode(left: number, right: number): boolean;
   containsNode(ancestor: number, descendant: number): boolean;
   compareDocumentPosition(left: number, right: number): number;
+  lookupNamespaceUri(handle: number, prefix: string | null): string | null;
+  lookupPrefix(handle: number, namespace: string | null): string | null;
+  isDefaultNamespace(handle: number, namespace: string | null): boolean;
   /** Replaces snapshot data; rejects elements with an initialized canonical attribute collection. */
   setData(handle: number, encoded: string): void;
   /** Snapshot transfer requires well-formed name/value pairs and no initialized attribute collection. */
