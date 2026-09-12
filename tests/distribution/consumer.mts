@@ -76,6 +76,7 @@ const context = session.getVmContext();
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
 assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 const paragraph = context.document.querySelector('p');
+assert.equal(paragraph.getRootNode(), context.document); assert.equal(paragraph.isConnected, true);
 paragraph.append(context.document.createTextNode(' appended'));
 paragraph.normalize();
 assert.equal(paragraph.childNodes.length, 1);

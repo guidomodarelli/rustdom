@@ -116,6 +116,10 @@ export class NativeTree {
   processingInstructionTarget(handle: number): string;
   equalNode(left: number, right: number): boolean;
   containsNode(ancestor: number, descendant: number): boolean;
+  /** Generic geometry requires allocated handles; root/order/ancestry require no metadata. */
+  nodeRoot(handle: number): number;
+  nodeLength(handle: number): number;
+  isFollowing(node: number, reference: number): boolean;
   compareDocumentPosition(left: number, right: number): number;
   lookupNamespaceUri(handle: number, prefix: string | null): string | null;
   lookupPrefix(handle: number, namespace: string | null): string | null;

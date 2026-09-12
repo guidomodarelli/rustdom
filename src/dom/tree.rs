@@ -569,6 +569,20 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn node_root(&self, handle: f64) -> Result<f64> {
+        self.store.node_root(handle).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn node_length(&self, handle: f64) -> Result<f64> {
+        self.store.node_length(handle).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn is_following(&mut self, node: f64, reference: f64) -> Result<bool> {
+        self.store
+            .is_following(node, reference)
+            .map_err(to_napi_error)
+    }
+    #[napi]
     pub fn range_extract_step(
         &mut self,
         operation: &mut NativeRangeExtract,

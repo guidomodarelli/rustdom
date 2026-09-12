@@ -382,6 +382,17 @@ class NativeSymbolTree extends SymbolTree {
     selection.collapseNode = this._object(selection.collapseNode);
     return selection;
   }
+  /** @param {object} node - DOM implementation. @returns {object} Native root; empty inputs preserve the original parent-access TypeError. */
+  nodeRoot(node) {
+    if (!node) return super.parent(node);
+    return this._object(this._arena.nodeRoot(this._ensure(node)));
+  }
+  /** @param {object} node - DOM implementation. @returns {number} Pinned DOM length in UTF-16 units or children. */
+  nodeLength(node) { return this._arena.nodeLength(this._ensure(node)); }
+  /** @param {object|null} ancestor - Candidate ancestor. @param {object|null} node - Descendant candidate. @returns {boolean} Parent-link ancestry only. */
+  isInclusiveAncestor(ancestor, node) { return Boolean(ancestor && node) && this._arena.containsNode(this._ensure(ancestor), this._ensure(node)); }
+  /** @param {object|null} node - Candidate following node. @param {object|null} reference - Reference node. @returns {boolean} Strict native preorder relation. */
+  isFollowing(node, reference) { return Boolean(node && reference) && this._arena.isFollowing(this._ensure(node), this._ensure(reference)); }
   /** @param {object} range - Receiver Range. @param {object} fragmentFactory - Existing fragment factory. @param {Function} cloneNode - Existing clone hook. @param {object} exceptionFactory - Existing error factory. @returns {object} Cloned fragment. */
   cloneRangeContents(range, fragmentFactory, cloneNode, exceptionFactory) {
     return runContents(this, range, fragmentFactory, cloneNode, exceptionFactory, 'clone');
