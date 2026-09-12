@@ -169,6 +169,13 @@ class NativeSymbolTree extends SymbolTree {
     if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
   }
+  /** @param {object} range - Live Range implementation. @returns {string} Native UTF-16 stringification without retained nodes. */
+  rangeText(range) {
+    const result = this._arena.rangeText(this._ensure(range._start.node), range._start.offset,
+      this._ensure(range._end.node), range._end.offset);
+    if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+    return result;
+  }
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {
     const group = this._arena.normalizationGroup(this._ensure(node));

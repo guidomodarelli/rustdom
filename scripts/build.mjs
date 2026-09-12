@@ -261,6 +261,11 @@ rangeSource = rangeSource.slice(0, rangeQueriesStart) +
   '      "The given Node and the Range are not in the same tree.", "WrongDocumentError"\n' +
   '    ]);\n    return result;\n  }\n\n' +
   '  intersectsNode(node) { return domSymbolTree.rangeIntersectsNode(this, node); }\n\n' + rangeSource.slice(rangeQueriesEnd);
+const rangeStringStart = rangeSource.indexOf('  toString() {');
+const rangeStringEnd = rangeSource.indexOf('  // https://w3c.github.io/DOM-Parsing/#dom-range-createcontextualfragment', rangeStringStart);
+if (rangeStringStart < 0 || rangeStringEnd < rangeStringStart) throw new Error('rustdom build: Range stringification boundary changed');
+rangeSource = rangeSource.slice(0, rangeStringStart) +
+  '  toString() { return domSymbolTree.rangeText(this); }\n\n' + rangeSource.slice(rangeStringEnd);
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

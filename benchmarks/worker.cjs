@@ -13,6 +13,8 @@ const runtime = engine === 'jsdom' ? require('jsdom') : require('../dist/index.c
 const WARMUP_SAMPLES = 3;
 /** Keep raw samples so noise and distributions remain inspectable. */
 const MEASURED_SAMPLES = 9;
+/** Keep a bounded default and a reproducible opt-in repeated-reference workload. */
+const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
 
 /**
  * Build reproducible HTML with attributes, decoded entities, and table insertion modes.
@@ -34,6 +36,7 @@ function fixture(size) {
  */
 async function measure(name, size) {
   const html = fixture(size);
+  const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const environment = name.startsWith('environment-')
     ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
       : (await import('../src/environments/vitest.mjs')).default
@@ -74,16 +77,18 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
-      const rangeNodes = name.startsWith('range-') ? [...document.querySelectorAll('tr')] : null;
+      const rangeNodes = name.startsWith('range-') && !stringifyReads ? [...document.querySelectorAll('tr')] : null;
       const ranges = rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
       const rangeComparisonMode = dom.window.Range.START_TO_START;
       const rangePointNodes = name === 'range-text-point-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
-      const textRoot = name === 'text-content-100' || name.startsWith('normalize-') ? document.querySelector('table') : null;
+      const textRoot = name === 'text-content-100' || stringifyReads || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
       let consumedTextUnits = 0;
+      const stringifyRange = stringifyReads ? document.createRange() : null;
+      if (stringifyRange) stringifyRange.selectNodeContents(textRoot);
       if (name === 'normalize-split-text') {
         for (const anchor of document.querySelectorAll('a')) {
           let text = anchor.firstChild;
@@ -93,7 +98,11 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (name === 'range-compare-1000') {
+      if (stringifyReads) {
+        for (let iteration = 0; iteration < stringifyReads; iteration++) {
+          result = stringifyRange.toString(); consumedTextUnits += result.length;
+        }
+      } else if (name === 'range-compare-1000') {
         result = 0;
         for (let iteration = 0; iteration < 1000; iteration++) {
           const range = ranges[iteration % size];
@@ -196,6 +205,10 @@ async function measure(name, size) {
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
       if (name === 'range-point-1000' || name === 'range-text-point-1000') assert.equal(result, -1000 + 3 * Math.floor(1000 / size));
+      if (stringifyReads) {
+        assert.equal(result, expectedText);
+        assert.equal(consumedTextUnits, expectedText.length * stringifyReads);
+      }
     }
     assert.equal(dom.window.document.querySelector('a').textContent, 'Row 0 & value');
     const checksum = createHash('sha256').update(dom.serialize()).digest('hex');
@@ -233,11 +246,13 @@ async function main() {
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
+      ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
   ];
   const requested = new Set(process.argv.slice(3));
   for (const name of requested) assert.ok(plan.some((workload) => workload.name === name), `Unknown benchmark workload: ${name}`);
-  const selected = plan.filter(({ name }) => requested.size === 0 || requested.has(name));
+  const selected = plan.filter(({ name, manualOnly }) => requested.size === 0 ? !manualOnly : requested.has(name));
   for (const { name, size } of selected) workloads.push(await measure(name, size));
   const parserStatistics = runtime.getParserStatistics?.();
   const nativeTreeStatistics = runtime.getNativeTreeStatistics?.();

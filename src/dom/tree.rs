@@ -388,6 +388,20 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn range_text(
+        &mut self,
+        start: f64,
+        start_offset: u32,
+        end: f64,
+        end_offset: u32,
+    ) -> Result<Option<Utf16String>> {
+        self.store
+            .range_text(start, start_offset, end, end_offset)
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
     pub fn normalization_group(&self, handle: f64) -> Result<Option<NormalizationGroup>> {
         self.store
             .normalization_group(handle)

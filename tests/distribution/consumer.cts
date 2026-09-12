@@ -71,6 +71,8 @@ assert.equal(tree.compareBoundaryPointsPosition(textHandle, 0, siblingHandle, 0)
 assert.equal(tree.rangePointRelation(textHandle, 0, namespaceHandle, 0, namespaceHandle, 2), native.RangePointRelation.Inside);
 assert.equal(tree.rangePointRelation(textHandle, 999, namespaceHandle, 0, namespaceHandle, 2), native.RangePointRelation.InvalidOffset);
 assert.equal(tree.rangeIntersectsNode(textHandle, namespaceHandle, 0, namespaceHandle, 2), true);
+assert.equal(tree.rangeText(namespaceHandle, 0, namespaceHandle, 2), 'native\ud800 tail');
+assert.equal(tree.rangeText(textHandle, 6, textHandle, 7), '\ud800');
 tree.release(siblingHandle);
 tree.release(textHandle);
 tree.release(namespaceHandle);

@@ -163,6 +163,10 @@ async function exerciseNodeComparisons(runtime) {
       assert.equal(wholeRange.comparePoint(clone.firstChild.firstChild, 0), 0);
       assert.equal(wholeRange.isPointInRange(clone.lastChild.firstChild, 0), true);
       assert.equal(wholeRange.intersectsNode(clone.lastChild), true);
+      const rangeText = wholeRange.toString();
+      assert.equal(rangeText, 'texttail'.repeat(20));
+      assert.equal(firstRange.toString(), 'texttail');
+      retainedTextResults.push(rangeText);
       rangeReferences.push(new WeakRef(wholeRange), new WeakRef(firstRange));
       const namespace = 'urn:' + 'n'.repeat(8192);
       clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
