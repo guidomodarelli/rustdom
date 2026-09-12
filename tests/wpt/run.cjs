@@ -9,8 +9,12 @@ const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '../fixtures/wpt');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const engines = { jsdom: require('jsdom'), rustdom: require('../../dist/index.cjs') };
-/** Wall-clock failsafe complements testharness.js's own timeout. */
-const TEST_TIMEOUT_MS = 30000;
+/** The pinned testharness.js enforces 10s normal and 60s for fixtures declaring timeout=long. */
+const WPT_LONG_TIMEOUT_MS = 60000;
+/** Cover document/resource startup as well as the full upstream long-test budget. */
+const FIXTURE_STARTUP_MARGIN_MS = 30000;
+/** Outer failsafe must not preempt the upstream harness; its normal/long deadlines remain unchanged. */
+const TEST_TIMEOUT_MS = WPT_LONG_TIMEOUT_MS + FIXTURE_STARTUP_MARGIN_MS;
 /** Virtual host shared by top-level fixtures, URL variants and the local resource loader. */
 const FIXTURE_HOST = 'web-platform.test';
 /** Keep the upstream assertions unchanged; replace only its browser report renderer. */
@@ -42,7 +46,7 @@ async function run(engine, file) {
   const sourceFile = decodeURIComponent(fixtureUrl.pathname.slice(1));
   try {
     return await new Promise((resolve, reject) => {
-      timer = setTimeout(() => reject(new Error(`WPT timeout: ${file}`)), TEST_TIMEOUT_MS);
+      timer = setTimeout(() => reject(new Error(`WPT timeout after ${TEST_TIMEOUT_MS} ms: ${file}`)), TEST_TIMEOUT_MS);
       /** Serve completed static resources through the public ResourceLoader extension point. */
       class FixtureResources extends engine.ResourceLoader {
         /** @param {string} address - Resource URL. @returns {Promise<Buffer>} Complete static content. */
@@ -82,6 +86,7 @@ async function main() {
   for (const suite of suites) assert.ok(manifest.suites[suite], `Unknown WPT suite: ${suite}`);
   const report = { capturedAt: new Date().toISOString(), node: process.version, platform: process.platform,
     wptRevision: manifest.revision, jsdom: require('jsdom/package.json').version, suites,
+    outerTimeoutMs: TEST_TIMEOUT_MS,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
     blockedSuites, complete: Object.keys(blockedSuites).length === 0,
     results: [], pass: true };
