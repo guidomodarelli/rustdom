@@ -14,7 +14,9 @@ assert.ok(rustdom.getParserStatistics().nativeDocument > 0);
 assert.ok(rustdom.getNativeTreeStatistics().nativeQueries > 0);
 for (const name of ['Ä', 'ä', '\ua7ce', '\ua7d2', '\ua7d4']) {
   paragraph.setAttributeNS(null, name, 'case');
-  assert.equal(Object.hasOwn(paragraph.attributes, name), name.toLowerCase() === name);
+  // Pinned jsdom exposes named lookup separately from own-key enumeration.
+  assert.equal(Object.hasOwn(paragraph.attributes, name), true);
+  assert.equal(Reflect.ownKeys(paragraph.attributes).includes(name), name.toLowerCase() === name);
 }
 assert.equal(typeof JestEnvironment.prototype.getVmContext, 'function');
 dom.window.close();
