@@ -195,3 +195,15 @@ común de mutaciones, owner y metadata. Pasó **56 tests Rust, 234 contratos Nod
 Se conservan los controles de snapshot, errores sin escrituras parciales e
 inicialización válida. El informe de las transiciones implícitas documenta
 también GC, Memcheck focal y la regresión pequeña del benchmark.
+
+El [estrés de la unión](../memory/2026-09-12T06-00-08.947Z-linux-x64.json)
+pasó en jsdom y rustdom: cero supervivientes entre 882 Document/Window y
+1.500 nodos comparados. Rustdom volvió a cero nodos, datos, colecciones,
+owners y holders, con heap +0,89 MiB y RSS +3,49 MiB.
+
+El PR base #8 se integró en `main` mediante
+`e550144324afda4595b3be5bee800391cd59c783`, con revisión limpia de
+`21817575405bfe642f640134884bcc7597a5f191` y todos los checks aprobados.
+Los árboles de ambos commits coinciden. El checkpoint del base es
+`checkpoint-010-native-attribute-collections`; la comparación nativa mantiene
+su propio proceso de revisión antes de su siguiente checkpoint.
