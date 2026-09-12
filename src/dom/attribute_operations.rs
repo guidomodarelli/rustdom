@@ -383,11 +383,9 @@ impl TreeStore {
         Ok(delta)
     }
     pub(crate) fn release_attribute_references(&mut self, id: NodeId) -> Result<()> {
-        let name = if self
-            .data
-            .get(&id)
-            .is_some_and(|data| data.kind == super::constants::ATTRIBUTE_NODE)
-        {
+        // Only indexed/owned Attrs need a qualified key. Raw unindexed snapshots may
+        // lack a name and must still be releasable, just like nodes without metadata.
+        let name = if self.attribute_collections.has_references(id) {
             Some(self.attribute_key(id)?)
         } else {
             None

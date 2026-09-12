@@ -6,7 +6,7 @@ Objetivo activo: migrar el 100% de la implementación a Rust y verificar el 100%
 
 Avance actual: CharacterData tiene estado canónico y operaciones de texto nativas. Attr, sus colecciones ordenadas, índices y ownership se ejecutan en Rust. La igualdad, contención y posición documental de Node también se calculan en Rust, junto con el almacenamiento de identificadores de DocumentType y targets de ProcessingInstruction. Los wrappers, la construcción de objetos y la entrega de reacciones aún conectan con lógica JS; también quedan otras operaciones de Node/Document/Element, eventos, rangos y el resto de las familias de API. La cobertura WPT versionada amplía la evidencia, sin cerrar por sí sola ningún bloque pendiente.
 
-- Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas; quedan setters de Node y reflexión WebIDL, entre otras responsabilidades.
+- Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas. Los setters de texto deciden en Rust el efecto por tipo; quedan sus factories y drivers de mutación, reflexión WebIDL y otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
 - Los helpers genéricos de raíz, longitud, ascendencia y orden de árbol usan Rust. Se mantienen separados los enlaces padre/hijo, Attr owners y shadow hosts; quedan recorridos compuestos y algoritmos generales de mutación/creación.
 - La planificación de normalize y sus ajustes de rangos usan Rust; queda la entrega de mutaciones y hooks.
@@ -25,6 +25,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - cloneContents controla selección, orden de efectos y subclonaciones mediante una pila Rust; JS conserva factories, copia concreta de nodos/cloningSteps y entrega de append/substring.
 - extractContents comparte la pila Rust y controla las etapas de texto, movimientos y colapso; el puente conserva factories y efectos. Quedan la copia concreta de nodos, hooks de mutación y otros algoritmos DOM generales.
 - Optimizar lecturas y creación/clonado de Range: el benchmark de estado nativo del 12/09 muestra aproximadamente 4× de costo frente a jsdom en esos patrones, aunque otras consultas son más rápidas.
+- Optimizar escrituras completas de Node: el benchmark de setters del 12/09 muestra 3,5–4× de costo para nodeValue y aproximadamente 1,9× para textContent frente a jsdom.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.

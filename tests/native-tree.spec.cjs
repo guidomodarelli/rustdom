@@ -7,6 +7,19 @@ const NativeSymbolTree = require('../dist/native-tree.cjs');
 const runtime = require('../dist/index.cjs');
 const { NativeTree } = require('../dist/native.cjs');
 
+test('should release incomplete Attr snapshots in a retained native tree without accumulating nodes', () => {
+  const tree = new NativeTree(); const root = tree.allocate();
+  for (let iteration = 0; iteration < 1024; iteration++) {
+    const attribute = tree.allocate(); tree.setData(attribute, JSON.stringify({ kind: 2, value: [0, 0xd800] }));
+    tree.append(root, attribute);
+    assert.equal(tree.release(attribute), true); assert.equal(tree.release(attribute), false);
+    assert.equal(tree.getLinks(root).childCount, 0);
+  }
+  tree.release(root);
+  assert.equal(tree.statistics().liveNodes, 0); assert.equal(tree.statistics().dataNodes, 0);
+  assert.equal(tree.statistics().attributeOwners, 0); assert.equal(tree.statistics().attributeHolders, 0);
+});
+
 test('should expose controlled native errors without corrupting topology', () => {
   const tree = new NativeTree();
   const root = tree.allocate();

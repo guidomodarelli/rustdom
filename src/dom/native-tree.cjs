@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -152,6 +152,21 @@ class NativeSymbolTree extends SymbolTree {
   nodeValue(node) { return this._arena.nodeValue(this._ensure(node)); }
   /** @param {object} node - Context node. @returns {string|null} Native value or aggregated descendant text. */
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
+
+  /** @param {object} node - DOM implementation. @param {string|null} value - Converted public value. @param {boolean} contents - Select textContent semantics. @param {Function} setAttributeValue - Existing attribute mutation hook. @returns {void} Delivers the native decision with original mutation and reaction ordering. */
+  setNodeText(node, value, contents, setAttributeValue) {
+    if (value === null) value = '';
+    switch (this._arena.textWriteAction(this._ensure(node), contents)) {
+      case NodeTextWriteAction.Ignore: return;
+      case NodeTextWriteAction.Attribute: setAttributeValue(node, value); return;
+      case NodeTextWriteAction.CharacterData: node.replaceData(0, node.length, value); return;
+      case NodeTextWriteAction.ReplaceChildren: {
+        const child = value !== '' ? node._ownerDocument.createTextNode(value) : null;
+        node._replaceAll(child); return;
+      }
+      default: throw new Error('rustdom Node text setter: unsupported native action');
+    }
+  }
   /** @param {object} root - Inclusive normalization context. @returns {object[]} Snapshot of Text candidates. */
   normalizationCandidates(root) { return this._arena.normalizationCandidates(this._ensure(root)).map((id) => this._object(id)); }
   /** @param {object} range - Range or StaticRange implementation. @param {object} data - Private constructor endpoints or an independent native copy. @returns {void} */

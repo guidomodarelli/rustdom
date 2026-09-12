@@ -27,6 +27,9 @@ const RANGE_MUTATION_ITERATIONS = 100;
 const RANGE_MUTATION_TEXT = '++';
 /** Include both public root lookup and connectivity on stable shallow/deep trees. */
 const NODE_ROOT_ITERATIONS = 1000;
+/** Alternate visible values while timing complete public Node setters. */
+const TEXT_WRITE_ITERATIONS = 1000;
+const TEXT_WRITE_VALUES = ['first', 'second'];
 /** Public content operations sharing identical partial-boundary fixtures. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
@@ -58,6 +61,8 @@ async function measure(name, size) {
   const insertsNodes = name === 'range-insert-node-100';
   const createsContextFragment = name === 'range-context-fragment';
   const mutatesCharacterRanges = name === 'range-character-mutations-100';
+  const textWriteProperty = name === 'node-value-writes-1000' ? 'nodeValue'
+    : name === 'node-text-writes-1000' ? 'textContent' : null;
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -101,6 +106,10 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
+      const textWriteContainer = textWriteProperty ? document.body.appendChild(document.createElement('div')) : null;
+      if (textWriteContainer) textWriteContainer.append('initial');
+      const originalWrittenText = textWriteContainer?.firstChild;
+      const textWriteTarget = textWriteProperty === 'nodeValue' ? originalWrittenText : textWriteContainer;
       let rootTarget = readsRoots ? document.querySelector('tbody').lastChild.lastChild.firstChild : null;
       if (name === 'node-roots-deep-1000') {
         let parent = document.body;
@@ -161,7 +170,11 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (readsRoots) {
+      if (textWriteProperty) {
+        for (let iteration = 0; iteration < TEXT_WRITE_ITERATIONS; iteration++) {
+          textWriteTarget[textWriteProperty] = TEXT_WRITE_VALUES[iteration % TEXT_WRITE_VALUES.length];
+        }
+      } else if (readsRoots) {
         result = 0;
         for (let iteration = 0; iteration < NODE_ROOT_ITERATIONS; iteration++) {
           result += Number(rootTarget.getRootNode() === document) + Number(rootTarget.isConnected);
@@ -335,6 +348,12 @@ async function measure(name, size) {
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
+      if (textWriteProperty) {
+        assert.equal(textWriteContainer.textContent, TEXT_WRITE_VALUES[(TEXT_WRITE_ITERATIONS - 1) % TEXT_WRITE_VALUES.length]);
+        assert.equal(textWriteContainer.childNodes.length, 1);
+        assert.equal(originalWrittenText.parentNode, textWriteProperty === 'nodeValue' ? textWriteContainer : null);
+        assert.equal(textWriteContainer.firstChild === originalWrittenText, textWriteProperty === 'nodeValue');
+      }
       if (createsContextFragment) {
         assert.equal(result.nodeType, dom.window.Node.DOCUMENT_FRAGMENT_NODE);
         assert.equal(result.querySelectorAll('tr').length, size); assert.equal(result.textContent, expectedText);
@@ -428,6 +447,7 @@ async function main() {
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
