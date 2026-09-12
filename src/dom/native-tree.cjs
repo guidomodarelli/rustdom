@@ -139,8 +139,10 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} node - Candidate whose current state is re-read. @returns {object|null} Transient group with live wrapper identities. */
   normalizationGroup(node) {
     const group = this._arena.normalizationGroup(this._ensure(node));
-    return group === null ? null : { ...group, parent: this._object(group.parent),
-      siblings: group.siblings.map((id) => this._object(id)) };
+    if (group === null) return null;
+    group.parent = this._object(group.parent);
+    group.siblings = group.siblings.map((id) => this._object(id));
+    return group;
   }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */

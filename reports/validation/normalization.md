@@ -55,3 +55,30 @@ pasó las tres pruebas de planificación sin errores ni pérdidas definitivas o
 indirectas. Los 48 bytes posibles y 544 alcanzables del runtime siguen visibles,
 sin supresiones. Es una verificación focal del ejecutable Rust, complementada
 por GC del addon real; no prueba ausencia absoluta de toda fuga.
+
+## Evitar trabajo de rangos sin referencias
+
+El driver comprueba los sets de WeakRefs después de replaceData y omite el
+recorrido de índices/longitudes si ambos están vacíos. Si existen WeakRefs
+muertos mantiene el recorrido y su limpieza original. El test adicional crea
+un rango desde el callback síncrono y confirma que se observa en ese punto.
+El DTO temporal se convierte in-place para evitar un segundo objeto JavaScript.
+
+Pasaron 12 contratos de normalización/CharacterData y los
+[232 WPT focales](../compatibility/2026-09-12T06-57-17.112Z-linux-wpt.json).
+El [benchmark posterior](../benchmarks/2026-09-12T06-59-28.430Z-linux-x64.md)
+conserva todas las muestras:
+
+| Escenario | Filas | jsdom | rustdom | Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| Textos separados | 250 | 4,606 ms | 7,111 ms | 0,65× |
+| Textos aislados | 250 | 0,780 ms | 1,887 ms | 0,41× |
+| Textos separados | 1.000 | 16,216 ms | 28,108 ms | 0,58× |
+| Textos aislados | 1.000 | 3,812 ms | 7,910 ms | 0,48× |
+
+Tres medianas Rust disminuyeron frente al baseline; la de textos aislados a
+1.000 filas subió ligeramente. Sigue siendo una regresión frente a jsdom y
+no se declara optimizada la normalización completa. El
+[estrés posterior](../memory/2026-09-12T07-00-07.276Z-linux-x64.json) pasó en
+ambos motores; rustdom registró heap +1,81 MiB y RSS +10,14 MiB, con los
+documentos, ventanas y nodos observados recolectados.
