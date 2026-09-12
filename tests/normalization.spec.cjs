@@ -105,3 +105,30 @@ test('should capture removals before mutation hooks and read live siblings for r
 test('should adjust ranges created inside a synchronous mutation callback', () => {
   assert.deepEqual(inspectReentrantNormalization(engines.rustdom, true), inspectReentrantNormalization(engines.jsdom, true));
 });
+
+test('should preserve jsdom relocation of ranges anchored only in Text siblings that are removed', () => {
+  for (const engine of Object.values(engines)) {
+    const dom = new engine.JSDOM('<main></main>');
+    try {
+      const document = dom.window.document;
+      const parent = document.querySelector('main');
+      const [first, second, third] = ['ab', 'cd', 'ef'].map((value) => document.createTextNode(value));
+      parent.append(first, second, third);
+      const secondOnly = document.createRange();
+      secondOnly.setStart(second, 1); secondOnly.setEnd(second, 2);
+      const adjacentOnly = document.createRange();
+      adjacentOnly.setStart(second, 1); adjacentOnly.setEnd(third, 1);
+      parent.normalize();
+      assert.equal(parent.textContent, 'abcdef');
+      assert.equal(parent.firstChild, first);
+      assert.equal(parent.childNodes.length, 1);
+      // Pinned jsdom queries ranges of the survivor/parent, then _remove relocates these endpoints.
+      for (const range of [secondOnly, adjacentOnly]) {
+        assert.equal(range.startContainer, parent);
+        assert.equal(range.endContainer, parent);
+        assert.equal(range.startOffset, 1);
+        assert.equal(range.endOffset, 1);
+      }
+    } finally { dom.window.close(); }
+  }
+});
