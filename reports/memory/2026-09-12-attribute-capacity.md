@@ -19,3 +19,5 @@ Se conserva además una ejecución anterior con un warmup menor, de 256 atributo
 El benchmark `node benchmarks/attribute-capacity.cjs <addon-base> <addon-candidato>` mide inserción, eliminación y el ciclo completo de atributos a través del addon real en procesos nuevos y orden alternado. Incluye el coste de recrecer las tablas después de compactarlas y registra todas las muestras. Es un microbenchmark de la API nativa: no demuestra una mejora de tiempo total de Jest o Vitest.
 
 Las capacidades están expresadas en entradas, no en bytes RSS. La devolución de un buffer Rust no obliga al allocator a devolver inmediatamente sus páginas al sistema operativo. Las pruebas finitas cubren los escenarios descritos; no constituyen una demostración de ausencia absoluta de fugas.
+
+Seguimiento separado: `TreeStore` todavía decide la compactación de sus tablas `nodes`/`data` a partir de `capacity()`. Esta revisión no reprodujo retención oculta usando los patrones reales de handles de ese núcleo, ni modifica esas tablas. Se registra para una verificación específica: un `capacity()` bajo por sí solo no demuestra que los buckets hayan sido liberados.
