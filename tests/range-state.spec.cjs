@@ -124,3 +124,18 @@ test('should reject a retained native state and release live/static Range owners
       released: cycle.released.state.nativeTree.rangeStates.live,
       survivors: cycle.released.state.survivors })) }));
 });
+
+test('should collect native state and tree instances while ESM exports stay imported', (context) => {
+  const child = spawnSync(process.execPath, ['--expose-gc', path.join(__dirname, 'helpers/native-esm-memory.mjs')], {
+    cwd: path.join(__dirname, '..'), encoding: 'utf8', timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
+  });
+  if (child.error) throw child.error;
+  assert.equal(child.status, 0, child.stderr || child.stdout);
+  const report = JSON.parse(child.stdout);
+  assert.equal(report.pass, true); assert.equal(report.cycles.length, 5);
+  assert.equal(report.held.reached, false); assert.equal(report.released.reached, true);
+  assert.equal(report.ranges.created - report.baseline.native.rangeStates.created, 2001);
+  assert.equal(report.ranges.released - report.baseline.native.rangeStates.released, 2001);
+  context.diagnostic(JSON.stringify({ node: report.node, nativeRanges: report.ranges,
+    survivors: report.cycles.map((cycle) => cycle.state.survivors) }));
+});
