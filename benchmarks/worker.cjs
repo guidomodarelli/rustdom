@@ -15,6 +15,8 @@ const WARMUP_SAMPLES = 3;
 const MEASURED_SAMPLES = 9;
 /** Keep a bounded default and a reproducible opt-in repeated-reference workload. */
 const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
+/** Each iteration executes all eight setter/selection decisions against real row nodes. */
+const RANGE_BOUNDARY_ITERATIONS = 100;
 
 /**
  * Build reproducible HTML with attributes, decoded entities, and table insertion modes.
@@ -101,6 +103,21 @@ async function measure(name, size) {
       if (stringifyReads) {
         for (let iteration = 0; iteration < stringifyReads; iteration++) {
           result = stringifyRange.toString(); consumedTextUnits += result.length;
+        }
+      } else if (name === 'range-boundaries-100') {
+        result = 0;
+        for (let iteration = 0; iteration < RANGE_BOUNDARY_ITERATIONS; iteration++) {
+          const node = rangeNodes[iteration % size];
+          const text = node.firstChild.firstChild.firstChild;
+          lastRange.selectNode(node);
+          lastRange.setStartBefore(node);
+          lastRange.setEndAfter(node);
+          lastRange.selectNodeContents(node);
+          lastRange.setStart(text, 1);
+          lastRange.setEnd(text, text.length);
+          lastRange.setStartAfter(node);
+          lastRange.setEndBefore(node);
+          result += Number(lastRange.collapsed && lastRange.commonAncestorContainer === node.parentNode);
         }
       } else if (name === 'range-compare-1000') {
         result = 0;
@@ -204,6 +221,14 @@ async function measure(name, size) {
       }
       if (name === 'node-position-1000') assert.equal(result, (1000 - Math.floor(1000 / size)) * 2 + 1000);
       if (name === 'range-compare-1000') assert.equal(result, 2 * (1000 - Math.floor(1000 / size)));
+      if (name === 'range-boundaries-100') {
+        const expectedIndex = (RANGE_BOUNDARY_ITERATIONS - 1) % size;
+        assert.equal(result, RANGE_BOUNDARY_ITERATIONS);
+        assert.equal(lastRange.startContainer, rangeNodes[expectedIndex].parentNode);
+        assert.equal(lastRange.startOffset, expectedIndex);
+        assert.equal(lastRange.endOffset, expectedIndex);
+        assert.equal(lastRange.toString(), '');
+      }
       if (name === 'range-point-1000' || name === 'range-text-point-1000') assert.equal(result, -1000 + 3 * Math.floor(1000 / size));
       if (stringifyReads) {
         assert.equal(result, expectedText);
@@ -246,6 +271,7 @@ async function main() {
     ...[250, 1000].map((size) => ({ name: 'text-content-100', size })),
     ...[250, 1000].flatMap((size) => ['normalize-split-text', 'normalize-isolated-text'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['range-compare-1000', 'range-point-1000', 'range-text-point-1000'].map((name) => ({ name, size }))),
+    ...[250, 1000].map((size) => ({ name: 'range-boundaries-100', size })),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_STRINGIFICATION_READS).map((name) =>
       ({ name, size, manualOnly: RANGE_STRINGIFICATION_READS[name] > 1 }))),
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),

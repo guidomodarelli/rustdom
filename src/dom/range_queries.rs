@@ -1,6 +1,6 @@
 //! Public Range point/intersection decisions over native topology and pinned node-length semantics.
 use super::{
-    constants::{COMMENT_NODE, DOCUMENT_TYPE_NODE, PROCESSING_INSTRUCTION_NODE, TEXT_NODE},
+    constants::DOCUMENT_TYPE_NODE,
     error::{Result, TreeError},
     store::{TreeStore, node_id},
 };
@@ -36,15 +36,7 @@ impl TreeStore {
         if data.kind == DOCUMENT_TYPE_NODE {
             return Ok(PointRelation::InvalidNodeType);
         }
-        // jsdom 27 nodeLength omits CDATA; preserve its public offset-validation behavior.
-        let length = if matches!(
-            data.kind,
-            TEXT_NODE | PROCESSING_INSTRUCTION_NODE | COMMENT_NODE
-        ) {
-            self.character_data(node)?.len() as u64
-        } else {
-            self.child_count(id)?
-        };
+        let length = self.range_node_length(id)?;
         if u64::from(offset) > length {
             return Ok(PointRelation::InvalidOffset);
         }

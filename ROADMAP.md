@@ -9,9 +9,10 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - Estado y algoritmos de datos de nodos: CharacterData, atributos, colecciones, consultas de namespaces y lectura de nodeValue/textContent ya tienen operaciones nativas; quedan setters de Node y reflexión WebIDL, entre otras responsabilidades.
 - Operaciones completas de Node/Document/Element, rangos, iteradores, selección, observadores y eventos.
 - La planificación de normalize usa Rust; quedan su driver de mutaciones y los ajustes de rangos.
-- La comparación de puntos de Range usa el árbol Rust; quedan estado, validaciones públicas y otras operaciones de Range.
-- comparePoint, isPointInRange e intersectsNode toman sus decisiones en Rust; quedan los setters, estado y demás operaciones de Range.
+- La comparación de puntos de Range usa el árbol Rust; quedan estado, conversiones WebIDL y otras operaciones de Range.
+- comparePoint, isPointInRange e intersectsNode toman sus decisiones en Rust; quedan el estado, la entrega de referencias vivas y otras operaciones de Range.
 - El stringifier de Range reúne el texto seleccionado en Rust; se conservan las particularidades de CDATA y UTF-16 del jsdom de referencia.
+- Los ocho setters/selecciones y commonAncestorContainer deciden en Rust; las referencias vivas, estado de Range y ajustes durante otras mutaciones todavía conservan responsabilidades JS.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.

@@ -1,12 +1,16 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, QueryMode, AttributeField, DocumentTypeField, RangePointRelation } = require('../../dist/native.cjs');
+const { NativeTree, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 /** Initialize native case data without assuming every host version was known at build time. */
 const { initializeHostUnicode } = require('./host-unicode.cjs');
 /** Preserve the pinned private comparator's diagnostic for inconsistent roots. */
 const BOUNDARY_ROOT_ERROR_MESSAGE = 'Internal Error: Boundary points should have the same root!';
+/** Shared pinned diagnostics; the exception realm remains specific to the calling operation. */
+const RANGE_INVALID_TYPE_MESSAGE = "DocumentType Node can't be used as boundary point.";
+const RANGE_OFFSET_MESSAGE = 'Offset out of bound.';
+const RANGE_NO_PARENT_MESSAGE = 'The given Node has no parent.';
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -155,9 +159,9 @@ class NativeSymbolTree extends SymbolTree {
       case RangePointRelation.After: return 1;
       case RangePointRelation.DifferentRoot: return null;
       case RangePointRelation.InvalidNodeType:
-        throw exceptionFactory.create(node._globalObject, ["DocumentType Node can't be used as boundary point.", 'InvalidNodeTypeError']);
+        throw exceptionFactory.create(node._globalObject, [RANGE_INVALID_TYPE_MESSAGE, 'InvalidNodeTypeError']);
       case RangePointRelation.InvalidOffset:
-        throw exceptionFactory.create(node._globalObject, ['Offset out of bound.', 'IndexSizeError']);
+        throw exceptionFactory.create(node._globalObject, [RANGE_OFFSET_MESSAGE, 'IndexSizeError']);
       case RangePointRelation.InconsistentRoots: throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
       default: throw new Error(`NativeTree: unsupported range point result ${result}`);
     }
@@ -168,6 +172,44 @@ class NativeSymbolTree extends SymbolTree {
       range._start.offset, this._ensure(range._end.node), range._end.offset);
     if (result === null) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
     return result;
+  }
+  /** @param {object} left - First endpoint node. @param {object} right - Second endpoint node. @returns {object|null} Original inclusive common ancestor identity. */
+  commonAncestor(left, right) { return this._object(this._arena.commonAncestor(this._ensure(left), this._ensure(right))); }
+  /**
+   * Apply ordered live-reference updates after Rust accepts the requested boundary change.
+   * @param {object} range - Live Range implementation.
+   * @param {object} node - Requested node, or sibling reference for a relative setter.
+   * @param {number} offset - WebIDL-converted offset; ignored for relative setters and selections.
+   * @param {string} modeName - Key of the native RangeBoundaryMode vocabulary.
+   * @param {object} exceptionFactory - Pinned DOMException factory.
+   * @returns {void}
+   */
+  setRangeBoundary(range, node, offset, modeName, exceptionFactory) {
+    const mode = RangeBoundaryMode[modeName];
+    const plan = this._arena.rangeBoundaryPlan(mode, this._ensure(node), offset,
+      this._ensure(range._start.node), range._start.offset, this._ensure(range._end.node), range._end.offset);
+    if (plan.action === RangeBoundaryAction.NoParent) {
+      throw exceptionFactory.create(mode === RangeBoundaryMode.SelectNode ? node._globalObject : range._globalObject,
+        [RANGE_NO_PARENT_MESSAGE, 'InvalidNodeTypeError']);
+    }
+    if (plan.action === RangeBoundaryAction.InvalidNodeType || plan.action === RangeBoundaryAction.InvalidOffset) {
+      const relative = mode === RangeBoundaryMode.StartBefore || mode === RangeBoundaryMode.StartAfter ||
+        mode === RangeBoundaryMode.EndBefore || mode === RangeBoundaryMode.EndAfter;
+      const realm = mode === RangeBoundaryMode.SelectContents ? range._globalObject : (relative ? this.parent(node) : node)._globalObject;
+      throw exceptionFactory.create(realm, plan.action === RangeBoundaryAction.InvalidNodeType
+        ? [RANGE_INVALID_TYPE_MESSAGE, 'InvalidNodeTypeError'] : [RANGE_OFFSET_MESSAGE, 'IndexSizeError']);
+    }
+    if (plan.action === RangeBoundaryAction.InconsistentRoots) throw new Error(BOUNDARY_ROOT_ERROR_MESSAGE);
+    const target = this._object(plan.node);
+    switch (plan.action) {
+      case RangeBoundaryAction.Start: range._setLiveRangeStart(target, plan.startOffset); break;
+      case RangeBoundaryAction.End: range._setLiveRangeEnd(target, plan.endOffset); break;
+      case RangeBoundaryAction.BothStartFirst:
+        range._setLiveRangeStart(target, plan.startOffset); range._setLiveRangeEnd(target, plan.endOffset); break;
+      case RangeBoundaryAction.BothEndFirst:
+        range._setLiveRangeEnd(target, plan.endOffset); range._setLiveRangeStart(target, plan.startOffset); break;
+      default: throw new Error(`NativeTree: unsupported range boundary action ${plan.action}`);
+    }
   }
   /** @param {object} range - Live Range implementation. @returns {string} Native UTF-16 stringification without retained nodes. */
   rangeText(range) {
