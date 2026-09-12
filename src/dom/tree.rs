@@ -567,6 +567,19 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn range_fragment_context(
+        &self,
+        state: &NativeRange,
+        html_document: bool,
+    ) -> Result<Option<f64>> {
+        let (start, end) = state.raw_points()?;
+        self.store
+            .range_fragment_context(start, end, html_document)
+            .map(|context| context.map(|node| node as f64))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
     pub fn range_insertion_plan(
         &self,
         state: &NativeRange,

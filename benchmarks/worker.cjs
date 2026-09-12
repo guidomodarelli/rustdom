@@ -54,6 +54,7 @@ async function measure(name, size) {
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
   const surroundsContent = name === 'range-surround-contents';
   const insertsNodes = name === 'range-insert-node-100';
+  const createsContextFragment = name === 'range-context-fragment';
   const mutatesCharacterRanges = name === 'range-character-mutations-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -97,7 +98,7 @@ async function measure(name, size) {
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
-      const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent && !insertsNodes && !mutatesRanges ? [...document.querySelectorAll('tr')] : null;
+      const rangeNodes = name.startsWith('range-') && !stringifyReads && !surroundsContent && !insertsNodes && !mutatesRanges && !createsContextFragment ? [...document.querySelectorAll('tr')] : null;
       const ranges = name === 'range-state-lifecycle-1000' || contentOperation ? null
         : rangeNodes?.map((node) => { const range = document.createRange(); range.selectNodeContents(node); return range; });
       const lastRange = ranges?.at(-1);
@@ -118,6 +119,11 @@ async function measure(name, size) {
         const range = document.createRange(); range.setStart(mutationNode, mutationStartOffset); range.setEnd(mutationNode, mutationEndOffset); return range;
       }) : null;
       const mutationRow = mutatesTreeRanges ? document.createElement('tr') : null;
+      const contextRange = createsContextFragment ? document.createRange() : null;
+      const contextElement = createsContextFragment ? document.querySelector('tbody') : null;
+      const contextMarkup = createsContextFragment ? contextElement.innerHTML : null;
+      const previousNativeFragments = runtime.getParserStatistics?.().nativeFragment;
+      if (contextRange) contextRange.selectNodeContents(contextElement);
       const contentRange = contentOperation ? document.createRange() : null;
       if (contentRange) {
         contentRange.setStart(rangeNodes[0].firstChild.firstChild.firstChild, 4);
@@ -132,7 +138,7 @@ async function measure(name, size) {
       const rangePointNodes = name === 'range-text-point-1000'
         ? rangeNodes.map((node) => node.firstChild.firstChild.firstChild) : rangeNodes;
       const namespaceNode = name === 'namespace-lookup-1000' ? document.querySelector('a').firstChild : null;
-      const textRoot = name === 'text-content-100' || stringifyReads || contentOperation || surroundsContent || name.startsWith('normalize-') ? document.querySelector('table') : null;
+      const textRoot = name === 'text-content-100' || stringifyReads || contentOperation || surroundsContent || createsContextFragment || name.startsWith('normalize-') ? document.querySelector('table') : null;
       const expectedText = textRoot ? Array.from({ length: size }, (_, index) => `Row ${index} & value${index}`).join('') : null;
       let consumedTextUnits = 0;
       const stringifyRange = stringifyReads ? document.createRange() : null;
@@ -154,6 +160,8 @@ async function measure(name, size) {
         surroundRange.surroundContents(surrounding);
       } else if (insertsNodes) {
         for (const node of insertionNodes) insertionRange.insertNode(node);
+      } else if (createsContextFragment) {
+        result = contextRange.createContextualFragment(contextMarkup);
       } else if (mutatesRanges) {
         result = 0;
         for (let iteration = 0; iteration < RANGE_MUTATION_ITERATIONS; iteration++) {
@@ -312,6 +320,14 @@ async function measure(name, size) {
         assert.equal(surroundRange.startContainer, document.body);
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
+      if (createsContextFragment) {
+        assert.equal(result.nodeType, dom.window.Node.DOCUMENT_FRAGMENT_NODE);
+        assert.equal(result.querySelectorAll('tr').length, size); assert.equal(result.textContent, expectedText);
+        assert.equal(result.ownerDocument, document);
+        assert.equal(contextRange.startContainer, contextElement); assert.equal(contextRange.endContainer, contextElement);
+        assert.equal(contextRange.startOffset, 0); assert.equal(contextRange.endOffset, size);
+        if (engine === 'rustdom') assert.ok(runtime.getParserStatistics().nativeFragment > previousNativeFragments);
+      }
       if (mutatesRanges) {
         assert.equal(result, (mutationEndOffset + (mutatesCharacterRanges ? RANGE_MUTATION_TEXT.length : 1)) * RANGE_MUTATION_ITERATIONS);
         for (const range of mutationRanges) {
@@ -362,7 +378,7 @@ async function measure(name, size) {
       }
     }
     assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
-    const fragmentOutput = contentOperation === 'cloneContents' || contentOperation === 'extractContents'
+    const fragmentOutput = createsContextFragment || contentOperation === 'cloneContents' || contentOperation === 'extractContents'
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
     const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
@@ -403,6 +419,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['range-state-read-1000', 'range-state-lifecycle-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-control-1000', size })),
     ...[250, 1000].map((size) => ({ name: 'range-insert-node-100', size })),
+    ...[250, 1000].map((size) => ({ name: 'range-context-fragment', size })),
     ...[250, 1000].flatMap((size) => ['range-character-mutations-100', 'range-tree-mutations-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => Object.keys(RANGE_CONTENT_OPERATIONS).map((name) => ({ name, size }))),
     ...[250, 1000].map((size) => ({ name: 'range-surround-contents', size })),

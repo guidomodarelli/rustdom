@@ -435,6 +435,14 @@ rangeSource = substituteOnce(rangeSource,
   '  let newOffset = !referenceNode ? nodeLength(parent) : domSymbolTree.index(referenceNode);\n' +
   '  newOffset += node.nodeType === NODE_TYPE.DOCUMENT_FRAGMENT_NODE ? nodeLength(node) : 1;',
   '  const newOffset = domSymbolTree.rangeInsertionOffset(node, parent, referenceNode);');
+const fragmentContextStart = rangeSource.indexOf('  createContextualFragment(fragment) {');
+const fragmentContextEnd = rangeSource.indexOf('  // https://dom.spec.whatwg.org/#concept-range-root', fragmentContextStart);
+if (fragmentContextStart < 0 || fragmentContextEnd < fragmentContextStart) throw new Error('rustdom build: Range fragment context boundary changed');
+rangeSource = rangeSource.slice(0, fragmentContextStart) +
+  '  createContextualFragment(fragment) {\n' +
+  '    let element = domSymbolTree.rangeFragmentContext(this);\n' +
+  '    if (element === null) element = createElement(this._rangeStartNode._ownerDocument, "body", HTML_NS);\n' +
+  '    return parseFragment(fragment, element);\n  }\n\n' + rangeSource.slice(fragmentContextEnd);
 await writeFile(rangePath, rangeSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

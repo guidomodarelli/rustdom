@@ -127,6 +127,8 @@ export class NativeTree {
   /** Returns null for distinct roots; all endpoint handles must be allocated. */
   rangeContentSelection(state: NativeRange): RangeContentSelection | null;
   rangeSurroundStatus(state: NativeRange, parent: number): typeof RangeSurroundStatus[keyof typeof RangeSurroundStatus];
+  /** Null rejects the start type; zero requests a synthetic body. Both endpoint handles must already be allocated. */
+  rangeFragmentContext(state: NativeRange, htmlDocument: boolean): number | null;
   /** Returns null for an invalid start. Both endpoint handles and the inserted node must be allocated. */
   rangeInsertionPlan(state: NativeRange, node: number): RangeInsertionPlan | null;
   /** Re-reads topology after splitting/removing nodes. A zero reference means append. */
