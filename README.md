@@ -101,6 +101,11 @@ el tipo del contenedor. Solo recorre los dos caminos hasta el ancestro común;
 la entrega posterior de extracción, inserción y selección conserva sus hooks
 y los errores tardíos de jerarquía.
 
+`insertNode` recibe de Rust el padre y la referencia inicial; calcula también
+el offset después de dividir o retirar nodos. Las dos consultas conservan
+las lecturas posteriores a callbacks, sin cambiar el orden de los hooks
+de jerarquía, inserción ni actualización de rangos vivos.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

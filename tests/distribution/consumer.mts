@@ -101,6 +101,10 @@ assert.equal(contentRange.collapsed, true); assert.equal(contentRoot.textContent
 const surrounding = context.document.createElement('section');
 contentRange.selectNodeContents(contentRoot); contentRange.surroundContents(surrounding);
 assert.equal(contentRoot.firstChild, surrounding); assert.equal(surrounding.textContent, 'lght');
+const inserted = context.document.createDocumentFragment(); inserted.append(context.document.createElement('i'), 'installed');
+contentRange.collapse(false); contentRange.insertNode(inserted);
+assert.equal(inserted.childNodes.length, 0); assert.equal(contentRoot.textContent, 'lghtinstalled');
+assert.equal(contentRange.startOffset, 1); assert.equal(contentRange.endOffset, 3);
 selectedRange.setStartBefore(paragraph);
 selectedRange.setEndAfter(paragraph);
 assert.throws(() => selectedRange.comparePoint(paragraph.firstChild, 999), { name: 'IndexSizeError' });

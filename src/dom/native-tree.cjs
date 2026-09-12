@@ -323,6 +323,17 @@ class NativeSymbolTree extends SymbolTree {
     selection.collapseNode = this._object(selection.collapseNode);
     return selection;
   }
+  /** @param {object} range - Receiver Range. @param {object} node - Inserted node. @param {object} exceptionFactory - Original DOMException factory. @returns {object} Initial insertion geometry with stable node identities. */
+  rangeInsertionPlan(range, node, exceptionFactory) {
+    const plan = this._arena.rangeInsertionPlan(range._nativeRange, this._ensure(node));
+    if (plan === null) throw exceptionFactory.create(node._globalObject, ['Invalid start node.', 'HierarchyRequestError']);
+    plan.startNode = this._object(plan.startNode); plan.parent = this._object(plan.parent); plan.reference = this._object(plan.reference);
+    return plan;
+  }
+  /** @param {object} node - Inserted node after removal. @param {object} parent - Captured insertion parent. @param {object|null} reference - Current reference. @returns {number} Offset evaluated after all preceding hooks. */
+  rangeInsertionOffset(node, parent, reference) {
+    return this._arena.rangeInsertionOffset(this._ensure(node), this._ensure(parent), reference ? this._ensure(reference) : 0);
+  }
   /** @param {object} range - Receiver Range. @param {object} parent - Requested surrounding node. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Preserves native preflight error ordering in the receiver realm. */
   validateRangeSurround(range, parent, exceptionFactory) {
     const status = this._arena.rangeSurroundStatus(range._nativeRange, this._ensure(parent));

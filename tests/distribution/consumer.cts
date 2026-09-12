@@ -90,6 +90,9 @@ assert.equal(tree.getCharacterData(textHandle), 'native\ud800');
 const contents = tree.rangeContentSelection(rangeState);
 assert.ok(contents); assert.equal(contents.commonAncestor, textHandle); assert.deepEqual(contents.contained, []);
 assert.equal(tree.rangeSurroundStatus(rangeState, namespaceHandle), native.RangeSurroundStatus.Ready);
+assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textHandle, startOffset: 0,
+  parent: namespaceHandle, reference: textHandle, splitText: true });
+assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);
 const copiedRangeState = rangeState.copy();
 assert.deepEqual(copiedRangeState.collapsePlan(false), { node: textHandle, offset: 7, updateStart: true });
 copiedRangeState.setStart(textHandle, 1);
