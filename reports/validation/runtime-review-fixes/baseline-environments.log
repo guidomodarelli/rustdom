@@ -1,0 +1,105 @@
+✖ should preserve Blob bytes and multipart filenames when using native Request (660.303068ms)
+✔ should propagate pre-aborted and future Node signals to DOM listeners (8.511431ms)
+✔ should propagate a private DOM signal to a native Request (11.870066ms)
+✔ should revoke outstanding object URLs when an environment closes (10.785407ms)
+✔ should expose a real VM realm and release its owner when setupVM is used (7.181869ms)
+✔ should close VM timers when reserved globals prevent initialization (45.931402ms)
+✖ should expose the Web API bridge before user callbacks and inline scripts execute (7.1937ms)
+✖ should release callback resources when beforeParse aborts window construction (4.351288ms)
+✖ should release early resources when document parsing fails after beforeParse returns (4.75083ms)
+✔ should restore global descriptors and stop window timers when teardown runs (48.880413ms)
+✔ should roll back partial globals when document prevents environment setup (8.182152ms)
+✔ should roll back partial globals when jsdom prevents environment setup (5.75855ms)
+✔ should forward unhandled window exceptions and respect user handlers (11071.012719ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 9
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26306.192049
+
+✖ failing tests:
+
+test at tests/environments.spec.cjs:10:1
+✖ should preserve Blob bytes and multipart filenames when using native Request (660.303068ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(received instanceof target.FormData)
+  
+      at TestContext.<anonymous> (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:26:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/environments.spec.cjs:105:1
+✖ should expose the Web API bridge before user callbacks and inline scripts execute (7.1937ms)
+  TypeError: window.Request is not a constructor
+      at Object.beforeParse (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:113:20)
+      at new JSDOM (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/api.js:42:13)
+      at createWindow (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/window.cjs:25:15)
+      at Object.setupVM (file:///mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/vitest.mjs:47:27)
+      at TestContext.<anonymous> (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:108:31)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)
+
+test at tests/environments.spec.cjs:135:1
+✖ should release callback resources when beforeParse aborts window construction (4.351288ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: createdWindow.URL.createObjectURL is not a function
+      at TestContext.<anonymous> (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:142:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: createdWindow.URL.createObjectURL is not a function
+        at Object.beforeParse (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:145:35)
+        at new JSDOM (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/api.js:42:13)
+        at createWindow (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/window.cjs:25:15)
+        at Object.setupVM (file:///mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/vitest.mjs:47:27)
+        at /mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:142:35
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:142:10)
+        at async Test.run (node:internal/test_runner/test:1125:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:787:7),
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/environments.spec.cjs:157:1
+✖ should release early resources when document parsing fails after beforeParse returns (4.75083ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: Failed to execute 'addEventListener' on 'EventTarget': parameter 3 dictionary has member 'signal' that is not of type 'AbortSignal'.
+      at TestContext.<anonymous> (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Failed to execute 'addEventListener' on 'EventTarget': parameter 3 dictionary has member 'signal' that is not of type 'AbortSignal'.
+        at exports.convert (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/jsdom/living/generated/AbortSignal.js:25:9)
+        at exports._convertInherit (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/jsdom/living/generated/AddEventListenerOptions.js:40:27)
+        at exports.convert (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/jsdom/living/generated/AddEventListenerOptions.js:53:11)
+        at addEventListener (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/jsdom/living/generated/EventTarget.js:141:46)
+        at Object.beforeParse (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:168:21)
+        at new JSDOM (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/dist/vendor-jsdom/lib/api.js:42:13)
+        at createWindow (/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/window.cjs:25:15)
+        at Object.setupVM (file:///mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/src/environments/vitest.mjs:47:27)
+        at /mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8/tests/environments.spec.cjs:163:35
+        at getActual (node:assert:611:5),
+    operator: 'throws',
+    diff: 'simple'
+  }

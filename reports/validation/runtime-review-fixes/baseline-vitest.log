@@ -1,0 +1,68 @@
+
+> @rustdom/rustdom@0.1.0-alpha.0 test:vitest
+> vitest run tests/integration/platform.vitest.mjs
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.0 [39m[90m/mnt/c/Users/guido/AppData/Local/Temp/rustdom-runtime-review-fixes-b40b212256d64c26ba95529877599fa8[39m
+
+ [31m❯[39m tests/integration/platform.vitest.mjs [2m([22m[2m7 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 32[2mms[22m[39m
+[31m   [31m×[31m should submit DOM FormData through a native Request without changing filenames[39m[32m 12[2mms[22m[39m
+   [32m✓[39m should preserve stream identity and transfer data when using native response bodies[32m 4[2mms[22m[39m
+[31m   [31m×[31m should return DOM FormData and Files when decoding request and response clones[39m[32m 3[2mms[22m[39m
+[31m   [31m×[31m should resolve relative request and fetch URLs when the document URL changes[39m[32m 7[2mms[22m[39m
+   [32m✓[39m should remove a DOM listener when a native AbortController aborts[32m 2[2mms[22m[39m
+   [32m✓[39m should preserve DOM FileReader while accepting Blob responses and clones[32m 2[2mms[22m[39m
+   [32m✓[39m should retain body consumption and malformed multipart errors[32m 2[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/integration/platform.vitest.mjs[2m > [22mshould submit DOM FormData through a native Request without changing filenames
+[31m[1mAssertionError[22m: expected FormData { name: 'rustdom', file: File { size: 7, type: 'text/plain', name: 'content.txt', lastModified: 1789225359396 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m21:20[22m[39m
+    [90m 19|[39m   const request = new Request('http://localhost/upload', { method: 'PO…
+    [90m 20|[39m   const received = await request.formData();
+    [90m 21|[39m   expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                    [31m^[39m
+    [90m 22|[39m   expect(received.get('file')).toBeInstanceOf(File);
+    [90m 23|[39m   expect(received.get('name')).toBe('rustdom');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/platform.vitest.mjs[2m > [22mshould return DOM FormData and Files when decoding request and response clones
+[31m[1mAssertionError[22m: expected FormData { tag: [ 'first', 'second' ], file: File { size: 3, type: 'application/octet-stream', name: 'binary.dat', lastModified: 1789225359407 } } to be an instance of FormData[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m49:22[22m[39m
+    [90m 47|[39m   for (const owner of [request.clone(), request, response.clone(), res…
+    [90m 48|[39m     const received = await owner.formData();
+    [90m 49|[39m     expect(received).toBeInstanceOf(FormData);
+    [90m   |[39m                      [31m^[39m
+    [90m 50|[39m     expect(received.getAll('tag')).toEqual(['first', 'second']);
+    [90m 51|[39m     const file = received.get('file');
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/integration/platform.vitest.mjs[2m > [22mshould resolve relative request and fetch URLs when the document URL changes
+[31m[1mTypeError[22m: Failed to parse URL from /api[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+    [90m 75|[39m   try {
+    [90m 76|[39m     jsdom.reconfigure({ url: `${origin}/nested/page` });
+    [90m 77|[39m     expect(new Request('/api').url).toBe(`${origin}/api`);
+    [90m   |[39m            [31m^[39m
+    [90m 78|[39m     expect(new Request('../api').url).toBe(`${origin}/api`);
+    [90m 79|[39m     expect(new Request(new URL(`${origin}/absolute`)).url).toBe(`${ori…
+
+[31m[1mCaused by: TypeError[22m: Invalid URL[39m
+[90m [2m❯[22m new URL src/environments/web-platform.cjs:[2m151:3[22m[39m
+[90m [2m❯[22m new Request src/environments/web-platform.cjs:[2m114:7[22m[39m
+[36m [2m❯[22m tests/integration/platform.vitest.mjs:[2m77:12[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ code: 'ERR_INVALID_URL', input: '/api' }[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (7)[39m
+[2m   Start at [22m 12:02:27
+[2m   Duration [22m 11.56s[2m (environment 98%, import 1%, worker 1%)[22m
+
