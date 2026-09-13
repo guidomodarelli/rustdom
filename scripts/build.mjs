@@ -310,6 +310,8 @@ const nodeReplacementPrefix = substituteOnce(nodeSource.slice(nodeReplacementSta
   '    const { nodeType, nodeName } = nodeImpl;\n', '');
 nodeSource = nodeSource.slice(0, nodeReplacementStart) + nodeReplacementPrefix +
   '    domSymbolTree.validateReplacementConstraints(this, nodeImpl, childImpl, DOMException);\n\n' + nodeSource.slice(nodeReplacementEffectsStart);
+if (!nodeSource.includes('this._assignedNodes.length')) throw new Error('rustdom build: Node assignment-count reads changed');
+nodeSource = nodeSource.replaceAll('this._assignedNodes.length', 'domSymbolTree.assignedNodeCount(this)');
 await writeFile(nodePath, nodeSource);
 const boundaryPointPath = resolve(destination, 'lib/jsdom/living/range/boundary-point.js');
 let boundaryPointSource = await readFile(boundaryPointPath, 'utf8');
@@ -562,7 +564,22 @@ const flattenSlotsEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#f
 if (flattenSlotsStart < 0 || flattenSlotsEnd < flattenSlotsStart) throw new Error('rustdom build: flattened-slot helper boundary changed');
 shadowHelpers = shadowHelpers.slice(0, flattenSlotsStart) +
   'function findFlattenedSlotables(slot) {\n  return domSymbolTree.findFlattenedSlotables(slot);\n}\n\n' + shadowHelpers.slice(flattenSlotsEnd);
+const assignmentStart = shadowHelpers.indexOf('function assignSlotable(slot) {');
+const assignmentEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#assign-slotables-for-a-tree', assignmentStart);
+if (assignmentStart < 0 || assignmentEnd < assignmentStart) throw new Error('rustdom build: slot assignment boundary changed');
+shadowHelpers = shadowHelpers.slice(0, assignmentStart) +
+  'function assignSlotable(slot) {\n' +
+  '  const plan = domSymbolTree.slotAssignmentPlan(slot);\n' +
+  '  if (plan.changed) signalSlotChange(slot);\n' +
+  '  domSymbolTree.commitSlotAssignment(slot, plan.nodes);\n' +
+  '  for (const slotable of plan.nodes) slotable._assignedSlot = slot;\n}\n\n' + shadowHelpers.slice(assignmentEnd);
 await writeFile(shadowHelpersPath, shadowHelpers);
+const htmlSlotPath = resolve(destination, 'lib/jsdom/living/nodes/HTMLSlotElement-impl.js');
+let htmlSlotSource = await readFile(htmlSlotPath, 'utf8');
+htmlSlotSource = substituteOnce(htmlSlotSource, '"use strict";', '"use strict";\nconst { domSymbolTree } = require("../helpers/internal-constants");');
+htmlSlotSource = substituteOnce(htmlSlotSource, '    this._assignedNodes = [];', '    domSymbolTree.initializeSlotAssignment(this);');
+htmlSlotSource = substituteOnce(htmlSlotSource, 'this._assignedNodes.map(idlUtils.wrapperForImpl)', 'domSymbolTree.cachedSlotables(this).map(idlUtils.wrapperForImpl)');
+await writeFile(htmlSlotPath, htmlSlotSource);
 /** Keep constructor defaults allocation-free; actual name writes occur after node initialization. */
 const slotablePath = resolve(destination, 'lib/jsdom/living/nodes/Slotable-impl.js');
 let slotableSource = await readFile(slotablePath, 'utf8');

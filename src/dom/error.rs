@@ -19,6 +19,7 @@ pub enum TreeError {
     NotDocumentType(u64),
     NotDocumentFragment(u64),
     NotSlotable(u64),
+    NotSlot(u64),
     SlotFlattenCycle(u64),
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
@@ -34,6 +35,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NotSlot(id) => write!(
+                formatter,
+                "NativeTree: node {id} must be an initialized HTML slot for assignment state"
+            ),
             Self::SlotFlattenCycle(id) => write!(
                 formatter,
                 "NativeTree.findFlattenedSlotables: cycle involving node {id}"

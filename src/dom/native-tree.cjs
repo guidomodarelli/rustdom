@@ -416,6 +416,26 @@ class NativeSymbolTree extends SymbolTree {
   findSlot(root, node) { return node.nodeType === 1 || node.nodeType === 3 || node.nodeType === 4 ? this._object(this._arena.findSlotFor(this._ensure(root), this._ensure(node))) : null; }
   /** @param {object} slot - Real slot implementation. @returns {object[]} Current assigned candidates in host-child order, without changing cached assignments. */
   findSlotables(slot) { return this._arena.findSlotables(this._ensure(slot)).map((id) => this._object(id)); }
+  /** @param {object} slot - Newly constructed slot. @returns {void} Creates only the V8-visible ownership array; native empty state is implicit. */
+  initializeSlotAssignment(slot) { this._node(slot).nativeAssignedNodes = []; }
+  /** @param {object} slot - Initialized slot. @returns {object} Captured objects and the native notification decision, before any effects. */
+  slotAssignmentPlan(slot) {
+    const id = this._ensure(slot); this._object(id);
+    const plan = this._arena.slotAssignmentPlan(id);
+    return { changed: plan.changed, nodes: plan.nodes.map((nodeId) => this._object(nodeId)) };
+  }
+  /** @param {object} slot - Slot owner. @param {object[]} nodes - Captured candidates kept alive across signaling. @returns {void} Commits numeric state before its V8 ownership mirror. */
+  commitSlotAssignment(slot, nodes) {
+    this._arena.setSlotAssignment(this._ensure(slot), nodes.map((node) => this._identify(node)));
+    this._node(slot).nativeAssignedNodes = nodes;
+  }
+  /** @param {object} slot - Slot owner. @returns {object[]} Independent objects selected from the canonical cache. */
+  cachedSlotables(slot) {
+    const id = this._ensure(slot); this._object(id);
+    return this._arena.cachedSlotables(id).map((nodeId) => this._object(nodeId));
+  }
+  /** @param {object} slot - Slot owner. @returns {number} Cached count without materializing an array. */
+  assignedNodeCount(slot) { return this._arena.assignedNodeCount(this._ensure(slot)); }
   /** @param {object} slot - Input implementation anchoring its tree and host. @returns {object[]} Flattened original nodes; temporary IDs do not own them. */
   findFlattenedSlotables(slot) {
     const id = this._ensure(slot);
@@ -714,6 +734,7 @@ class NativeSymbolTree extends SymbolTree {
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
       rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
+      slotAssignments: this._arena.slotAssignmentStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

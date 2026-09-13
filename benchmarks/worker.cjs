@@ -34,7 +34,7 @@ const RETARGET_EVENT_COUNT = 100;
 /** Exercise both prepared slot reads and assignment with its mutation hooks. */
 const SLOT_LOOKUP_ITERATIONS = 1000;
 const SLOT_REASSIGNMENT_ITERATIONS = 100;
-/** Recompute assignment lists rather than reading their existing cache. */
+/** Compare cached and recomputed assignment reads with the same fixture and sample count. */
 const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
 /** Traverse nested relay slots through the actual public flattening API. */
 const SLOT_FLATTEN_ITERATIONS = 100;
@@ -137,7 +137,8 @@ async function measure(name, size) {
   const dispatchesRetargetEvents = name === 'shadow-retarget-events-100';
   const queriesSlots = name === 'slot-lookup-1000';
   const reassignsSlots = name === 'slot-reassign-100' || name === 'slot-dense-reassign-100';
-  const queriesAssignments = name === 'slot-assigned-100';
+  const queriesCachedAssignments = name === 'slot-cached-100';
+  const queriesAssignments = name === 'slot-assigned-100' || queriesCachedAssignments;
   const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100';
   const usesSlots = queriesSlots || reassignsSlots || queriesAssignments;
   const flattensSlots = name === 'slot-flatten-chain-100';
@@ -290,7 +291,7 @@ async function measure(name, size) {
         result = 0;
         const expected = slotAssignment.assignments.at(-1);
         for (let iteration = 0; iteration < SLOT_ASSIGNMENT_QUERY_ITERATIONS; iteration++) {
-          const selected = slots.at(-1).assignedNodes({ flatten: true });
+          const selected = queriesCachedAssignments ? slots.at(-1).assignedNodes() : slots.at(-1).assignedNodes({ flatten: true });
           result += Number(selected.length === expected.length);
           for (let index = 0; index < selected.length; index++) result += Number(selected[index] === expected[index]);
         }
@@ -656,7 +657,7 @@ async function main() {
     { name: 'shadow-hosts-create-100', size: 25 },
     ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
     ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
-    ...[25, 100].flatMap((size) => ['slot-assigned-100', 'slot-dense-reassign-100'].map((name) => ({ name, size }))),
+    ...[25, 100].flatMap((size) => ['slot-cached-100', 'slot-assigned-100', 'slot-dense-reassign-100'].map((name) => ({ name, size }))),
     ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),

@@ -45,6 +45,9 @@ function isReleased(state, expected) {
     native.rootHosts?.hostedRoots === expected.rootHosts?.hostedRoots &&
     native.rootHosts?.hostOwners === expected.rootHosts?.hostOwners &&
     native.slotableNames?.namedNodes === expected.slotableNames?.namedNodes &&
+    native.slotAssignments?.slots === expected.slotAssignments?.slots &&
+    native.slotAssignments?.entries === expected.slotAssignments?.entries &&
+    native.slotAssignments?.members === expected.slotAssignments?.members &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

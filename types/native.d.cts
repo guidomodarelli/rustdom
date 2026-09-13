@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics } from './index.cjs';
 
 /** A contextual parser attribute, including optional XML metadata. */
 export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
@@ -135,6 +135,13 @@ export class NativeTree {
   findSlotables(slot: number): number[];
   /** Expands assigned/fallback slots in order with temporary numeric state; rejects cycles in malformed raw graphs. */
   findFlattenedSlotables(slot: number): number[];
+  /** Captures current candidates and whether they differ from cache; does not commit before signaling. */
+  slotAssignmentPlan(slot: number): { changed: boolean; nodes: number[] };
+  /** Commits the previously captured snapshot; errors leave the old cache intact. */
+  setSlotAssignment(slot: number, nodes: number[]): void;
+  cachedSlotables(slot: number): number[];
+  assignedNodeCount(slot: number): number;
+  slotAssignmentStatistics(): NativeSlotAssignmentStatistics;
   /** Default empty names consume no entry; nonempty state survives valid Element/Text metadata updates. */
   getSlotableName(node: number): string;
   setSlotableName(node: number, name: string): void;
