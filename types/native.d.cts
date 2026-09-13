@@ -1,5 +1,10 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics } from './index.cjs';
+
+/** Forward-only native registration results; invalid options leave existing membership unchanged. */
+export const ObservationStatus: { readonly Added: 0; readonly Replaced: 1; readonly MissingMutationKind: 2; readonly AttributeOldValueWithoutAttributes: 3; readonly AttributeFilterWithoutAttributes: 4; readonly CharacterOldValueWithoutCharacterData: 5 };
+export interface NativeObserverOptionsInput { attributes?: boolean; characterData?: boolean; childList?: boolean; subtree?: boolean; attributeOldValue?: boolean; characterDataOldValue?: boolean; attributeFilter?: string[]; }
+export interface NativeObserverInterest { observer: number; oldValue: boolean; }
 
 /** Complete scalar payload; zero represents a missing sibling, and text fields preserve null versus empty. */
 export interface NativeMutationRecordInput {
@@ -182,6 +187,12 @@ export class NativeTree {
   slotBacklinkStatistics(): NativeSlotBacklinkStatistics;
   /** Queues an initialized HTML slot once, preserving its first position; returns whether it was newly accepted. */
   queueSlotSignal(slot: number): boolean;
+  allocateMutationObserver(): number;
+  releaseMutationObserver(observer: number): boolean;
+  observeMutations(observer: number, target: number, options: NativeObserverOptionsInput): typeof ObservationStatus[keyof typeof ObservationStatus];
+  disconnectMutationObserver(observer: number): number[];
+  interestedMutationObservers(target: number, kind: 'attributes' | 'characterData' | 'childList', name?: string | null, namespace?: string | null): NativeObserverInterest[];
+  observerRegistryStatistics(): NativeMutationObserverStatistics;
   /** Takes the current batch and resets native queue storage before the caller delivers any callbacks. */
   takeSlotSignals(): number[];
   slotSignalStatistics(): NativeSlotSignalStatistics;

@@ -58,6 +58,13 @@ await writeFile(mutationRecordPath, '"use strict";\n' +
   'const NodeList = require("../generated/NodeList");\n' +
   'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
   'module.exports = { implementation: createMutationRecordImplementation(NodeList, domSymbolTree) };\n');
+await cp('src/dom/mutation-observer.cjs', 'dist/mutation-observer.cjs');
+const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
+await writeFile(mutationObserverPath, '"use strict";\n' +
+  'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +
+  'const { wrapperForImpl } = require("../generated/utils");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'module.exports = { implementation: createMutationObserverImplementation(domSymbolTree, wrapperForImpl) };\n');
 const contentDriverSource = await readFile('src/dom/range-content-driver.cjs', 'utf8');
 await writeFile('dist/range-content-driver.cjs', substituteOnce(contentDriverSource,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
@@ -206,6 +213,7 @@ await writeFile(doctypePath, doctypeSource);
 const nodePath = resolve(destination, 'lib/jsdom/living/nodes/Node-impl.js');
 let nodeSource = await readFile(nodePath, 'utf8');
 nodeSource = substituteOnce(nodeSource, 'const { simultaneousIterators } = require("../../utils");\n', '');
+nodeSource = substituteOnce(nodeSource, '    this._registeredObserverList = [];', '    this._observerOwners = new Set();');
 nodeSource = substituteOnce(nodeSource, 'const NODE_DOCUMENT_POSITION = require("../node-document-position");\n', '');
 const equalityStart = nodeSource.indexOf('function nodeEquals(a, b) {');
 const equalityEnd = nodeSource.indexOf('// https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor', equalityStart);
@@ -596,6 +604,17 @@ shadowHelpers = substituteOnce(shadowHelpers, 'const { signalSlotList, queueMuta
 await writeFile(shadowHelpersPath, shadowHelpers);
 const mutationObserversPath = resolve(destination, 'lib/jsdom/living/helpers/mutation-observers.js');
 let mutationObserversSource = await readFile(mutationObserversPath, 'utf8');
+const observerSelectionStart = mutationObserversSource.indexOf('  const interestedObservers = new Map();');
+const observerSelectionEnd = mutationObserversSource.indexOf('  for (const [observer, mappedOldValue] of interestedObservers.entries()) {', observerSelectionStart);
+if (observerSelectionStart < 0 || observerSelectionEnd < observerSelectionStart) throw new Error('rustdom build: missing mutation observer selection boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(observerSelectionStart, observerSelectionEnd),
+  '  const interestedObservers = domSymbolTree.interestedMutationObservers(type, target, name, namespace, oldValue);\n\n');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  for (const [observer, mappedOldValue] of interestedObservers.entries()) {',
+  '  for (const { observer, oldValue: mappedOldValue } of interestedObservers) {');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    for (const node of mo._nodeList) {\n      node._registeredObserverList = node._registeredObserverList.filter(registeredObserver => {\n        return registeredObserver.source !== mo;\n      });\n    }\n\n', '');
 mutationObserversSource = substituteOnce(mutationObserversSource, '// https://dom.spec.whatwg.org/#signal-slot-list\nconst signalSlotList = [];\n\n', '');
 mutationObserversSource = substituteOnce(mutationObserversSource, '  const signalList = [...signalSlotList];\n  signalSlotList.splice(0, signalSlotList.length);',
   '  const signalList = domSymbolTree.takeSlotSignals();');

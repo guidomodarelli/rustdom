@@ -8,7 +8,7 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
-  NativeMutationRecord,
+  NativeMutationRecord, ObservationStatus,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -31,6 +31,7 @@ assert.equal(dom.window.document.querySelector('span')?.textContent, 'Installed'
 assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
 assert.equal(NativeMutationRecord, nativeRuntime.NativeMutationRecord);
+assert.equal(ObservationStatus, nativeRuntime.ObservationStatus);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
@@ -105,11 +106,14 @@ const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' }
 const context = session.getVmContext();
 const recordTarget = context.document.createElement('section'); context.document.body.append(recordTarget);
 const nativeRecordsBefore = getNativeTreeStatistics().mutationRecords.created;
+const nativeRegistrationsBefore = getNativeTreeStatistics().mutationObservers.registrations;
 const recordObserver = new context.MutationObserver(() => {});
 recordObserver.observe(recordTarget, { childList: true, attributes: true, attributeOldValue: true });
+assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore + 1);
 const recordChild = context.document.createElement('b'); recordTarget.append(recordChild);
 recordTarget.setAttribute('data-record', 'one'); recordTarget.setAttribute('data-record', 'two');
 const installedRecords = recordObserver.takeRecords(); recordObserver.disconnect();
+assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore);
 assert.equal(installedRecords.length, 3); assert.equal(installedRecords[0].target, recordTarget);
 assert.equal(installedRecords[0].addedNodes[0], recordChild);
 assert.equal(installedRecords[0].addedNodes, installedRecords[0].addedNodes);

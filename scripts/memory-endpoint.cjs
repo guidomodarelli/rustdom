@@ -54,6 +54,9 @@ function isReleased(state, expected) {
     native.slotSignals?.queueEntries === expected.slotSignals?.queueEntries &&
     native.slotAssignmentDrivers?.live === expected.slotAssignmentDrivers?.live &&
     native.mutationRecords?.live === expected.mutationRecords?.live &&
+    native.mutationObservers?.observers === expected.mutationObservers?.observers &&
+    native.mutationObservers?.observedNodes === expected.mutationObservers?.observedNodes &&
+    native.mutationObservers?.registrations === expected.mutationObservers?.registrations &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

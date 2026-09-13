@@ -56,6 +56,13 @@ assert.equal(nativeRecord.kind, 'attributes'); assert.equal(nativeRecord.target,
 assert.equal(nativeRecord.attributeName, 'flag\ud800'); assert.equal(nativeRecord.attributeNamespace, null);
 assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecord.addedNodes, []);
 assert.ok(native.NativeMutationRecord.statistics().created > 0);
+const nativeObserver = tree.allocateMutationObserver();
+assert.equal(tree.observeMutations(nativeObserver, handle, { attributeOldValue: true }), native.ObservationStatus.Added);
+assert.deepEqual(tree.interestedMutationObservers(handle, 'attributes', 'title', null), [{ observer: nativeObserver, oldValue: true }]);
+assert.equal(tree.observeMutations(nativeObserver, handle, {}), native.ObservationStatus.MissingMutationKind);
+assert.deepEqual(tree.disconnectMutationObserver(nativeObserver), [handle]);
+assert.equal(tree.releaseMutationObserver(nativeObserver), true);
+assert.equal(tree.observerRegistryStatistics().observers, 0); assert.equal(tree.observerRegistryStatistics().registrations, 0);
 assert.equal(tree.serializeHtml(handle, true, false), '<b title="installed"></b>');
 const doctypeHandle = tree.allocate();
 tree.initializeDocumentType(doctypeHandle, 'html', '\ud800', 'system');

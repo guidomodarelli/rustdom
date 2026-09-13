@@ -20,6 +20,8 @@ mod node_geometry;
 mod node_metadata;
 mod node_text;
 mod normalization;
+mod observer_registry;
+mod observer_registry_binding;
 mod queries;
 mod range_boundaries;
 mod range_clone_binding;

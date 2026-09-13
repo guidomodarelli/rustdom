@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -14,6 +14,13 @@ const RANGE_NO_PARENT_MESSAGE = 'The given Node has no parent.';
 /** Pinned public comparison diagnostic, independent of which endpoint pair is selected. */
 const RANGE_COMPARISON_METHOD_MESSAGE = "The comparison method provided must be one of 'START_TO_START', 'START_TO_END', 'END_TO_END', " +
   "or 'END_TO_START'.";
+/** Preserve the reference implementation's host TypeError and rejection precedence after native normalization. */
+const OBSERVATION_ERROR_MESSAGES = {
+  [ObservationStatus.MissingMutationKind]: "The options object must set at least one of 'attributes', 'characterData', or 'childList' to true.",
+  [ObservationStatus.AttributeOldValueWithoutAttributes]: "The options object may only set 'attributeOldValue' to true when 'attributes' is true or not present.",
+  [ObservationStatus.AttributeFilterWithoutAttributes]: "The options object may only set 'attributeFilter' when 'attributes' is true or not present.",
+  [ObservationStatus.CharacterOldValueWithoutCharacterData]: "The options object may only set 'characterDataOldValue' to true when 'characterData' is true or not present.",
+};
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -27,11 +34,17 @@ class NativeSymbolTree extends SymbolTree {
     initializeHostUnicode(this._arena, process.versions.unicode);
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
+    this._observers = new Map();
     this._signalSlotOwners = [];
     this._nextHandle = 0;
     this._handleLimit = 0;
     const arena = this._arena;
     const objects = this._objects;
+    const observers = this._observers;
+    this._collectedObservers = new FinalizationRegistry((id) => {
+      observers.delete(id);
+      arena.releaseMutationObserver(id);
+    });
     this._collected = new FinalizationRegistry((id) => {
       objects.delete(id);
       arena.release(id);
@@ -470,6 +483,34 @@ class NativeSymbolTree extends SymbolTree {
       attributeName: data.attributeName, attributeNamespace: data.attributeNamespace, oldValue: data.oldValue,
       addedNodes: data.addedNodes.map((node) => this._ensure(node)), removedNodes: data.removedNodes.map((node) => this._ensure(node)) });
   }
+  /** @param {object} observer - Real implementation, weakly indexed. @returns {number} Monotonic native creation-order ID. */
+  allocateMutationObserver(observer) {
+    const id = this._arena.allocateMutationObserver();
+    this._observers.set(id, new WeakRef(observer));
+    this._collectedObservers.register(observer, id);
+    return id;
+  }
+  /** @param {object} observer - Live implementation. @param {object} target - Observed node. @param {object} options - Converted dictionary. @returns {void} */
+  observeMutations(observer, target, options) {
+    const status = this._arena.observeMutations(observer._id, this._identify(target), options);
+    const message = OBSERVATION_ERROR_MESSAGES[status];
+    if (message) throw new TypeError(message);
+    if (status === ObservationStatus.Added) {
+      target._observerOwners.add(observer);
+    }
+  }
+  /** @param {object} observer - Anchored observer. @returns {void} Removes ownership from surviving targets; collected nodes no longer own anything. */
+  disconnectMutationObserver(observer) {
+    for (const id of this._arena.disconnectMutationObserver(observer._id)) this._objects.get(id)?.deref()?._observerOwners.delete(observer);
+  }
+  /** @param {string} kind - Mutation kind. @param {object} target - Mutated node. @param {string|null} name - Attribute local name. @param {string|null} namespace - Attribute namespace. @param {string|null} oldValue - Producer snapshot. @returns {object[]} Native-selected observers and old-value effects in first-match order. */
+  interestedMutationObservers(kind, target, name, namespace, oldValue) {
+    const targetId = this._ensure(target);
+    this._objects.get(targetId).deref();
+    return this._arena.interestedMutationObservers(targetId, kind, name, namespace).map((interest) => ({
+      observer: this._observers.get(interest.observer).deref(), oldValue: interest.oldValue ? oldValue : null,
+    }));
+  }
   /**
    * Execute native assignment traversal and replay only ownership changes and signal effects.
    * @param {object} root - Root to traverse, or the single slot.
@@ -801,6 +842,7 @@ class NativeSymbolTree extends SymbolTree {
       slotSignals: this._arena.slotSignalStatistics(),
       slotAssignmentDrivers: NativeSlotAssignmentDriver.statistics(),
       mutationRecords: NativeMutationRecord.statistics(),
+      mutationObservers: this._arena.observerRegistryStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

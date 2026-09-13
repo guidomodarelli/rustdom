@@ -25,7 +25,7 @@ for (const path of ['src/environments', 'types', 'README.md', 'LICENSE']) {
 /** An explicit runtime manifest excludes stale tool transactions and binaries from other builds. */
 const runtimeFiles = ['index.cjs', 'index.mjs', 'native.cjs', 'native.mjs', 'native-tree.cjs',
   'parser-bridge.cjs', 'private-require.cjs', 'data-bridge.cjs', 'host-unicode.cjs', 'range-state.cjs',
-  'range-content-driver.cjs', 'range-errors.cjs', 'mutation-record.cjs', 'native-build.json', 'rustdom.node', 'vendor-jsdom'];
+  'range-content-driver.cjs', 'range-errors.cjs', 'mutation-record.cjs', 'mutation-observer.cjs', 'native-build.json', 'rustdom.node', 'vendor-jsdom'];
 await mkdir(join(staging, 'dist'), { recursive: true });
 for (const name of runtimeFiles) await cp(resolve('dist', name), join(staging, 'dist', name), { recursive: true });
 await preserveNativeLicenses(join(staging, 'dist/native-licenses'));

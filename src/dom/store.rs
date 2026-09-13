@@ -61,6 +61,7 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    pub(crate) observer_registry: super::observer_registry::ObserverRegistry,
     pub(crate) slot_signals: super::slot_signals::SlotSignals,
     pub(crate) slot_backlinks: super::slot_backlinks::SlotBacklinks,
     pub(crate) slot_assignments: super::slot_assignments::SlotAssignments,
@@ -499,6 +500,7 @@ impl TreeStore {
         self.slot_assignments.release_node(id);
         self.slot_backlinks.release_node(id);
         self.slot_signals.release_node(id);
+        self.observer_registry.release_node(id);
         self.detach(id)?;
         let mut child = self.nodes[&id].first;
         while child != 0 {

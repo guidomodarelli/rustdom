@@ -40,6 +40,8 @@ const SLOT_EVENT_ITERATIONS = 100;
 const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
 /** Traverse nested relay slots through the actual public flattening API. */
 const SLOT_FLATTEN_ITERATIONS = 100;
+/** Keep mutation volume fixed when varying observer ancestry depth. */
+const OBSERVER_MUTATION_GROUPS = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -136,13 +138,17 @@ function captureMutationRecords(records) {
     nextSibling: record.nextSibling, added: [...record.addedNodes], removed: [...record.removedNodes] }));
 }
 
-/** @param {Document} document - Live document. @param {number} size - Attribute/text/child-list mutation groups. @returns {object} Real observer fixture with explicit cleanup and complete validation. */
-function mutationRecordFixture(document, size) {
-  const host = document.body.appendChild(document.createElement('section')); const text = host.appendChild(document.createTextNode('initial'));
+/** @param {Document} document - Live document. @param {number} size - Attribute/text/child-list mutation groups. @param {number} [ancestorDepth] - Additional matching registrations above the target. @returns {object} Real observer fixture with explicit cleanup and complete validation. */
+function mutationRecordFixture(document, size, ancestorDepth = 0) {
+  const ancestors = []; let parent = document.body;
+  for (let depth = 0; depth < ancestorDepth; depth++) { parent = parent.appendChild(document.createElement('section')); ancestors.push(parent); }
+  const host = parent.appendChild(document.createElement('section')); const text = host.appendChild(document.createTextNode('initial'));
   const children = Array.from({ length: size }, () => document.createElement('b'));
   const observer = new document.defaultView.MutationObserver(() => {});
   observer.observe(host, { attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true, childList: true, subtree: true });
-  return { records: [],
+  for (const ancestor of ancestors) observer.observe(ancestor, { attributes: true, attributeOldValue: true,
+    characterData: true, characterDataOldValue: true, childList: true, subtree: true });
+  return { records: [], expectedRecords: size * 3,
     /** @returns {MutationRecord[]} Creates and collects all three kinds through actual public mutations. */
     produce() {
       for (let index = 0; index < size; index++) { host.setAttribute('data-state', String(index)); text.data = `value-${index}`; host.append(children[index]); }
@@ -203,7 +209,8 @@ async function measure(name, size) {
   const usesSlots = queriesSlots || reassignsSlots || queriesAssignments || dispatchesSlotEvents;
   const flattensSlots = name === 'slot-flatten-chain-100';
   const signalsSlotBurst = name === 'slot-signal-burst';
-  const collectsMutationRecords = name === 'mutation-records-collect';
+  const selectsObserverAncestors = name === 'mutation-observer-ancestors';
+  const collectsMutationRecords = name === 'mutation-records-collect' || selectsObserverAncestors;
   const readsMutationRecords = name === 'mutation-records-read';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -254,7 +261,8 @@ async function measure(name, size) {
       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
       const document = dom.window.document;
       if (collectsMutationRecords || readsMutationRecords) {
-        mutationRecordWork = mutationRecordFixture(document, size);
+        mutationRecordWork = mutationRecordFixture(document, selectsObserverAncestors ? OBSERVER_MUTATION_GROUPS : size,
+          selectsObserverAncestors ? size : 0);
         if (readsMutationRecords) mutationRecordWork.records = mutationRecordWork.produce();
       }
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
@@ -577,7 +585,7 @@ async function measure(name, size) {
       elapsed = performance.now() - start;
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
-        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= size * 3);
+        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedRecords);
       }
       if (signalsSlotBurst) {
         assert.equal(result, size * 3);
@@ -778,6 +786,7 @@ async function main() {
     ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
     ...[100, 1000].map((size) => ({ name: 'slot-signal-burst', size })),
     ...[100, 1000].flatMap((size) => ['mutation-records-collect', 'mutation-records-read'].map((name) => ({ name, size }))),
+    ...[100, 1000].map((size) => ({ name: 'mutation-observer-ancestors', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

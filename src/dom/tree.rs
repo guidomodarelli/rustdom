@@ -4,12 +4,16 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
-    mutation_record::{MutationRecordDraft, MutationRecordState},
+    mutation_record::{MutationKind, MutationRecordDraft, MutationRecordState},
     napi_error::to_napi_error,
     napi_string::string_result,
     node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
+    observer_registry::ObservationStatus,
+    observer_registry_binding::{
+        NativeObserverInterest, NativeObserverOptionsInput, NativeObserverRegistryStatistics,
+    },
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
     range_clone_binding::{NativeRangeClone, RangeCloneInstruction},
@@ -588,6 +592,72 @@ impl NativeTree {
     #[napi]
     pub fn queue_slot_signal(&mut self, slot: f64) -> Result<bool> {
         self.store.queue_slot_signal(slot).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn allocate_mutation_observer(&mut self) -> Result<f64> {
+        self.store
+            .observer_registry
+            .allocate()
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn release_mutation_observer(&mut self, observer: f64) -> Result<bool> {
+        self.store
+            .observer_registry
+            .release(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn observe_mutations(
+        &mut self,
+        observer: f64,
+        target: f64,
+        options: NativeObserverOptionsInput,
+    ) -> Result<ObservationStatus> {
+        self.store
+            .observe_mutations(observer, target, options.into())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn disconnect_mutation_observer(&mut self, observer: f64) -> Result<Vec<f64>> {
+        self.store
+            .observer_registry
+            .disconnect(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn interested_mutation_observers(
+        &self,
+        target: f64,
+        kind: String,
+        name: Option<Utf16String>,
+        namespace: Option<Utf16String>,
+    ) -> Result<Vec<NativeObserverInterest>> {
+        let kind = MutationKind::parse(&kind).map_err(to_napi_error)?;
+        let name = name.map(|name| DomString::from_units(&name));
+        let namespace = namespace.map(|namespace| DomString::from_units(&namespace));
+        self.store
+            .interested_mutation_observers(target, kind, name.as_ref(), namespace.as_ref())
+            .map(|interests| {
+                interests
+                    .into_iter()
+                    .map(|interest| NativeObserverInterest {
+                        observer: interest.observer as f64,
+                        old_value: interest.old_value,
+                    })
+                    .collect()
+            })
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn observer_registry_statistics(&self) -> NativeObserverRegistryStatistics {
+        self.store.observer_registry.statistics().into()
     }
 
     #[napi]

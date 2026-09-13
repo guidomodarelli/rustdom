@@ -195,7 +195,15 @@ retiene las referencias que V8 necesita y crea NodeLists estáticas en el realm
 original; el wrapper WebIDL conserva su identidad SameObject. Un registro raw
 no retiene su `NativeTree`. `mutationRecords` informa creación, liberación e
 instancias vivas. La selección de observadores, sus opciones, colas y entrega
-de callbacks todavía conservan algoritmos JavaScript pendientes de migración.
+de callbacks se detallan en el siguiente bloque de migración.
+
+La normalización de opciones, las inscripciones y la selección por ancestros
+de MutationObserver se ejecutan en Rust. Se mantienen orden, deduplicación,
+oldValue, filtros UTF-16 y errores del jsdom fijado. Los nodos conservan a sus
+observadores; los observadores identifican targets mediante el registro nativo
+sin retener nodos inalcanzables. `mutationObservers` informa miembros y
+capacidades. Las colas de records, microtasks y callbacks aún conservan drivers
+JS. Ver [contratos y evidencia de retención](reports/validation/mutation-observer-registration.md).
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
