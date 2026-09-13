@@ -156,6 +156,7 @@ function exerciseHostRoots(document) {
   assert.equal(assigned.assignedSlot, slot); assert.equal(assignedText.assignedSlot, slot);
   assigned.slot = 'missing'; assert.equal(assigned.assignedSlot, null);
   assigned.slot = ''; assert.equal(assigned.assignedSlot, slot);
+  slot.name = 'retained'; assigned.slot = 'retained'; assert.equal(assigned.assignedSlot, slot);
   comparisonReferences.push(new WeakRef(slot), new WeakRef(assigned), new WeakRef(assignedText));
   const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
   assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
@@ -445,6 +446,7 @@ async function main() {
         nativeTree.rangeExtracts.live === initialAttributeState.rangeExtracts.live &&
         nativeTree.rootHosts.hostedRoots === initialAttributeState.rootHosts.hostedRoots &&
         nativeTree.rootHosts.hostOwners === initialAttributeState.rootHosts.hostOwners &&
+        nativeTree.slotableNames.namedNodes === initialAttributeState.slotableNames.namedNodes &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

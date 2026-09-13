@@ -408,8 +408,12 @@ class NativeSymbolTree extends SymbolTree {
   rootHost(root) { return this._node(root).nativeHost; }
   /** @param {object} node - Real target implementation. @param {object|null} reference - Real reference node or a non-node target sentinel. @returns {object} Target visible from the reference after native host traversal. */
   retarget(node, reference) { return this._object(this._arena.retarget(this._ensure(node), reference ? this._ensure(reference) : 0)); }
-  /** @param {object} root - Selected shadow root. @param {string|undefined} name - Original slotable name; other node kinds do not have one. @returns {object|null} First matching slot with its original identity. */
-  findSlot(root, name) { return typeof name === 'string' ? this._object(this._arena.findSlot(this._ensure(root), name)) : null; }
+  /** @param {object} node - Initialized Element or Text. @returns {string} Native slotable name, including its default empty value. */
+  slotableName(node) { return this._arena.getSlotableName(this._ensure(node)); }
+  /** @param {object} node - Initialized Element or Text. @param {string} name - Name supplied by the original mutation hook. @returns {void} Stores only nonempty names. */
+  setSlotableName(node, name) { this._arena.setSlotableName(this._ensure(node), name); }
+  /** @param {object} root - Selected shadow root. @param {object} node - Candidate, including CDATASection inheriting Text's name in jsdom. @returns {object|null} First matching slot with its original identity. */
+  findSlot(root, node) { return node.nodeType === 1 || node.nodeType === 3 || node.nodeType === 4 ? this._object(this._arena.findSlotFor(this._ensure(root), this._ensure(node))) : null; }
   /** @param {object} root - Fragment implementation, possibly still constructing. @param {object|null|undefined} host - Original host value. @param {boolean} shadow - ShadowRoot relationship rather than template ownership. @returns {void} Commits numeric links before changing the visible ownership edge. */
   setRootHost(root, host, shadow) {
     const record = this._node(root);
@@ -699,7 +703,8 @@ class NativeSymbolTree extends SymbolTree {
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
-      rootHosts: this._arena.rootHostStatistics(), rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
+      rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
+      rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }
 

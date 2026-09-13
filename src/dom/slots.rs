@@ -1,37 +1,69 @@
 //! First-slot selection over ordinary native tree order with lossless slot-name comparison.
 use super::{
     constants::{DOCUMENT_FRAGMENT_NODE, ELEMENT_NODE, HTML_NAMESPACE},
-    data::NodeData,
+    data::{DomString, NodeData},
     error::{Result, TreeError},
     store::{TreeStore, node_id},
 };
 
+/// Compare ordinary metadata directly and preserve the lossless representation when supplied.
+fn equals_text(value: &DomString, expected: &str) -> bool {
+    match value {
+        DomString::Text(value) => value == expected,
+        DomString::Utf16(value) => value.iter().copied().eq(expected.encode_utf16()),
+    }
+}
+
 /// Element snapshots are refreshed by the canonical attribute mutation boundary.
-fn matches_slot(data: &NodeData, name: &[u16]) -> bool {
+fn matches_slot(
+    data: &NodeData,
+    empty_name: bool,
+    accepts_name: &impl Fn(&DomString) -> bool,
+) -> bool {
     if data.kind != ELEMENT_NODE
         || !data
             .name
             .as_ref()
-            .is_some_and(|local_name| local_name.units().eq("slot".encode_utf16()))
+            .is_some_and(|local_name| equals_text(local_name, "slot"))
         || !data
             .namespace
             .as_ref()
-            .is_some_and(|namespace| namespace.units().eq(HTML_NAMESPACE.encode_utf16()))
+            .is_some_and(|namespace| equals_text(namespace, HTML_NAMESPACE))
     {
         return false;
     }
-    let value = data.attributes.iter().find(|attribute| {
-        attribute.namespace.is_none() && attribute.name.units().eq("name".encode_utf16())
-    });
+    let value = data
+        .attributes
+        .iter()
+        .find(|attribute| attribute.namespace.is_none() && equals_text(&attribute.name, "name"));
     match value {
-        Some(attribute) => attribute.value.units().eq(name.iter().copied()),
-        None => name.is_empty(),
+        Some(attribute) => accepts_name(&attribute.value),
+        None => empty_name,
     }
 }
 
 impl TreeStore {
     /// Find the first matching HTML slot inside one fragment without traversing template/host edges.
     pub fn find_slot(&self, root: f64, name: &[u16]) -> Result<f64> {
+        self.find_slot_matching_name(root, name.is_empty(), |value| {
+            value.units().eq(name.iter().copied())
+        })
+    }
+
+    /// Read the native slotable name directly, without copying it across the JavaScript boundary.
+    pub fn find_slot_for(&self, root: f64, slotable: f64) -> Result<f64> {
+        let name = self.slotable_name(slotable)?;
+        self.find_slot_matching_name(root, name.is_none_or(DomString::is_empty), |value| {
+            name.map_or_else(|| value.is_empty(), |name| value.units().eq(name.units()))
+        })
+    }
+
+    fn find_slot_matching_name(
+        &self,
+        root: f64,
+        empty_name: bool,
+        accepts_name: impl Fn(&DomString) -> bool,
+    ) -> Result<f64> {
         let root = node_id(root)?;
         if self.links(root)?.node_kind != Some(DOCUMENT_FRAGMENT_NODE) {
             return Err(TreeError::NotDocumentFragment(root));
@@ -42,7 +74,7 @@ impl TreeStore {
             if self
                 .data
                 .get(&current)
-                .is_some_and(|data| matches_slot(data, name))
+                .is_some_and(|data| matches_slot(data, empty_name, &accepts_name))
             {
                 return Ok(current as f64);
             }
@@ -121,6 +153,17 @@ mod tests {
         for child in [wrong_namespace, wrong_case, slot] {
             tree.append(root, child).unwrap();
         }
+        assert_eq!(tree.find_slot(root, &[]).unwrap(), slot);
+        tree.replace_data(
+            slot,
+            NodeData {
+                kind: ELEMENT_NODE,
+                name: Some(DomString::Utf16("slot".encode_utf16().collect())),
+                namespace: Some(DomString::Utf16(HTML_NAMESPACE.encode_utf16().collect())),
+                ..NodeData::default()
+            },
+        )
+        .unwrap();
         assert_eq!(tree.find_slot(root, &[]).unwrap(), slot);
         tree.initialize_attribute_collection(slot).unwrap();
         let attribute = tree.allocate().unwrap();

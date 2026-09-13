@@ -34,8 +34,10 @@ export interface NativeTreeStatistics {
 export interface NativeRangeStatistics { live: number; created: number; released: number; }
 /** Numeric host relationships and their compact storage capacities. */
 export interface NativeRootHostStatistics { hostedRoots: number; hostOwners: number; rootCapacity: number; ownerCapacity: number; }
+/** Only nonempty slotable names consume sparse native state. */
+export interface NativeSlotableNameStatistics { namedNodes: number; capacity: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
-export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
+export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */
 export function getParserStatistics(): ParserStatistics;

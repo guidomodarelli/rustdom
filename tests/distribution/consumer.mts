@@ -154,6 +154,11 @@ const slotHost = context.document.createElement('section'); host.append(slotHost
 const slotRoot = slotHost.attachShadow({ mode: 'open' }); slotRoot.innerHTML = '<slot name="selected"></slot>';
 const slotTarget = context.document.createElement('i'); slotTarget.slot = 'selected'; slotHost.append(slotTarget);
 assert.equal(slotTarget.assignedSlot, slotRoot.firstChild);
+assert.ok(getNativeTreeStatistics().slotableNames.namedNodes > 0);
 slotTarget.slot = 'missing'; assert.equal(slotTarget.assignedSlot, null);
+const slotXml = context.document.implementation.createDocument(null, 'root');
+const slotCdata = slotXml.createCDATASection('cdata'); slotHost.append(slotCdata); slotRoot.firstChild.name = '';
+assert.equal(slotCdata.assignedSlot, slotRoot.firstChild);
+assert.ok(slotRoot.firstChild.assignedNodes({ flatten: true }).includes(slotCdata));
 host.remove(); assert.equal(shadow.firstChild.getRootNode({ composed: true }), host);
 await session.teardown();

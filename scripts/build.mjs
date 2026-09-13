@@ -551,8 +551,18 @@ shadowHelpers = shadowHelpers.slice(0, findSlotStart) +
   '  if (!parent) return null;\n' +
   '  const shadow = parent._shadowRoot;\n' +
   '  if (!shadow || (openFlag && shadow.mode !== "open")) return null;\n' +
-  '  return domSymbolTree.findSlot(shadow, slotable._slotableName);\n}\n\n' + shadowHelpers.slice(findSlotEnd);
+  '  return domSymbolTree.findSlot(shadow, slotable);\n}\n\n' + shadowHelpers.slice(findSlotEnd);
 await writeFile(shadowHelpersPath, shadowHelpers);
+/** Keep constructor defaults allocation-free; actual name writes occur after node initialization. */
+const slotablePath = resolve(destination, 'lib/jsdom/living/nodes/Slotable-impl.js');
+let slotableSource = await readFile(slotablePath, 'utf8');
+const slotableInitialization = '  _initSlotableMixin() {\n    this._slotableName = "";\n  }';
+if (!slotableSource.includes(slotableInitialization)) throw new Error('rustdom build: slotable initialization changed');
+slotableSource = slotableSource.replace('"use strict";', '"use strict";\nconst { domSymbolTree } = require("../helpers/internal-constants");')
+  .replace(slotableInitialization, '  _initSlotableMixin() {}\n' +
+    '  get _slotableName() { return domSymbolTree.slotableName(this); }\n' +
+    '  set _slotableName(value) { domSymbolTree.setSlotableName(this, value); }');
+await writeFile(slotablePath, slotableSource);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
 let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');
