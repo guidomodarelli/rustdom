@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics } from './index.cjs';
 
 /** A contextual parser attribute, including optional XML metadata. */
 export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
@@ -129,6 +129,12 @@ export class NativeTree {
   retarget(node: number, reference: number): number;
   /** Finds the first HTML slot with an exact UTF-16 name inside a DocumentFragment; zero means no match. */
   findSlot(root: number, name: string): number;
+  /** Finds a slot using an Element/Text's native name without transferring the string through JavaScript. */
+  findSlotFor(root: number, slotable: number): number;
+  /** Default empty names consume no entry; nonempty state survives valid Element/Text metadata updates. */
+  getSlotableName(node: number): string;
+  setSlotableName(node: number, name: string): void;
+  slotableNameStatistics(): NativeSlotableNameStatistics;
   shadowIncludingRoot(node: number): number;
   isShadowInclusiveAncestor(ancestor: number, node: number): boolean;
   isHostInclusiveAncestor(ancestor: number, node: number): boolean;

@@ -155,6 +155,11 @@ Los guards originales y la entrega de eventos y listeners siguen en JS.
 La búsqueda del primer slot HTML también recorre Rust y compara nombres
 UTF-16; los guards de raíces abiertas/cerradas, la asignación de listas,
 su aplanado y las notificaciones conservan los drivers JavaScript.
+Los nombres de los nodos asignables son canónicos en un mapa Rust que almacena
+solo valores no vacíos. La búsqueda consulta ese estado directamente y los
+hooks conservan las particularidades de atributos con namespace y la herencia
+de CDATASection desde Text del jsdom fijado. `slotableNames`
+expone conteos y capacidad; liberar nodos o limpiar nombres retira las entradas.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

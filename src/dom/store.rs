@@ -61,6 +61,7 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    pub(crate) slotable_names: super::slotable_names::SlotableNames,
     pub(crate) root_hosts: super::root_hosts::RootHosts,
     pub(crate) unicode_case: super::unicode_case::UnicodeCaseMapping,
     pub(crate) attribute_collections: super::attribute_index::AttributeCollections,
@@ -360,6 +361,7 @@ impl TreeStore {
             return Err(TreeError::AttributeInUse(id));
         }
         self.root_hosts.validate_metadata(id, data.kind)?;
+        self.slotable_names.validate_metadata(id, data.kind)?;
         if self.attribute_collections.elements.contains_key(&id) {
             if data.kind != super::constants::ELEMENT_NODE {
                 return Err(TreeError::NotElement(id));
@@ -487,6 +489,7 @@ impl TreeStore {
         }
         self.release_attribute_references(id)?;
         self.root_hosts.release_node(id);
+        self.slotable_names.release_node(id);
         self.detach(id)?;
         let mut child = self.nodes[&id].first;
         while child != 0 {

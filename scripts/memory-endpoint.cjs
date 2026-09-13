@@ -44,6 +44,7 @@ function isReleased(state, expected) {
     native.rangeExtracts?.live === expected.rangeExtracts?.live &&
     native.rootHosts?.hostedRoots === expected.rootHosts?.hostedRoots &&
     native.rootHosts?.hostOwners === expected.rootHosts?.hostOwners &&
+    native.slotableNames?.namedNodes === expected.slotableNames?.namedNodes &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

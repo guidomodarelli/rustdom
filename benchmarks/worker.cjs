@@ -457,6 +457,7 @@ async function measure(name, size) {
           assert.equal(slots.length, size);
           assert.deepEqual(slots.at(-1).assignedNodes(), [slotTarget]);
           for (const slot of slots.slice(0, -1)) assert.deepEqual(slot.assignedNodes(), []);
+          if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().slotableNames.namedNodes > 0);
         }
         if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
         if (dispatchesRetargetEvents) { assert.equal(observedRetargetEvents, RETARGET_EVENT_COUNT); assert.equal(invalidRetargetEvents, 0); }

@@ -84,6 +84,13 @@ pub struct RootHostStatistics {
     pub owner_capacity: f64,
 }
 
+/// Sparse name state contains numeric keys and owned strings, never JavaScript references.
+#[napi(object)]
+pub struct SlotableNameStatistics {
+    pub named_nodes: f64,
+    pub capacity: f64,
+}
+
 #[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
@@ -440,6 +447,37 @@ impl NativeTree {
     #[napi]
     pub fn find_slot(&self, root: f64, name: Utf16String) -> Result<f64> {
         self.store.find_slot(root, &name).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn find_slot_for(&self, root: f64, slotable: f64) -> Result<f64> {
+        self.store
+            .find_slot_for(root, slotable)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn get_slotable_name(&self, node: f64) -> Result<Either<&str, Utf16String>> {
+        self.store
+            .slotable_name(node)
+            .map(|name| string_result(name).unwrap_or(Either::A("")))
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn set_slotable_name(&mut self, node: f64, name: Utf16String) -> Result<()> {
+        self.store
+            .set_slotable_name(node, &name)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn slotable_name_statistics(&self) -> SlotableNameStatistics {
+        let (named_nodes, capacity) = self.store.slotable_names.statistics();
+        SlotableNameStatistics {
+            named_nodes: named_nodes as f64,
+            capacity: capacity as f64,
+        }
     }
 
     /// Reserve a fixed handle batch without retaining nodes for unused entries.
