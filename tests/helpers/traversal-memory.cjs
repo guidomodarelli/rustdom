@@ -9,13 +9,20 @@ const { collectGarbage, captureMemoryState, waitForMemoryQuiescence } = require(
 function fixture(throwing) {
   const { window } = new runtime.JSDOM('<main><a>A<b>B</b></a><p>P</p></main>');
   const root = window.document.querySelector('main');
-  const filter = (node) => { if (throwing) throw new Error('traversal memory callback'); return node.nodeType === 1 ? 1 : 3; };
+  const detachedCandidates = [];
+  const filter = (node) => {
+    if (throwing) {
+      if (node !== root) { detachedCandidates.push(new WeakRef(node)); node.remove(); }
+      throw new Error('traversal memory callback');
+    }
+    return node.nodeType === 1 ? 1 : 3;
+  };
   const iterator = window.document.createNodeIterator(root, 0xffffffff, filter);
   const walker = window.document.createTreeWalker(root, 0xffffffff, filter);
   if (throwing) { assert.throws(() => iterator.nextNode(), /traversal memory callback/); assert.throws(() => walker.nextNode(), /traversal memory callback/); }
   else { assert.equal(iterator.nextNode(), root); assert.equal(walker.nextNode(), root.firstChild); }
   const observed = { windows: [new WeakRef(window)], documents: [new WeakRef(window.document)], roots: [new WeakRef(root)],
-    filters: [new WeakRef(filter)], cursors: [new WeakRef(iterator), new WeakRef(walker)] };
+    filters: [new WeakRef(filter)], cursors: [new WeakRef(iterator), new WeakRef(walker)], detachedCandidates };
   root.remove(); window.close();
   return { retained: [iterator, walker], observed };
 }
@@ -28,11 +35,12 @@ async function main() {
     for (let cycle = 0; cycle < 8; cycle++) {
       const sample = fixture(cycle % 2 === 1);
       await collectGarbage();
-      assert.equal(sample.retained[0].root.textContent, 'ABP');
+      assert.equal(sample.retained[0].root.textContent, cycle % 2 === 1 ? 'P' : 'ABP');
       assert.equal(sample.retained[1].root, sample.retained[0].root);
-      assert.equal(runtime.getNativeTreeStatistics().traversals.operations, baseline.traversals.operations);
+      assert.equal(runtime.getNativeTreeStatistics().traversals.operations, baseline.traversals.operations + 2);
       const retainedState = captureMemoryState(sample.observed, runtime);
       assert.equal(retainedState.survivors.cursors, 2); assert.equal(retainedState.survivors.filters, 1);
+      assert.equal(retainedState.survivors.detachedCandidates, 0);
       sample.retained = null;
       const released = await waitForMemoryQuiescence({ label: `traversal-${cycle}`, sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
       report.cycles.push({ retainedState, released }); assert.equal(released.reached, true);

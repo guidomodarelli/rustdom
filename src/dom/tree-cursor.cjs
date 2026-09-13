@@ -1,6 +1,6 @@
 /** @file Realm/callback ownership for native NodeIterator and TreeWalker control. */
 'use strict';
-const { TraversalMethod, TraversalAction } = require('../../dist/native.cjs');
+const { TraversalMethod, TraversalAction, TraversalMoveResult } = require('../../dist/native.cjs');
 const conversions = require('webidl-conversions');
 
 /**
@@ -19,33 +19,49 @@ function createTraversalImplementations(tree, DOMException) {
       this.filter = privateData.filter;
       this._globalObject = globalObject;
       this._currentOwner = this.root;
+      this._idleTraversalOperation = null;
       this._nativeTraversal = tree._arena.createTraversal(tree._ensure(this.root), this.whatToShow, this.filter !== null);
     }
 
     /** @param {number} method - Native movement operation. @returns {object|null} Accepted implementation node. */
     _traverse(method) {
       const state = this._nativeTraversal;
-      const operation = state.start(method);
-      let candidate = this._currentOwner;
-      for (;;) {
-        const step = tree._arena.traversalStep(state, operation);
-        if (step.kind === TraversalAction.Complete) return null;
-        if (step.kind === TraversalAction.Recursive) {
+      if (this.filter === null) {
+        const node = tree._arena.traversalMove(state, method);
+        if (node === TraversalMoveResult.Complete) return null;
+        if (node === TraversalMoveResult.Recursive) {
           throw DOMException.create(this._globalObject, ['Recursive node filtering', 'InvalidStateError']);
         }
-        candidate = tree._object(step.node);
-        if (step.kind === TraversalAction.Accepted) {
-          this._currentOwner = candidate;
-          return candidate;
+        return (this._currentOwner = tree._object(node));
+      }
+      const idle = this._idleTraversalOperation;
+      this._idleTraversalOperation = null;
+      const operation = idle ?? state.start(method);
+      let candidate = this._currentOwner;
+      try {
+        let step = idle ? tree._arena.traversalRestartStep(state, operation, method) : tree._arena.traversalStep(state, operation);
+        for (;;) {
+          if (step.kind === TraversalAction.Complete) return null;
+          if (step.kind === TraversalAction.Recursive) {
+            throw DOMException.create(this._globalObject, ['Recursive node filtering', 'InvalidStateError']);
+          }
+          candidate = tree._object(step.node);
+          if (step.kind === TraversalAction.Accepted) {
+            this._currentOwner = candidate;
+            return candidate;
+          }
+          let result;
+          const { filter } = this;
+          try { result = filter(candidate); }
+          finally { state.active = false; }
+          // Conversion is observable and may reenter this cursor after the active flag clears.
+          result = conversions['unsigned short'](result);
+          tree._ensure(candidate);
+          step = tree._arena.traversalResumeStep(state, operation, result);
         }
-        let result;
-        const { filter } = this;
-        try { result = filter(candidate); }
-        finally { state.active = false; }
-        // Conversion is observable and may reenter this cursor after the active flag clears.
-        result = conversions['unsigned short'](result);
-        tree._ensure(candidate);
-        operation.resume(result);
+      } finally {
+        // Nested calls borrow another operation. Keep at most one idle object, including after throws.
+        this._idleTraversalOperation ??= operation;
       }
     }
   }

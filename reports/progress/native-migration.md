@@ -83,3 +83,10 @@ general pasó 218 tests Rust y 1.112 Node. GC focal, estrés de memoria y Memche
 pasaron dentro de sus límites documentados en reports/validation/tree-traversal.md.
 La migración general de Node permanece parcial: este avance no cambia el 37,5%
 provisional ni acredita que los PR pendientes estén integrados en main.
+
+La optimización posterior conserva esos algoritmos en Rust y reduce los cruces
+N-API y las asignaciones de operaciones. El estado final pasó 218 tests Rust,
+1.118 Node, 36 controles de instalación, memoria y benchmarks. En 1.000 filas los
+recorridos bajaron 48–49% sin filtro y 16–17% con filtro respecto del hito anterior;
+siguen siendo más lentos que jsdom. Ver reports/validation/traversal-performance.md.
+Es un avance de rendimiento dentro de un área parcial; el índice permanece 37,5%.

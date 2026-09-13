@@ -259,8 +259,11 @@ export const TraversalMethod: { readonly IteratorNext: 0; readonly IteratorPrevi
 export type TraversalMethod = (typeof TraversalMethod)[keyof typeof TraversalMethod];
 export const TraversalAction: { readonly Complete: 0; readonly Filter: 1; readonly Accepted: 2; readonly Recursive: 3 };
 export type TraversalAction = (typeof TraversalAction)[keyof typeof TraversalAction];
+/** Positive direct-movement results are accepted node handles; zero ends the scan. */
+export const TraversalMoveResult: { readonly Recursive: -1; readonly Complete: 0 };
+export type TraversalMoveResult = (typeof TraversalMoveResult)[keyof typeof TraversalMoveResult];
 export interface TraversalInstruction { kind: TraversalAction; node: number; }
-export interface TraversalStatistics { live: number; created: number; released: number; operations: number; }
+export interface TraversalStatistics { live: number; created: number; released: number; operations: number; createdOperations: number; }
 /** Native traversal metadata. The host must keep roots, current nodes and pending candidates alive. */
 export class NativeTraversal {
   private constructor();
@@ -270,7 +273,7 @@ export class NativeTraversal {
   start(method: TraversalMethod): NativeTraversalOperation;
   static statistics(): TraversalStatistics;
 }
-/** Resumable movement with no JavaScript references. Each requested filter must be resumed once. */
+/** Resumable movement with no JavaScript references. Responses are consumed once; traversalRestartStep explicitly discards old state. */
 export class NativeTraversalOperation {
   private constructor();
   resume(result: number): void;
@@ -279,6 +282,12 @@ export class NativeTraversalOperation {
 export class NativeTree {
   createTraversal(root: number, mask: number, hasFilter: boolean): NativeTraversal;
   traversalStep(cursor: NativeTraversal, operation: NativeTraversalOperation): TraversalInstruction;
+  /** Runs an unfiltered movement without allocating a suspended operation. */
+  traversalMove(cursor: NativeTraversal, method: TraversalMethod): number;
+  /** Consumes a filter response and advances on current topology in one native call. */
+  traversalResumeStep(cursor: NativeTraversal, operation: NativeTraversalOperation, result: number): TraversalInstruction;
+  /** Resets an idle operation before any old candidate can be read, then begins a new movement. */
+  traversalRestartStep(cursor: NativeTraversal, operation: NativeTraversalOperation, method: TraversalMethod): TraversalInstruction;
   traversalPreRemove(cursor: NativeTraversal, removed: number): void;
   constructor();
   readonly handleBatchSize: number;

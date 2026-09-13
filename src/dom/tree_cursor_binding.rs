@@ -13,6 +13,7 @@ use std::sync::{
 
 static LIVE_CURSORS: AtomicU64 = AtomicU64::new(0);
 static LIVE_OPERATIONS: AtomicU64 = AtomicU64::new(0);
+static CREATED_OPERATIONS: AtomicU64 = AtomicU64::new(0);
 static CREATED_CURSORS: AtomicU64 = AtomicU64::new(0);
 static RELEASED_CURSORS: AtomicU64 = AtomicU64::new(0);
 
@@ -22,6 +23,12 @@ pub enum TraversalAction {
     Filter,
     Accepted,
     Recursive,
+}
+/// Positive results are accepted node handles; these sentinels cannot collide with them.
+#[napi]
+pub enum TraversalMoveResult {
+    Recursive = -1,
+    Complete = 0,
 }
 #[napi(object)]
 pub struct TraversalInstruction {
@@ -34,6 +41,7 @@ pub struct TraversalStatistics {
     pub created: f64,
     pub released: f64,
     pub operations: f64,
+    pub created_operations: f64,
 }
 
 #[napi]
@@ -64,9 +72,24 @@ impl NativeTraversal {
     }
 
     fn check_forest(&self, tree: &TreeStore) -> Result<()> {
-        if !self.forest.ptr_eq(&Arc::downgrade(&tree.delivery_identity)) {
+        if self.forest.as_ptr() != Arc::as_ptr(&tree.delivery_identity) {
             return Err(Error::from_reason(
                 "NativeTraversal: operation belongs to a different forest",
+            ));
+        }
+        Ok(())
+    }
+
+    /// The weak tokens keep allocation identities distinct without cloning them on every step.
+    fn check_operation(
+        &self,
+        tree: &TreeStore,
+        operation: &NativeTraversalOperation,
+    ) -> Result<()> {
+        self.check_forest(tree)?;
+        if operation.cursor.as_ptr() != Arc::as_ptr(&self.identity) {
+            return Err(Error::from_reason(
+                "NativeTraversal: operation belongs to a different cursor",
             ));
         }
         Ok(())
@@ -84,20 +107,86 @@ impl NativeTraversal {
         tree: &TreeStore,
         operation: &mut NativeTraversalOperation,
     ) -> Result<TraversalInstruction> {
-        self.check_forest(tree)?;
-        if !operation.cursor.ptr_eq(&Arc::downgrade(&self.identity)) {
-            return Err(Error::from_reason(
-                "NativeTraversal: operation belongs to a different cursor",
-            ));
-        }
+        self.check_operation(tree, operation)?;
         if operation.awaiting_result {
             return Err(Error::from_reason(
                 "NativeTraversal: filter result is required before continuing",
             ));
         }
+        self.advance(
+            tree,
+            &mut operation.traversal,
+            &mut operation.awaiting_result,
+        )
+    }
+
+    /// No callback can suspend this stack-local operation, so no JS operation object is needed.
+    pub(super) fn move_unfiltered(
+        &mut self,
+        tree: &TreeStore,
+        method: TraversalMethod,
+    ) -> Result<f64> {
+        self.check_forest(tree)?;
+        if self.cursor.has_filter {
+            return Err(Error::from_reason(
+                "NativeTraversal: direct movement requires a cursor without a filter",
+            ));
+        }
+        let mut traversal = Traversal::new(&self.cursor, method);
+        let instruction = self.advance(tree, &mut traversal, &mut false)?;
+        Ok(match instruction.kind {
+            TraversalAction::Accepted => instruction.node,
+            TraversalAction::Complete => TraversalMoveResult::Complete as i32 as f64,
+            TraversalAction::Recursive => TraversalMoveResult::Recursive as i32 as f64,
+            TraversalAction::Filter => {
+                return Err(Error::from_reason(
+                    "NativeTraversal: direct movement unexpectedly requested a filter",
+                ));
+            }
+        })
+    }
+
+    /// Validate ownership before consuming the response; a wrong forest/cursor must leave it pending.
+    pub(super) fn resume_step(
+        &mut self,
+        tree: &TreeStore,
+        operation: &mut NativeTraversalOperation,
+        result: u16,
+    ) -> Result<TraversalInstruction> {
+        self.check_operation(tree, operation)?;
+        operation.resume(result)?;
+        self.advance(
+            tree,
+            &mut operation.traversal,
+            &mut operation.awaiting_result,
+        )
+    }
+
+    /// Recycle an idle operation without reading its old, potentially released candidate.
+    pub(super) fn restart_step(
+        &mut self,
+        tree: &TreeStore,
+        operation: &mut NativeTraversalOperation,
+        method: TraversalMethod,
+    ) -> Result<TraversalInstruction> {
+        self.check_operation(tree, operation)?;
+        operation.traversal = Traversal::new(&self.cursor, method);
+        operation.awaiting_result = false;
+        self.advance(
+            tree,
+            &mut operation.traversal,
+            &mut operation.awaiting_result,
+        )
+    }
+
+    fn advance(
+        &mut self,
+        tree: &TreeStore,
+        traversal: &mut Traversal,
+        awaiting_result: &mut bool,
+    ) -> Result<TraversalInstruction> {
         loop {
-            let action = operation
-                .traversal
+            let action = traversal
                 .advance(tree, self.cursor.current)
                 .map_err(to_napi_error)?;
             match action {
@@ -109,7 +198,7 @@ impl NativeTraversal {
                 }
                 Action::Accept(node) => {
                     self.cursor.current = node;
-                    self.cursor.before = operation.traversal.before;
+                    self.cursor.before = traversal.before;
                     return Ok(TraversalInstruction {
                         kind: TraversalAction::Accepted,
                         node: node as f64,
@@ -130,12 +219,12 @@ impl NativeTraversal {
                             Error::from_reason("NativeTraversal: candidate has no node type")
                         })?;
                     if self.cursor.mask & 1u32.wrapping_shl(u32::from(kind).wrapping_sub(1)) == 0 {
-                        operation.traversal.resume(FILTER_SKIP);
+                        traversal.resume(FILTER_SKIP);
                     } else if !self.cursor.has_filter {
-                        operation.traversal.resume(FILTER_ACCEPT);
+                        traversal.resume(FILTER_ACCEPT);
                     } else {
                         self.cursor.active = true;
-                        operation.awaiting_result = true;
+                        *awaiting_result = true;
                         return Ok(TraversalInstruction {
                             kind: TraversalAction::Filter,
                             node: node as f64,
@@ -164,6 +253,7 @@ impl NativeTraversal {
     #[napi]
     pub fn start(&self, method: TraversalMethod) -> NativeTraversalOperation {
         LIVE_OPERATIONS.fetch_add(1, Ordering::Relaxed);
+        CREATED_OPERATIONS.fetch_add(1, Ordering::Relaxed);
         NativeTraversalOperation {
             traversal: Traversal::new(&self.cursor, method),
             cursor: Arc::downgrade(&self.identity),
@@ -194,6 +284,7 @@ impl NativeTraversal {
             created: CREATED_CURSORS.load(Ordering::Relaxed) as f64,
             released: RELEASED_CURSORS.load(Ordering::Relaxed) as f64,
             operations: LIVE_OPERATIONS.load(Ordering::Relaxed) as f64,
+            created_operations: CREATED_OPERATIONS.load(Ordering::Relaxed) as f64,
         }
     }
 }

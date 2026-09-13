@@ -33,6 +33,7 @@ use super::{
     range_surround::SurroundStatus,
     slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
+    tree_cursor::TraversalMethod,
     tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
 };
 use napi::{
@@ -491,6 +492,32 @@ impl NativeTree {
     #[napi]
     pub fn traversal_pre_remove(&self, cursor: &mut NativeTraversal, removed: f64) -> Result<()> {
         cursor.pre_remove(&self.store, removed)
+    }
+    #[napi]
+    pub fn traversal_move(
+        &self,
+        cursor: &mut NativeTraversal,
+        method: TraversalMethod,
+    ) -> Result<f64> {
+        cursor.move_unfiltered(&self.store, method)
+    }
+    #[napi]
+    pub fn traversal_resume_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+        result: u16,
+    ) -> Result<TraversalInstruction> {
+        cursor.resume_step(&self.store, operation, result)
+    }
+    #[napi]
+    pub fn traversal_restart_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+        method: TraversalMethod,
+    ) -> Result<TraversalInstruction> {
+        cursor.restart_step(&self.store, operation, method)
     }
 }
 

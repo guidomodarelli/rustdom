@@ -13,6 +13,12 @@ assert.equal(traversalTree.traversalStep(traversal, traversalOperation).kind, na
 traversal.active = false; traversalOperation.resume(1);
 assert.equal(traversalTree.traversalStep(traversal, traversalOperation).node, traversalRoot);
 assert.equal(traversal.current, traversalRoot); assert.equal(traversal.before, false);
+assert.equal(traversalTree.traversalRestartStep(traversal, traversalOperation, native.TraversalMethod.IteratorPrevious).kind, native.TraversalAction.Filter);
+traversal.active = false;
+assert.equal(traversalTree.traversalResumeStep(traversal, traversalOperation, 1).node, traversalRoot);
+const unfilteredTraversal = traversalTree.createTraversal(traversalRoot, 1, false);
+assert.equal(traversalTree.traversalMove(unfilteredTraversal, native.TraversalMethod.IteratorNext), traversalRoot);
+assert.equal(traversalTree.traversalMove(unfilteredTraversal, native.TraversalMethod.IteratorNext), native.TraversalMoveResult.Complete);
 traversalTree.release(traversalRoot);
 
 /** Installed XML transport resolves context prefixes and releases its input buffer. */

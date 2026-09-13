@@ -14,7 +14,7 @@ import nativeRuntime, {
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
   NativeXmlParser,
-  NativeTraversal, TraversalMethod, TraversalAction,
+  NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -27,6 +27,10 @@ const traversalStep = traversalTree.traversalStep(traversal, traversal.start(tra
 const traversalAction: TraversalAction = traversalStep.kind;
 assert.equal(traversalAction, TraversalAction.Accepted); assert.equal(traversalStep.node, traversalRoot);
 assert.equal(NativeTraversal, nativeRuntime.NativeTraversal);
+assert.equal(traversalTree.traversalMove(traversal, TraversalMethod.IteratorPrevious), traversalRoot);
+const completedTraversal: TraversalMoveResult = TraversalMoveResult.Complete;
+assert.equal(traversalTree.traversalMove(traversal, TraversalMethod.IteratorPrevious), completedTraversal);
+assert.equal(TraversalMoveResult, nativeRuntime.TraversalMoveResult);
 traversalTree.release(traversalRoot);
 
 /** Forward-only native actions retain their literal value union in installed consumers. */
