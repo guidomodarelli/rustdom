@@ -556,7 +556,11 @@ async function main() {
   const requested = new Set(process.argv.slice(3));
   for (const name of requested) assert.ok(plan.some((workload) => workload.name === name), `Unknown benchmark workload: ${name}`);
   const selected = plan.filter(({ name, manualOnly }) => requested.size === 0 ? !manualOnly : requested.has(name));
-  for (const { name, size } of selected) workloads.push(await measure(name, size));
+  for (const { name, size } of selected) {
+    process.stderr.write(`Benchmark ${engine}: starting ${name}/${size}\n`);
+    workloads.push(await measure(name, size));
+    process.stderr.write(`Benchmark ${engine}: completed ${name}/${size}\n`);
+  }
   const parserStatistics = runtime.getParserStatistics?.();
   const nativeTreeStatistics = runtime.getNativeTreeStatistics?.();
   if (engine === 'rustdom') {

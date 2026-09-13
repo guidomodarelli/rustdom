@@ -61,8 +61,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: npm ci
       - run: npm run build
+      - run: node --test tests/benchmarks/runner.spec.cjs
       - run: npm run bench
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: benchmark-linux
           path: reports/benchmarks/

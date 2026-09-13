@@ -12,6 +12,10 @@ const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
 const outputDirectory = 'reports/benchmarks';
 /** Optional workload names reuse the exact fixtures and sampling of the full benchmark. */
 const requestedWorkloads = process.argv.slice(2);
+/** Bound a complete worker plan, including untimed setup and cleanup, on slower CI hosts. */
+const workerTimeoutMs = Number(process.env.RUSTDOM_BENCHMARK_TIMEOUT_MS ?? 600_000);
+assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
+  'RUSTDOM_BENCHMARK_TIMEOUT_MS must be a positive safe integer in milliseconds');
 
 /** @param {string} directory - Owned source directory. @returns {string[]} Files included in the reproducibility digest. */
 function sourceFiles(directory) {
@@ -39,7 +43,7 @@ function summarize(values) {
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
-  requestedWorkloads,
+  requestedWorkloads, workerTimeoutMs, complete: false,
   node: process.version, jsdom: require('jsdom/package.json').version,
   rustc: spawnSync('rustc', ['-Vv'], { encoding: 'utf8' }).stdout?.trim() || null,
   cargo: spawnSync('cargo', ['-V'], { encoding: 'utf8' }).stdout?.trim() || null,
@@ -85,11 +89,23 @@ const report = {
 for (const order of ORDERS) {
   for (const engine of order) {
     process.stderr.write(`Benchmark ${engine}, proceso ${report.runs.length + 1}/${ORDERS.length * 2}\n`);
+    const startedAt = performance.now();
     const child = spawnSync(process.execPath, ['--expose-gc', 'benchmarks/worker.cjs', engine, ...requestedWorkloads], {
-      encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 300_000,
+      encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: workerTimeoutMs,
     });
-    if (child.error) throw child.error;
-    if (child.status !== 0) throw new Error(`benchmark ${engine} failed (${child.status}): ${child.stderr}`);
+    if (child.error || child.status !== 0) {
+      report.failure = { engine, processIndex: report.runs.length + 1,
+        elapsedMs: performance.now() - startedAt, timeoutMs: workerTimeoutMs,
+        exitCode: child.status, signal: child.signal,
+        error: child.error ? { code: child.error.code, message: child.error.message } : null,
+        stdout: child.stdout, stderr: child.stderr };
+      mkdirSync(outputDirectory, { recursive: true });
+      const failurePath = `${outputDirectory}/${new Date().toISOString().replaceAll(':', '-')}-${platform()}-${arch()}-failed.json`;
+      writeFileSync(failurePath, `${JSON.stringify(report, null, 2)}\n`);
+      throw new Error(`Benchmark ${engine} process ${report.failure.processIndex} failed ` +
+        `(${child.error?.code ?? child.signal ?? child.status}); budget ${workerTimeoutMs} ms; ` +
+        `diagnostic: ${failurePath}`, { cause: child.error ?? new Error(child.stderr) });
+    }
     report.runs.push(JSON.parse(child.stdout));
   }
 }
@@ -107,6 +123,7 @@ for (const workload of report.runs[0].workloads) {
 }
 
 mkdirSync(outputDirectory, { recursive: true });
+report.complete = true;
 /** Keep timestamped results so subsequent optimizations cannot overwrite the baseline. */
 const basename = `${new Date().toISOString().replaceAll(':', '-')}-${platform()}-${arch()}`;
 writeFileSync(`${outputDirectory}/${basename}.json`, `${JSON.stringify(report, null, 2)}\n`);
