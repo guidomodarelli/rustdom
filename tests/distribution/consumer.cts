@@ -58,6 +58,11 @@ assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecor
 assert.ok(native.NativeMutationRecord.statistics().created > 0);
 const nativeObserver = tree.allocateMutationObserver();
 assert.equal(tree.observeMutations(nativeObserver, handle, { attributeOldValue: true }), native.ObservationStatus.Added);
+const preparedRecords = tree.prepareMutationRecords({ kind: 'attributes', target: handle, previousSibling: 0, nextSibling: 0,
+  attributeName: 'flag\ud800\0', attributeNamespace: null, oldValue: 'prepared\udc00\0', addedNodes: [], removedNodes: [] });
+assert.equal(preparedRecords.length, 1); assert.equal(preparedRecords[0].observer, nativeObserver);
+assert.equal(preparedRecords[0].record.attributeName, 'flag\ud800\0'); assert.equal(preparedRecords[0].record.oldValue, 'prepared\udc00\0');
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 0);
 const queuedToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
 assert.equal(tree.observerNotificationStatistics().pendingObservers, 1);
 assert.equal(tree.requestMutationObserverMicrotask(), true); assert.equal(tree.requestMutationObserverMicrotask(), false);

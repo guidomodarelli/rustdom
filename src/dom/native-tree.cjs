@@ -21,6 +21,8 @@ const OBSERVATION_ERROR_MESSAGES = {
   [ObservationStatus.AttributeFilterWithoutAttributes]: "The options object may only set 'attributeFilter' when 'attributes' is true or not present.",
   [ObservationStatus.CharacterOldValueWithoutCharacterData]: "The options object may only set 'characterDataOldValue' to true when 'characterData' is true or not present.",
 };
+/** Empty input lists are immutable binding data and need not be reallocated for every unobserved mutation. */
+const EMPTY_NODE_HANDLES = Object.freeze([]);
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -476,13 +478,22 @@ class NativeSymbolTree extends SymbolTree {
     this._signalSlotOwners = [];
     return slots;
   }
-  /** @param {object} data - Complete MutationRecord producer payload. @returns {object} Immutable native snapshot with allocated node identities. */
-  createMutationRecord(data) {
-    return new NativeMutationRecord(this._arena, { kind: data.type, target: this._ensure(data.target),
+  /** @param {object} data - Complete mutation payload. @param {Function} createRecord - Real WebIDL factory effect. @returns {void} Prepares native payloads once and commits each wrapper in original order. */
+  produceMutationRecords(data, createRecord) {
+    const targetId = this._ensure(data.target); this._objects.get(targetId).deref();
+    const prepared = this._arena.prepareMutationRecords({ kind: data.type, target: targetId,
       previousSibling: data.previousSibling ? this._ensure(data.previousSibling) : 0,
       nextSibling: data.nextSibling ? this._ensure(data.nextSibling) : 0,
       attributeName: data.attributeName, attributeNamespace: data.attributeNamespace, oldValue: data.oldValue,
-      addedNodes: data.addedNodes.map((node) => this._ensure(node)), removedNodes: data.removedNodes.map((node) => this._ensure(node)) });
+      addedNodes: data.addedNodes.length ? data.addedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES,
+      removedNodes: data.removedNodes.length ? data.removedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES });
+    if (prepared.length === 0) return;
+    const owners = [data.target, data.previousSibling, data.nextSibling, ...data.addedNodes, ...data.removedNodes];
+    const observers = prepared.map((item) => this._observers.get(item.observer).deref());
+    for (const [index, item] of prepared.entries()) {
+      const record = createRecord(item.record, owners);
+      this.enqueueMutationRecord(observers[index], record);
+    }
   }
   /** @param {object} observer - Real implementation, weakly indexed. @returns {number} Monotonic native creation-order ID. */
   allocateMutationObserver(observer) {
@@ -552,14 +563,6 @@ class NativeSymbolTree extends SymbolTree {
         if (step.complete) return;
       }
     } finally { operation.cancel(); }
-  }
-  /** @param {string} kind - Mutation kind. @param {object} target - Mutated node. @param {string|null} name - Attribute local name. @param {string|null} namespace - Attribute namespace. @param {string|null} oldValue - Producer snapshot. @returns {object[]} Native-selected observers and old-value effects in first-match order. */
-  interestedMutationObservers(kind, target, name, namespace, oldValue) {
-    const targetId = this._ensure(target);
-    this._objects.get(targetId).deref();
-    return this._arena.interestedMutationObservers(targetId, kind, name, namespace).map((interest) => ({
-      observer: this._observers.get(interest.observer).deref(), oldValue: interest.oldValue ? oldValue : null,
-    }));
   }
   /**
    * Execute native assignment traversal and replay only ownership changes and signal effects.

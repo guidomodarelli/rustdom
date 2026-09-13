@@ -18,6 +18,7 @@ export class NativeObserverDelivery {
 export const ObservationStatus: { readonly Added: 0; readonly Replaced: 1; readonly MissingMutationKind: 2; readonly AttributeOldValueWithoutAttributes: 3; readonly AttributeFilterWithoutAttributes: 4; readonly CharacterOldValueWithoutCharacterData: 5 };
 export interface NativeObserverOptionsInput { attributes?: boolean; characterData?: boolean; childList?: boolean; subtree?: boolean; attributeOldValue?: boolean; characterDataOldValue?: boolean; attributeFilter?: string[]; }
 export interface NativeObserverInterest { observer: number; oldValue: boolean; }
+export interface NativePreparedMutation { observer: number; record: NativeMutationRecord; }
 
 /** Complete scalar payload; zero represents a missing sibling, and text fields preserve null versus empty. */
 export interface NativeMutationRecordInput {
@@ -213,6 +214,8 @@ export class NativeTree {
   mutationObserverDeliveryStep(operation: NativeObserverDelivery): ObserverDeliveryInstruction;
   /** Queue an immutable payload and return its binding token; no JavaScript object is retained natively. */
   enqueueMutationRecord(observer: number, record: NativeMutationRecord): number;
+  /** Prepare selected payloads without enqueuing; text fields preserve null, trailing NUL and UTF-16. */
+  prepareMutationRecords(input: NativeMutationRecordInput): NativePreparedMutation[];
   /** Drain tokens in insertion order, releasing the queue's payload shares. */
   takeMutationRecords(observer: number): number[];
   /** Inspect a queued payload through an independent native wrapper, or null when that token is absent. */

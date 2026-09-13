@@ -140,6 +140,14 @@ deliveryObserver.observe(recordTarget, { attributes: true }); recordTarget.setAt
 await new Promise((resolve) => setImmediate(resolve)); deliveryObserver.disconnect();
 assert.deepEqual(deliveredAttributes, ['data-delivery']);
 assert.ok(getNativeTreeStatistics().observerDeliveries.created > deliveriesBefore);
+const fullProducerObserver = new context.MutationObserver(() => {}); const leanProducerObserver = new context.MutationObserver(() => {});
+fullProducerObserver.observe(recordTarget, { attributeOldValue: true }); leanProducerObserver.observe(recordTarget, { attributes: true });
+recordTarget.setAttribute('data-producer', 'old'); recordTarget.setAttribute('data-producer', 'new');
+const fullProduced = fullProducerObserver.takeRecords(); const leanProduced = leanProducerObserver.takeRecords();
+assert.deepEqual(fullProduced.map((record: MutationRecord) => record.oldValue), [null, 'old']);
+assert.deepEqual(leanProduced.map((record: MutationRecord) => record.oldValue), [null, null]);
+assert.notEqual(fullProduced[0], leanProduced[0]); assert.equal(fullProduced[1].target, recordTarget);
+fullProducerObserver.disconnect(); leanProducerObserver.disconnect();
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
 assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 const paragraph = context.document.querySelector('p');

@@ -627,6 +627,14 @@ mutationObserversSource = substituteOnce(mutationObserversSource,
 mutationObserversSource = substituteOnce(mutationObserversSource,
   '  for (const [observer, mappedOldValue] of interestedObservers.entries()) {',
   '  for (const { observer, oldValue: mappedOldValue } of interestedObservers) {');
+const mutationProductionStart = mutationObserversSource.indexOf('  const interestedObservers = domSymbolTree.interestedMutationObservers(');
+const mutationProductionEnd = mutationObserversSource.indexOf('  queueMutationObserverMicrotask();', mutationProductionStart);
+if (mutationProductionStart < 0 || mutationProductionEnd < mutationProductionStart) throw new Error('rustdom build: missing mutation record production boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(mutationProductionStart, mutationProductionEnd),
+  '  domSymbolTree.produceMutationRecords({ type, target, attributeName: name, attributeNamespace: namespace, oldValue,\n' +
+  '    addedNodes, removedNodes, previousSibling, nextSibling },\n' +
+  '  (nativeRecord, owners) => MutationRecord.createImpl(target._globalObject, [], { nativeRecord, owners }));\n\n');
 mutationObserversSource = substituteOnce(mutationObserversSource,
   '    for (const node of mo._nodeList) {\n      node._registeredObserverList = node._registeredObserverList.filter(registeredObserver => {\n        return registeredObserver.source !== mo;\n      });\n    }\n\n', '');
 mutationObserversSource = substituteOnce(mutationObserversSource, '// https://dom.spec.whatwg.org/#signal-slot-list\nconst signalSlotList = [];\n\n', '');

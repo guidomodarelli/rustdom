@@ -42,6 +42,8 @@ const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
 const SLOT_FLATTEN_ITERATIONS = 100;
 /** Keep mutation volume fixed when varying observer ancestry depth. */
 const OBSERVER_MUTATION_GROUPS = 100;
+/** Keep record volume bounded while varying how many observers share each mutation payload. */
+const MUTATION_FANOUT_GROUPS = 10;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -176,6 +178,33 @@ function mutationRecordFixture(document, size, ancestorDepth = 0) {
     dispose() { observer.disconnect(); this.records = []; } };
 }
 
+/** @param {Document} document - Live document. @param {number} observerCount - Observers sharing each mutation. @returns {object} Actual producer workload with mixed oldValue options. */
+function mutationFanoutFixture(document, observerCount) {
+  const host = document.body.appendChild(document.createElement('section'));
+  const observers = Array.from({ length: observerCount }, (_, index) => {
+    const observer = new document.defaultView.MutationObserver(() => {});
+    observer.observe(host, { attributes: true, attributeOldValue: index % 2 === 0 }); return observer;
+  });
+  return { expectedRecords: MUTATION_FANOUT_GROUPS * observerCount,
+    /** @returns {MutationRecord[]} Complete public mutations and drains in observer order. */
+    produce() {
+      for (let index = 0; index < MUTATION_FANOUT_GROUPS; index++) host.setAttribute('data-state', String(index));
+      return observers.flatMap((observer) => observer.takeRecords());
+    },
+    /** @param {object[]} snapshots - All consumed public fields. @returns {void} Verifies every observer's captured payload outside timing. */
+    validate(snapshots) {
+      assert.equal(snapshots.length, MUTATION_FANOUT_GROUPS * observerCount);
+      for (let observer = 0; observer < observerCount; observer++) for (let index = 0; index < MUTATION_FANOUT_GROUPS; index++) {
+        const snapshot = snapshots[observer * MUTATION_FANOUT_GROUPS + index]; assert.equal(snapshot.target, host);
+        assert.deepEqual(snapshot, { type: 'attributes', target: host, attributeName: 'data-state', attributeNamespace: null,
+          oldValue: observer % 2 === 0 && index > 0 ? String(index - 1) : null, previousSibling: null, nextSibling: null, added: [], removed: [] });
+      }
+    },
+    /** @returns {void} Releases all registrations before teardown. */
+    dispose() { for (const observer of observers) observer.disconnect(); },
+  };
+}
+
 /** @param {Document} document - Live fixture document. @param {number} size - Observer or slot count. @param {string} name - Delivery workload. @param {ShadowRoot[]} roots - Roots included in output validation. @returns {object} Real queued delivery with setup outside timing. */
 function observerDeliveryFixture(document, size, name, roots) {
   const empties = name === 'observer-delivery-empty'; const withSlots = name === 'observer-delivery-slots';
@@ -261,7 +290,8 @@ async function measure(name, size) {
   const flattensSlots = name === 'slot-flatten-chain-100';
   const signalsSlotBurst = name === 'slot-signal-burst';
   const selectsObserverAncestors = name === 'mutation-observer-ancestors';
-  const collectsMutationRecords = name === 'mutation-records-collect' || selectsObserverAncestors;
+  const producesFanout = name === 'mutation-producer-fanout';
+  const collectsMutationRecords = name === 'mutation-records-collect' || selectsObserverAncestors || producesFanout;
   const readsMutationRecords = name === 'mutation-records-read';
   const deliversObservers = name.startsWith('observer-delivery-');
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
@@ -315,8 +345,9 @@ async function measure(name, size) {
       const document = dom.window.document;
       if (deliversObservers) { shadowRoots = []; observerDeliveryWork = observerDeliveryFixture(document, size, name, shadowRoots); }
       if (collectsMutationRecords || readsMutationRecords) {
-        mutationRecordWork = mutationRecordFixture(document, selectsObserverAncestors ? OBSERVER_MUTATION_GROUPS : size,
-          selectsObserverAncestors ? size : 0);
+        mutationRecordWork = producesFanout ? mutationFanoutFixture(document, size)
+          : mutationRecordFixture(document, selectsObserverAncestors ? OBSERVER_MUTATION_GROUPS : size,
+            selectsObserverAncestors ? size : 0);
         if (readsMutationRecords) mutationRecordWork.records = mutationRecordWork.produce();
       }
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
@@ -846,6 +877,7 @@ async function main() {
     ...[100, 1000].map((size) => ({ name: 'slot-signal-burst', size })),
     ...[100, 1000].flatMap((size) => ['mutation-records-collect', 'mutation-records-read'].map((name) => ({ name, size }))),
     ...[100, 1000].map((size) => ({ name: 'mutation-observer-ancestors', size })),
+    ...[100, 1000].map((size) => ({ name: 'mutation-producer-fanout', size })),
     ...[100, 1000].flatMap((size) => ['observer-delivery-records', 'observer-delivery-empty', 'observer-delivery-slots'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
