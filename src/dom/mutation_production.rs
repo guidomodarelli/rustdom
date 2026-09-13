@@ -12,6 +12,40 @@ pub struct PreparedMutation {
     pub record: Arc<MutationRecordState>,
 }
 
+pub struct MutationBatch {
+    pub observers: Vec<f64>,
+    pub payload_indices: Vec<u32>,
+    pub payloads: Vec<Arc<MutationRecordState>>,
+}
+
+/// Preserve observer order while representing each immutable variant once at the binding boundary.
+pub fn coalesce_prepared(records: Vec<PreparedMutation>) -> Option<MutationBatch> {
+    if records.is_empty() {
+        return None;
+    }
+    let mut batch = MutationBatch {
+        observers: Vec::with_capacity(records.len()),
+        payload_indices: Vec::with_capacity(records.len()),
+        payloads: Vec::new(),
+    };
+    for record in records {
+        let index = match batch
+            .payloads
+            .iter()
+            .position(|payload| Arc::ptr_eq(payload, &record.record))
+        {
+            Some(index) => index,
+            None => {
+                batch.payloads.push(record.record);
+                batch.payloads.len() - 1
+            }
+        };
+        batch.observers.push(record.observer as f64);
+        batch.payload_indices.push(index as u32);
+    }
+    Some(batch)
+}
+
 impl TreeStore {
     /// All matching observers share at most two payloads, differing only in oldValue.
     pub fn prepare_selected_mutations(
@@ -69,6 +103,50 @@ mod tests {
             added_nodes: vec![target, target],
             removed_nodes: vec![],
         }
+    }
+
+    #[test]
+    fn should_map_observers_to_unique_payloads_without_reordering_or_retaining_empty_batches() {
+        let mut tree = TreeStore::new();
+        let target = tree.allocate().unwrap();
+        let records = tree
+            .prepare_selected_mutations(
+                draft(target),
+                vec![
+                    ObserverInterest {
+                        observer: 3,
+                        old_value: false,
+                    },
+                    ObserverInterest {
+                        observer: 1,
+                        old_value: true,
+                    },
+                    ObserverInterest {
+                        observer: 4,
+                        old_value: false,
+                    },
+                    ObserverInterest {
+                        observer: 2,
+                        old_value: true,
+                    },
+                ],
+            )
+            .unwrap();
+        let batch = coalesce_prepared(records).unwrap();
+        assert_eq!(batch.observers, [3.0, 1.0, 4.0, 2.0]);
+        assert_eq!(batch.payload_indices, [0, 1, 0, 1]);
+        assert_eq!(batch.payloads.len(), 2);
+        assert!(batch.payloads[0].old_value.is_none());
+        assert_eq!(
+            batch.payloads[1]
+                .old_value
+                .as_ref()
+                .unwrap()
+                .units()
+                .collect::<Vec<_>>(),
+            [111, 108, 100, 0, 56320]
+        );
+        assert!(coalesce_prepared(Vec::new()).is_none());
     }
 
     #[test]

@@ -63,6 +63,10 @@ const preparedRecords = tree.prepareMutationRecords({ kind: 'attributes', target
 assert.equal(preparedRecords.length, 1); assert.equal(preparedRecords[0].observer, nativeObserver);
 assert.equal(preparedRecords[0].record.attributeName, 'flag\ud800\0'); assert.equal(preparedRecords[0].record.oldValue, 'prepared\udc00\0');
 assert.equal(tree.observerRegistryStatistics().queuedRecords, 0);
+const sharedBatch = tree.prepareMutationRecordBatch({ kind: 'attributes', target: handle, previousSibling: 0, nextSibling: 0,
+  attributeName: 'batch', attributeNamespace: null, oldValue: 'shared\0', addedNodes: [], removedNodes: [] });
+assert.ok(sharedBatch); assert.deepEqual(sharedBatch.observers, [nativeObserver]); assert.deepEqual(sharedBatch.payloadIndices, [0]);
+assert.equal(sharedBatch.payloads.length, 1); assert.equal(sharedBatch.payloads[0].oldValue, 'shared\0');
 const queuedToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
 assert.equal(tree.observerNotificationStatistics().pendingObservers, 1);
 assert.equal(tree.requestMutationObserverMicrotask(), true); assert.equal(tree.requestMutationObserverMicrotask(), false);

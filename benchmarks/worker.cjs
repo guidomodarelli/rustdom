@@ -150,7 +150,7 @@ function mutationRecordFixture(document, size, ancestorDepth = 0) {
   observer.observe(host, { attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true, childList: true, subtree: true });
   for (const ancestor of ancestors) observer.observe(ancestor, { attributes: true, attributeOldValue: true,
     characterData: true, characterDataOldValue: true, childList: true, subtree: true });
-  return { records: [], expectedRecords: size * 3,
+  return { records: [], expectedRecords: size * 3, expectedNativePayloads: size * 3,
     /** @returns {MutationRecord[]} Creates and collects all three kinds through actual public mutations. */
     produce() {
       for (let index = 0; index < size; index++) { host.setAttribute('data-state', String(index)); text.data = `value-${index}`; host.append(children[index]); }
@@ -186,6 +186,7 @@ function mutationFanoutFixture(document, observerCount) {
     observer.observe(host, { attributes: true, attributeOldValue: index % 2 === 0 }); return observer;
   });
   return { expectedRecords: MUTATION_FANOUT_GROUPS * observerCount,
+    expectedNativePayloads: observerCount > 1 ? MUTATION_FANOUT_GROUPS * 2 - 1 : MUTATION_FANOUT_GROUPS,
     /** @returns {MutationRecord[]} Complete public mutations and drains in observer order. */
     produce() {
       for (let index = 0; index < MUTATION_FANOUT_GROUPS; index++) host.setAttribute('data-state', String(index));
@@ -673,7 +674,7 @@ async function measure(name, size) {
       observerDeliveryWork?.validate();
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
-        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedRecords);
+        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
       }
       if (signalsSlotBurst) {
         assert.equal(result, size * 3);

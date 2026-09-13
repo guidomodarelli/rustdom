@@ -233,6 +233,12 @@ prestados solo durante la llamada y oldValue se copia cuando hace falta.
 El bridge conserva los owners y confirma cada wrapper en orden, preservando
 prefijos ante errores. [Perfiles, contratos y costos pendientes](reports/validation/mutation-production.md).
 
+El binding DOM usa `prepareMutationRecordBatch` para compartir también el wrapper
+nativo de cada payload. Los `MutationRecord` públicos y sus `NodeList` conservan
+identidad independiente; `prepareMutationRecords` mantiene la API raw anterior.
+`mutationRecords` cuenta wrappers nativos, que pueden respaldar varios registros
+públicos. Ver [contratos y GC de la compartición](reports/validation/shared-mutation-bindings.md).
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

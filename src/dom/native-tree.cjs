@@ -481,17 +481,17 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} data - Complete mutation payload. @param {Function} createRecord - Real WebIDL factory effect. @returns {void} Prepares native payloads once and commits each wrapper in original order. */
   produceMutationRecords(data, createRecord) {
     const targetId = this._ensure(data.target); this._objects.get(targetId).deref();
-    const prepared = this._arena.prepareMutationRecords({ kind: data.type, target: targetId,
+    const prepared = this._arena.prepareMutationRecordBatch({ kind: data.type, target: targetId,
       previousSibling: data.previousSibling ? this._ensure(data.previousSibling) : 0,
       nextSibling: data.nextSibling ? this._ensure(data.nextSibling) : 0,
       attributeName: data.attributeName, attributeNamespace: data.attributeNamespace, oldValue: data.oldValue,
       addedNodes: data.addedNodes.length ? data.addedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES,
       removedNodes: data.removedNodes.length ? data.removedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES });
-    if (prepared.length === 0) return;
+    if (prepared === null) return;
     const owners = [data.target, data.previousSibling, data.nextSibling, ...data.addedNodes, ...data.removedNodes];
-    const observers = prepared.map((item) => this._observers.get(item.observer).deref());
-    for (const [index, item] of prepared.entries()) {
-      const record = createRecord(item.record, owners);
+    const observers = prepared.observers.map((id) => this._observers.get(id).deref());
+    for (let index = 0; index < observers.length; index++) {
+      const record = createRecord(prepared.payloads[prepared.payloadIndices[index]], owners);
       this.enqueueMutationRecord(observers[index], record);
     }
   }

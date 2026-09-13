@@ -1,6 +1,7 @@
 //! Borrow primitive JS strings during preparation and copy oldValue only when a selected observer requests it.
 use super::{
     data::DomString,
+    mutation_production::{PreparedMutation, coalesce_prepared},
     mutation_record::{MutationKind, MutationRecordDraft},
     mutation_record_binding::NativeMutationRecord,
     napi_error::to_napi_error,
@@ -31,6 +32,13 @@ pub struct NativePreparedMutation {
     pub record: NativeMutationRecord,
 }
 
+#[napi(object, object_from_js = false)]
+pub struct NativeMutationBatch {
+    pub observers: Vec<f64>,
+    pub payload_indices: Vec<u32>,
+    pub payloads: Vec<NativeMutationRecord>,
+}
+
 /// The explicit string length excludes N-API's terminator while preserving actual trailing NUL units.
 fn owned_string(value: Option<Either<JsString<'_>, Null>>) -> Result<Option<DomString>> {
     match value {
@@ -43,10 +51,10 @@ fn owned_string(value: Option<Either<JsString<'_>, Null>>) -> Result<Option<DomS
     }
 }
 
-pub(super) fn prepare(
+fn prepare_payloads(
     tree: &TreeStore,
     input: NativeMutationProductionInput<'_>,
-) -> Result<Vec<NativePreparedMutation>> {
+) -> Result<Vec<PreparedMutation>> {
     let kind = MutationKind::parse(&input.kind).map_err(to_napi_error)?;
     let name = owned_string(input.attribute_name)?;
     let namespace = owned_string(input.attribute_namespace)?;
@@ -73,14 +81,37 @@ pub(super) fn prepare(
         removed_nodes: input.removed_nodes,
     };
     tree.prepare_selected_mutations(draft, interests)
-        .map(|records| {
-            records
-                .into_iter()
-                .map(|record| NativePreparedMutation {
-                    observer: record.observer as f64,
-                    record: NativeMutationRecord::from_shared(record.record),
-                })
-                .collect()
-        })
         .map_err(to_napi_error)
+}
+
+pub(super) fn prepare(
+    tree: &TreeStore,
+    input: NativeMutationProductionInput<'_>,
+) -> Result<Vec<NativePreparedMutation>> {
+    prepare_payloads(tree, input).map(|records| {
+        records
+            .into_iter()
+            .map(|record| NativePreparedMutation {
+                observer: record.observer as f64,
+                record: NativeMutationRecord::from_shared(record.record),
+            })
+            .collect()
+    })
+}
+
+pub(super) fn prepare_batch(
+    tree: &TreeStore,
+    input: NativeMutationProductionInput<'_>,
+) -> Result<Option<NativeMutationBatch>> {
+    prepare_payloads(tree, input).map(|records| {
+        coalesce_prepared(records).map(|batch| NativeMutationBatch {
+            observers: batch.observers,
+            payload_indices: batch.payload_indices,
+            payloads: batch
+                .payloads
+                .into_iter()
+                .map(NativeMutationRecord::from_shared)
+                .collect(),
+        })
+    })
 }

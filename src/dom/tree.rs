@@ -4,7 +4,9 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
-    mutation_production_binding::{self, NativeMutationProductionInput, NativePreparedMutation},
+    mutation_production_binding::{
+        self, NativeMutationBatch, NativeMutationProductionInput, NativePreparedMutation,
+    },
     mutation_record::{MutationKind, MutationRecordDraft, MutationRecordState},
     mutation_record_binding::NativeMutationRecord,
     napi_error::to_napi_error,
@@ -718,6 +720,14 @@ impl NativeTree {
         input: NativeMutationProductionInput<'_>,
     ) -> Result<Vec<NativePreparedMutation>> {
         mutation_production_binding::prepare(&self.store, input)
+    }
+
+    #[napi]
+    pub fn prepare_mutation_record_batch(
+        &self,
+        input: NativeMutationProductionInput<'_>,
+    ) -> Result<Option<NativeMutationBatch>> {
+        mutation_production_binding::prepare_batch(&self.store, input)
     }
 
     #[napi]
