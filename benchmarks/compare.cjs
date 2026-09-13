@@ -1,10 +1,11 @@
 /** @file Runs isolated benchmark processes, preserves raw samples, and writes comparable summaries. */
 'use strict';
 const { spawnSync } = require('node:child_process');
-const { mkdirSync, writeFileSync, readFileSync, readdirSync } = require('node:fs');
+const { readFileSync, readdirSync } = require('node:fs');
 const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
+const { BenchmarkReport } = require('./report.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -26,19 +27,6 @@ const measuredSources = [...sourceFiles('src'), ...sourceFiles('scripts'), ...so
   'package-lock.json', 'Cargo.toml', 'Cargo.lock'].sort();
 const sourceDigest = createHash('sha256');
 for (const path of measuredSources) sourceDigest.update(path).update('\0').update(readFileSync(path)).update('\0');
-
-/**
- * Summarize raw observations using median and p95, without deleting outliers.
- * @param {number[]} values - Measured durations in milliseconds.
- * @returns {object} Sample count and distribution summaries in milliseconds.
- */
-function summarize(values) {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return { samples: sorted.length, medianMs: sorted.length % 2 ? sorted[middle] :
-    (sorted[middle - 1] + sorted[middle]) / 2,
-  p95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1], minMs: sorted[0], maxMs: sorted.at(-1) };
-}
 
 /** Capture source and dependency identities alongside machine information. */
 const report = {
@@ -87,6 +75,8 @@ const report = {
   runs: [], comparisons: [],
 };
 
+/** Preserve every stage's partial evidence through one report lifecycle. */
+const benchmarkReport = new BenchmarkReport(report, outputDirectory);
 for (const order of ORDERS) {
   for (const engine of order) {
     process.stderr.write(`Benchmark ${engine}, proceso ${report.runs.length + 1}/${ORDERS.length * 2}\n`);
@@ -94,47 +84,9 @@ for (const order of ORDERS) {
     const child = spawnSync(process.execPath, ['--expose-gc', 'benchmarks/worker.cjs', engine, ...requestedWorkloads], {
       encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: workerTimeoutMs,
     });
-    if (child.error || child.status !== 0) {
-      report.failure = { engine, processIndex: report.runs.length + 1,
-        elapsedMs: performance.now() - startedAt, timeoutMs: workerTimeoutMs,
-        exitCode: child.status, signal: child.signal,
-        error: child.error ? { code: child.error.code, message: child.error.message } : null,
-        stdout: child.stdout, stderr: child.stderr };
-      mkdirSync(outputDirectory, { recursive: true });
-      const failurePath = `${outputDirectory}/${new Date().toISOString().replaceAll(':', '-')}-${platform()}-${arch()}-failed.json`;
-      writeFileSync(failurePath, `${JSON.stringify(report, null, 2)}\n`);
-      throw new Error(`Benchmark ${engine} process ${report.failure.processIndex} failed ` +
-        `(${child.error?.code ?? child.signal ?? child.status}); budget ${workerTimeoutMs} ms; ` +
-        `diagnostic: ${failurePath}`, { cause: child.error ?? new Error(child.stderr) });
-    }
-    report.runs.push(JSON.parse(child.stdout));
+    benchmarkReport.recordWorker(child, { engine, processIndex: report.runs.length + 1,
+      elapsedMs: performance.now() - startedAt, timeoutMs: workerTimeoutMs });
   }
 }
-for (const workload of report.runs[0].workloads) {
-  const engines = {};
-  const hashes = report.runs.map((run) => run.workloads.find((entry) => entry.name === workload.name && entry.rows === workload.rows).outputHash);
-  assert.ok(hashes.every((hash) => hash === hashes[0]), `Benchmark output mismatch: ${workload.name}/${workload.rows}`);
-  for (const engine of ['jsdom', 'rustdom']) {
-    const values = report.runs.filter((run) => run.engine === engine).flatMap((run) =>
-      run.workloads.find((entry) => entry.name === workload.name && entry.rows === workload.rows).samplesMs);
-    engines[engine] = summarize(values);
-  }
-  report.comparisons.push({ workload: workload.name, rows: workload.rows, ...engines,
-    speedup: engines.jsdom.medianMs / engines.rustdom.medianMs });
-}
-
-mkdirSync(outputDirectory, { recursive: true });
-report.complete = true;
-/** Keep timestamped results so subsequent optimizations cannot overwrite the baseline. */
-const basename = `${new Date().toISOString().replaceAll(':', '-')}-${platform()}-${arch()}`;
-writeFileSync(`${outputDirectory}/${basename}.json`, `${JSON.stringify(report, null, 2)}\n`);
-const table = ['| Operación | Filas | jsdom mediana (ms) | rustdom mediana (ms) | Ratio |',
-  '|---|---:|---:|---:|---:|', ...report.comparisons.map((entry) =>
-    `| ${entry.workload} | ${entry.rows} | ${entry.jsdom.medianMs.toFixed(3)} | ${entry.rustdom.medianMs.toFixed(3)} | ${entry.speedup.toFixed(2)}x |`)];
-writeFileSync(`${outputDirectory}/${basename}.md`, `# Benchmark ${report.capturedAt}\n\n` +
-  `Node ${report.node}; jsdom ${report.jsdom}; ${report.machine.cpu}; ${report.machine.release}.\n\n` +
-  table.join('\n') + '\n\nRatio = mediana jsdom / mediana rustdom. Mayor que 1 favorece rustdom.\n' +
-  '\nCada fila contiene 18 muestras en dos procesos por motor, con tres warmups por proceso.\n' +
-  'Se excluyen carga de módulos, preparación, validación y limpieza. La memoria guardada en JSON es posterior a GC; no es memoria pico.\n' +
-  'Los documentos con scripts usan el parser original. Árbol, consultas compatibles y serialización HTML ejecutan Rust; wrappers y Web APIs reutilizan jsdom.\n');
-process.stdout.write(`${table.join('\n')}\n\nGuardado: ${outputDirectory}/${basename}.json\n`);
+const { jsonPath, table } = benchmarkReport.finish();
+process.stdout.write(`${table.join('\n')}\n\nGuardado: ${jsonPath}\n`);
