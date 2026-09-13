@@ -36,6 +36,8 @@ const SLOT_LOOKUP_ITERATIONS = 1000;
 const SLOT_REASSIGNMENT_ITERATIONS = 100;
 /** Recompute assignment lists rather than reading their existing cache. */
 const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
+/** Traverse nested relay slots through the actual public flattening API. */
+const SLOT_FLATTEN_ITERATIONS = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -92,6 +94,23 @@ function slotAssignmentFixture(document, size, dense) {
   return { root, slots, target: targets[0], names, assignments };
 }
 
+/** @param {Document} document - Live document. @param {number} depth - Relay count. @param {ShadowRoot[]} roots - Roots included in result hashes. @returns {object} Terminal slot and expected flattened leaves. */
+function slotFlattenFixture(document, depth, roots) {
+  const outerHost = document.body.appendChild(document.createElement('section'));
+  let root = outerHost.attachShadow({ mode: 'open' }); roots.push(root);
+  for (let index = 0; index < depth; index++) {
+    const host = root.appendChild(document.createElement('section'));
+    host.appendChild(document.createElement('slot'));
+    root = host.attachShadow({ mode: index % 2 ? 'closed' : 'open' }); roots.push(root);
+  }
+  const terminal = root.appendChild(document.createElement('slot'));
+  const element = document.createElement('b'); element.textContent = 'leaf';
+  const text = document.createTextNode('text'); outerHost.append(element, text);
+  const leaves = [element, text];
+  assert.deepEqual(terminal.assignedNodes({ flatten: true }), leaves);
+  return { terminal, leaves };
+}
+
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
  * @param {string} name - Workload name, including its configuration.
@@ -121,6 +140,7 @@ async function measure(name, size) {
   const queriesAssignments = name === 'slot-assigned-100';
   const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100';
   const usesSlots = queriesSlots || reassignsSlots || queriesAssignments;
+  const flattensSlots = name === 'slot-flatten-chain-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -169,7 +189,8 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || usesSlots) shadowRoots = [];
+      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || usesSlots || flattensSlots) shadowRoots = [];
+      const flattenedFixture = flattensSlots ? slotFlattenFixture(document, size, shadowRoots) : null;
       const slotAssignment = usesSlots ? slotAssignmentFixture(document, size, denseSlots) : null;
       const slots = slotAssignment?.slots; const slotTarget = slotAssignment?.target; const slotNames = slotAssignment?.names;
       if (slotAssignment) shadowRoots.push(slotAssignment.root);
@@ -258,7 +279,14 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (queriesAssignments) {
+      if (flattensSlots) {
+        result = 0;
+        for (let iteration = 0; iteration < SLOT_FLATTEN_ITERATIONS; iteration++) {
+          const selected = flattenedFixture.terminal.assignedNodes({ flatten: true });
+          result += Number(selected.length === flattenedFixture.leaves.length);
+          for (let index = 0; index < selected.length; index++) result += Number(selected[index] === flattenedFixture.leaves[index]);
+        }
+      } else if (queriesAssignments) {
         result = 0;
         const expected = slotAssignment.assignments.at(-1);
         for (let iteration = 0; iteration < SLOT_ASSIGNMENT_QUERY_ITERATIONS; iteration++) {
@@ -480,7 +508,11 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots ? 1 : SHADOW_CREATION_COUNT);
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots ? 1 : flattensSlots ? size + 1 : SHADOW_CREATION_COUNT);
+        if (flattensSlots) {
+          assert.equal(result, SLOT_FLATTEN_ITERATIONS * (flattenedFixture.leaves.length + 1));
+          assert.deepEqual(flattenedFixture.terminal.assignedNodes({ flatten: true }), flattenedFixture.leaves);
+        }
         if (usesSlots) {
           assert.equal(result, queriesAssignments ? SLOT_ASSIGNMENT_QUERY_ITERATIONS * (slotAssignment.assignments.at(-1).length + 1)
             : queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS);
@@ -625,6 +657,7 @@ async function main() {
     ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
     ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
     ...[25, 100].flatMap((size) => ['slot-assigned-100', 'slot-dense-reassign-100'].map((name) => ({ name, size }))),
+    ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

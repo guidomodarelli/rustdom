@@ -138,6 +138,7 @@ const nativeCdata = hostTree.allocate(); hostTree.setData(nativeCdata, '{"kind":
 assert.equal(hostTree.getSlotableName(nativeCdata), ''); hostTree.setSlotableName(nativeCdata, 'selected');
 assert.equal(hostTree.findSlotFor(hostedRoot, nativeCdata), nativeSlot);
 hostTree.append(rootHost, nativeCdata); assert.deepEqual(hostTree.findSlotables(nativeSlot), [nativeCdata]);
+assert.deepEqual(hostTree.findFlattenedSlotables(nativeSlot), [nativeCdata]);
 hostTree.release(nativeCdata);
 hostTree.release(nativeSlot);
 hostTree.release(rootHost); assert.equal(hostTree.rootHost(hostedRoot), 0); hostTree.release(hostedRoot);

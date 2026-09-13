@@ -158,6 +158,10 @@ function exerciseHostRoots(document) {
   assigned.slot = ''; assert.equal(assigned.assignedSlot, slot);
   slot.name = 'retained'; assigned.slot = 'retained'; assert.equal(assigned.assignedSlot, slot);
   assert.deepEqual(slot.assignedNodes({ flatten: true }), [assigned]);
+  const relay = document.createElement('slot'); relay.name = 'outer'; relay.slot = 'retained'; nestedHost.append(relay);
+  const outerLeaf = document.createElement('b'); outerLeaf.slot = 'outer'; host.append(outerLeaf);
+  assert.deepEqual(slot.assignedNodes({ flatten: true }), [assigned, outerLeaf]);
+  comparisonReferences.push(new WeakRef(relay), new WeakRef(outerLeaf));
   comparisonReferences.push(new WeakRef(slot), new WeakRef(assigned), new WeakRef(assignedText));
   const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
   assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
