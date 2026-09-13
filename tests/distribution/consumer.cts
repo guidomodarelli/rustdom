@@ -4,6 +4,18 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Forward-only native actions retain their literal value union in installed consumers. */
+const slotAssignmentActions: readonly native.SlotAssignmentAction[] = [
+  native.SlotAssignmentAction.Complete, native.SlotAssignmentAction.Signal, native.SlotAssignmentAction.Applied,
+];
+assert.deepEqual(slotAssignmentActions, [0, 1, 2]);
+assert.deepEqual(Object.getOwnPropertyNames(native.SlotAssignmentAction).sort(), ['Applied', 'Complete', 'Signal']);
+for (const action of slotAssignmentActions) {
+  // @ts-expect-error The native object has no reverse numeric mapping.
+  assert.equal(native.SlotAssignmentAction[action], undefined);
+  assert.equal(Object.hasOwn(native.SlotAssignmentAction, action), false);
+}
+
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
 const paragraph: Element | null = dom.window.document.querySelector('#target');
 assert.ok(paragraph);

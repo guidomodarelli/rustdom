@@ -11,6 +11,18 @@ import nativeRuntime, {
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
+/** Forward-only native actions retain their literal value union in installed consumers. */
+const slotAssignmentActions: readonly SlotAssignmentAction[] = [
+  SlotAssignmentAction.Complete, SlotAssignmentAction.Signal, SlotAssignmentAction.Applied,
+];
+assert.deepEqual(slotAssignmentActions, [0, 1, 2]);
+assert.deepEqual(Object.getOwnPropertyNames(SlotAssignmentAction).sort(), ['Applied', 'Complete', 'Signal']);
+for (const action of slotAssignmentActions) {
+  // @ts-expect-error The native object has no reverse numeric mapping.
+  assert.equal(SlotAssignmentAction[action], undefined);
+  assert.equal(Object.hasOwn(SlotAssignmentAction, action), false);
+}
+
 assert.equal(runtime.JSDOM, JSDOM);
 const dom = new JSDOM('<!doctype html><p>Hello</p>', { cookieJar: new CookieJar() });
 dom.window.document.body.insertAdjacentHTML('beforeend', '<span>Installed</span>');

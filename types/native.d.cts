@@ -2,7 +2,9 @@
 import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics } from './index.cjs';
 
 /** A signal precedes its commit; Applied instructions carry GC ownership changes only. */
-export enum SlotAssignmentAction { Complete = 0, Signal = 1, Applied = 2 }
+export const SlotAssignmentAction: { readonly Complete: 0; readonly Signal: 1; readonly Applied: 2 };
+/** Numeric action values returned by the native assignment driver, without reverse mapping. */
+export type SlotAssignmentAction = typeof SlotAssignmentAction[keyof typeof SlotAssignmentAction];
 export interface SlotAssignmentInstruction { kind: SlotAssignmentAction; slot: number; nodes: number[]; nextNode: number; cacheChanged: boolean; }
 /** Numeric-only synchronous operation. The first tree step validates allocation and slot role. */
 export class NativeSlotAssignmentDriver {
