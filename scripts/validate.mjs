@@ -1,7 +1,7 @@
 /** @file Executes release validation gates and preserves commands, output, and exit status. */
-import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
+import { runValidationProcess } from './validation-process.mjs';
 
 /** Resolve npm's JS entry point so validation is portable across shells. */
 const npmEntry = process.env.npm_execpath;
@@ -22,20 +22,17 @@ await mkdir('reports/validation', { recursive: true });
 for (const [name, command, args] of commands) {
   process.stdout.write(`Validación: ${name}\n`);
   const started = performance.now();
-  let output = '';
-  const exitCode = await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['inherit', 'pipe', 'pipe'] });
-    child.on('error', reject);
-    child.stdout.on('data', (data) => { output += data; process.stdout.write(data); });
-    child.stderr.on('data', (data) => { output += data; process.stderr.write(data); });
-    child.on('close', resolve);
-  });
+  const { exitCode, signal, spawnError, output } = await runValidationProcess(command, args);
   await writeFile(`reports/validation/${name}.log`, output);
   report.gates.push({ name, command: command === process.execPath ? 'node' : command,
     args: args[0] === npmEntry ? ['npm-cli.js', ...args.slice(1)] : args,
-    exitCode, durationMs: performance.now() - started });
-  if (exitCode !== 0) break;
+    exitCode, signal, spawnError, durationMs: performance.now() - started });
+  if (exitCode !== 0 || signal || spawnError) {
+    process.stderr.write(`Validación ${name}: ${spawnError ? `no pudo iniciar (${spawnError.code ?? spawnError.name}): ${spawnError.message}`
+      : signal ? `terminó por señal ${signal}` : `terminó con código ${exitCode}`}\n`);
+    break;
+  }
 }
-report.pass = report.gates.length === commands.length && report.gates.every((gate) => gate.exitCode === 0);
+report.pass = report.gates.length === commands.length && report.gates.every((gate) => gate.exitCode === 0 && !gate.signal && !gate.spawnError);
 await writeFile('reports/validation/latest.json', `${JSON.stringify(report, null, 2)}\n`);
 if (!report.pass) process.exitCode = 1;
