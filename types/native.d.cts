@@ -125,6 +125,8 @@ export class NativeTree {
   /** Register a fragment host before or after metadata initialization; host zero clears the relation. */
   setRootHost(root: number, host: number, shadow: boolean): void;
   rootHost(root: number): number;
+  /** Retargets a node through shadow hosts; reference zero represents a non-node target. */
+  retarget(node: number, reference: number): number;
   shadowIncludingRoot(node: number): number;
   isShadowInclusiveAncestor(ancestor: number, node: number): boolean;
   isHostInclusiveAncestor(ancestor: number, node: number): boolean;

@@ -406,6 +406,8 @@ class NativeSymbolTree extends SymbolTree {
   nodeLength(node) { return this._arena.nodeLength(this._ensure(node)); }
   /** @param {object} root - Fragment implementation. @returns {object|null|undefined} Original host value with a V8-visible ownership edge. */
   rootHost(root) { return this._node(root).nativeHost; }
+  /** @param {object} node - Real target implementation. @param {object|null} reference - Real reference node or a non-node target sentinel. @returns {object} Target visible from the reference after native host traversal. */
+  retarget(node, reference) { return this._object(this._arena.retarget(this._ensure(node), reference ? this._ensure(reference) : 0)); }
   /** @param {object} root - Fragment implementation, possibly still constructing. @param {object|null|undefined} host - Original host value. @param {boolean} shadow - ShadowRoot relationship rather than template ownership. @returns {void} Commits numeric links before changing the visible ownership edge. */
   setRootHost(root, host, shadow) {
     const record = this._node(root);

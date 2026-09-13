@@ -144,12 +144,19 @@ function exerciseHostRoots(document) {
   const host = document.createElement('article'); document.body.append(host);
   const root = host.attachShadow({ mode: 'closed' }); const nestedHost = root.appendChild(document.createElement('section'));
   const nestedRoot = nestedHost.attachShadow({ mode: 'open' }); const child = nestedRoot.appendChild(document.createElement('b'));
+  const peerHost = document.createElement('aside'); document.body.append(peerHost);
+  const peerRoot = peerHost.attachShadow({ mode: 'open' }); const peer = peerRoot.appendChild(document.createElement('i'));
+  const eventResults = [];
+  host.addEventListener('mouseover', (event) => eventResults.push(event.target === host && event.relatedTarget === peerHost));
+  child.dispatchEvent(new document.defaultView.MouseEvent('mouseover', { bubbles: true, composed: true, relatedTarget: peer }));
+  assert.deepEqual(eventResults, [true]);
   const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
   assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
   assert.equal(template.content.firstChild.getRootNode({ composed: true }), template.content);
   host.remove(); assert.equal(child.getRootNode({ composed: true }), host); assert.equal(child.isConnected, false);
   document.body.append(host);
   comparisonReferences.push(...[host, root, nestedHost, nestedRoot, child, template, template.content].map((node) => new WeakRef(node)));
+  comparisonReferences.push(new WeakRef(peerHost), new WeakRef(peerRoot), new WeakRef(peer));
   references.push(new WeakRef(template.content.ownerDocument));
 }
 

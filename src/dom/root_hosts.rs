@@ -5,7 +5,7 @@ use super::{
     error::{Result, TreeError},
     store::{NodeId, TreeStore, node_id},
 };
-use rustc_hash::FxBuildHasher;
+use rustc_hash::{FxBuildHasher, FxHashSet};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct RootHost {
@@ -118,6 +118,92 @@ enum HostTraversal {
 }
 
 impl TreeStore {
+    fn retarget_root(&self, node: NodeId, remaining: &mut usize) -> Result<NodeId> {
+        let mut current = node;
+        loop {
+            if *remaining == 0 {
+                return Err(TreeError::Cycle(current));
+            }
+            *remaining -= 1;
+            let parent = self.links(current)?.parent;
+            if parent == 0 {
+                return Ok(current);
+            }
+            current = parent;
+        }
+    }
+
+    /// Keep only shadow roots from the reference path; template hosts are not crossed.
+    fn reference_shadow_roots(&self, node: NodeId) -> Result<FxHashSet<NodeId>> {
+        let mut roots = FxHashSet::default();
+        let mut current = node;
+        for _ in 0..=self.nodes.len() {
+            let links = self.links(current)?;
+            if links.parent != 0 {
+                current = links.parent;
+                continue;
+            }
+            let Some(relation) = self
+                .root_hosts
+                .roots
+                .get(&current)
+                .filter(|relation| relation.shadow)
+            else {
+                return Ok(roots);
+            };
+            roots.insert(current);
+            current = relation.host;
+        }
+        Err(TreeError::Cycle(current))
+    }
+
+    /// Retarget a real node against a node reference, or zero for a non-node EventTarget.
+    pub fn retarget(&self, node: f64, reference: f64) -> Result<f64> {
+        let mut current = node_id(node)?;
+        let reference = if reference == 0.0 {
+            None
+        } else {
+            Some(node_id(reference)?)
+        };
+        self.links(current)?;
+        if let Some(reference) = reference {
+            self.links(reference)?;
+        }
+        let mut remaining = self.nodes.len() + 1;
+        let mut reference_roots = None;
+        loop {
+            let root = self.retarget_root(current, &mut remaining)?;
+            let Some(relation) = self
+                .root_hosts
+                .roots
+                .get(&root)
+                .filter(|relation| relation.shadow)
+            else {
+                return Ok(current as f64);
+            };
+            if let Some(reference) = reference {
+                if reference_roots.is_none() {
+                    // The common same-root case returns without allocating an ancestor set.
+                    if self.ancestor_through_hosts(
+                        root,
+                        reference,
+                        HostTraversal::ShadowIncluding,
+                    )? {
+                        return Ok(current as f64);
+                    }
+                    reference_roots = Some(self.reference_shadow_roots(reference)?);
+                }
+                if reference_roots
+                    .as_ref()
+                    .is_some_and(|roots| roots.contains(&root))
+                {
+                    return Ok(current as f64);
+                }
+            }
+            current = relation.host;
+        }
+    }
+
     fn host_parent(&self, node: NodeId, traversal: HostTraversal) -> Result<Option<NodeId>> {
         let links = self.links_or_reserved(node)?;
         if links.parent != 0 {
@@ -262,6 +348,85 @@ mod tests {
         assert_eq!(tree.shadow_including_root(child).unwrap(), host);
         tree.set_root_host(root, 0.0, true).unwrap();
         assert_eq!(tree.shadow_including_root(child).unwrap(), root);
+    }
+
+    #[test]
+    fn should_retarget_to_the_first_host_visible_from_each_reference_root() {
+        let mut tree = TreeStore::new();
+        let document = node(&mut tree, 9);
+        let outer_host = node(&mut tree, 1);
+        let outer_root = node(&mut tree, 11);
+        let inner_host = node(&mut tree, 1);
+        let inner_root = node(&mut tree, 11);
+        let target = node(&mut tree, 1);
+        tree.append(document, outer_host).unwrap();
+        tree.append(outer_root, inner_host).unwrap();
+        tree.append(inner_root, target).unwrap();
+        tree.set_root_host(outer_root, outer_host, true).unwrap();
+        tree.set_root_host(inner_root, inner_host, true).unwrap();
+        assert_eq!(tree.retarget(target, target).unwrap(), target);
+        assert_eq!(tree.retarget(target, inner_root).unwrap(), target);
+        assert_eq!(tree.retarget(target, outer_root).unwrap(), inner_host);
+        assert_eq!(tree.retarget(target, document).unwrap(), outer_host);
+        assert_eq!(tree.retarget(target, 0.0).unwrap(), outer_host);
+        tree.set_root_host(inner_root, inner_host, false).unwrap();
+        assert_eq!(tree.retarget(target, document).unwrap(), target);
+    }
+
+    #[test]
+    fn should_retarget_disjoint_trees_without_changing_or_retaining_their_nodes() {
+        let mut tree = TreeStore::new();
+        let document = node(&mut tree, 9);
+        let first_host = node(&mut tree, 1);
+        let first_root = node(&mut tree, 11);
+        let first = node(&mut tree, 1);
+        let second_host = node(&mut tree, 1);
+        let second_root = node(&mut tree, 11);
+        let second = node(&mut tree, 1);
+        for host in [first_host, second_host] {
+            tree.append(document, host).unwrap();
+        }
+        tree.append(first_root, first).unwrap();
+        tree.append(second_root, second).unwrap();
+        tree.set_root_host(first_root, first_host, true).unwrap();
+        tree.set_root_host(second_root, second_host, true).unwrap();
+        let before = tree.statistics();
+        let result = tree.retarget(first, second).unwrap();
+        assert_eq!(result, first_host);
+        assert_eq!(tree.statistics().mutations, before.mutations);
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        for handle in [
+            first,
+            first_root,
+            first_host,
+            second,
+            second_root,
+            second_host,
+            document,
+        ] {
+            tree.release(handle).unwrap();
+        }
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.root_host_statistics().hosted_roots, 0);
+        assert_eq!(result, first_host);
+    }
+
+    #[test]
+    fn should_reject_invalid_retarget_inputs_and_bound_cross_host_cycles() {
+        let mut tree = TreeStore::new();
+        let host = node(&mut tree, 1);
+        let root = node(&mut tree, 11);
+        tree.set_root_host(root, host, true).unwrap();
+        let reserved = tree.reserve_handles().unwrap();
+        let before = tree.statistics();
+        for invalid in [-1.0, 0.5, f64::NAN, reserved] {
+            assert!(tree.retarget(invalid, host).is_err());
+            assert!(tree.retarget(host, invalid).is_err());
+        }
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        assert_eq!(tree.statistics().reserved_handles, before.reserved_handles);
+        tree.append(root, host).unwrap();
+        assert!(tree.retarget(host, 0.0).is_err());
     }
 
     #[test]

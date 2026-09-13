@@ -534,6 +534,14 @@ shadowHelpers = shadowHelpers.slice(0, shadowAncestorStart) +
   '  if (!isNode(node)) return false;\n' +
   '  if (!ancestor || (typeof ancestor !== "object" && typeof ancestor !== "function") || !("nodeType" in ancestor)) return false;\n' +
   '  return domSymbolTree.isShadowInclusiveAncestor(ancestor, node);\n}\n\n' + shadowHelpers.slice(shadowAncestorEnd);
+const retargetStart = shadowHelpers.indexOf('function retarget(a, b) {');
+const retargetEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#get-the-parent', retargetStart);
+if (retargetStart < 0 || retargetEnd < retargetStart) throw new Error('rustdom build: retarget helper boundary changed');
+shadowHelpers = shadowHelpers.slice(0, retargetStart) +
+  'function retarget(a, b) {\n' +
+  '  if (!isNode(a)) return a;\n' +
+  '  if (!isShadowRoot(nodeRoot(a))) return a;\n' +
+  '  return domSymbolTree.retarget(a, isNode(b) ? b : null);\n}\n\n' + shadowHelpers.slice(retargetEnd);
 await writeFile(shadowHelpersPath, shadowHelpers);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');

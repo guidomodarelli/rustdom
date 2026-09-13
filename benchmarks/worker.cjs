@@ -29,6 +29,8 @@ const RANGE_MUTATION_TEXT = '++';
 const NODE_ROOT_ITERATIONS = 1000;
 /** Measure full attachment and parsing of independent shadow hosts. */
 const SHADOW_CREATION_COUNT = 100;
+/** Include event creation, dispatch and retargeted listener observations. */
+const RETARGET_EVENT_COUNT = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -48,6 +50,18 @@ function fixture(size) {
     Array.from({ length: size }, (_, index) =>
       `<tr class="row" data-index="${index}"><td><a href="/row/${index}">Row ${index} &amp; value</a></td><td>${index}</td></tr>`).join('') +
     '</table></body></html>';
+}
+
+/** @param {Document} document - Actual DOM document. @param {number} depth - Nested root count. @param {ShadowRoot[]} roots - Captured roots for later validation. @returns {object} Leaf target and its outer host. */
+function shadowChain(document, depth, roots) {
+  let parent = document.body; let outerHost;
+  for (let index = 0; index < depth; index++) {
+    const host = parent.appendChild(document.createElement('section'));
+    if (index === 0) outerHost = host;
+    const root = host.attachShadow({ mode: index % 2 ? 'closed' : 'open' }); roots.push(root); parent = root;
+  }
+  const leaf = parent.appendChild(document.createElement('button')); leaf.textContent = 'deep';
+  return { leaf, outerHost };
 }
 
 /**
@@ -73,6 +87,7 @@ async function measure(name, size) {
   const replacesDocumentElement = name === 'document-root-replace-100';
   const queriesShadowRoots = name === 'shadow-roots-1000';
   const createsShadowHosts = name === 'shadow-hosts-create-100';
+  const dispatchesRetargetEvents = name === 'shadow-retarget-events-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -89,6 +104,8 @@ async function measure(name, size) {
     let insertionDocument;
     let shadowRoots;
     let shadowTarget;
+    let eventHost; let relatedHost; let relatedTarget; let eventListener;
+    let observedRetargetEvents = 0; let invalidRetargetEvents = 0;
     let cleanup;
     let target;
     if (environment) {
@@ -119,15 +136,16 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      if (queriesShadowRoots || createsShadowHosts) shadowRoots = [];
+      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents) shadowRoots = [];
       if (queriesShadowRoots) {
-        let parent = document.body;
-        for (let depth = 0; depth < size; depth++) {
-          const host = parent.appendChild(document.createElement('section'));
-          const root = host.attachShadow({ mode: depth % 2 ? 'closed' : 'open' });
-          shadowRoots.push(root); parent = root;
-        }
-        shadowTarget = parent.appendChild(document.createElement('button')); shadowTarget.textContent = 'deep';
+        shadowTarget = shadowChain(document, size, shadowRoots).leaf;
+      }
+      if (dispatchesRetargetEvents) {
+        const first = shadowChain(document, size, shadowRoots); const second = shadowChain(document, size, shadowRoots);
+        shadowTarget = first.leaf; eventHost = first.outerHost; relatedHost = second.outerHost; relatedTarget = second.leaf;
+        eventListener = (event) => { observedRetargetEvents++;
+          if (event.target !== eventHost || event.relatedTarget !== relatedHost) invalidRetargetEvents++; };
+        eventHost.addEventListener('mouseover', eventListener);
       }
       let documentCandidates;
       let documentReplacementTargets;
@@ -204,7 +222,11 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (queriesShadowRoots) {
+      if (dispatchesRetargetEvents) {
+        for (let index = 0; index < RETARGET_EVENT_COUNT; index++) {
+          shadowTarget.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, composed: true, relatedTarget }));
+        }
+      } else if (queriesShadowRoots) {
         result = 0;
         for (let iteration = 0; iteration < NODE_ROOT_ITERATIONS; iteration++) {
           result += Number(shadowTarget.getRootNode({ composed: true }) === document) + Number(shadowTarget.isConnected);
@@ -407,8 +429,9 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : SHADOW_CREATION_COUNT);
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : SHADOW_CREATION_COUNT);
         if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
+        if (dispatchesRetargetEvents) { assert.equal(observedRetargetEvents, RETARGET_EVENT_COUNT); assert.equal(invalidRetargetEvents, 0); }
         for (const root of shadowRoots) assert.equal(root.host.getRootNode({ composed: true }), document);
         if (createsShadowHosts) for (const root of shadowRoots) assert.equal(root.textContent, 'shadow');
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().rootHosts.hostedRoots >= shadowRoots.length);
@@ -503,6 +526,8 @@ async function measure(name, size) {
     outputHash = checksum;
     result = null;
     insertionDocument = null;
+    if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
+    eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
     if (cleanup) await cleanup();
     else dom.window.close();
@@ -535,6 +560,7 @@ async function main() {
     ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
     ...[25, 100].map((size) => ({ name: 'shadow-roots-1000', size })),
     { name: 'shadow-hosts-create-100', size: 25 },
+    ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),
