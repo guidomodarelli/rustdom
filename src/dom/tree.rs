@@ -11,6 +11,7 @@ use super::{
     node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
+    observer_delivery_binding::{NativeObserverDelivery, ObserverDeliveryInstruction},
     observer_registry::ObservationStatus,
     observer_registry_binding::{
         NativeObserverInterest, NativeObserverNotificationStatistics, NativeObserverOptionsInput,
@@ -683,6 +684,19 @@ impl NativeTree {
             capacity: stats.capacity as f64,
             microtask_queued: stats.microtask_queued,
         }
+    }
+
+    #[napi]
+    pub fn start_mutation_observer_delivery(&mut self) -> NativeObserverDelivery {
+        NativeObserverDelivery::from_driver(self.store.start_observer_delivery())
+    }
+
+    #[napi]
+    pub fn mutation_observer_delivery_step(
+        &mut self,
+        operation: &mut NativeObserverDelivery,
+    ) -> Result<ObserverDeliveryInstruction> {
+        operation.step(&mut self.store)
     }
 
     #[napi]

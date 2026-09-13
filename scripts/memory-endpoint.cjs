@@ -61,6 +61,7 @@ function isReleased(state, expected) {
     native.mutationObservers?.queueObservers === expected.mutationObservers?.queueObservers &&
     native.mutationNotifications?.pendingObservers === expected.mutationNotifications?.pendingObservers &&
     native.mutationNotifications?.microtaskQueued === expected.mutationNotifications?.microtaskQueued &&
+    native.observerDeliveries?.live === expected.observerDeliveries?.live &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

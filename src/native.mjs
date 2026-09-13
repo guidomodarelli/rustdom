@@ -9,6 +9,7 @@ export const {
   NativeRangeExtract, RangeExtractAction,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
+  NativeObserverDelivery, ObserverDeliveryAction,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;

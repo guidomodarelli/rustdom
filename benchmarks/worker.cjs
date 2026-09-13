@@ -176,6 +176,57 @@ function mutationRecordFixture(document, size, ancestorDepth = 0) {
     dispose() { observer.disconnect(); this.records = []; } };
 }
 
+/** @param {Document} document - Live fixture document. @param {number} size - Observer or slot count. @param {string} name - Delivery workload. @param {ShadowRoot[]} roots - Roots included in output validation. @returns {object} Real queued delivery with setup outside timing. */
+function observerDeliveryFixture(document, size, name, roots) {
+  const empties = name === 'observer-delivery-empty'; const withSlots = name === 'observer-delivery-slots';
+  const expectedObservers = empties || withSlots ? 1 : size;
+  const observerCount = empties ? size + 1 : expectedObservers;
+  const host = document.body.appendChild(document.createElement('section'));
+  const received = []; const slotTargets = []; const slotCalls = []; const listeners = [];
+  let observerCalls = 0; let deliveredSlots = 0; let resolveDelivery;
+  const completed = new Promise((resolve) => { resolveDelivery = resolve; });
+  /** @returns {void} Resolves only after the expected callbacks have executed. */
+  const finish = () => { if (observerCalls === expectedObservers && deliveredSlots === (withSlots ? size : 0)) resolveDelivery(); };
+  const observers = Array.from({ length: observerCount }, (_, index) => {
+    const observer = new document.defaultView.MutationObserver((records) => { received[index] = records; observerCalls++; finish(); });
+    observer.observe(host, { attributes: true }); return observer;
+  });
+  let slots = [];
+  if (withSlots) {
+    const root = host.attachShadow({ mode: 'closed' }); root.innerHTML = '<slot></slot>'.repeat(size); roots.push(root);
+    slots = [...root.children];
+    for (const [index, slot] of slots.entries()) {
+      slotCalls[index] = 0;
+      const listener = (event) => { slotTargets[index] = event.target; slotCalls[index]++; deliveredSlots++; finish(); };
+      listeners.push(listener); slot.addEventListener('slotchange', listener);
+    }
+  }
+  return { completed,
+    /** @returns {void} Queue actual work synchronously immediately before the timer starts. */
+    prepare() {
+      for (const slot of slots) slot.append(document.createTextNode('signal'));
+      host.setAttribute('data-delivery', 'ready');
+      if (empties) for (let index = 0; index < size; index++) assert.equal(observers[index].takeRecords().length, 1);
+    },
+    /** @returns {void} Validate callbacks, fields and identities after timing. */
+    validate() {
+      assert.equal(observerCalls, expectedObservers); assert.equal(deliveredSlots, withSlots ? size : 0);
+      for (let index = 0; index < observerCount; index++) {
+        if (empties && index < size) { assert.equal(received[index], undefined); continue; }
+        assert.equal(received[index].length, 1); const record = received[index][0];
+        assert.equal(record.type, 'attributes'); assert.equal(record.target, host);
+        assert.equal(record.attributeName, 'data-delivery'); assert.equal(record.attributeNamespace, null);
+        assert.equal(record.oldValue, null); assert.equal(record.previousSibling, null); assert.equal(record.nextSibling, null);
+        assert.equal(record.addedNodes.length, 0); assert.equal(record.removedNodes.length, 0);
+      }
+      for (const [index, slot] of slots.entries()) { assert.equal(slotCalls[index], 1); assert.equal(slotTargets[index], slot); }
+    },
+    /** @returns {void} Releases observer and event ownership before ordinary teardown. */
+    dispose() { for (const observer of observers) observer.disconnect();
+      for (const [index, slot] of slots.entries()) slot.removeEventListener('slotchange', listeners[index]); received.length = 0; },
+  };
+}
+
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
  * @param {string} name - Workload name, including its configuration.
@@ -212,6 +263,7 @@ async function measure(name, size) {
   const selectsObserverAncestors = name === 'mutation-observer-ancestors';
   const collectsMutationRecords = name === 'mutation-records-collect' || selectsObserverAncestors;
   const readsMutationRecords = name === 'mutation-records-read';
+  const deliversObservers = name.startsWith('observer-delivery-');
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -233,6 +285,7 @@ async function measure(name, size) {
     let slotEventReceiver; let slotEventListener;
     let signalBurst;
     let mutationRecordWork;
+    let observerDeliveryWork;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
     let target;
@@ -260,6 +313,7 @@ async function measure(name, size) {
     } else {
       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
       const document = dom.window.document;
+      if (deliversObservers) { shadowRoots = []; observerDeliveryWork = observerDeliveryFixture(document, size, name, shadowRoots); }
       if (collectsMutationRecords || readsMutationRecords) {
         mutationRecordWork = mutationRecordFixture(document, selectsObserverAncestors ? OBSERVER_MUTATION_GROUPS : size,
           selectsObserverAncestors ? size : 0);
@@ -366,10 +420,12 @@ async function measure(name, size) {
         }
       }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
-      if (signalsSlotBurst || readsMutationRecords) await new Promise((resolve) => setImmediate(resolve));
+      if (signalsSlotBurst || readsMutationRecords || deliversObservers) await new Promise((resolve) => setImmediate(resolve));
       global.gc?.();
+      observerDeliveryWork?.prepare();
       const start = performance.now();
-      if (collectsMutationRecords) result = mutationRecordWork.produce();
+      if (deliversObservers) result = await observerDeliveryWork.completed;
+      else if (collectsMutationRecords) result = mutationRecordWork.produce();
       else if (readsMutationRecords) result = captureMutationRecords(mutationRecordWork.records);
       else if (signalsSlotBurst) {
         result = 0;
@@ -583,6 +639,7 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
+      observerDeliveryWork?.validate();
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedRecords);
@@ -628,7 +685,8 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots || signalsSlotBurst ? 1 : flattensSlots ? size + 1 : SHADOW_CREATION_COUNT);
+        assert.equal(shadowRoots.length, deliversObservers ? Number(name === 'observer-delivery-slots')
+          : queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots || signalsSlotBurst ? 1 : flattensSlots ? size + 1 : SHADOW_CREATION_COUNT);
         if (flattensSlots) {
           assert.equal(result, SLOT_FLATTEN_ITERATIONS * (flattenedFixture.leaves.length + 1));
           assert.deepEqual(flattenedFixture.terminal.assignedNodes({ flatten: true }), flattenedFixture.leaves);
@@ -746,6 +804,7 @@ async function measure(name, size) {
     if (slotEventReceiver) slotEventReceiver.removeEventListener('slot-probe', slotEventListener);
     signalBurst?.dispose(); signalBurst = null;
     mutationRecordWork?.dispose(); mutationRecordWork = null;
+    observerDeliveryWork?.dispose(); observerDeliveryWork = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
@@ -787,6 +846,7 @@ async function main() {
     ...[100, 1000].map((size) => ({ name: 'slot-signal-burst', size })),
     ...[100, 1000].flatMap((size) => ['mutation-records-collect', 'mutation-records-read'].map((name) => ({ name, size }))),
     ...[100, 1000].map((size) => ({ name: 'mutation-observer-ancestors', size })),
+    ...[100, 1000].flatMap((size) => ['observer-delivery-records', 'observer-delivery-empty', 'observer-delivery-slots'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

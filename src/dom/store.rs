@@ -61,6 +61,8 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    // Weak delivery identity prevents using captured IDs with another forest, without retaining tree data.
+    pub(crate) delivery_identity: std::sync::Arc<()>,
     pub(crate) observer_registry: super::observer_registry::ObserverRegistry,
     pub(crate) slot_signals: super::slot_signals::SlotSignals,
     pub(crate) slot_backlinks: super::slot_backlinks::SlotBacklinks,

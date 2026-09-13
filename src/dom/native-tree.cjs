@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, NativeObserverDelivery, ObserverDeliveryAction, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -529,6 +529,30 @@ class NativeSymbolTree extends SymbolTree {
     this._activeObserverOwners = new Map();
     return observers.map((id) => owners.get(id));
   }
+  /** @param {Function} notifyObserver - Existing callback/error effect for a nonempty record batch. @param {Function} notifySlot - Existing slotchange effect. @returns {void} Runs native delivery control with callbacks outside the native borrow. */
+  runObserverDelivery(notifyObserver, notifySlot) {
+    const owners = { observers: this._activeObserverOwners, slots: this._signalSlotOwners };
+    // Preserve every captured owner for this synchronous job, including slots detached by callbacks.
+    new WeakRef(owners).deref();
+    const operation = this._arena.startMutationObserverDelivery();
+    this._activeObserverOwners = new Map(); this._signalSlotOwners = [];
+    try {
+      while (true) {
+        const step = this._arena.mutationObserverDeliveryStep(operation);
+        if (step.kind === ObserverDeliveryAction.Complete) return;
+        if (step.kind === ObserverDeliveryAction.Observer) {
+          const observer = owners.observers.get(step.observer);
+          const records = step.records.map((token) => {
+            const record = observer._recordOwners.get(token); observer._recordOwners.delete(token); return record;
+          });
+          notifyObserver(observer, records);
+        } else {
+          notifySlot(this._object(step.slot));
+        }
+        if (step.complete) return;
+      }
+    } finally { operation.cancel(); }
+  }
   /** @param {string} kind - Mutation kind. @param {object} target - Mutated node. @param {string|null} name - Attribute local name. @param {string|null} namespace - Attribute namespace. @param {string|null} oldValue - Producer snapshot. @returns {object[]} Native-selected observers and old-value effects in first-match order. */
   interestedMutationObservers(kind, target, name, namespace, oldValue) {
     const targetId = this._ensure(target);
@@ -870,6 +894,7 @@ class NativeSymbolTree extends SymbolTree {
       mutationRecords: NativeMutationRecord.statistics(),
       mutationObservers: this._arena.observerRegistryStatistics(),
       mutationNotifications: this._arena.observerNotificationStatistics(),
+      observerDeliveries: NativeObserverDelivery.statistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

@@ -633,6 +633,25 @@ mutationObserversSource = substituteOnce(mutationObserversSource, '// https://do
 mutationObserversSource = substituteOnce(mutationObserversSource, '  const signalList = [...signalSlotList];\n  signalSlotList.splice(0, signalSlotList.length);',
   '  const signalList = domSymbolTree.takeSlotSignals();');
 mutationObserversSource = substituteOnce(mutationObserversSource, '  queueMutationObserverMicrotask,\n\n  signalSlotList', '  queueMutationObserverMicrotask');
+const observerDeliveryStart = mutationObserversSource.indexOf('function notifyMutationObservers() {');
+const observerDeliveryEnd = mutationObserversSource.indexOf('\n}\n\nmodule.exports = {', observerDeliveryStart);
+if (observerDeliveryStart < 0 || observerDeliveryEnd < observerDeliveryStart) throw new Error('rustdom build: missing mutation observer delivery boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(observerDeliveryStart, observerDeliveryEnd + 2),
+  'function notifyMutationObservers() {\n' +
+  '  domSymbolTree.runObserverDelivery((mo, records) => {\n' +
+  '    try {\n' +
+  '      const moWrapper = idlUtils.wrapperForImpl(mo);\n' +
+  '      mo._callback.call(moWrapper, records.map(idlUtils.wrapperForImpl), moWrapper);\n' +
+  '    } catch (error) {\n' +
+  '      const { target } = records[0];\n' +
+  '      reportException(target._ownerDocument._defaultView, error);\n' +
+  '    }\n' +
+  '  }, (slot) => {\n' +
+  '    const event = Event.createImpl(slot._globalObject, ["slotchange", { bubbles: true }], { isTrusted: true });\n' +
+  '    slot._dispatch(event);\n' +
+  '  });\n' +
+  '}');
 await writeFile(mutationObserversPath, mutationObserversSource);
 const htmlSlotPath = resolve(destination, 'lib/jsdom/living/nodes/HTMLSlotElement-impl.js');
 let htmlSlotSource = await readFile(htmlSlotPath, 'utf8');

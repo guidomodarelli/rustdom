@@ -72,6 +72,13 @@ assert.deepEqual(tree.disconnectMutationObserver(nativeObserver), [handle]);
 assert.equal(tree.observerNotificationStatistics().microtaskQueued, true);
 assert.deepEqual(tree.beginMutationObserverNotification(), [nativeObserver]);
 assert.deepEqual(tree.observerNotificationStatistics(), { pendingObservers: 0, capacity: 0, microtaskQueued: false });
+const deliveryToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
+const delivery = tree.startMutationObserverDelivery();
+assert.ok(delivery instanceof native.NativeObserverDelivery);
+assert.deepEqual(tree.mutationObserverDeliveryStep(delivery), { kind: native.ObserverDeliveryAction.Observer,
+  observer: nativeObserver, slot: 0, records: [deliveryToken], complete: true });
+assert.equal(delivery.remainingObservers, 0); assert.equal(delivery.remainingSlots, 0);
+assert.equal(tree.mutationObserverDeliveryStep(delivery).kind, native.ObserverDeliveryAction.Complete);
 assert.equal(tree.releaseMutationObserver(nativeObserver), true);
 assert.equal(tree.observerRegistryStatistics().observers, 0); assert.equal(tree.observerRegistryStatistics().registrations, 0);
 assert.equal(tree.serializeHtml(handle, true, false), '<b title="installed"></b>');

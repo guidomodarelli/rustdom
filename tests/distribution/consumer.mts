@@ -9,6 +9,7 @@ import nativeRuntime, {
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
+  NativeObserverDelivery, ObserverDeliveryAction,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -32,6 +33,8 @@ assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
 assert.equal(NativeMutationRecord, nativeRuntime.NativeMutationRecord);
 assert.equal(ObservationStatus, nativeRuntime.ObservationStatus);
+assert.equal(NativeObserverDelivery, nativeRuntime.NativeObserverDelivery);
+assert.equal(ObserverDeliveryAction, nativeRuntime.ObserverDeliveryAction);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
@@ -128,6 +131,15 @@ assert.ok(installedRecords[0] instanceof context.MutationRecord);
 assert.ok(installedRecords[0].addedNodes instanceof context.NodeList);
 assert.equal(installedRecords[2].oldValue, 'one'); assert.equal(installedRecords[2].attributeName, 'data-record');
 assert.ok(getNativeTreeStatistics().mutationRecords.created >= nativeRecordsBefore + 3);
+const deliveriesBefore = getNativeTreeStatistics().observerDeliveries.created;
+const deliveredAttributes: string[] = [];
+const deliveryObserver = new context.MutationObserver((records: MutationRecord[]) => {
+  deliveredAttributes.push(...records.map((record) => record.attributeName ?? ''));
+});
+deliveryObserver.observe(recordTarget, { attributes: true }); recordTarget.setAttribute('data-delivery', 'ready');
+await new Promise((resolve) => setImmediate(resolve)); deliveryObserver.disconnect();
+assert.deepEqual(deliveredAttributes, ['data-delivery']);
+assert.ok(getNativeTreeStatistics().observerDeliveries.created > deliveriesBefore);
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
 assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 const paragraph = context.document.querySelector('p');

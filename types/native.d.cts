@@ -1,5 +1,18 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics } from './index.cjs';
+
+/** Native delivery steps; only nonempty observer queues produce Observer instructions. */
+export const ObserverDeliveryAction: { readonly Complete: 0; readonly Observer: 1; readonly Slot: 2 };
+export interface ObserverDeliveryInstruction { kind: typeof ObserverDeliveryAction[keyof typeof ObserverDeliveryAction]; observer: number; slot: number; records: number[]; complete: boolean; }
+/** A numeric-only captured batch tied to a weak originating-forest identity. The public constructor creates a completed empty operation. */
+export class NativeObserverDelivery {
+  constructor();
+  cancel(): void;
+  readonly complete: boolean;
+  readonly remainingObservers: number;
+  readonly remainingSlots: number;
+  static statistics(): NativeObserverDeliveryStatistics;
+}
 
 /** Forward-only native registration results; invalid options leave existing membership unchanged. */
 export const ObservationStatus: { readonly Added: 0; readonly Replaced: 1; readonly MissingMutationKind: 2; readonly AttributeOldValueWithoutAttributes: 3; readonly AttributeFilterWithoutAttributes: 4; readonly CharacterOldValueWithoutCharacterData: 5 };
@@ -196,6 +209,8 @@ export class NativeTree {
   requestMutationObserverMicrotask(): boolean;
   beginMutationObserverNotification(): number[];
   observerNotificationStatistics(): NativeMutationNotificationStatistics;
+  startMutationObserverDelivery(): NativeObserverDelivery;
+  mutationObserverDeliveryStep(operation: NativeObserverDelivery): ObserverDeliveryInstruction;
   /** Queue an immutable payload and return its binding token; no JavaScript object is retained natively. */
   enqueueMutationRecord(observer: number, record: NativeMutationRecord): number;
   /** Drain tokens in insertion order, releasing the queue's payload shares. */

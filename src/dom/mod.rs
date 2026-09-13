@@ -20,6 +20,8 @@ mod node_geometry;
 mod node_metadata;
 mod node_text;
 mod normalization;
+mod observer_delivery;
+mod observer_delivery_binding;
 mod observer_notifications;
 mod observer_queues;
 mod observer_registry;
