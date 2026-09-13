@@ -7,6 +7,13 @@ use napi::bindgen_prelude::Utf16String;
 use napi_derive::napi;
 
 #[napi(object)]
+pub struct NativeObserverNotificationStatistics {
+    pub pending_observers: f64,
+    pub capacity: f64,
+    pub microtask_queued: bool,
+}
+
+#[napi(object)]
 pub struct NativeObserverOptionsInput {
     pub attributes: Option<bool>,
     pub character_data: Option<bool>,

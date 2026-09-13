@@ -35,6 +35,7 @@ class NativeSymbolTree extends SymbolTree {
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
     this._observers = new Map();
+    this._activeObserverOwners = new Map();
     this._signalSlotOwners = [];
     this._nextHandle = 0;
     this._handleLimit = 0;
@@ -508,6 +509,7 @@ class NativeSymbolTree extends SymbolTree {
     observer._selfReference.deref();
     const token = this._arena.enqueueMutationRecord(observer._id, record._nativeRecord);
     observer._recordOwners.set(token, record);
+    this._activeObserverOwners.set(observer._id, observer);
   }
   /** @param {object} observer - Observer anchored for this synchronous drain. @returns {object[]} Existing record implementations in native queue order. */
   takeMutationRecords(observer) {
@@ -517,6 +519,15 @@ class NativeSymbolTree extends SymbolTree {
       observer._recordOwners.delete(token);
       return record;
     });
+  }
+  /** @returns {boolean} Whether the host must enqueue a microtask at this exact point. */
+  requestMutationObserverMicrotask() { return this._arena.requestMutationObserverMicrotask(); }
+  /** @returns {object[]} Strong observer owners in the native batch's creation order; later activations use a new owner map. */
+  beginMutationObserverNotification() {
+    const owners = this._activeObserverOwners;
+    const observers = this._arena.beginMutationObserverNotification();
+    this._activeObserverOwners = new Map();
+    return observers.map((id) => owners.get(id));
   }
   /** @param {string} kind - Mutation kind. @param {object} target - Mutated node. @param {string|null} name - Attribute local name. @param {string|null} namespace - Attribute namespace. @param {string|null} oldValue - Producer snapshot. @returns {object[]} Native-selected observers and old-value effects in first-match order. */
   interestedMutationObservers(kind, target, name, namespace, oldValue) {
@@ -858,6 +869,7 @@ class NativeSymbolTree extends SymbolTree {
       slotAssignmentDrivers: NativeSlotAssignmentDriver.statistics(),
       mutationRecords: NativeMutationRecord.statistics(),
       mutationObservers: this._arena.observerRegistryStatistics(),
+      mutationNotifications: this._arena.observerNotificationStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

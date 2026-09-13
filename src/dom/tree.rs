@@ -13,7 +13,8 @@ use super::{
     node_text::{NodeText, TextWriteAction},
     observer_registry::ObservationStatus,
     observer_registry_binding::{
-        NativeObserverInterest, NativeObserverOptionsInput, NativeObserverRegistryStatistics,
+        NativeObserverInterest, NativeObserverNotificationStatistics, NativeObserverOptionsInput,
+        NativeObserverRegistryStatistics,
     },
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
@@ -659,6 +660,29 @@ impl NativeTree {
     #[napi]
     pub fn observer_registry_statistics(&self) -> NativeObserverRegistryStatistics {
         self.store.observer_registry.statistics().into()
+    }
+
+    #[napi]
+    pub fn request_mutation_observer_microtask(&mut self) -> bool {
+        self.store
+            .observer_registry
+            .notifications
+            .request_microtask()
+    }
+
+    #[napi]
+    pub fn begin_mutation_observer_notification(&mut self) -> Vec<f64> {
+        self.store.observer_registry.notifications.begin()
+    }
+
+    #[napi]
+    pub fn observer_notification_statistics(&self) -> NativeObserverNotificationStatistics {
+        let stats = self.store.observer_registry.notifications.statistics();
+        NativeObserverNotificationStatistics {
+            pending_observers: stats.pending_observers as f64,
+            capacity: stats.capacity as f64,
+            microtask_queued: stats.microtask_queued,
+        }
     }
 
     #[napi]

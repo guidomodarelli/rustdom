@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics } from './index.cjs';
 
 /** Forward-only native registration results; invalid options leave existing membership unchanged. */
 export const ObservationStatus: { readonly Added: 0; readonly Replaced: 1; readonly MissingMutationKind: 2; readonly AttributeOldValueWithoutAttributes: 3; readonly AttributeFilterWithoutAttributes: 4; readonly CharacterOldValueWithoutCharacterData: 5 };
@@ -193,6 +193,9 @@ export class NativeTree {
   disconnectMutationObserver(observer: number): number[];
   interestedMutationObservers(target: number, kind: 'attributes' | 'characterData' | 'childList', name?: string | null, namespace?: string | null): NativeObserverInterest[];
   observerRegistryStatistics(): NativeMutationObserverStatistics;
+  requestMutationObserverMicrotask(): boolean;
+  beginMutationObserverNotification(): number[];
+  observerNotificationStatistics(): NativeMutationNotificationStatistics;
   /** Queue an immutable payload and return its binding token; no JavaScript object is retained natively. */
   enqueueMutationRecord(observer: number, record: NativeMutationRecord): number;
   /** Drain tokens in insertion order, releasing the queue's payload shares. */

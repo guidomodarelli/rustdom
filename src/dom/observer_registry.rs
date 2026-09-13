@@ -4,6 +4,7 @@ use super::{
     data::DomString,
     error::{Result, TreeError},
     mutation_record::{MutationKind, MutationRecordState},
+    observer_notifications::ObserverNotifications,
     observer_queues::ObserverQueues,
     store::{NodeId, TreeStore, node_id},
 };
@@ -122,6 +123,7 @@ pub(crate) struct ObserverRegistry {
     nodes: CompactMap<NodeId, Vec<Registration>, FxBuildHasher>,
     next_id: u64,
     queues: ObserverQueues,
+    pub(crate) notifications: ObserverNotifications,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -224,6 +226,7 @@ impl ObserverRegistry {
             return Ok(false);
         }
         self.disconnect(handle)?;
+        self.notifications.release(observer);
         self.observers.remove(&observer);
         self.compact();
         Ok(true)
@@ -273,7 +276,9 @@ impl ObserverRegistry {
         record: Arc<MutationRecordState>,
     ) -> Result<f64> {
         let observer = self.validate_observer(observer)?;
-        self.queues.enqueue(observer, record)
+        let token = self.queues.enqueue(observer, record)?;
+        self.notifications.activate(observer);
+        Ok(token)
     }
 
     pub fn take_records(&mut self, observer: f64) -> Result<Vec<f64>> {

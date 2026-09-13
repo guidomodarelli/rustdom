@@ -213,6 +213,13 @@ comparten sin retener árboles. `mutationObservers.queuedRecords` y
 lote activo y la programación/entrega aún mantienen trabajo pendiente de
 migración. Ver [contratos de colas](reports/validation/mutation-observer-queues.md).
 
+Los observadores activos y el flag que coalesce microtasks también son nativos.
+Rust retira el lote en orden de creación y reinicia el flag antes de callbacks;
+JS conserva los owners y llama a Promise cuando corresponde.
+`mutationNotifications` informa miembros pendientes, capacidad y estado del
+job. La entrega concreta mantiene su puente actual, con los registros vaciados
+por observador al llegar a su callback.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

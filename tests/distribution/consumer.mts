@@ -108,14 +108,18 @@ const recordTarget = context.document.createElement('section'); context.document
 const nativeRecordsBefore = getNativeTreeStatistics().mutationRecords.created;
 const nativeRegistrationsBefore = getNativeTreeStatistics().mutationObservers.registrations;
 const nativeQueuedBefore = getNativeTreeStatistics().mutationObservers.queuedRecords;
+const nativePendingBefore = getNativeTreeStatistics().mutationNotifications.pendingObservers;
 const recordObserver = new context.MutationObserver(() => {});
 recordObserver.observe(recordTarget, { childList: true, attributes: true, attributeOldValue: true });
 assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore + 1);
 const recordChild = context.document.createElement('b'); recordTarget.append(recordChild);
 recordTarget.setAttribute('data-record', 'one'); recordTarget.setAttribute('data-record', 'two');
 assert.equal(getNativeTreeStatistics().mutationObservers.queuedRecords, nativeQueuedBefore + 3);
+assert.equal(getNativeTreeStatistics().mutationNotifications.pendingObservers, nativePendingBefore + 1);
+assert.equal(getNativeTreeStatistics().mutationNotifications.microtaskQueued, true);
 const installedRecords = recordObserver.takeRecords(); recordObserver.disconnect();
 assert.equal(getNativeTreeStatistics().mutationObservers.queuedRecords, nativeQueuedBefore);
+assert.equal(getNativeTreeStatistics().mutationNotifications.pendingObservers, nativePendingBefore + 1);
 assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore);
 assert.equal(installedRecords.length, 3); assert.equal(installedRecords[0].target, recordTarget);
 assert.equal(installedRecords[0].addedNodes[0], recordChild);

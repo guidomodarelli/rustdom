@@ -604,6 +604,15 @@ shadowHelpers = substituteOnce(shadowHelpers, 'const { signalSlotList, queueMuta
 await writeFile(shadowHelpersPath, shadowHelpers);
 const mutationObserversPath = resolve(destination, 'lib/jsdom/living/helpers/mutation-observers.js');
 let mutationObserversSource = await readFile(mutationObserversPath, 'utf8');
+mutationObserversSource = substituteOnce(mutationObserversSource, 'let mutationObserverMicrotaskQueueFlag = false;', '');
+mutationObserversSource = substituteOnce(mutationObserversSource, 'const activeMutationObservers = new Set();', '');
+mutationObserversSource = substituteOnce(mutationObserversSource, '    activeMutationObservers.add(observer);\n', '');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  if (mutationObserverMicrotaskQueueFlag) {\n    return;\n  }\n\n  mutationObserverMicrotaskQueueFlag = true;',
+  '  if (!domSymbolTree.requestMutationObserverMicrotask()) {\n    return;\n  }');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  mutationObserverMicrotaskQueueFlag = false;\n\n  const notifyList = [...activeMutationObservers].sort((a, b) => a._id - b._id);\n  activeMutationObservers.clear();',
+  '  const notifyList = domSymbolTree.beginMutationObserverNotification();');
 mutationObserversSource = substituteOnce(mutationObserversSource,
   '    observer._recordQueue.push(record);', '    domSymbolTree.enqueueMutationRecord(observer, record);');
 mutationObserversSource = substituteOnce(mutationObserversSource,
