@@ -1,6 +1,7 @@
 //! Incremental XML 1.0 compatibility parser. No JavaScript callbacks or owners are retained here.
 //! State transitions follow saxes 6 (ISC, third-party/saxes/LICENSE); character classes reuse xmlparser.
 mod binding;
+mod doctype;
 mod input;
 use input::{
     END, Input, NORMALIZED_NEWLINE, equals, is_name, is_name_start, is_space, is_xml_char, text,
@@ -169,6 +170,13 @@ impl Parser {
     }
     pub fn set_entity(&mut self, name: Text, value: Text) {
         self.entities.entry(name).or_insert(value);
+    }
+    pub fn apply_doctype_entities(&mut self, body: &[u16]) -> usize {
+        let previous = self.entities.len();
+        for entity in doctype::entities(body) {
+            self.set_entity(entity.name, entity.value);
+        }
+        self.entities.len() - previous
     }
     pub fn supply_namespace(&mut self, value: Option<Text>) -> Result<(), XmlError> {
         let Some(prefix) = self.waiting_prefix.take() else {
@@ -1077,7 +1085,7 @@ impl Parser {
 }
 
 fn trim_js(value: &[u16]) -> Text {
-    let space = |unit: &u16| matches!(*unit, 9..=13 | 32 | 0xa0 | 0x1680 | 0x2000..=0x200a | 0x2028 | 0x2029 | 0x202f | 0x205f | 0x3000 | 0xfeff);
+    let space = |unit: &u16| doctype::js_space(*unit);
     let start = value
         .iter()
         .position(|unit| !space(unit))

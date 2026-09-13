@@ -4,8 +4,9 @@ const assert = require('node:assert/strict');
 
 /** @param {object} runtime - Real implementation. @param {number} size - XML row count. @param {string} name - Public operation. @returns {object} Fixture with untimed checks and cleanup. */
 function xmlFixture(runtime, size, name) {
-  const rows = Array.from({ length: size }, (_, index) => `<p:row id="r${index}" p:k="v${index}"><value>Row ${index} &amp; value</value><![CDATA[c${index}]]></p:row>`).join('');
-  const documentMarkup = `<?xml version="1.0"?><root xmlns="urn:root" xmlns:p="urn:row">${rows}${name === 'xml-parse-error' ? '<broken>' : ''}</root>`;
+  const rows = Array.from({ length: size }, (_, index) => `<p:row id="r${index}" p:k="v${index}"><value>${name === 'xml-doctype' ? `&row${index};` : `Row ${index} &amp; value`}</value><![CDATA[c${index}]]></p:row>`).join('');
+  const doctype = name === 'xml-doctype' ? '<!DOCTYPE root [<!ENTITY amp "ignored">' + Array.from({ length: size }, (_, index) => `<!ENTITY row${index} "Row ${index} & value"><!ENTITY row${index} "ignored">`).join('') + ']>' : '';
+  const documentMarkup = `<?xml version="1.0"?>${doctype}<root xmlns="urn:root" xmlns:p="urn:row">${rows}${name === 'xml-parse-error' ? '<broken>' : ''}</root>`;
   const markup = name === 'xml-fragment' ? rows : documentMarkup;
   let window; let failure = null; let nativeBefore;
   if (name === 'xml-fragment') window = new runtime.JSDOM('<root xmlns="urn:root" xmlns:p="urn:row"/>', { contentType: 'text/xml' }).window;
@@ -26,6 +27,7 @@ function xmlFixture(runtime, size, name) {
     validate(result) {
       assert.equal(result, name === 'xml-parse-error' ? 1 : 0);
       if (failure) assert.equal(failure.name, 'SyntaxError');
+      if (name === 'xml-doctype') assert.equal(window.document.doctype.name, 'root');
       const elements = Array.from(window.document.getElementsByTagNameNS('urn:row', 'row')); assert.equal(elements.length, size);
       for (const [index, element] of elements.entries()) {
         assert.equal(element.getAttributeNS('urn:row', 'k'), `v${index}`);

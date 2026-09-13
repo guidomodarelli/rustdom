@@ -1,12 +1,12 @@
 # Indicador provisional de migración a Rust
 
 Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`16ad4ebcc61e8e5e4a93d7cea29520a0c8b20573` (PR54 en borrador), con main
+`09217850a2ad7361b53b374c7e03184e0bc85a0b` (PR55 en borrador), con main
 `b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-Los PR43–54 todavía no están integrados en main. PR43 tiene los ocho checks
-aprobados, pero su revisión automática sigue pendiente; PR44–54 conservan
-estado de borrador. PR51–53 también tienen todos sus checks aprobados. El parser
-XML nativo se consolida en feature/native-xml-parser y no se
+Los PR43–55 todavía no están integrados en main. PR43 tiene los ocho checks
+aprobados, pero su revisión automática sigue pendiente; PR44–55 conservan
+estado de borrador. PR51–55 también tienen todos sus checks aprobados. El driver
+de doctype/entidades se consolida en feature/native-xml-doctype y no se
 cuenta como un hito integrado en main.
 
 **1 área implementada, 7 parciales y 4 delegadas: índice 37,5%.**
@@ -23,7 +23,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Almacenamiento del árbol y datos DOM básicos: enlaces, CharacterData, Attr y colecciones canónicos | Implementada | `src/dom/store.rs:353` y `:421`, `src/dom/tree.rs:1085`; bridge usado por los nodos reales y contratos en `reports/validation/slotable-query.md`. Factories y efectos se cuentan en la fila siguiente. | Alta |
 | Algoritmos generales de Node, creación, adopción y efectos de mutación | Parcial | `scripts/build.mjs` conecta decisiones nativas; `ROADMAP.md` conserva factories, hooks y otros drivers JS. | Alta |
 | Parsing HTML completo | Parcial | `src/parser/bridge.cjs:113` selecciona parseDocumentTape o fallback; scripts, posiciones y otros contextos siguen delegados. | Alta |
-| Parsing XML/XHTML | Parcial | `src/xml/` tokeniza, valida estructura/namespaces y emite eventos incrementales nativos; `src/parser/xml.cjs` conecta documentos y fragmentos reales. Persisten heurísticas de doctype/entidades y otros efectos del driver; evidencia en `reports/validation/xml-parser.md`. | Alta |
+| Parsing XML/XHTML | Parcial | `src/xml/` tokeniza, valida estructura/namespaces, interpreta doctype/entidades y emite eventos incrementales nativos; `src/parser/xml.cjs` conecta documentos y fragmentos reales. Persisten construcción y efectos del host; evidencia en `reports/validation/xml-parser.md` y `reports/validation/xml-doctype.md`. | Alta |
 | Serialización HTML/XML | Parcial | `scripts/build.mjs:583` conecta serializeHTML nativo; XML y rutas restantes conservan drivers originales. | Alta |
 | Selectores CSS completos y XPath | Parcial | `src/dom/tree.rs:1343` expone la consulta nativa; README declara selectores que vuelven al motor original. XPath pendiente. | Alta |
 | Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; ROADMAP enumera efectos, creación y Selection pendientes. | Alta |
@@ -37,7 +37,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 207 tests Rust, 639 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 214 tests Rust, 910 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -71,3 +71,6 @@ XML cuenta con 47 contratos DOM, 2.348 inputs mutados y 2.585 fixtures upstream
 comparados, además de pruebas de uso nativo y GC. La validación general pasó
 212 tests Rust y 691 Node. El corpus upstream compara strings UTF8, eventos y
 errores con la referencia; no certifica todos los encodings o estándares.
+Doctype y entidades añaden 216 casos públicos y 902 inputs de comparación de
+reglas. La validación general pasó 214 tests Rust y 910 Node, más instalación y
+memoria. Estos avances profundizan el área parcial; el índice no cambia por hito.

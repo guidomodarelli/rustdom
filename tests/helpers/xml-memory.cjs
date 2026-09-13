@@ -20,6 +20,8 @@ function closedXml(malformed) {
 /** @returns {object} Result values retained while the live native parser itself becomes unreachable. */
 function retainedEvent() {
   const parser = new NativeXmlParser('<r a="kept">' + '<a>'.repeat(1000) + 'data' + '</a>'.repeat(1000) + '</r>', false);
+  const declarations = Array.from({ length: 1000 }, (_, index) => `<!ENTITY e${index} "value${index}">`).join('');
+  assert.equal(parser.applyDoctypeEntities(declarations), 1000);
   const event = parser.next(); const observed = { parsers: [new WeakRef(parser)] };
   return { event, observed };
 }

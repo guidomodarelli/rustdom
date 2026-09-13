@@ -6,6 +6,8 @@ import JestEnvironment = require('@rustdom/rustdom/jest');
 
 /** Installed XML transport resolves context prefixes and releases its input buffer. */
 const xmlParser = new native.NativeXmlParser('<p:r/>', true);
+assert.deepEqual(native.NativeXmlParser.describeDoctype(' r SYSTEM "installed"'), { name: 'r', publicId: '', systemId: 'installed' });
+assert.equal(xmlParser.applyDoctypeEntities('<!ENTITY installed "value">'), 1);
 assert.equal(xmlParser.next().kind, 'resolvePrefix'); xmlParser.resolvePrefix('urn:installed');
 assert.equal(xmlParser.next().tag?.uri, 'urn:installed'); assert.equal(xmlParser.next().kind, 'closetag');
 xmlParser.close(); assert.equal(xmlParser.next().kind, 'end');

@@ -2,7 +2,7 @@
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, relative, sep } from 'node:path';
-import { patchEventDispatch } from './build-event-dispatch.mjs';
+import { patchEventDispatch, replaceRegion } from './build-event-dispatch.mjs';
 import { patchEventListeners } from './build-event-listeners.mjs';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
@@ -34,8 +34,16 @@ await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt
 const xmlAdapter = await readFile('src/parser/xml.cjs', 'utf8');
 await writeFile('dist/xml-parser.cjs', substituteOnce(xmlAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 const xmlParserPath = resolve(destination, 'lib/jsdom/browser/parser/xml.js');
-await writeFile(xmlParserPath, substituteOnce(await readFile(xmlParserPath, 'utf8'),
-  'const { SaxesParser } = require("saxes");', 'const { SaxesParser } = require("../../../../../xml-parser.cjs");'));
+let xmlParserSource = substituteOnce(await readFile(xmlParserPath, 'utf8'),
+  'const { SaxesParser } = require("saxes");', 'const { SaxesParser } = require("../../../../../xml-parser.cjs");');
+xmlParserSource = replaceRegion(xmlParserSource, 'const HTML5_DOCTYPE =', 'function createDocumentType(', '', substituteOnce);
+xmlParserSource = replaceRegion(xmlParserSource, '  parser.on("doctype", dt => {', '  parser.on("error", err => {',
+  '  parser.on("doctype", dt => {\n' +
+  '    const ownerDocument = getOwnerDocument();\n    const declaration = parser.describeDoctype(dt);\n' +
+  '    if (declaration === null) return declaration[1];\n' +
+  '    appendChild(createDocumentType(globalObject, ownerDocument, declaration.name, declaration.publicId, declaration.systemId));\n' +
+  '    parser.applyDoctypeEntities(dt);\n  });\n\n', substituteOnce);
+await writeFile(xmlParserPath, xmlParserSource);
 await mkdir('dist/compatibility-licenses/saxes', { recursive: true });
 await cp('third-party/saxes/LICENSE', 'dist/compatibility-licenses/saxes/LICENSE');
 

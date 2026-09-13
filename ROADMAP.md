@@ -53,6 +53,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - Optimizar el reemplazo repetido del elemento raíz de Document: el benchmark del módulo compartido muestra ratios de 0,78×/0,89× frente a jsdom; el reemplazo de comentarios queda cerca de la paridad con mejoras pequeñas.
 - Parsing HTML y XML sin rutas de ejecución delegadas; scripts, document.write, posiciones, custom elements, templates y shadow DOM.
 - XML usa un parser incremental Rust compatible con los eventos y errores de saxes, con input UTF16 y consultas de contexto entre efectos. Pasaron el baseline DOM, mutaciones reproducibles y fixtures upstream dentro de sus límites; quedan heurísticas de doctype/entidades y otros efectos del driver. El coste del bridge sigue pendiente de optimización; ver reports/validation/xml-parser.md.
+- Las heurísticas de doctype y extracción/aplicación de entidades del driver XML ya usan Rust. Se preservan las reglas no ancladas de jsdom, sus espacios/comillas, errores y el orden posterior a append. Quedan creación de nodos, efectos del host y otros bloques del objetivo integral; ver reports/validation/xml-doctype.md.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.
 - Compatibilidad completa: corpus upstream y WPT aplicables, errores, realms, módulos, instalación y runners; resultados faltantes, excluidos o no verificados impiden cerrar el objetivo.

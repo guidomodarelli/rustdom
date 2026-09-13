@@ -4,12 +4,17 @@ import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatisti
 export interface NativeXmlAttribute { name: string; prefix: string; local: string; uri: string; value: string; }
 export interface NativeXmlTag { name: string; prefix: string; local: string; uri: string; attributes: NativeXmlAttribute[]; }
 export interface NativeXmlEvent { kind: string; value?: string; target?: string; tag?: NativeXmlTag; errorType?: string; }
+export interface NativeXmlDoctype { name: string; publicId: string; systemId: string; }
 /** Incremental native XML decisions; the caller supplies context namespaces and owns DOM effects. */
 export class NativeXmlParser {
   constructor(input: string, fragment: boolean, filename?: string);
   next(): NativeXmlEvent;
   resolvePrefix(namespace?: string | null): NativeXmlEvent;
   setEntity(name: string, value: string): void;
+  /** Interprets the raw doctype body with pinned jsdom matching rules. */
+  static describeDoctype(body: string): NativeXmlDoctype | null;
+  /** Applies the jsdom entity extension after the host successfully appends DocumentType. */
+  applyDoctypeEntities(body: string): number;
   close(): void;
   static statistics(): NativeXmlStatistics;
 }

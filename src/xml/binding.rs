@@ -43,6 +43,13 @@ pub struct NativeXmlStatistics {
     pub events: f64,
 }
 
+#[napi(object)]
+pub struct NativeXmlDoctype {
+    pub name: Utf16String,
+    pub public_id: Utf16String,
+    pub system_id: Utf16String,
+}
+
 fn tag_output(tag: Tag) -> NativeXmlTag {
     NativeXmlTag {
         name: tag.name.into(),
@@ -147,6 +154,20 @@ impl NativeXmlParser {
         if let Some(parser) = &mut self.parser {
             parser.set_entity(name.to_vec(), value.to_vec());
         }
+    }
+    #[napi]
+    pub fn describe_doctype(body: Utf16String) -> Option<NativeXmlDoctype> {
+        super::doctype::interpret(&body).map(|value| NativeXmlDoctype {
+            name: value.name.into(),
+            public_id: value.public_id.into(),
+            system_id: value.system_id.into(),
+        })
+    }
+    #[napi]
+    pub fn apply_doctype_entities(&mut self, body: Utf16String) -> f64 {
+        self.parser
+            .as_mut()
+            .map_or(0, |parser| parser.apply_doctype_entities(&body)) as f64
     }
     #[napi]
     pub fn close(&mut self) {

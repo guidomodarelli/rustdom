@@ -375,7 +375,7 @@ Las pruebas incluyen consumo único del body, errores multipart, señales ya abo
 - Documentos con `runScripts: 'dangerously'`: parser original, para preservar scripts durante el parsing y `document.write`.
 - `includeNodeLocations`: parser original, para conservar posiciones exactas.
 - Custom elements registrados y fragmentos dentro de formularios: parser original, para conservar reacciones y contexto.
-- XML/XHTML: tokenización, estructura y resolución de namespaces incrementales en Rust. El driver conserva creación de nodos, efectos y heurísticas de doctype/entidades pendientes; ver [alcance y evidencia](reports/validation/xml-parser.md).
+- XML/XHTML: tokenización, estructura, namespaces e interpretación de doctype/entidades en Rust. El driver conserva creación de nodos y efectos del host; ver [parser](reports/validation/xml-parser.md) y [doctype/entidades](reports/validation/xml-doctype.md).
 - Selectores dinámicos o no implementados por la ruta nativa, `nth-child(... of ...)`, shadow roots y árboles con datos UTF-16 no representables en UTF-8: motor de selectores original. Las ambigüedades de mayúsculas/minúsculas en atributos SVG e identificadores en quirks también conservan el comportamiento de jsdom.
 - `<select>`: parser original para mantener las reglas de jsdom 27, anteriores a los selects personalizables de HTML5 actual.
 - Texto con foster parenting en tablas, atributos de raíces repetidas y surrogates UTF-16 incompletos: rutas explícitas para preservar el resultado de jsdom.
