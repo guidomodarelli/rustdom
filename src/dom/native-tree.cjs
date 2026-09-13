@@ -416,6 +416,14 @@ class NativeSymbolTree extends SymbolTree {
   findSlot(root, node) { return node.nodeType === 1 || node.nodeType === 3 || node.nodeType === 4 ? this._object(this._arena.findSlotFor(this._ensure(root), this._ensure(node))) : null; }
   /** @param {object} slot - Real slot implementation. @returns {object[]} Current assigned candidates in host-child order, without changing cached assignments. */
   findSlotables(slot) { return this._arena.findSlotables(this._ensure(slot)).map((id) => this._object(id)); }
+  /** @param {object} slot - Input implementation anchoring its tree and host. @returns {object[]} Flattened original nodes; temporary IDs do not own them. */
+  findFlattenedSlotables(slot) {
+    const id = this._ensure(slot);
+    // WeakRef.deref keeps the anchor through this job, including native allocation and ID resolution.
+    // https://tc39.es/ecma262/multipage/managing-memory.html#sec-weakrefderef
+    this._object(id);
+    return this._arena.findFlattenedSlotables(id).map((nodeId) => this._object(nodeId));
+  }
   /** @param {object} root - Fragment implementation, possibly still constructing. @param {object|null|undefined} host - Original host value. @param {boolean} shadow - ShadowRoot relationship rather than template ownership. @returns {void} Commits numeric links before changing the visible ownership edge. */
   setRootHost(root, host, shadow) {
     const record = this._node(root);

@@ -153,8 +153,7 @@ común evita crear un conjunto de ancestros; los cruces restantes comparten un
 conjunto temporal de raíces de referencia. No agrega referencias persistentes.
 Los guards originales y la entrega de eventos y listeners siguen en JS.
 La búsqueda del primer slot HTML también recorre Rust y compara nombres
-UTF-16; los guards de raíces abiertas/cerradas, la asignación de listas,
-su aplanado y las notificaciones conservan los drivers JavaScript.
+UTF-16. Los guards de raíces abiertas/cerradas conservan los drivers JavaScript.
 Los nombres de los nodos asignables son canónicos en un mapa Rust que almacena
 solo valores no vacíos. La búsqueda consulta ese estado directamente y los
 hooks conservan las particularidades de atributos con namespace y la herencia
@@ -162,8 +161,9 @@ de CDATASection desde Text del jsdom fijado. `slotableNames`
 expone conteos y capacidad; liberar nodos o limpiar nombres retira las entradas.
 La selección actual de asignados también se calcula en Rust: verifica el primer
 slot del nombre y filtra los hijos del host en orden, sin buscar repetidamente
-entre todos los slots por cada descendiente. Las listas cacheadas, el aplanado
-y la entrega de señales mantienen sus drivers JavaScript.
+entre todos los slots por cada descendiente. El aplanado se calcula
+en Rust con una pila explícita, preserva fallback y CDATA y detecta ciclos en
+grafos raw. Las listas cacheadas y la entrega de señales siguen en JavaScript.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

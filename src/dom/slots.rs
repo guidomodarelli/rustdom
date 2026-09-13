@@ -15,7 +15,7 @@ fn equals_text(value: &DomString, expected: &str) -> bool {
     }
 }
 
-fn is_html_slot(data: &NodeData) -> bool {
+pub(super) fn is_html_slot(data: &NodeData) -> bool {
     data.kind == ELEMENT_NODE
         && data
             .name

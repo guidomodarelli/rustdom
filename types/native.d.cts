@@ -133,6 +133,8 @@ export class NativeTree {
   findSlotFor(root: number, slotable: number): number;
   /** Computes current candidates for the first matching HTML slot in its registered shadow root; does not update assignment caches. */
   findSlotables(slot: number): number[];
+  /** Expands assigned/fallback slots in order with temporary numeric state; rejects cycles in malformed raw graphs. */
+  findFlattenedSlotables(slot: number): number[];
   /** Default empty names consume no entry; nonempty state survives valid Element/Text metadata updates. */
   getSlotableName(node: number): string;
   setSlotableName(node: number, name: string): void;

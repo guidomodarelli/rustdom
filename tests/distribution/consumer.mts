@@ -161,5 +161,13 @@ const slotCdata = slotXml.createCDATASection('cdata'); slotHost.append(slotCdata
 assert.equal(slotCdata.assignedSlot, slotRoot.firstChild);
 assert.ok(slotRoot.firstChild.assignedNodes({ flatten: true }).includes(slotCdata));
 assert.equal(slotRoot.firstChild.assignedNodes({ flatten: true }).length, 1);
+const relayHost = shadow.appendChild(context.document.createElement('section'));
+const relayRoot = relayHost.attachShadow({ mode: 'open' });
+const terminalSlot = relayRoot.appendChild(context.document.createElement('slot'));
+const relaySlot = relayHost.appendChild(context.document.createElement('slot')); relaySlot.name = 'outer';
+const outerLeaf = context.document.createElement('b'); outerLeaf.slot = 'outer'; host.append(outerLeaf);
+assert.equal(terminalSlot.assignedNodes()[0], relaySlot);
+assert.equal(terminalSlot.assignedNodes({ flatten: true }).length, 1);
+assert.equal(terminalSlot.assignedNodes({ flatten: true })[0], outerLeaf);
 host.remove(); assert.equal(shadow.firstChild.getRootNode({ composed: true }), host);
 await session.teardown();
