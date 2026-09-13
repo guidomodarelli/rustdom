@@ -169,7 +169,13 @@ El driver mantiene el orden de señalización, commit y backlinks; V8 conserva u
 espejo de referencias únicamente para ownership. `assignedNodes()` lee el estado
 nativo y devuelve snapshots independientes. `slotAssignments` expone conteos y
 capacidades; liberar cualquiera de los extremos retira las referencias numéricas.
-La entrega de señales y los backlinks `_assignedSlot` siguen en JavaScript.
+Los backlinks `_assignedSlot` también son canónicos en Rust, separados de las
+listas cacheadas y del getter público que calcula la asignación actual. Se conserva
+el backlink registrado tras remover o renombrar un nodo, como en jsdom 27.4.0;
+reemplazarlo o finalizar cualquiera de sus extremos limpia el índice inverso.
+`slotBacklinks` informa conteos y capacidades, incluidos los conjuntos de owners.
+El padre de eventos ordinario de Node se selecciona en Rust en una llamada;
+los overrides de Document/ShadowRoot y la entrega de señales y eventos siguen en JS.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

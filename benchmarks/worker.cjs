@@ -34,6 +34,8 @@ const RETARGET_EVENT_COUNT = 100;
 /** Exercise both prepared slot reads and assignment with its mutation hooks. */
 const SLOT_LOOKUP_ITERATIONS = 1000;
 const SLOT_REASSIGNMENT_ITERATIONS = 100;
+/** Include event construction, recorded-slot traversal and listener observations. */
+const SLOT_EVENT_ITERATIONS = 100;
 /** Compare cached and recomputed assignment reads with the same fixture and sample count. */
 const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
 /** Traverse nested relay slots through the actual public flattening API. */
@@ -139,8 +141,9 @@ async function measure(name, size) {
   const reassignsSlots = name === 'slot-reassign-100' || name === 'slot-dense-reassign-100';
   const queriesCachedAssignments = name === 'slot-cached-100';
   const queriesAssignments = name === 'slot-assigned-100' || queriesCachedAssignments;
-  const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100';
-  const usesSlots = queriesSlots || reassignsSlots || queriesAssignments;
+  const dispatchesSlotEvents = name === 'slot-events-100';
+  const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100' || dispatchesSlotEvents;
+  const usesSlots = queriesSlots || reassignsSlots || queriesAssignments || dispatchesSlotEvents;
   const flattensSlots = name === 'slot-flatten-chain-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -160,6 +163,8 @@ async function measure(name, size) {
     let shadowTarget;
     let eventHost; let relatedHost; let relatedTarget; let eventListener;
     let observedRetargetEvents = 0; let invalidRetargetEvents = 0;
+    let slotEventReceiver; let slotEventListener;
+    let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
     let target;
     if (environment) {
@@ -195,6 +200,14 @@ async function measure(name, size) {
       const slotAssignment = usesSlots ? slotAssignmentFixture(document, size, denseSlots) : null;
       const slots = slotAssignment?.slots; const slotTarget = slotAssignment?.target; const slotNames = slotAssignment?.names;
       if (slotAssignment) shadowRoots.push(slotAssignment.root);
+      if (dispatchesSlotEvents) {
+        slotEventReceiver = slots.at(-1);
+        slotEventListener = (event) => {
+          observedSlotEvents++;
+          if (event.target !== slotTarget || !event.composedPath().includes(slotEventReceiver)) invalidSlotEvents++;
+        };
+        slotEventReceiver.addEventListener('slot-probe', slotEventListener);
+      }
       if (queriesShadowRoots) {
         shadowTarget = shadowChain(document, size, shadowRoots).leaf;
       }
@@ -280,7 +293,12 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (flattensSlots) {
+      if (dispatchesSlotEvents) {
+        result = 0;
+        for (let iteration = 0; iteration < SLOT_EVENT_ITERATIONS; iteration++) {
+          result += Number(slotTarget.dispatchEvent(new dom.window.Event('slot-probe', { bubbles: true, composed: true })));
+        }
+      } else if (flattensSlots) {
         result = 0;
         for (let iteration = 0; iteration < SLOT_FLATTEN_ITERATIONS; iteration++) {
           const selected = flattenedFixture.terminal.assignedNodes({ flatten: true });
@@ -515,7 +533,8 @@ async function measure(name, size) {
           assert.deepEqual(flattenedFixture.terminal.assignedNodes({ flatten: true }), flattenedFixture.leaves);
         }
         if (usesSlots) {
-          assert.equal(result, queriesAssignments ? SLOT_ASSIGNMENT_QUERY_ITERATIONS * (slotAssignment.assignments.at(-1).length + 1)
+          assert.equal(result, dispatchesSlotEvents ? SLOT_EVENT_ITERATIONS
+            : queriesAssignments ? SLOT_ASSIGNMENT_QUERY_ITERATIONS * (slotAssignment.assignments.at(-1).length + 1)
             : queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS);
           assert.equal(slots.length, size);
           for (const [index, slot] of slots.entries()) {
@@ -527,6 +546,7 @@ async function measure(name, size) {
         }
         if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
         if (dispatchesRetargetEvents) { assert.equal(observedRetargetEvents, RETARGET_EVENT_COUNT); assert.equal(invalidRetargetEvents, 0); }
+        if (dispatchesSlotEvents) { assert.equal(observedSlotEvents, SLOT_EVENT_ITERATIONS); assert.equal(invalidSlotEvents, 0); }
         for (const root of shadowRoots) assert.equal(root.host.getRootNode({ composed: true }), document);
         if (createsShadowHosts) for (const root of shadowRoots) assert.equal(root.textContent, 'shadow');
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().rootHosts.hostedRoots >= shadowRoots.length);
@@ -622,6 +642,8 @@ async function measure(name, size) {
     result = null;
     insertionDocument = null;
     if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
+    if (slotEventReceiver) slotEventReceiver.removeEventListener('slot-probe', slotEventListener);
+    slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
     if (cleanup) await cleanup();
@@ -657,7 +679,7 @@ async function main() {
     { name: 'shadow-hosts-create-100', size: 25 },
     ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
     ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
-    ...[25, 100].flatMap((size) => ['slot-cached-100', 'slot-assigned-100', 'slot-dense-reassign-100'].map((name) => ({ name, size }))),
+    ...[25, 100].flatMap((size) => ['slot-cached-100', 'slot-assigned-100', 'slot-dense-reassign-100', 'slot-events-100'].map((name) => ({ name, size }))),
     ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),

@@ -161,6 +161,12 @@ assert.ok(getNativeTreeStatistics().slotableNames.namedNodes > 0);
 slotTarget.slot = 'missing'; assert.equal(slotTarget.assignedSlot, null);
 assert.equal(slotRoot.firstChild.assignedNodes().length, 0);
 assert.equal(cachedAssignment[0], slotTarget);
+let observedRecordedSlot = false;
+slotTarget.addEventListener('recorded-slot-check', (event: Event) => {
+  observedRecordedSlot = event.composedPath().includes(slotRoot.firstChild);
+});
+slotTarget.dispatchEvent(new context.Event('recorded-slot-check', { bubbles: true, composed: true }));
+assert.equal(observedRecordedSlot, true); assert.ok(getNativeTreeStatistics().slotBacklinks.assignedNodes > 0);
 const slotXml = context.document.implementation.createDocument(null, 'root');
 const slotCdata = slotXml.createCDATASection('cdata'); slotHost.append(slotCdata); slotRoot.firstChild.name = '';
 assert.equal(slotCdata.assignedSlot, slotRoot.firstChild);

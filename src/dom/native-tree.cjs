@@ -436,6 +436,21 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} slot - Slot owner. @returns {number} Cached count without materializing an array. */
   assignedNodeCount(slot) { return this._arena.assignedNodeCount(this._ensure(slot)); }
+  /** @param {object} node - Node implementation. @returns {object|null} Last recorded slot, independent of current topology or slot names. */
+  slotBacklink(node) {
+    const id = this._ensure(node); this._object(id);
+    return this._object(this._arena.slotBacklink(id));
+  }
+  /** @param {object} node - Assignable implementation. @param {object|null} slot - Recorded slot or explicit reset. @returns {void} Commits native identity before updating the V8 ownership edge. */
+  setSlotBacklink(node, slot) {
+    this._arena.setSlotBacklink(this._ensure(node), slot ? this._ensure(slot) : 0);
+    this._node(node).nativeAssignedSlot = slot;
+  }
+  /** @param {object} node - Node with the default event-parent algorithm. @returns {object|null} Recorded slot or ordinary parent selected by Rust. */
+  eventParent(node) {
+    const id = this._ensure(node); this._object(id);
+    return this._object(this._arena.eventParent(id));
+  }
   /** @param {object} slot - Input implementation anchoring its tree and host. @returns {object[]} Flattened original nodes; temporary IDs do not own them. */
   findFlattenedSlotables(slot) {
     const id = this._ensure(slot);
@@ -735,6 +750,7 @@ class NativeSymbolTree extends SymbolTree {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
       rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
       slotAssignments: this._arena.slotAssignmentStatistics(),
+      slotBacklinks: this._arena.slotBacklinkStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }
