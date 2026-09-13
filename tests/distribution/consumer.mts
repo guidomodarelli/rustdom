@@ -10,6 +10,7 @@ import nativeRuntime, {
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
+  NativeEventState, EventStateFlag,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -35,6 +36,7 @@ assert.equal(NativeMutationRecord, nativeRuntime.NativeMutationRecord);
 assert.equal(ObservationStatus, nativeRuntime.ObservationStatus);
 assert.equal(NativeObserverDelivery, nativeRuntime.NativeObserverDelivery);
 assert.equal(ObserverDeliveryAction, nativeRuntime.ObserverDeliveryAction);
+assert.equal(NativeEventState, nativeRuntime.NativeEventState); assert.equal(EventStateFlag, nativeRuntime.EventStateFlag);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
@@ -107,6 +109,12 @@ dom.window.close();
 assert.ok(environment.setupVM);
 const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' } });
 const context = session.getVmContext();
+const eventStatesBefore = getNativeTreeStatistics().eventStates.created;
+const installedEvent = new context.Event('installed-event', { bubbles: true, cancelable: true, composed: true });
+context.document.body.addEventListener('installed-event', (event: Event) => { event.preventDefault(); assert.equal(event.eventPhase, 2); }, { once: true });
+assert.equal(context.document.body.dispatchEvent(installedEvent), false); assert.equal(installedEvent.defaultPrevented, true);
+installedEvent.initEvent('reset-event', false, false); assert.equal(installedEvent.defaultPrevented, false); assert.equal(installedEvent.composed, true);
+assert.ok(getNativeTreeStatistics().eventStates.created > eventStatesBefore);
 const recordTarget = context.document.createElement('section'); context.document.body.append(recordTarget);
 const nativeRecordsBefore = getNativeTreeStatistics().mutationRecords.created;
 const nativeRegistrationsBefore = getNativeTreeStatistics().mutationObservers.registrations;

@@ -295,6 +295,8 @@ async function measure(name, size) {
   const collectsMutationRecords = name === 'mutation-records-collect' || selectsObserverAncestors || producesFanout;
   const readsMutationRecords = name === 'mutation-records-read';
   const deliversObservers = name.startsWith('observer-delivery-');
+  const runsEventLifecycle = name === 'event-state-lifecycle';
+  const dispatchesSimpleEvents = name === 'event-dispatch';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -317,6 +319,7 @@ async function measure(name, size) {
     let signalBurst;
     let mutationRecordWork;
     let observerDeliveryWork;
+    let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
     let target;
@@ -344,6 +347,12 @@ async function measure(name, size) {
     } else {
       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
       const document = dom.window.document;
+      const eventStatesBefore = runtime.getNativeTreeStatistics?.().eventStates?.created;
+      if (dispatchesSimpleEvents) {
+        simpleEventTarget = new dom.window.EventTarget();
+        simpleEventListener = (event) => { event.preventDefault(); simpleEventCalls++; simpleEventPhases += event.eventPhase; };
+        simpleEventTarget.addEventListener('benchmark-event', simpleEventListener);
+      }
       if (deliversObservers) { shadowRoots = []; observerDeliveryWork = observerDeliveryFixture(document, size, name, shadowRoots); }
       if (collectsMutationRecords || readsMutationRecords) {
         mutationRecordWork = producesFanout ? mutationFanoutFixture(document, size)
@@ -456,7 +465,23 @@ async function measure(name, size) {
       global.gc?.();
       observerDeliveryWork?.prepare();
       const start = performance.now();
-      if (deliversObservers) result = await observerDeliveryWork.completed;
+      if (runsEventLifecycle) {
+        result = 0;
+        for (let index = 0; index < size; index++) {
+          const event = new dom.window.Event('benchmark-event', { bubbles: true, cancelable: true, composed: true });
+          const timestamp = event.timeStamp; event.preventDefault(); event.stopImmediatePropagation();
+          result += Number(event.defaultPrevented) + Number(event.cancelBubble) + Number(event.returnValue === false);
+          event.initEvent('reset', false, false);
+          result += Number(!event.defaultPrevented) + Number(!event.cancelBubble) + Number(event.composed)
+            + Number(event.type === 'reset') + Number(event.timeStamp === timestamp);
+        }
+      } else if (dispatchesSimpleEvents) {
+        result = 0;
+        for (let index = 0; index < size; index++) {
+          const event = new dom.window.Event('benchmark-event', { cancelable: true });
+          result += Number(simpleEventTarget.dispatchEvent(event) === false);
+        }
+      } else if (deliversObservers) result = await observerDeliveryWork.completed;
       else if (collectsMutationRecords) result = mutationRecordWork.produce();
       else if (readsMutationRecords) result = captureMutationRecords(mutationRecordWork.records);
       else if (signalsSlotBurst) {
@@ -671,6 +696,9 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
+      if (runsEventLifecycle) assert.equal(result, size * 8);
+      if (dispatchesSimpleEvents) { assert.equal(result, size); assert.equal(simpleEventCalls, size); assert.equal(simpleEventPhases, size * 2); }
+      if ((runsEventLifecycle || dispatchesSimpleEvents) && engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().eventStates.created >= eventStatesBefore + size);
       observerDeliveryWork?.validate();
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
@@ -837,6 +865,7 @@ async function measure(name, size) {
     signalBurst?.dispose(); signalBurst = null;
     mutationRecordWork?.dispose(); mutationRecordWork = null;
     observerDeliveryWork?.dispose(); observerDeliveryWork = null;
+    simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
@@ -880,6 +909,7 @@ async function main() {
     ...[100, 1000].map((size) => ({ name: 'mutation-observer-ancestors', size })),
     ...[100, 1000].map((size) => ({ name: 'mutation-producer-fanout', size })),
     ...[100, 1000].flatMap((size) => ['observer-delivery-records', 'observer-delivery-empty', 'observer-delivery-slots'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['event-state-lifecycle', 'event-dispatch'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

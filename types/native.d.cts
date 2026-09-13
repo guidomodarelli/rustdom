@@ -1,5 +1,23 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics, NativeEventStatistics } from './index.cjs';
+
+export const EventStateFlag: { readonly Bubbles: 1; readonly Cancelable: 2; readonly Composed: 4; readonly Initialized: 8; readonly PropagationStopped: 16; readonly ImmediatePropagationStopped: 32; readonly Canceled: 64; readonly PassiveListener: 128; readonly Dispatching: 256; readonly Trusted: 512 };
+export type EventStateFlag = typeof EventStateFlag[keyof typeof EventStateFlag];
+/** Scalar state only; this object never owns event targets, windows or paths. */
+export class NativeEventState {
+  constructor(type: string, bubbles: boolean, cancelable: boolean, composed: boolean);
+  eventType: string; eventPhase: number; timeStamp: number; readonly returnValue: boolean;
+  flag(flag: EventStateFlag): boolean;
+  setFlag(flag: EventStateFlag, value: boolean): void;
+  finishConstruction(trusted: boolean, timestamp: number): void;
+  preventDefault(): void; stopPropagation(): void; stopImmediatePropagation(): void;
+  setCancelBubble(value: boolean): void;
+  /** Only the literal boolean false requests cancellation; other values are ignored. */
+  setReturnValue(value: unknown): void;
+  initialize(type: string, bubbles: boolean, cancelable: boolean): void;
+  initializeIfIdle(type: string, bubbles: boolean, cancelable: boolean): boolean;
+  static statistics(): NativeEventStatistics;
+}
 
 /** Native delivery steps; only nonempty observer queues produce Observer instructions. */
 export const ObserverDeliveryAction: { readonly Complete: 0; readonly Observer: 1; readonly Slot: 2 };

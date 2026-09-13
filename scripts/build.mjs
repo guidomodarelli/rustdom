@@ -59,6 +59,37 @@ await writeFile(mutationRecordPath, '"use strict";\n' +
   'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
   'module.exports = { implementation: createMutationRecordImplementation(NodeList, domSymbolTree) };\n');
 await cp('src/dom/mutation-observer.cjs', 'dist/mutation-observer.cjs');
+const eventStateSource = await readFile('src/dom/event-state.cjs', 'utf8');
+await writeFile('dist/event-state.cjs', substituteOnce(eventStateSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const eventPath = resolve(destination, 'lib/jsdom/living/events/Event-impl.js');
+let eventSource = await readFile(eventPath, 'utf8');
+eventSource = substituteOnce(eventSource, 'const EventInit = require("../generated/EventInit");',
+  'const EventInit = require("../generated/EventInit");\nconst { createNativeEvent, nativeEventInitFields, installNativeEventProperties } = require("../../../../../event-state.cjs");');
+const eventConstructorStart = eventSource.indexOf('    this.type = type;');
+const eventConstructorEnd = eventSource.indexOf('    this.timeStamp = Date.now();', eventConstructorStart) + '    this.timeStamp = Date.now();'.length;
+if (eventConstructorStart < 0 || eventConstructorEnd < eventConstructorStart) throw new Error('rustdom build: missing Event constructor boundary');
+eventSource = substituteOnce(eventSource, eventSource.slice(eventConstructorStart, eventConstructorEnd),
+  '    this._eventState = createNativeEvent(type, eventInitDict, this.constructor.defaultInit);\n' +
+  '    for (const key in eventInitDict) {\n      if (!nativeEventInitFields.has(key)) this[key] = eventInitDict[key];\n    }\n' +
+  '    for (const key in this.constructor.defaultInit) {\n      if (!(key in eventInitDict) && !nativeEventInitFields.has(key)) this[key] = this.constructor.defaultInit[key];\n    }\n' +
+  '    this.target = null;\n    this.currentTarget = null;\n    this._globalObject = globalObject;\n    this._path = [];\n' +
+  '    this._eventState.finishConstruction(Boolean(privateData.isTrusted), Date.now());');
+eventSource = substituteOnce(eventSource, '    if (this.cancelable && !this._inPassiveListenerFlag) {\n      this._canceledFlag = true;\n    }', '    this._eventState.preventDefault();');
+eventSource = substituteOnce(eventSource, '    return !this._canceledFlag;', '    return this._eventState.returnValue;');
+eventSource = substituteOnce(eventSource, '    if (v === false) {\n      this._setTheCanceledFlag();\n    }', '    this._eventState.setReturnValue(v);');
+eventSource = substituteOnce(eventSource, '  stopPropagation() {\n    this._stopPropagationFlag = true;\n  }', '  stopPropagation() {\n    this._eventState.stopPropagation();\n  }');
+eventSource = substituteOnce(eventSource, '    if (v) {\n      this._stopPropagationFlag = true;\n    }', '    this._eventState.setCancelBubble(v);');
+eventSource = substituteOnce(eventSource, '    this._stopPropagationFlag = true;\n    this._stopImmediatePropagationFlag = true;', '    this._eventState.stopImmediatePropagation();');
+const eventInitializeStart = eventSource.indexOf('  _initialize(type, bubbles, cancelable) {');
+const eventInitializeEnd = eventSource.indexOf('  initEvent(type, bubbles, cancelable) {', eventInitializeStart);
+if (eventInitializeStart < 0 || eventInitializeEnd < eventInitializeStart) throw new Error('rustdom build: missing Event initialization boundary');
+eventSource = substituteOnce(eventSource, eventSource.slice(eventInitializeStart, eventInitializeEnd),
+  '  _initialize(type, bubbles, cancelable) {\n    this._eventState.initialize(type, bubbles, cancelable);\n    this.target = null;\n  }\n\n');
+eventSource = substituteOnce(eventSource, '    if (this._dispatchFlag) {\n      return;\n    }\n\n    this._initialize(type, bubbles, cancelable);',
+  '    if (this._eventState.initializeIfIdle(type, bubbles, cancelable)) this.target = null;');
+eventSource = substituteOnce(eventSource, 'EventImpl.defaultInit = EventInit.convert(undefined, undefined);',
+  'installNativeEventProperties(EventImpl);\nEventImpl.defaultInit = EventInit.convert(undefined, undefined);');
+await writeFile(eventPath, eventSource);
 const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
 await writeFile(mutationObserverPath, '"use strict";\n' +
   'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +

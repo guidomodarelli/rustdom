@@ -1,9 +1,12 @@
 # Indicador provisional de migración a Rust
 
 Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`6da23cccf820022a3b2f7e73fc2603ed439ec733` (PR43), con main
+`5d2a2e4ab75671674a715ac0bdb565ede5fec274` (PR50 en borrador), con main
 `b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-El payload de MutationRecord en validación local no se cuenta como publicado.
+Los PR43–50 todavía no están integrados en main. PR43 tiene los ocho checks
+aprobados, pero su revisión automática sigue pendiente; PR44–50 conservan
+estado de borrador. El estado escalar de Event en validación local no se cuenta
+como publicado.
 
 **1 área implementada, 6 parciales y 5 delegadas: índice 33,3%.**
 
@@ -33,7 +36,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 169 tests Rust, 521 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 191 tests Rust, 571 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -41,5 +44,15 @@ los recuentos de archivos sirven como medida del trabajo total.
 
 El índice permanece en 33,3% porque estos avances profundizan áreas todavía
 parciales. No se incrementa automáticamente por cada commit, PR o checkpoint.
-La validación local de MutationRecord suma tres tests Rust y ocho Node aprobados;
-estos recuentos tampoco cambian el denominador ni acreditan compatibilidad total.
+Los avances publicados incluyen payloads de MutationRecord, registro, colas y
+entrega de observadores, preparación de mutaciones y wrappers nativos compartidos.
+Quedan callbacks, microtasks y drivers generales en JavaScript. Por eso siguen
+siendo áreas parciales, aunque tengan más algoritmos implementados en Rust.
+
+La etapa local de Event incorpora tres tests Rust y contratos públicos nuevos.
+La regresión detectada en BeforeUnloadEvent se reprodujo contra jsdom y se
+corrigió; 21 pruebas focales pasan después del fix. La validación general del
+estado corregido pasó con 194 tests Rust, 583 Node y los runners/corpus dentro
+de sus límites documentados. También pasaron los 36 controles del paquete en
+Node 22/24 y los cinco modos de memoria. Estos recuentos tampoco cambian el
+denominador ni acreditan compatibilidad total.

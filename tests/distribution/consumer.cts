@@ -4,6 +4,18 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+const scalarEvent = new native.NativeEventState('installed\ud800\0', true, true, true);
+scalarEvent.setReturnValue('false'); assert.equal(scalarEvent.returnValue, true);
+scalarEvent.finishConstruction(true, 123.5); scalarEvent.preventDefault();
+assert.equal(scalarEvent.eventType, 'installed\ud800\0'); assert.equal(scalarEvent.returnValue, false);
+assert.equal(scalarEvent.flag(native.EventStateFlag.Trusted), true);
+scalarEvent.setFlag(native.EventStateFlag.Dispatching, true);
+assert.equal(scalarEvent.initializeIfIdle('ignored', false, false), false);
+scalarEvent.setFlag(native.EventStateFlag.Dispatching, false);
+assert.equal(scalarEvent.initializeIfIdle('reset', false, false), true);
+assert.equal(scalarEvent.timeStamp, 123.5); assert.equal(scalarEvent.flag(native.EventStateFlag.Composed), true);
+assert.equal(scalarEvent.flag(native.EventStateFlag.Canceled), false);
+
 /** Forward-only native actions retain their literal value union in installed consumers. */
 const slotAssignmentActions: readonly native.SlotAssignmentAction[] = [
   native.SlotAssignmentAction.Complete, native.SlotAssignmentAction.Signal, native.SlotAssignmentAction.Applied,
@@ -17,6 +29,11 @@ for (const action of slotAssignmentActions) {
 }
 
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
+/** BeforeUnloadEvent converts returnValue to DOMString before reaching the native state. */
+const beforeUnload = dom.window.document.createEvent('BeforeUnloadEvent');
+beforeUnload.initEvent('beforeunload', false, true);
+beforeUnload.returnValue = 'leave'; assert.equal(beforeUnload.defaultPrevented, false);
+beforeUnload.preventDefault(); assert.equal(beforeUnload.defaultPrevented, true);
 const paragraph: Element | null = dom.window.document.querySelector('#target');
 assert.ok(paragraph);
 assert.equal(dom.window.getComputedStyle(paragraph).display, 'block');

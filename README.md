@@ -239,6 +239,12 @@ identidad independiente; `prepareMutationRecords` mantiene la API raw anterior.
 `mutationRecords` cuenta wrappers nativos, que pueden respaldar varios registros
 públicos. Ver [contratos y GC de la compartición](reports/validation/shared-mutation-bindings.md).
 
+El estado escalar de `Event` usa `NativeEventState`: tipo UTF-16, flags, fase,
+timestamp y confianza residen en Rust, junto con cancelación, propagación e
+initEvent. El bridge conserva targets, path y datos de subclases; los listeners
+y algoritmos de dispatch siguen pendientes. `eventStates` registra el lifetime
+nativo sin retener eventos o ventanas. Ver [alcance y contratos](reports/validation/event-state.md).
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

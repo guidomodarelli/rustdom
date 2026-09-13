@@ -10,6 +10,7 @@ export const {
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
+  NativeEventState, EventStateFlag,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;
