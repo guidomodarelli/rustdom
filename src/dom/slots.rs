@@ -3,6 +3,7 @@ use super::{
     constants::{DOCUMENT_FRAGMENT_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{DomString, NodeData},
     error::{Result, TreeError},
+    slotable_names::supports_slotable_name,
     store::{TreeStore, node_id},
 };
 
@@ -14,35 +15,83 @@ fn equals_text(value: &DomString, expected: &str) -> bool {
     }
 }
 
+fn is_html_slot(data: &NodeData) -> bool {
+    data.kind == ELEMENT_NODE
+        && data
+            .name
+            .as_ref()
+            .is_some_and(|local_name| equals_text(local_name, "slot"))
+        && data
+            .namespace
+            .as_ref()
+            .is_some_and(|namespace| equals_text(namespace, HTML_NAMESPACE))
+}
+
 /// Element snapshots are refreshed by the canonical attribute mutation boundary.
+fn slot_name(data: &NodeData) -> Option<&DomString> {
+    data.attributes
+        .iter()
+        .find(|attribute| attribute.namespace.is_none() && equals_text(&attribute.name, "name"))
+        .map(|attribute| &attribute.value)
+}
+
+fn same_name(left: Option<&DomString>, right: Option<&DomString>) -> bool {
+    match (left, right) {
+        (Some(DomString::Text(left)), Some(DomString::Text(right))) => left == right,
+        (Some(left), Some(right)) => left.units().eq(right.units()),
+        (Some(value), None) | (None, Some(value)) => value.is_empty(),
+        (None, None) => true,
+    }
+}
+
 fn matches_slot(
     data: &NodeData,
     empty_name: bool,
     accepts_name: &impl Fn(&DomString) -> bool,
 ) -> bool {
-    if data.kind != ELEMENT_NODE
-        || !data
-            .name
-            .as_ref()
-            .is_some_and(|local_name| equals_text(local_name, "slot"))
-        || !data
-            .namespace
-            .as_ref()
-            .is_some_and(|namespace| equals_text(namespace, HTML_NAMESPACE))
-    {
+    if !is_html_slot(data) {
         return false;
     }
-    let value = data
-        .attributes
-        .iter()
-        .find(|attribute| attribute.namespace.is_none() && equals_text(&attribute.name, "name"));
-    match value {
-        Some(attribute) => accepts_name(&attribute.value),
+    match slot_name(data) {
+        Some(value) => accepts_name(value),
         None => empty_name,
     }
 }
 
 impl TreeStore {
+    /// Select the current slotables, without changing cached assignments or retaining objects.
+    pub fn find_slotables(&self, slot: f64) -> Result<Vec<f64>> {
+        let slot_id = node_id(slot)?;
+        self.links(slot_id)?;
+        let Some(data) = self.data.get(&slot_id).filter(|data| is_html_slot(data)) else {
+            return Ok(Vec::new());
+        };
+        let root = self.node_root(slot)?;
+        let Some(host) = self.root_hosts.shadow_host(root as u64) else {
+            return Ok(Vec::new());
+        };
+        let name = slot_name(data);
+        if self.find_slot_matching_name(root, name.is_none_or(DomString::is_empty), |value| {
+            same_name(Some(value), name)
+        })? != slot
+        {
+            return Ok(Vec::new());
+        }
+        // Only this host's immediate children can select a slot in its shadow root.
+        let mut result = Vec::new();
+        let mut child = self.links(host)?.first;
+        while child != 0 {
+            let links = self.links(child)?;
+            if links.node_kind.is_some_and(supports_slotable_name)
+                && same_name(self.slotable_names.get(child), name)
+            {
+                result.push(child as f64);
+            }
+            child = links.next;
+        }
+        Ok(result)
+    }
+
     /// Find the first matching HTML slot inside one fragment without traversing template/host edges.
     pub fn find_slot(&self, root: f64, name: &[u16]) -> Result<f64> {
         self.find_slot_matching_name(root, name.is_empty(), |value| {
@@ -141,6 +190,101 @@ mod tests {
         tree.remove(second).unwrap();
         assert_eq!(tree.find_slot(root, &[65]).unwrap(), first);
         assert_eq!(tree.find_slot(root, &[97]).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn should_select_immediate_host_children_for_only_the_first_named_slot() {
+        let mut tree = TreeStore::new();
+        let host = element(&mut tree, HTML_NAMESPACE, "div", None);
+        let root = fragment(&mut tree);
+        tree.set_root_host(root, host, true).unwrap();
+        let first_slot = element(&mut tree, HTML_NAMESPACE, "slot", Some(&[65]));
+        let duplicate = element(&mut tree, HTML_NAMESPACE, "slot", Some(&[65]));
+        tree.append(root, first_slot).unwrap();
+        tree.append(root, duplicate).unwrap();
+        let first = element(&mut tree, HTML_NAMESPACE, "b", None);
+        let second = element(&mut tree, HTML_NAMESPACE, "i", None);
+        let descendant = element(&mut tree, HTML_NAMESPACE, "span", None);
+        tree.append(host, first).unwrap();
+        tree.append(host, second).unwrap();
+        tree.append(first, descendant).unwrap();
+        for node in [first, second, descendant] {
+            tree.set_slotable_name(node, &[65]).unwrap();
+        }
+        let original = tree.find_slotables(first_slot).unwrap();
+        assert_eq!(original, vec![first, second]);
+        assert!(tree.find_slotables(duplicate).unwrap().is_empty());
+        tree.set_slotable_name(first, &[66]).unwrap();
+        assert_eq!(tree.find_slotables(first_slot).unwrap(), vec![second]);
+        assert_eq!(original, vec![first, second]);
+        tree.remove(duplicate).unwrap();
+        tree.prepend(root, duplicate).unwrap();
+        assert!(tree.find_slotables(first_slot).unwrap().is_empty());
+        assert_eq!(tree.find_slotables(duplicate).unwrap(), vec![second]);
+    }
+
+    #[test]
+    fn should_preserve_cdata_name_inheritance_and_ignore_comments_in_default_assignment() {
+        let mut tree = TreeStore::new();
+        let host = element(&mut tree, HTML_NAMESPACE, "div", None);
+        let root = fragment(&mut tree);
+        tree.set_root_host(root, host, true).unwrap();
+        let slot = element(&mut tree, HTML_NAMESPACE, "slot", None);
+        tree.append(root, slot).unwrap();
+        let mut expected = Vec::new();
+        for kind in [3, 8, 4] {
+            let child = tree.allocate().unwrap();
+            tree.replace_data(
+                child,
+                NodeData {
+                    kind,
+                    ..NodeData::default()
+                },
+            )
+            .unwrap();
+            tree.append(host, child).unwrap();
+            if kind != 8 {
+                expected.push(child);
+            }
+        }
+        assert_eq!(tree.find_slotables(slot).unwrap(), expected);
+        tree.set_root_host(root, host, false).unwrap();
+        assert!(tree.find_slotables(slot).unwrap().is_empty());
+        tree.set_root_host(root, host, true).unwrap();
+        tree.release(host).unwrap();
+        assert!(tree.find_slotables(slot).unwrap().is_empty());
+    }
+
+    #[test]
+    fn should_preserve_query_resources_and_release_nodes_while_result_ids_remain_alive() {
+        let mut tree = TreeStore::new();
+        let host = element(&mut tree, HTML_NAMESPACE, "div", None);
+        let root = fragment(&mut tree);
+        tree.set_root_host(root, host, true).unwrap();
+        let slot = element(&mut tree, HTML_NAMESPACE, "slot", Some(&[55296]));
+        tree.append(root, slot).unwrap();
+        let child = element(&mut tree, HTML_NAMESPACE, "b", None);
+        tree.append(host, child).unwrap();
+        tree.set_slotable_name(child, &[55296]).unwrap();
+        let reserved = tree.reserve_handles().unwrap();
+        let before = tree.statistics();
+        for invalid in [-1.0, 0.0, 0.5, f64::NAN, reserved] {
+            assert!(tree.find_slotables(invalid).is_err());
+        }
+        assert!(tree.find_slotables(host).unwrap().is_empty());
+        let result = tree.find_slotables(slot).unwrap();
+        assert_eq!(result, vec![child]);
+        assert_eq!(tree.statistics().allocations, before.allocations);
+        assert_eq!(tree.statistics().mutations, before.mutations);
+        assert_eq!(tree.statistics().data_updates, before.data_updates);
+        assert_eq!(tree.statistics().reserved_handles, before.reserved_handles);
+        for node in [child, slot, host, root, reserved] {
+            tree.release(node).unwrap();
+        }
+        assert_eq!(result, vec![child]);
+        assert_eq!(tree.statistics().live_nodes, 0.0);
+        assert_eq!(tree.slotable_names.statistics(), (0, 0));
+        assert_eq!(tree.root_host_statistics().hosted_roots, 0);
     }
 
     #[test]

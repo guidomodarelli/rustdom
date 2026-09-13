@@ -136,7 +136,9 @@ assert.equal(hostTree.slotableNameStatistics().namedNodes, 1); hostTree.setSlota
 assert.equal(hostTree.slotableNameStatistics().namedNodes, 0);
 const nativeCdata = hostTree.allocate(); hostTree.setData(nativeCdata, '{"kind":4,"value":"cdata"}');
 assert.equal(hostTree.getSlotableName(nativeCdata), ''); hostTree.setSlotableName(nativeCdata, 'selected');
-assert.equal(hostTree.findSlotFor(hostedRoot, nativeCdata), nativeSlot); hostTree.release(nativeCdata);
+assert.equal(hostTree.findSlotFor(hostedRoot, nativeCdata), nativeSlot);
+hostTree.append(rootHost, nativeCdata); assert.deepEqual(hostTree.findSlotables(nativeSlot), [nativeCdata]);
+hostTree.release(nativeCdata);
 hostTree.release(nativeSlot);
 hostTree.release(rootHost); assert.equal(hostTree.rootHost(hostedRoot), 0); hostTree.release(hostedRoot);
 assert.equal(hostTree.rootHostStatistics().hostedRoots, 0); assert.equal(hostTree.rootHostStatistics().hostOwners, 0);

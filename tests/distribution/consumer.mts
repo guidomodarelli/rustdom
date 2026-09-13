@@ -160,5 +160,6 @@ const slotXml = context.document.implementation.createDocument(null, 'root');
 const slotCdata = slotXml.createCDATASection('cdata'); slotHost.append(slotCdata); slotRoot.firstChild.name = '';
 assert.equal(slotCdata.assignedSlot, slotRoot.firstChild);
 assert.ok(slotRoot.firstChild.assignedNodes({ flatten: true }).includes(slotCdata));
+assert.equal(slotRoot.firstChild.assignedNodes({ flatten: true }).length, 1);
 host.remove(); assert.equal(shadow.firstChild.getRootNode({ composed: true }), host);
 await session.teardown();

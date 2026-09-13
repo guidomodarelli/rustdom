@@ -157,6 +157,7 @@ function exerciseHostRoots(document) {
   assigned.slot = 'missing'; assert.equal(assigned.assignedSlot, null);
   assigned.slot = ''; assert.equal(assigned.assignedSlot, slot);
   slot.name = 'retained'; assigned.slot = 'retained'; assert.equal(assigned.assignedSlot, slot);
+  assert.deepEqual(slot.assignedNodes({ flatten: true }), [assigned]);
   comparisonReferences.push(new WeakRef(slot), new WeakRef(assigned), new WeakRef(assignedText));
   const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
   assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);

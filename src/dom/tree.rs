@@ -457,6 +457,11 @@ impl NativeTree {
     }
 
     #[napi]
+    pub fn find_slotables(&self, slot: f64) -> Result<Vec<f64>> {
+        self.store.find_slotables(slot).map_err(to_napi_error)
+    }
+
+    #[napi]
     pub fn get_slotable_name(&self, node: f64) -> Result<Either<&str, Utf16String>> {
         self.store
             .slotable_name(node)
