@@ -579,7 +579,20 @@ shadowHelpers = shadowHelpers.slice(0, assignmentStart) +
   '  if (plan.changed) signalSlotChange(slot);\n' +
   '  domSymbolTree.commitSlotAssignment(slot, plan.nodes);\n' +
   '  for (const slotable of plan.nodes) slotable._assignedSlot = slot;\n}\n\n' + shadowHelpers.slice(assignmentEnd);
+/** Keep microtask scheduling and callback delivery in their original positions around the native batch. */
+const signalSlotChangeSource = 'function signalSlotChange(slot) {\n  if (!signalSlotList.some(entry => entry === slot)) {\n    signalSlotList.push(slot);\n  }\n\n  queueMutationObserverMicrotask();\n}';
+shadowHelpers = substituteOnce(shadowHelpers, signalSlotChangeSource,
+  'function signalSlotChange(slot) {\n  domSymbolTree.queueSlotSignal(slot);\n  queueMutationObserverMicrotask();\n}');
+shadowHelpers = substituteOnce(shadowHelpers, 'const { signalSlotList, queueMutationObserverMicrotask }',
+  'const { queueMutationObserverMicrotask }');
 await writeFile(shadowHelpersPath, shadowHelpers);
+const mutationObserversPath = resolve(destination, 'lib/jsdom/living/helpers/mutation-observers.js');
+let mutationObserversSource = await readFile(mutationObserversPath, 'utf8');
+mutationObserversSource = substituteOnce(mutationObserversSource, '// https://dom.spec.whatwg.org/#signal-slot-list\nconst signalSlotList = [];\n\n', '');
+mutationObserversSource = substituteOnce(mutationObserversSource, '  const signalList = [...signalSlotList];\n  signalSlotList.splice(0, signalSlotList.length);',
+  '  const signalList = domSymbolTree.takeSlotSignals();');
+mutationObserversSource = substituteOnce(mutationObserversSource, '  queueMutationObserverMicrotask,\n\n  signalSlotList', '  queueMutationObserverMicrotask');
+await writeFile(mutationObserversPath, mutationObserversSource);
 const htmlSlotPath = resolve(destination, 'lib/jsdom/living/nodes/HTMLSlotElement-impl.js');
 let htmlSlotSource = await readFile(htmlSlotPath, 'utf8');
 htmlSlotSource = substituteOnce(htmlSlotSource, '"use strict";', '"use strict";\nconst { domSymbolTree } = require("../helpers/internal-constants");');

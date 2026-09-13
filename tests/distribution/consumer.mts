@@ -167,6 +167,9 @@ slotTarget.addEventListener('recorded-slot-check', (event: Event) => {
 });
 slotTarget.dispatchEvent(new context.Event('recorded-slot-check', { bubbles: true, composed: true }));
 assert.equal(observedRecordedSlot, true); assert.ok(getNativeTreeStatistics().slotBacklinks.assignedNodes > 0);
+assert.ok(getNativeTreeStatistics().slotSignals.pendingSlots > 0);
+await new Promise<void>((resolve) => setImmediate(resolve));
+assert.equal(getNativeTreeStatistics().slotSignals.pendingSlots, 0);
 const slotXml = context.document.implementation.createDocument(null, 'root');
 const slotCdata = slotXml.createCDATASection('cdata'); slotHost.append(slotCdata); slotRoot.firstChild.name = '';
 assert.equal(slotCdata.assignedSlot, slotRoot.firstChild);

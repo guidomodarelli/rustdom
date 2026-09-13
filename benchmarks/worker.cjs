@@ -113,6 +113,22 @@ function slotFlattenFixture(document, depth, roots) {
   return { terminal, leaves };
 }
 
+/** @param {Document} document - Live document. @param {number} size - Number of distinct slots. @param {ShadowRoot[]} roots - Roots included in output hashes. @returns {object} Prepared nodes, delivery counters and explicit listener cleanup. */
+function slotSignalFixture(document, size, roots) {
+  const host = document.body.appendChild(document.createElement('section'));
+  const root = host.attachShadow({ mode: 'open' }); roots.push(root);
+  root.innerHTML = '<slot></slot>'.repeat(size);
+  const slots = [...root.children]; const texts = slots.map((_, index) => document.createTextNode(`signal-${index}`));
+  const deliveries = { count: 0, invalid: 0 };
+  const listeners = slots.map((slot) => {
+    const listener = (event) => { deliveries.count++; if (event.target !== slot) deliveries.invalid++; };
+    slot.addEventListener('slotchange', listener); return listener;
+  });
+  return { slots, texts, deliveries,
+    /** @returns {void} Releases listener references after delivery and validation. */
+    dispose() { for (const [index, slot] of slots.entries()) slot.removeEventListener('slotchange', listeners[index]); } };
+}
+
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
  * @param {string} name - Workload name, including its configuration.
@@ -145,6 +161,7 @@ async function measure(name, size) {
   const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100' || dispatchesSlotEvents;
   const usesSlots = queriesSlots || reassignsSlots || queriesAssignments || dispatchesSlotEvents;
   const flattensSlots = name === 'slot-flatten-chain-100';
+  const signalsSlotBurst = name === 'slot-signal-burst';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -164,6 +181,7 @@ async function measure(name, size) {
     let eventHost; let relatedHost; let relatedTarget; let eventListener;
     let observedRetargetEvents = 0; let invalidRetargetEvents = 0;
     let slotEventReceiver; let slotEventListener;
+    let signalBurst;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
     let target;
@@ -195,7 +213,8 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || usesSlots || flattensSlots) shadowRoots = [];
+      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || usesSlots || flattensSlots || signalsSlotBurst) shadowRoots = [];
+      if (signalsSlotBurst) signalBurst = slotSignalFixture(document, size, shadowRoots);
       const flattenedFixture = flattensSlots ? slotFlattenFixture(document, size, shadowRoots) : null;
       const slotAssignment = usesSlots ? slotAssignmentFixture(document, size, denseSlots) : null;
       const slots = slotAssignment?.slots; const slotTarget = slotAssignment?.target; const slotNames = slotAssignment?.names;
@@ -291,9 +310,18 @@ async function measure(name, size) {
         }
       }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
+      if (signalsSlotBurst) await new Promise((resolve) => setImmediate(resolve));
       global.gc?.();
       const start = performance.now();
-      if (dispatchesSlotEvents) {
+      if (signalsSlotBurst) {
+        result = 0;
+        for (const [index, slot] of signalBurst.slots.entries()) {
+          const text = signalBurst.texts[index];
+          result += Number(slot.appendChild(text) === text && text.parentNode === slot);
+          result += Number(slot.removeChild(text) === text && text.parentNode === null);
+          result += Number(slot.appendChild(text) === text && text.parentNode === slot);
+        }
+      } else if (dispatchesSlotEvents) {
         result = 0;
         for (let iteration = 0; iteration < SLOT_EVENT_ITERATIONS; iteration++) {
           result += Number(slotTarget.dispatchEvent(new dom.window.Event('slot-probe', { bubbles: true, composed: true })));
@@ -497,6 +525,17 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
+      if (signalsSlotBurst) {
+        assert.equal(result, size * 3);
+        if (engine === 'rustdom') assert.equal(runtime.getNativeTreeStatistics().slotSignals.pendingSlots, size);
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.deepEqual(signalBurst.deliveries, { count: size, invalid: 0 });
+        for (const [index, slot] of signalBurst.slots.entries()) {
+          assert.equal(slot.childNodes.length, 1); assert.equal(slot.firstChild, signalBurst.texts[index]);
+          assert.equal(slot.textContent, `signal-${index}`);
+        }
+        if (engine === 'rustdom') assert.equal(runtime.getNativeTreeStatistics().slotSignals.pendingSlots, 0);
+      }
       assert.equal(document.querySelectorAll('tr').length, removesContent ? 2 : size + (insertsNodes ? RANGE_INSERTION_ITERATIONS : 0));
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
@@ -527,7 +566,7 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots ? 1 : flattensSlots ? size + 1 : SHADOW_CREATION_COUNT);
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots || signalsSlotBurst ? 1 : flattensSlots ? size + 1 : SHADOW_CREATION_COUNT);
         if (flattensSlots) {
           assert.equal(result, SLOT_FLATTEN_ITERATIONS * (flattenedFixture.leaves.length + 1));
           assert.deepEqual(flattenedFixture.terminal.assignedNodes({ flatten: true }), flattenedFixture.leaves);
@@ -643,6 +682,7 @@ async function measure(name, size) {
     insertionDocument = null;
     if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
     if (slotEventReceiver) slotEventReceiver.removeEventListener('slot-probe', slotEventListener);
+    signalBurst?.dispose(); signalBurst = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
@@ -681,6 +721,7 @@ async function main() {
     ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
     ...[25, 100].flatMap((size) => ['slot-cached-100', 'slot-assigned-100', 'slot-dense-reassign-100', 'slot-events-100'].map((name) => ({ name, size }))),
     ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
+    ...[100, 1000].map((size) => ({ name: 'slot-signal-burst', size })),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),
