@@ -17,6 +17,7 @@ pub enum TreeError {
     NotAttribute(u64),
     NotElement(u64),
     NotDocumentType(u64),
+    NotDocumentFragment(u64),
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
     AttributeCollectionInitialized(u64),
@@ -63,6 +64,10 @@ impl fmt::Display for TreeError {
             Self::NotElement(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized Element"
+            ),
+            Self::NotDocumentFragment(id) => write!(
+                formatter,
+                "NativeTree: node {id} is not a DocumentFragment host root"
             ),
             Self::AttributeInUse(id) => write!(
                 formatter,

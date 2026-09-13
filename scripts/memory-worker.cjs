@@ -52,6 +52,7 @@ function exerciseWindow(runtime, identity) {
   dom.window.addEventListener('custom-event', () => document.body);
   dom.window.setInterval(() => document.body, 60_000);
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
+  exerciseHostRoots(document);
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);
@@ -78,6 +79,7 @@ function exerciseWindow(runtime, identity) {
 
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
+  exerciseHostRoots(target.document);
   const text = target.document.querySelector('p').firstChild;
   text.nodeValue = text.data;
   const rejectedText = target.document.createTextNode('invalid document child');
@@ -135,6 +137,20 @@ function exerciseFailedEnvironment(environment, mode) {
   } } };
   assert.throws(() => mode === 'vitest-vm' ? environment.setupVM(options) : environment.setup({}, options),
     /expected memory fixture initialization failure/);
+}
+
+/** @param {Document} document - Actual environment document. @returns {void} Observes shadow/template ownership through moves and teardown without keeping strong roots. */
+function exerciseHostRoots(document) {
+  const host = document.createElement('article'); document.body.append(host);
+  const root = host.attachShadow({ mode: 'closed' }); const nestedHost = root.appendChild(document.createElement('section'));
+  const nestedRoot = nestedHost.attachShadow({ mode: 'open' }); const child = nestedRoot.appendChild(document.createElement('b'));
+  const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
+  assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
+  assert.equal(template.content.firstChild.getRootNode({ composed: true }), template.content);
+  host.remove(); assert.equal(child.getRootNode({ composed: true }), host); assert.equal(child.isConnected, false);
+  document.body.append(host);
+  comparisonReferences.push(...[host, root, nestedHost, nestedRoot, child, template, template.content].map((node) => new WeakRef(node)));
+  references.push(new WeakRef(template.content.ownerDocument));
 }
 
 /**
@@ -413,6 +429,8 @@ async function main() {
         nativeTree.rangeStates.live === initialAttributeState.rangeStates.live &&
         nativeTree.rangeClones.live === initialAttributeState.rangeClones.live &&
         nativeTree.rangeExtracts.live === initialAttributeState.rangeExtracts.live &&
+        nativeTree.rootHosts.hostedRoots === initialAttributeState.rootHosts.hostedRoots &&
+        nativeTree.rootHosts.hostOwners === initialAttributeState.rootHosts.hostOwners &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

@@ -27,6 +27,8 @@ const RANGE_MUTATION_ITERATIONS = 100;
 const RANGE_MUTATION_TEXT = '++';
 /** Include both public root lookup and connectivity on stable shallow/deep trees. */
 const NODE_ROOT_ITERATIONS = 1000;
+/** Measure full attachment and parsing of independent shadow hosts. */
+const SHADOW_CREATION_COUNT = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -69,6 +71,8 @@ async function measure(name, size) {
   const rejectsDocumentElement = name === 'document-duplicate-element-100';
   const replacesDocumentComments = name === 'document-comments-replace-100';
   const replacesDocumentElement = name === 'document-root-replace-100';
+  const queriesShadowRoots = name === 'shadow-roots-1000';
+  const createsShadowHosts = name === 'shadow-hosts-create-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -83,6 +87,8 @@ async function measure(name, size) {
     let elapsed;
     let result;
     let insertionDocument;
+    let shadowRoots;
+    let shadowTarget;
     let cleanup;
     let target;
     if (environment) {
@@ -113,6 +119,16 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
+      if (queriesShadowRoots || createsShadowHosts) shadowRoots = [];
+      if (queriesShadowRoots) {
+        let parent = document.body;
+        for (let depth = 0; depth < size; depth++) {
+          const host = parent.appendChild(document.createElement('section'));
+          const root = host.attachShadow({ mode: depth % 2 ? 'closed' : 'open' });
+          shadowRoots.push(root); parent = root;
+        }
+        shadowTarget = parent.appendChild(document.createElement('button')); shadowTarget.textContent = 'deep';
+      }
       let documentCandidates;
       let documentReplacementTargets;
       if (insertsDocumentComments || rejectsDocumentElement || replacesDocumentComments || replacesDocumentElement) {
@@ -188,7 +204,18 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (documentCandidates) {
+      if (queriesShadowRoots) {
+        result = 0;
+        for (let iteration = 0; iteration < NODE_ROOT_ITERATIONS; iteration++) {
+          result += Number(shadowTarget.getRootNode({ composed: true }) === document) + Number(shadowTarget.isConnected);
+        }
+      } else if (createsShadowHosts) {
+        for (let index = 0; index < SHADOW_CREATION_COUNT; index++) {
+          const host = document.body.appendChild(document.createElement('div'));
+          const root = host.attachShadow({ mode: index % 2 ? 'closed' : 'open' }); root.innerHTML = '<b>shadow</b>';
+          shadowRoots.push(root);
+        }
+      } else if (documentCandidates) {
         result = 0;
         for (let index = 0; index < documentCandidates.length; index++) {
           const candidate = documentCandidates[index];
@@ -379,6 +406,13 @@ async function measure(name, size) {
         assert.equal(surroundRange.startOffset, 0); assert.equal(surroundRange.endOffset, 1);
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
+      if (shadowRoots) {
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : SHADOW_CREATION_COUNT);
+        if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
+        for (const root of shadowRoots) assert.equal(root.host.getRootNode({ composed: true }), document);
+        if (createsShadowHosts) for (const root of shadowRoots) assert.equal(root.textContent, 'shadow');
+        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().rootHosts.hostedRoots >= shadowRoots.length);
+      }
       if (documentCandidates) {
         assert.equal(result, DOCUMENT_MUTATION_ITERATIONS);
         assert.equal(insertionDocument.childNodes.length, size + (rejectsDocumentElement || replacesDocumentElement ? 1 : insertsDocumentComments ? DOCUMENT_MUTATION_ITERATIONS : 0));
@@ -463,11 +497,13 @@ async function measure(name, size) {
     const fragmentOutput = createsContextFragment || contentOperation === 'cloneContents' || contentOperation === 'extractContents'
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
     const insertionOutput = insertionDocument ? new dom.window.XMLSerializer().serializeToString(insertionDocument) : '';
-    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).digest('hex');
+    const shadowOutput = shadowRoots ? shadowRoots.map((root) => `${root.mode}:${root.innerHTML}`).join('|') : '';
+    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
     result = null;
     insertionDocument = null;
+    shadowRoots = null; shadowTarget = null;
     if (cleanup) await cleanup();
     else dom.window.close();
     cleanup = null;
@@ -497,6 +533,8 @@ async function main() {
     ...['environment-setup', 'environment-vm-setup'].map((name) => ({ name, size: 25 })),
     { name: 'node-position-1000', size: 1000 },
     ...[250, 1000].flatMap((size) => ['node-roots-shallow-1000', 'node-roots-deep-1000'].map((name) => ({ name, size }))),
+    ...[25, 100].map((size) => ({ name: 'shadow-roots-1000', size })),
+    { name: 'shadow-hosts-create-100', size: 25 },
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

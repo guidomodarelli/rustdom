@@ -1,9 +1,9 @@
 //! Ordered Attr collections, qualified-name caches and ownership without JavaScript references.
-use super::store::NodeId;
+use super::{
+    compact_storage::{CompactMap, CompactSet, compact_vector},
+    store::NodeId,
+};
 use rustc_hash::{FxBuildHasher, FxHashSet};
-#[path = "attribute_storage.rs"]
-mod storage;
-use storage::{CompactMap, CompactSet, compact_vector};
 
 type NodeMap<Value> = CompactMap<NodeId, Value, FxBuildHasher>;
 type NodeSet = CompactSet<NodeId, FxBuildHasher>;

@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics } from './index.cjs';
 
 /** A contextual parser attribute, including optional XML metadata. */
 export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
@@ -122,6 +122,13 @@ export class NativeTree {
   containsNode(ancestor: number, descendant: number): boolean;
   /** Generic geometry requires allocated handles; root/order/ancestry require no metadata. */
   nodeRoot(handle: number): number;
+  /** Register a fragment host before or after metadata initialization; host zero clears the relation. */
+  setRootHost(root: number, host: number, shadow: boolean): void;
+  rootHost(root: number): number;
+  shadowIncludingRoot(node: number): number;
+  isShadowInclusiveAncestor(ancestor: number, node: number): boolean;
+  isHostInclusiveAncestor(ancestor: number, node: number): boolean;
+  rootHostStatistics(): NativeRootHostStatistics;
   /** Read-only child membership, node-kind and Document constraints; caller handles parent validity and host-inclusive cycles first. */
   preInsertConstraints(parent: number, node: number, child: number): typeof NodeInsertionStatus[keyof typeof NodeInsertionStatus];
   /** Replacement's distinct Document constraints; all handles must be allocated and child cannot be zero. Parent/cycle gates remain with the caller. */
