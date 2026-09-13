@@ -436,6 +436,12 @@ impl NativeTree {
         self.store.allocate().map_err(to_napi_error)
     }
 
+    /// Return the first HTML slot matching a lossless name within one fragment root.
+    #[napi]
+    pub fn find_slot(&self, root: f64, name: Utf16String) -> Result<f64> {
+        self.store.find_slot(root, &name).map_err(to_napi_error)
+    }
+
     /// Reserve a fixed handle batch without retaining nodes for unused entries.
     #[napi]
     pub fn reserve_handles(&mut self) -> Result<f64> {

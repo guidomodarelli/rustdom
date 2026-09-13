@@ -150,6 +150,13 @@ function exerciseHostRoots(document) {
   host.addEventListener('mouseover', (event) => eventResults.push(event.target === host && event.relatedTarget === peerHost));
   child.dispatchEvent(new document.defaultView.MouseEvent('mouseover', { bubbles: true, composed: true, relatedTarget: peer }));
   assert.deepEqual(eventResults, [true]);
+  const slot = nestedRoot.appendChild(document.createElement('slot'));
+  const assigned = nestedHost.appendChild(document.createElement('span'));
+  const assignedText = nestedHost.appendChild(document.createTextNode('assigned'));
+  assert.equal(assigned.assignedSlot, slot); assert.equal(assignedText.assignedSlot, slot);
+  assigned.slot = 'missing'; assert.equal(assigned.assignedSlot, null);
+  assigned.slot = ''; assert.equal(assigned.assignedSlot, slot);
+  comparisonReferences.push(new WeakRef(slot), new WeakRef(assigned), new WeakRef(assignedText));
   const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
   assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
   assert.equal(template.content.firstChild.getRootNode({ composed: true }), template.content);
