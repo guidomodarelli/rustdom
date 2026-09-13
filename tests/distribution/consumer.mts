@@ -10,7 +10,7 @@ import nativeRuntime, {
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
-  NativeEventState, EventStateFlag,
+  NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -37,6 +37,8 @@ assert.equal(ObservationStatus, nativeRuntime.ObservationStatus);
 assert.equal(NativeObserverDelivery, nativeRuntime.NativeObserverDelivery);
 assert.equal(ObserverDeliveryAction, nativeRuntime.ObserverDeliveryAction);
 assert.equal(NativeEventState, nativeRuntime.NativeEventState); assert.equal(EventStateFlag, nativeRuntime.EventStateFlag);
+assert.equal(EventDispatchStatus, nativeRuntime.EventDispatchStatus);
+assert.equal(EventInvocationEncoding, nativeRuntime.EventInvocationEncoding);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);

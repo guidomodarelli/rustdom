@@ -9,6 +9,7 @@ mod compact_storage;
 mod constants;
 mod data;
 mod error;
+mod event_path;
 mod event_state;
 mod event_state_binding;
 mod mutation_production;

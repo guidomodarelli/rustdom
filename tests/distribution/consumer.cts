@@ -15,6 +15,12 @@ scalarEvent.setFlag(native.EventStateFlag.Dispatching, false);
 assert.equal(scalarEvent.initializeIfIdle('reset', false, false), true);
 assert.equal(scalarEvent.timeStamp, 123.5); assert.equal(scalarEvent.flag(native.EventStateFlag.Composed), true);
 assert.equal(scalarEvent.flag(native.EventStateFlag.Canceled), false);
+assert.equal(scalarEvent.prepareDispatch(), native.EventDispatchStatus.Ready); scalarEvent.beginDispatch();
+scalarEvent.appendPath(false, false, true); scalarEvent.appendPath(false, false, false);
+assert.deepEqual(scalarEvent.nextInvocation(), { index: 1, targetIndex: 0, capturing: true, invoke: true });
+assert.deepEqual(scalarEvent.visiblePathIndices(), [0, -1]); assert.equal(scalarEvent.eventPhase, 1);
+assert.equal(scalarEvent.advanceInvocation(), native.EventInvocationEncoding.Capturing + native.EventInvocationEncoding.Invoke);
+scalarEvent.finishDispatch(); assert.equal(scalarEvent.pathLength, 0); assert.equal(scalarEvent.pathCapacity, 0);
 
 /** Forward-only native actions retain their literal value union in installed consumers. */
 const slotAssignmentActions: readonly native.SlotAssignmentAction[] = [

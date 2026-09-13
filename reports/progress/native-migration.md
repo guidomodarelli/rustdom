@@ -1,12 +1,13 @@
 # Indicador provisional de migración a Rust
 
 Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`5d2a2e4ab75671674a715ac0bdb565ede5fec274` (PR50 en borrador), con main
+`ec7485eb45e21294190c1c60db0c084f3b6b1ffa` (PR51 en borrador), con main
 `b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-Los PR43–50 todavía no están integrados en main. PR43 tiene los ocho checks
-aprobados, pero su revisión automática sigue pendiente; PR44–50 conservan
-estado de borrador. El estado escalar de Event en validación local no se cuenta
-como publicado.
+Los PR43–51 todavía no están integrados en main. PR43 tiene los ocho checks
+aprobados, pero su revisión automática sigue pendiente; PR44–51 conservan
+estado de borrador. PR51 también tiene todos sus checks aprobados. El recorrido
+nativo del dispatcher se consolida en feature/native-event-dispatch y no se
+cuenta como un hito integrado en main.
 
 **1 área implementada, 6 parciales y 5 delegadas: índice 33,3%.**
 
@@ -36,7 +37,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 191 tests Rust, 571 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 199 tests Rust, 603 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -49,10 +50,11 @@ entrega de observadores, preparación de mutaciones y wrappers nativos compartid
 Quedan callbacks, microtasks y drivers generales en JavaScript. Por eso siguen
 siendo áreas parciales, aunque tengan más algoritmos implementados en Rust.
 
-La etapa local de Event incorpora tres tests Rust y contratos públicos nuevos.
-La regresión detectada en BeforeUnloadEvent se reprodujo contra jsdom y se
-corrigió; 21 pruebas focales pasan después del fix. La validación general del
-estado corregido pasó con 194 tests Rust, 583 Node y los runners/corpus dentro
-de sus límites documentados. También pasaron los 36 controles del paquete en
-Node 22/24 y los cinco modos de memoria. Estos recuentos tampoco cambian el
-denominador ni acreditan compatibilidad total.
+El estado escalar de Event y el fix de BeforeUnloadEvent están publicados en
+PR51. El dispatcher agrega recorrido de captura/burbujeo, overrides de target y
+filtrado de composedPath nativos, con 41 contratos focales aprobados y ocho
+tests Rust de eventos/path. La validación general, los 36 controles del paquete
+en Node 22/24 y los cinco modos de memoria del estado compacto pasaron.
+Construcción del path, registro/invocación de listeners y datos/algoritmos de
+subclases todavía conservan lógica JavaScript. Estos recuentos tampoco cambian
+el denominador ni acreditan compatibilidad total.

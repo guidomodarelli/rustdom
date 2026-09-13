@@ -4,6 +4,59 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const runtimes = { jsdom: require('jsdom'), rustdom: require('../dist/index.cjs') };
 
+test('should expose native dispatch decisions, reject invalid inputs and release path metadata', () => {
+  const { NativeEventState, EventStateFlag, EventDispatchStatus } = require('../dist/native.cjs');
+  const state = new NativeEventState('raw', true, true, true); state.finishConstruction(true, 100);
+  state.eventPhase = 2; state.setFlag(EventStateFlag.Initialized, false);
+  assert.equal(state.prepareDispatch(), EventDispatchStatus.UninitializedOrDispatching);
+  state.setFlag(EventStateFlag.Initialized, true);
+  assert.equal(state.prepareDispatch(), EventDispatchStatus.InvalidPhase);
+  assert.equal(state.flag(EventStateFlag.Trusted), true);
+  state.eventPhase = 0; assert.equal(state.prepareDispatch(), EventDispatchStatus.Ready);
+  assert.equal(state.flag(EventStateFlag.Trusted), false); state.beginDispatch();
+  state.appendPath(false, false, true); state.appendPath(false, false, false);
+  const initial = state.visiblePathIndices(); assert.deepEqual(initial, [-1, 1]);
+  assert.deepEqual(state.nextInvocation(), { index: 1, targetIndex: 0, capturing: true, invoke: true });
+  assert.equal(state.eventPhase, 1); assert.deepEqual(state.visiblePathIndices(), [0, -1]);
+  state.stopImmediatePropagation(); state.preventDefault();
+  assert.deepEqual(state.nextInvocation(), { index: 0, targetIndex: 0, capturing: true, invoke: false });
+  assert.deepEqual(state.visiblePathIndices(), [0, -1]); assert.equal(state.eventPhase, 2);
+  const size = state.pathLength;
+  assert.throws(() => state.appendPath('closed', false, false)); assert.equal(state.pathLength, size);
+  for (const foreign of [{}, Object.create(NativeEventState.prototype)]) {
+    assert.throws(() => Reflect.apply(state.nextInvocation, foreign, []), { name: 'TypeError' });
+  }
+  state.finishDispatch(); assert.equal(state.pathLength, 0); assert.equal(state.pathCapacity, 0);
+  assert.deepEqual(state.visiblePathIndices(), []); assert.deepEqual(initial, [-1, 1]);
+  assert.equal(state.returnValue, false); assert.equal(state.eventPhase, 0);
+});
+
+test('should encode the same native decisions without creating step objects', () => {
+  const { NativeEventState, EventInvocationEncoding } = require('../dist/native.cjs');
+  const readable = new NativeEventState('codes', false, true, true);
+  const compact = new NativeEventState('codes', false, true, true);
+  for (const state of [readable, compact]) {
+    state.beginDispatch();
+    assert.equal(state.appendPath(false, false, true), 0);
+    assert.equal(state.appendPath(true, false, false), 0);
+    assert.equal(state.appendPath(false, false, true), 2);
+    assert.equal(state.appendPath(false, false, false), 2);
+  }
+  let count = 0;
+  while (true) {
+    const step = readable.nextInvocation(); const code = compact.advanceInvocation();
+    assert.equal(typeof code, 'number');
+    if (step === null) { assert.equal(code, EventInvocationEncoding.Complete); break; }
+    assert.equal(Math.floor(code / EventInvocationEncoding.Stride), step.index);
+    assert.equal(Boolean(code & EventInvocationEncoding.Capturing), step.capturing);
+    assert.equal(Boolean(code & EventInvocationEncoding.Invoke), step.invoke);
+    assert.equal(compact.eventPhase, readable.eventPhase);
+    assert.deepEqual(compact.visiblePathIndices(), readable.visiblePathIndices());
+    if (++count === 2) { compact.stopPropagation(); readable.stopPropagation(); }
+  }
+  assert.equal(count, 6); readable.finishDispatch(); compact.finishDispatch();
+});
+
 /** @param {...Window} windows - Real error-reporting realms. @returns {Error[]} Unexpected listener errors asserted outside dispatch. */
 function captureUnexpectedErrors(...windows) {
   const errors = [];
@@ -73,6 +126,22 @@ for (const outerMode of ['open', 'closed']) {
 }
 
 for (const [name, runtime] of Object.entries(runtimes)) {
+  test(`should preserve partial dispatch when the real VirtualConsole reporter throws in ${name}`, () => {
+    const virtualConsole = new runtime.VirtualConsole(); const reporterFailure = new Error('reporter failed');
+    virtualConsole.on('jsdomError', () => { throw reporterFailure; });
+    const dom = new runtime.JSDOM('<button></button>', { virtualConsole }); const target = dom.window.document.querySelector('button');
+    const event = new dom.window.Event('partial', { bubbles: true, cancelable: true });
+    try {
+      target.addEventListener('partial', () => { throw new Error('listener failed'); }, { passive: true });
+      assert.throws(() => target.dispatchEvent(event), (error) => error === reporterFailure);
+      assert.equal(event.currentTarget, target); assert.equal(event.eventPhase, 2); assert.equal(dom.window.event, event);
+      assert.deepEqual(event.composedPath(), [target, dom.window.document.body, dom.window.document.documentElement, dom.window.document, dom.window]);
+      event.preventDefault(); assert.equal(event.defaultPrevented, false);
+      event.initEvent('ignored', false, false); assert.equal(event.type, 'partial');
+      assert.throws(() => target.dispatchEvent(event), { name: 'InvalidStateError' });
+    } finally { dom.window.close(); }
+  });
+
   test(`should preserve listener snapshots, abort, once and independent nested dispatch in ${name}`, () => {
     const dom = new runtime.JSDOM('<body></body>'); const target = new dom.window.EventTarget();
     const controller = new dom.window.AbortController(); const trace = [];

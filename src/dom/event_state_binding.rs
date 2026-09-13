@@ -1,7 +1,7 @@
 //! V8-finalized Event state; all retained payloads are native scalars or owned text.
 use super::{
     data::DomString,
-    event_state::{EventState, EventStateFlag},
+    event_state::{EventDispatchStatus, EventState, EventStateFlag},
     napi_string::string_result,
 };
 use napi::bindgen_prelude::{Either, Unknown, Utf16String};
@@ -17,6 +17,23 @@ pub struct NativeEventStatistics {
     pub live: f64,
     pub created: f64,
     pub released: f64,
+}
+
+#[napi(object)]
+pub struct NativeEventDispatchStep {
+    pub index: f64,
+    pub target_index: f64,
+    pub capturing: bool,
+    pub invoke: bool,
+}
+
+/// Compact host-array index plus two flags; negative values indicate completion.
+#[napi]
+pub enum EventInvocationEncoding {
+    Complete = -1,
+    Capturing = 1,
+    Invoke = 2,
+    Stride = 4,
 }
 
 #[napi]
@@ -49,6 +66,72 @@ impl NativeEventState {
     #[napi]
     pub fn flag(&self, flag: EventStateFlag) -> bool {
         self.state.flag(flag)
+    }
+    #[napi]
+    pub fn prepare_dispatch(&mut self) -> EventDispatchStatus {
+        self.state.prepare_dispatch()
+    }
+    #[napi]
+    pub fn begin_dispatch(&mut self) {
+        self.state.begin_dispatch();
+    }
+    #[napi]
+    pub fn append_path(&mut self, root_closed: bool, slot_closed: bool, has_target: bool) -> f64 {
+        self.state
+            .path
+            .append(root_closed, slot_closed, has_target)
+            .map_or(-1.0, |index| index as f64)
+    }
+    #[napi]
+    pub fn next_invocation(&mut self) -> Option<NativeEventDispatchStep> {
+        self.state
+            .next_invocation()
+            .map(|step| NativeEventDispatchStep {
+                index: step.index as f64,
+                target_index: step.target_index.map_or(-1.0, |index| index as f64),
+                capturing: step.capturing,
+                invoke: step.invoke,
+            })
+    }
+    #[napi]
+    pub fn advance_invocation(&mut self) -> f64 {
+        self.state.next_invocation().map_or(
+            EventInvocationEncoding::Complete as i32 as f64,
+            |step| {
+                step.index as f64 * EventInvocationEncoding::Stride as i32 as f64
+                    + if step.capturing {
+                        EventInvocationEncoding::Capturing as i32 as f64
+                    } else {
+                        0.0
+                    }
+                    + if step.invoke {
+                        EventInvocationEncoding::Invoke as i32 as f64
+                    } else {
+                        0.0
+                    }
+            },
+        )
+    }
+    #[napi]
+    pub fn visible_path_indices(&self) -> Vec<f64> {
+        self.state
+            .path
+            .visible_indices()
+            .into_iter()
+            .map(|index| index.map_or(-1.0, |index| index as f64))
+            .collect()
+    }
+    #[napi]
+    pub fn finish_dispatch(&mut self) {
+        self.state.finish_dispatch();
+    }
+    #[napi(getter)]
+    pub fn path_length(&self) -> f64 {
+        self.state.path.len() as f64
+    }
+    #[napi(getter)]
+    pub fn path_capacity(&self) -> f64 {
+        self.state.path.capacity() as f64
     }
     #[napi]
     pub fn set_flag(&mut self, flag: EventStateFlag, value: bool) {

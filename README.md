@@ -241,9 +241,12 @@ públicos. Ver [contratos y GC de la compartición](reports/validation/shared-mu
 
 El estado escalar de `Event` usa `NativeEventState`: tipo UTF-16, flags, fase,
 timestamp y confianza residen en Rust, junto con cancelación, propagación e
-initEvent. El bridge conserva targets, path y datos de subclases; los listeners
-y algoritmos de dispatch siguen pendientes. `eventStates` registra el lifetime
+initEvent. El recorrido de captura/burbujeo, la selección de overrides de target
+y la visibilidad de composedPath también se deciden en Rust. El bridge conserva
+los owners del path, su construcción, los listeners y datos de subclases. `eventStates` registra el lifetime
 nativo sin retener eventos o ventanas. Ver [alcance y contratos](reports/validation/event-state.md).
+El [control nativo de dispatch](reports/validation/event-dispatch.md) conserva
+reentrancia y estados parciales del reporter, y libera metadatos del path al terminar.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

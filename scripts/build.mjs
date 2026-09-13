@@ -2,6 +2,7 @@
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, relative, sep } from 'node:path';
+import { patchEventDispatch } from './build-event-dispatch.mjs';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
 const require = createRequire(import.meta.url);
@@ -89,7 +90,10 @@ eventSource = substituteOnce(eventSource, '    if (this._dispatchFlag) {\n      
   '    if (this._eventState.initializeIfIdle(type, bubbles, cancelable)) this.target = null;');
 eventSource = substituteOnce(eventSource, 'EventImpl.defaultInit = EventInit.convert(undefined, undefined);',
   'installNativeEventProperties(EventImpl);\nEventImpl.defaultInit = EventInit.convert(undefined, undefined);');
-await writeFile(eventPath, eventSource);
+const eventTargetPath = resolve(destination, 'lib/jsdom/living/events/EventTarget-impl.js');
+const eventDispatchSources = patchEventDispatch(eventSource, await readFile(eventTargetPath, 'utf8'), substituteOnce);
+await writeFile(eventPath, eventDispatchSources.eventSource);
+await writeFile(eventTargetPath, eventDispatchSources.targetSource);
 const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
 await writeFile(mutationObserverPath, '"use strict";\n' +
   'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +

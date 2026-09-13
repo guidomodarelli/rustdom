@@ -1,6 +1,6 @@
 /** @module rustdom/event-state Binds native Event scalars while references and subclass data remain visible to V8. */
 'use strict';
-const { NativeEventState, EventStateFlag } = require('../../dist/native.cjs');
+const { NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding } = require('../../dist/native.cjs');
 /** Base dictionary members initialized together; subclass fields retain their original assignment loop. */
 const nativeEventInitFields = new Set(['bubbles', 'cancelable', 'composed']);
 /** Native bit assignments shared by base properties and dispatch's existing internal flags. */
@@ -28,4 +28,4 @@ function installNativeEventProperties(EventImpl) {
   }
 }
 
-module.exports = { createNativeEvent, nativeEventInitFields, installNativeEventProperties };
+module.exports = { createNativeEvent, nativeEventInitFields, installNativeEventProperties, EventDispatchStatus, EventInvocationEncoding };

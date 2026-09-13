@@ -3,7 +3,12 @@ import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatist
 
 export const EventStateFlag: { readonly Bubbles: 1; readonly Cancelable: 2; readonly Composed: 4; readonly Initialized: 8; readonly PropagationStopped: 16; readonly ImmediatePropagationStopped: 32; readonly Canceled: 64; readonly PassiveListener: 128; readonly Dispatching: 256; readonly Trusted: 512 };
 export type EventStateFlag = typeof EventStateFlag[keyof typeof EventStateFlag];
-/** Scalar state only; this object never owns event targets, windows or paths. */
+export const EventDispatchStatus: { readonly Ready: 0; readonly UninitializedOrDispatching: 1; readonly InvalidPhase: 2 };
+export type EventDispatchStatus = typeof EventDispatchStatus[keyof typeof EventDispatchStatus];
+export const EventInvocationEncoding: { readonly Complete: -1; readonly Capturing: 1; readonly Invoke: 2; readonly Stride: 4 };
+/** Indices into the host-owned path; targetIndex is -1 when no override exists. */
+export interface NativeEventDispatchStep { index: number; targetIndex: number; capturing: boolean; invoke: boolean; }
+/** Native state and path metadata; this object never owns event targets or windows. */
 export class NativeEventState {
   constructor(type: string, bubbles: boolean, cancelable: boolean, composed: boolean);
   eventType: string; eventPhase: number; timeStamp: number; readonly returnValue: boolean;
@@ -17,6 +22,18 @@ export class NativeEventState {
   initialize(type: string, bubbles: boolean, cancelable: boolean): void;
   initializeIfIdle(type: string, bubbles: boolean, cancelable: boolean): boolean;
   static statistics(): NativeEventStatistics;
+  prepareDispatch(): EventDispatchStatus;
+  beginDispatch(): void;
+  /** Returns the nearest target-override index, or -1 if none exists. */
+  appendPath(rootClosed: boolean, slotClosed: boolean, hasTarget: boolean): number;
+  nextInvocation(): NativeEventDispatchStep | null;
+  /** Advances the same cursor without allocating a JS step object: index * Stride + flag bits, or Complete. */
+  advanceInvocation(): number;
+  /** Visible path indices; -1 represents the host's currentTarget, including null before invocation. */
+  visiblePathIndices(): number[];
+  finishDispatch(): void;
+  readonly pathLength: number;
+  readonly pathCapacity: number;
 }
 
 /** Native delivery steps; only nonempty observer queues produce Observer instructions. */
