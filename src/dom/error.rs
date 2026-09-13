@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum TreeError {
     InvalidHandle,
+    InvalidMutationRecordType,
     UninitializedRange,
     RangeContentProtocol(&'static str),
     UnknownHandle(u64),
@@ -36,6 +37,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidMutationRecordType => write!(
+                formatter,
+                "NativeMutationRecord: kind must be attributes, characterData, or childList"
+            ),
             Self::SlotAssignmentProtocol(reason) => {
                 write!(formatter, "NativeSlotAssignmentDriver: {reason}")
             }

@@ -8,6 +8,7 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
+  NativeMutationRecord,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -29,6 +30,7 @@ dom.window.document.body.insertAdjacentHTML('beforeend', '<span>Installed</span>
 assert.equal(dom.window.document.querySelector('span')?.textContent, 'Installed');
 assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
+assert.equal(NativeMutationRecord, nativeRuntime.NativeMutationRecord);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
@@ -101,6 +103,20 @@ dom.window.close();
 assert.ok(environment.setupVM);
 const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' } });
 const context = session.getVmContext();
+const recordTarget = context.document.createElement('section'); context.document.body.append(recordTarget);
+const nativeRecordsBefore = getNativeTreeStatistics().mutationRecords.created;
+const recordObserver = new context.MutationObserver(() => {});
+recordObserver.observe(recordTarget, { childList: true, attributes: true, attributeOldValue: true });
+const recordChild = context.document.createElement('b'); recordTarget.append(recordChild);
+recordTarget.setAttribute('data-record', 'one'); recordTarget.setAttribute('data-record', 'two');
+const installedRecords = recordObserver.takeRecords(); recordObserver.disconnect();
+assert.equal(installedRecords.length, 3); assert.equal(installedRecords[0].target, recordTarget);
+assert.equal(installedRecords[0].addedNodes[0], recordChild);
+assert.equal(installedRecords[0].addedNodes, installedRecords[0].addedNodes);
+assert.ok(installedRecords[0] instanceof context.MutationRecord);
+assert.ok(installedRecords[0].addedNodes instanceof context.NodeList);
+assert.equal(installedRecords[2].oldValue, 'one'); assert.equal(installedRecords[2].attributeName, 'data-record');
+assert.ok(getNativeTreeStatistics().mutationRecords.created >= nativeRecordsBefore + 3);
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
 assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 const paragraph = context.document.querySelector('p');

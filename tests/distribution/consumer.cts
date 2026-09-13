@@ -49,6 +49,13 @@ dom.window.close();
 const tree = new native.NativeTree();
 const handle = tree.allocate();
 tree.setHtmlElement(handle, 'b', ['title', 'installed']);
+const nativeRecord = new native.NativeMutationRecord(tree, { kind: 'attributes', target: handle,
+  previousSibling: 0, nextSibling: 0, attributeName: 'flag\ud800', attributeNamespace: null,
+  oldValue: 'old\0\udc00', addedNodes: [], removedNodes: [] });
+assert.equal(nativeRecord.kind, 'attributes'); assert.equal(nativeRecord.target, handle);
+assert.equal(nativeRecord.attributeName, 'flag\ud800'); assert.equal(nativeRecord.attributeNamespace, null);
+assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecord.addedNodes, []);
+assert.ok(native.NativeMutationRecord.statistics().created > 0);
 assert.equal(tree.serializeHtml(handle, true, false), '<b title="installed"></b>');
 const doctypeHandle = tree.allocate();
 tree.initializeDocumentType(doctypeHandle, 'html', '\ud800', 'system');

@@ -4,7 +4,9 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
+    mutation_record::{MutationRecordDraft, MutationRecordState},
     napi_error::to_napi_error,
+    napi_string::string_result,
     node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
@@ -28,12 +30,13 @@ use napi::{
 };
 use napi_derive::napi;
 
-/// Node-API copies borrowed UTF-8 directly into V8; preserve isolated UTF-16 units on the fallback.
-fn string_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>> {
-    value.map(|value| match value {
-        DomString::Text(value) => Either::A(value.as_str()),
-        DomString::Utf16(value) => Either::B(value.clone().into()),
-    })
+impl NativeTree {
+    pub(super) fn mutation_record_state(
+        &self,
+        draft: MutationRecordDraft,
+    ) -> super::error::Result<MutationRecordState> {
+        self.store.mutation_record(draft)
+    }
 }
 
 /// Scalar text setter decision; effects run in the host after the native borrow ends.

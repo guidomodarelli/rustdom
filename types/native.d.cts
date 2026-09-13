@@ -1,5 +1,21 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics } from './index.cjs';
+
+/** Complete scalar payload; zero represents a missing sibling, and text fields preserve null versus empty. */
+export interface NativeMutationRecordInput {
+  kind: 'attributes' | 'characterData' | 'childList'; target: number; previousSibling: number; nextSibling: number;
+  attributeName?: string | null; attributeNamespace?: string | null; oldValue?: string | null;
+  addedNodes: number[]; removedNodes: number[];
+}
+/** Immutable text and node-ID snapshots; validates allocated handles in the supplied forest before construction. */
+export class NativeMutationRecord {
+  constructor(tree: NativeTree, input: NativeMutationRecordInput);
+  readonly kind: 'attributes' | 'characterData' | 'childList'; readonly target: number;
+  readonly previousSibling: number; readonly nextSibling: number;
+  readonly attributeName: string | null; readonly attributeNamespace: string | null; readonly oldValue: string | null;
+  readonly addedNodes: number[]; readonly removedNodes: number[];
+  static statistics(): NativeMutationRecordStatistics;
+}
 
 /** A signal precedes its commit; Applied instructions carry GC ownership changes only. */
 export const SlotAssignmentAction: { readonly Complete: 0; readonly Signal: 1; readonly Applied: 2 };

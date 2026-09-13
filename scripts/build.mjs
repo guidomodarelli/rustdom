@@ -51,6 +51,13 @@ await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
+await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const mutationRecordPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationRecord-impl.js');
+await writeFile(mutationRecordPath, '"use strict";\n' +
+  'const { createMutationRecordImplementation } = require("../../../../../mutation-record.cjs");\n' +
+  'const NodeList = require("../generated/NodeList");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'module.exports = { implementation: createMutationRecordImplementation(NodeList, domSymbolTree) };\n');
 const contentDriverSource = await readFile('src/dom/range-content-driver.cjs', 'utf8');
 await writeFile('dist/range-content-driver.cjs', substituteOnce(contentDriverSource,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));

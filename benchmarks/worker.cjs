@@ -129,6 +129,47 @@ function slotSignalFixture(document, size, roots) {
     dispose() { for (const [index, slot] of slots.entries()) slot.removeEventListener('slotchange', listeners[index]); } };
 }
 
+/** @param {MutationRecord[]} records - Real records. @returns {object[]} Consumed public fields and static node-list snapshots. */
+function captureMutationRecords(records) {
+  return records.map((record) => ({ type: record.type, target: record.target, attributeName: record.attributeName,
+    attributeNamespace: record.attributeNamespace, oldValue: record.oldValue, previousSibling: record.previousSibling,
+    nextSibling: record.nextSibling, added: [...record.addedNodes], removed: [...record.removedNodes] }));
+}
+
+/** @param {Document} document - Live document. @param {number} size - Attribute/text/child-list mutation groups. @returns {object} Real observer fixture with explicit cleanup and complete validation. */
+function mutationRecordFixture(document, size) {
+  const host = document.body.appendChild(document.createElement('section')); const text = host.appendChild(document.createTextNode('initial'));
+  const children = Array.from({ length: size }, () => document.createElement('b'));
+  const observer = new document.defaultView.MutationObserver(() => {});
+  observer.observe(host, { attributes: true, attributeOldValue: true, characterData: true, characterDataOldValue: true, childList: true, subtree: true });
+  return { records: [],
+    /** @returns {MutationRecord[]} Creates and collects all three kinds through actual public mutations. */
+    produce() {
+      for (let index = 0; index < size; index++) { host.setAttribute('data-state', String(index)); text.data = `value-${index}`; host.append(children[index]); }
+      return observer.takeRecords();
+    },
+    /** @param {object[]} snapshots - Consumed property values. @returns {void} Checks every field, identity and ordering outside timing. */
+    validate(snapshots) {
+      assert.equal(snapshots.length, size * 3);
+      for (let index = 0; index < size; index++) {
+        assert.equal(snapshots[index * 3].target, host);
+        assert.equal(snapshots[index * 3 + 1].target, text);
+        assert.equal(snapshots[index * 3 + 2].target, host);
+        assert.equal(snapshots[index * 3 + 2].previousSibling, index ? children[index - 1] : text);
+        assert.equal(snapshots[index * 3 + 2].added.length, 1);
+        assert.equal(snapshots[index * 3 + 2].added[0], children[index]);
+        assert.deepEqual(snapshots[index * 3], { type: 'attributes', target: host, attributeName: 'data-state', attributeNamespace: null,
+          oldValue: index ? String(index - 1) : null, previousSibling: null, nextSibling: null, added: [], removed: [] });
+        assert.deepEqual(snapshots[index * 3 + 1], { type: 'characterData', target: text, attributeName: null, attributeNamespace: null,
+          oldValue: index ? `value-${index - 1}` : 'initial', previousSibling: null, nextSibling: null, added: [], removed: [] });
+        assert.deepEqual(snapshots[index * 3 + 2], { type: 'childList', target: host, attributeName: null, attributeNamespace: null,
+          oldValue: null, previousSibling: index ? children[index - 1] : text, nextSibling: null, added: [children[index]], removed: [] });
+      }
+    },
+    /** @returns {void} Disconnects delivery and drops retained records before teardown. */
+    dispose() { observer.disconnect(); this.records = []; } };
+}
+
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
  * @param {string} name - Workload name, including its configuration.
@@ -162,6 +203,8 @@ async function measure(name, size) {
   const usesSlots = queriesSlots || reassignsSlots || queriesAssignments || dispatchesSlotEvents;
   const flattensSlots = name === 'slot-flatten-chain-100';
   const signalsSlotBurst = name === 'slot-signal-burst';
+  const collectsMutationRecords = name === 'mutation-records-collect';
+  const readsMutationRecords = name === 'mutation-records-read';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -182,6 +225,7 @@ async function measure(name, size) {
     let observedRetargetEvents = 0; let invalidRetargetEvents = 0;
     let slotEventReceiver; let slotEventListener;
     let signalBurst;
+    let mutationRecordWork;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
     let target;
@@ -209,6 +253,10 @@ async function measure(name, size) {
     } else {
       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
       const document = dom.window.document;
+      if (collectsMutationRecords || readsMutationRecords) {
+        mutationRecordWork = mutationRecordFixture(document, size);
+        if (readsMutationRecords) mutationRecordWork.records = mutationRecordWork.produce();
+      }
       const comparisonRoot = name.startsWith('node-') ? document.querySelector('table') : null;
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
@@ -310,10 +358,12 @@ async function measure(name, size) {
         }
       }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
-      if (signalsSlotBurst) await new Promise((resolve) => setImmediate(resolve));
+      if (signalsSlotBurst || readsMutationRecords) await new Promise((resolve) => setImmediate(resolve));
       global.gc?.();
       const start = performance.now();
-      if (signalsSlotBurst) {
+      if (collectsMutationRecords) result = mutationRecordWork.produce();
+      else if (readsMutationRecords) result = captureMutationRecords(mutationRecordWork.records);
+      else if (signalsSlotBurst) {
         result = 0;
         for (const [index, slot] of signalBurst.slots.entries()) {
           const text = signalBurst.texts[index];
@@ -525,6 +575,10 @@ async function measure(name, size) {
         result = Buffer.byteLength(dom.serialize());
       } else throw new Error(`benchmark: unsupported workload ${name}`);
       elapsed = performance.now() - start;
+      if (mutationRecordWork) {
+        mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
+        if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= size * 3);
+      }
       if (signalsSlotBurst) {
         assert.equal(result, size * 3);
         if (engine === 'rustdom') assert.equal(runtime.getNativeTreeStatistics().slotSignals.pendingSlots, size);
@@ -683,6 +737,7 @@ async function measure(name, size) {
     if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
     if (slotEventReceiver) slotEventReceiver.removeEventListener('slot-probe', slotEventListener);
     signalBurst?.dispose(); signalBurst = null;
+    mutationRecordWork?.dispose(); mutationRecordWork = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
     shadowRoots = null; shadowTarget = null;
@@ -722,6 +777,7 @@ async function main() {
     ...[25, 100].flatMap((size) => ['slot-cached-100', 'slot-assigned-100', 'slot-dense-reassign-100', 'slot-events-100'].map((name) => ({ name, size }))),
     ...[10, 100].map((size) => ({ name: 'slot-flatten-chain-100', size })),
     ...[100, 1000].map((size) => ({ name: 'slot-signal-burst', size })),
+    ...[100, 1000].flatMap((size) => ['mutation-records-collect', 'mutation-records-read'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

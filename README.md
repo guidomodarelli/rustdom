@@ -189,6 +189,14 @@ iterador y los candidatos a través de reentrancia; no ejecuta JavaScript mientr
 el store está prestado por Rust. Los slots sin cambios se procesan en el mismo
 paso nativo. `slotAssignmentDrivers` expone el lifetime de los controladores.
 
+Los nueve campos de `MutationRecord` usan un snapshot inmutable de Rust: tipo,
+texto UTF-16 nullable y IDs de target, siblings y listas ordenadas. El puente
+retiene las referencias que V8 necesita y crea NodeLists estáticas en el realm
+original; el wrapper WebIDL conserva su identidad SameObject. Un registro raw
+no retiene su `NativeTree`. `mutationRecords` informa creación, liberación e
+instancias vivas. La selección de observadores, sus opciones, colas y entrega
+de callbacks todavía conservan algoritmos JavaScript pendientes de migración.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

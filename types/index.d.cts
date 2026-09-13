@@ -44,8 +44,10 @@ export interface NativeSlotBacklinkStatistics { assignedNodes: number; slotOwner
 export interface NativeSlotSignalStatistics { pendingSlots: number; queueEntries: number; queueCapacity: number; membershipCapacity: number; }
 /** V8-finalized assignment controller lifetimes across this addon. */
 export interface NativeSlotAssignmentDriverStatistics { live: number; created: number; released: number; }
+/** Immutable native MutationRecord boxes; counters do not retain instances. */
+export interface NativeMutationRecordStatistics { live: number; created: number; released: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
-export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; slotAssignmentDrivers: NativeSlotAssignmentDriverStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
+export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; slotAssignmentDrivers: NativeSlotAssignmentDriverStatistics; mutationRecords: NativeMutationRecordStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */
 export function getParserStatistics(): ParserStatistics;
