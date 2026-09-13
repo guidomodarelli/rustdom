@@ -7,6 +7,7 @@ export const {
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction,
+  NativeSlotAssignmentDriver, SlotAssignmentAction,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;

@@ -19,6 +19,7 @@ use super::{
     range_queries::PointRelation,
     range_state_binding::NativeRange,
     range_surround::SurroundStatus,
+    slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
 };
 use napi::{
@@ -534,6 +535,14 @@ impl NativeTree {
                 nodes: plan.nodes,
             })
             .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn slot_assignment_step(
+        &mut self,
+        operation: &mut NativeSlotAssignmentDriver,
+    ) -> Result<SlotAssignmentInstruction> {
+        operation.step(&mut self.store)
     }
 
     #[napi]

@@ -7,6 +7,7 @@ import nativeRuntime, {
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
+  NativeSlotAssignmentDriver, SlotAssignmentAction,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -16,6 +17,12 @@ dom.window.document.body.insertAdjacentHTML('beforeend', '<span>Installed</span>
 assert.equal(dom.window.document.querySelector('span')?.textContent, 'Installed');
 assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
+const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
+const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
+assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
+assert.equal(SlotAssignmentAction, nativeRuntime.SlotAssignmentAction);
+assert.equal(nativeTree.slotAssignmentStep(assignmentOperation).kind, SlotAssignmentAction.Complete);
+assert.equal(assignmentOperation.complete, true); assignmentOperation.cancel(); nativeTree.release(assignmentRoot);
 const doctype = nativeTree.allocate();
 nativeTree.initializeDocumentType(doctype, 'html', 'public', 'system');
 assert.equal(NodeTextWriteAction, nativeRuntime.NodeTextWriteAction);

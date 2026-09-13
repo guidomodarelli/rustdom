@@ -31,6 +31,9 @@ pub struct AssignmentStatistics {
 }
 
 impl SlotAssignments {
+    pub(crate) fn matches(&self, slot: NodeId, nodes: &[NodeId]) -> bool {
+        self.slots.get(&slot).map_or(&[][..], Vec::as_slice) == nodes
+    }
     fn compact(&mut self) {
         self.slots.compact();
         self.members.compact();
@@ -59,7 +62,7 @@ impl SlotAssignments {
         true
     }
 
-    fn set(&mut self, slot: NodeId, nodes: Vec<NodeId>) {
+    pub(crate) fn set(&mut self, slot: NodeId, nodes: Vec<NodeId>) {
         if self.slots.get(&slot).map_or(&[][..], Vec::as_slice) == nodes {
             return;
         }
@@ -118,7 +121,7 @@ impl SlotAssignments {
 }
 
 impl TreeStore {
-    fn assignment_slot(&self, slot: f64) -> Result<NodeId> {
+    pub(crate) fn assignment_slot(&self, slot: f64) -> Result<NodeId> {
         let slot = node_id(slot)?;
         self.links(slot)?;
         if !self.data.get(&slot).is_some_and(is_html_slot) {
@@ -164,7 +167,13 @@ impl TreeStore {
     /// Commit the captured snapshot after signaling, without recomputing after possible reentrancy.
     pub fn set_slot_assignment(&mut self, slot: f64, nodes: &[f64]) -> Result<()> {
         let slot = self.assignment_slot(slot)?;
-        let nodes = nodes
+        let nodes = self.assignment_nodes(nodes)?;
+        self.slot_assignments.set(slot, nodes);
+        Ok(())
+    }
+
+    pub(crate) fn assignment_nodes(&self, nodes: &[f64]) -> Result<Vec<NodeId>> {
+        nodes
             .iter()
             .map(|&node| {
                 let id = node_id(node)?;
@@ -177,9 +186,7 @@ impl TreeStore {
                 }
                 Ok(id)
             })
-            .collect::<Result<Vec<_>>>()?;
-        self.slot_assignments.set(slot, nodes);
-        Ok(())
+            .collect::<Result<Vec<_>>>()
     }
 }
 

@@ -25,6 +25,9 @@ pub struct BacklinkStatistics {
 }
 
 impl SlotBacklinks {
+    pub(crate) fn get(&self, node: NodeId) -> Option<NodeId> {
+        self.nodes.get(&node).copied()
+    }
     fn compact(&mut self) {
         self.nodes.compact();
         self.owners.compact();
@@ -49,7 +52,7 @@ impl SlotBacklinks {
         true
     }
 
-    fn set(&mut self, node: NodeId, slot: Option<NodeId>) {
+    pub(crate) fn set(&mut self, node: NodeId, slot: Option<NodeId>) {
         if self.nodes.get(&node).copied() == slot {
             return;
         }

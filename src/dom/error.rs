@@ -21,6 +21,7 @@ pub enum TreeError {
     NotSlotable(u64),
     NotSlot(u64),
     SlotFlattenCycle(u64),
+    SlotAssignmentProtocol(&'static str),
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
     AttributeCollectionInitialized(u64),
@@ -35,6 +36,9 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SlotAssignmentProtocol(reason) => {
+                write!(formatter, "NativeSlotAssignmentDriver: {reason}")
+            }
             Self::NotSlot(id) => write!(
                 formatter,
                 "NativeTree: node {id} must be an initialized HTML slot for assignment state"
