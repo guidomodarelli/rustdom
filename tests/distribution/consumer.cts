@@ -4,6 +4,12 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed XML transport resolves context prefixes and releases its input buffer. */
+const xmlParser = new native.NativeXmlParser('<p:r/>', true);
+assert.equal(xmlParser.next().kind, 'resolvePrefix'); xmlParser.resolvePrefix('urn:installed');
+assert.equal(xmlParser.next().tag?.uri, 'urn:installed'); assert.equal(xmlParser.next().kind, 'closetag');
+xmlParser.close(); assert.equal(xmlParser.next().kind, 'end');
+
 /** Native abort composition preserves source order and marks dependents before delivery. */
 const abortSource = new native.NativeAbortState(); const abortDependent = new native.NativeAbortState();
 assert.deepEqual(abortDependent.initializeAny([abortSource.id, abortSource.id]), { reasonSource: 0, sources: [abortSource.id], sourceInputs: [0] });

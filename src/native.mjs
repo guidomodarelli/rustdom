@@ -13,6 +13,7 @@ export const {
   NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding,
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
+  NativeXmlParser,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;

@@ -5,6 +5,7 @@ const { performance } = require('node:perf_hooks');
 const { createHash } = require('node:crypto');
 const { listenerFixture } = require('./event-listeners.cjs');
 const { abortFixture } = require('./abort-signal.cjs');
+const { xmlFixture } = require('./xml-parser.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -301,6 +302,7 @@ async function measure(name, size) {
   const dispatchesSimpleEvents = name === 'event-dispatch';
   const measuresListeners = ['listener-register', 'listener-remove', 'listener-dispatch'].includes(name);
   const measuresAbort = ['abort-lifecycle', 'abort-any', 'abort-propagation'].includes(name);
+  const measuresXml = ['xml-construct', 'xml-fragment', 'xml-parse-error'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -309,6 +311,7 @@ async function measure(name, size) {
     : null;
   const samplesMs = [];
   const memory = [];
+  let measuredInputBytes = Buffer.byteLength(html);
   let outputHash;
   for (let sample = 0; sample < WARMUP_SAMPLES + MEASURED_SAMPLES; sample++) {
     let dom;
@@ -325,6 +328,7 @@ async function measure(name, size) {
     let observerDeliveryWork;
     let listenerWork;
     let abortWork;
+    let xmlWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -356,6 +360,7 @@ async function measure(name, size) {
       const eventStatesBefore = runtime.getNativeTreeStatistics?.().eventStates?.created;
       if (measuresListeners) listenerWork = listenerFixture(runtime, dom.window, size, name);
       if (measuresAbort) abortWork = abortFixture(runtime, dom.window, size, name);
+      if (measuresXml) { xmlWork = xmlFixture(runtime, size, name); measuredInputBytes = xmlWork.inputBytes; }
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
         simpleEventListener = (event) => { event.preventDefault(); simpleEventCalls++; simpleEventPhases += event.eventPhase; };
@@ -473,8 +478,10 @@ async function measure(name, size) {
       global.gc?.();
       observerDeliveryWork?.prepare();
       listenerWork?.prepare();
+      xmlWork?.prepare();
       const start = performance.now();
-      if (abortWork) result = abortWork.run();
+      if (xmlWork) result = xmlWork.run();
+      else if (abortWork) result = abortWork.run();
       else if (listenerWork) result = listenerWork.run();
       else if (runsEventLifecycle) {
         result = 0;
@@ -713,6 +720,7 @@ async function measure(name, size) {
       observerDeliveryWork?.validate();
       listenerWork?.validate(result);
       abortWork?.validate(result);
+      xmlWork?.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -868,7 +876,7 @@ async function measure(name, size) {
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
     const insertionOutput = insertionDocument ? new dom.window.XMLSerializer().serializeToString(insertionDocument) : '';
     const shadowOutput = shadowRoots ? shadowRoots.map((root) => `${root.mode}:${root.innerHTML}`).join('|') : '';
-    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).digest('hex');
+    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).update(xmlWork?.serialize() ?? '').digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
     result = null;
@@ -880,6 +888,7 @@ async function measure(name, size) {
     observerDeliveryWork?.dispose(); observerDeliveryWork = null;
     listenerWork?.dispose(); listenerWork = null;
     abortWork?.dispose(); abortWork = null;
+    xmlWork?.dispose(); xmlWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
@@ -897,7 +906,7 @@ async function measure(name, size) {
       memory.push(process.memoryUsage());
     }
   }
-  return { name, rows: size, inputBytes: Buffer.byteLength(html), outputHash, samplesMs, memoryAfterCleanup: memory };
+  return { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
 }
 
 /**
@@ -927,6 +936,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['event-state-lifecycle', 'event-dispatch'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['listener-register', 'listener-remove', 'listener-dispatch'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['abort-lifecycle', 'abort-any', 'abort-propagation'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['xml-construct', 'xml-fragment', 'xml-parse-error'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

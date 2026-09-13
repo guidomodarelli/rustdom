@@ -1,21 +1,21 @@
 # Indicador provisional de migración a Rust
 
 Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`ae42288eb7177c33dca554d4516fad46957c2787` (PR53 en borrador), con main
+`16ad4ebcc61e8e5e4a93d7cea29520a0c8b20573` (PR54 en borrador), con main
 `b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-Los PR43–53 todavía no están integrados en main. PR43 tiene los ocho checks
-aprobados, pero su revisión automática sigue pendiente; PR44–53 conservan
-estado de borrador. PR51–53 también tienen todos sus checks aprobados. El estado
-nativo de abort se consolida en feature/native-abort-signal y no se
+Los PR43–54 todavía no están integrados en main. PR43 tiene los ocho checks
+aprobados, pero su revisión automática sigue pendiente; PR44–54 conservan
+estado de borrador. PR51–53 también tienen todos sus checks aprobados. El parser
+XML nativo se consolida en feature/native-xml-parser y no se
 cuenta como un hito integrado en main.
 
-**1 área implementada, 6 parciales y 5 delegadas: índice 33,3%.**
+**1 área implementada, 7 parciales y 4 delegadas: índice 37,5%.**
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,
 líneas o esfuerzo. Las 12 áreas reciben el mismo peso: implementada = 1,
-parcial = 0,5 y todavía delegada = 0. Cálculo: `(1 + 6 × 0,5) / 12 × 100`.
+parcial = 0,5 y todavía delegada = 0. Cálculo: `(1 + 7 × 0,5) / 12 × 100`.
 El 0,5 de un área parcial es una convención, no una medición interna de esa área.
-No implica que falte exactamente dos tercios del tiempo ni acredita compatibilidad
+No estima el tiempo restante ni acredita compatibilidad
 completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 
 | Área y criterio | Estado de migración | Evidencia y pendiente | Confianza |
@@ -23,7 +23,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Almacenamiento del árbol y datos DOM básicos: enlaces, CharacterData, Attr y colecciones canónicos | Implementada | `src/dom/store.rs:353` y `:421`, `src/dom/tree.rs:1085`; bridge usado por los nodos reales y contratos en `reports/validation/slotable-query.md`. Factories y efectos se cuentan en la fila siguiente. | Alta |
 | Algoritmos generales de Node, creación, adopción y efectos de mutación | Parcial | `scripts/build.mjs` conecta decisiones nativas; `ROADMAP.md` conserva factories, hooks y otros drivers JS. | Alta |
 | Parsing HTML completo | Parcial | `src/parser/bridge.cjs:113` selecciona parseDocumentTape o fallback; scripts, posiciones y otros contextos siguen delegados. | Alta |
-| Parsing XML/XHTML | Delegada | `README.md`, límites: conserva implementación original; entrada pública `src/index.cjs:5` usa el runtime privado de jsdom. | Media |
+| Parsing XML/XHTML | Parcial | `src/xml/` tokeniza, valida estructura/namespaces y emite eventos incrementales nativos; `src/parser/xml.cjs` conecta documentos y fragmentos reales. Persisten heurísticas de doctype/entidades y otros efectos del driver; evidencia en `reports/validation/xml-parser.md`. | Alta |
 | Serialización HTML/XML | Parcial | `scripts/build.mjs:583` conecta serializeHTML nativo; XML y rutas restantes conservan drivers originales. | Alta |
 | Selectores CSS completos y XPath | Parcial | `src/dom/tree.rs:1343` expone la consulta nativa; README declara selectores que vuelven al motor original. XPath pendiente. | Alta |
 | Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; ROADMAP enumera efectos, creación y Selection pendientes. | Alta |
@@ -43,8 +43,9 @@ denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.
 
-El índice permanece en 33,3% porque estos avances profundizan áreas todavía
-parciales. No se incrementa automáticamente por cada commit, PR o checkpoint.
+El índice pasa a 37,5% porque XML deja de estar completamente delegado y tiene
+un parser incremental nativo verificado. Sigue siendo un área parcial. El índice
+no se incrementa automáticamente por cada commit, PR o checkpoint.
 Los avances publicados incluyen payloads de MutationRecord, registro, colas y
 entrega de observadores, preparación de mutaciones y wrappers nativos compartidos.
 Quedan callbacks, microtasks y drivers generales en JavaScript. Por eso siguen
@@ -65,3 +66,8 @@ y algoritmos nativos con razones y owners en V8; sus contratos, memoria,
 benchmarks y controles instalados están en reports/validation/abort-signal.md.
 Estos recuentos tampoco cambian
 el denominador ni acreditan compatibilidad total.
+
+XML cuenta con 47 contratos DOM, 2.348 inputs mutados y 2.585 fixtures upstream
+comparados, además de pruebas de uso nativo y GC. La validación general pasó
+212 tests Rust y 691 Node. El corpus upstream compara strings UTF8, eventos y
+errores con la referencia; no certifica todos los encodings o estándares.

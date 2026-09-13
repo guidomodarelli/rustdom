@@ -108,4 +108,25 @@ test('should preserve DOMParser parsererror documents and MIME behavior', () => 
   report.cases.push({ route: 'DOMParser', expected, actual }); assert.deepEqual(actual, expected);
 });
 
+test('should resolve later fragment prefixes after a real custom element changes its context', () => {
+  const capture = (runtime) => {
+    const dom = new runtime.JSDOM('<context xmlns="http://www.w3.org/1999/xhtml" xmlns:p="urn:before"/>', { contentType: 'application/xml' });
+    const trace = [];
+    try {
+      dom.window.customElements.define('x-namespace', class extends dom.window.HTMLElement {
+        constructor() {
+          super(); trace.push(this.parentNode === null);
+          this.ownerDocument.documentElement.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:after');
+        }
+      });
+      const context = dom.window.document.documentElement;
+      context.innerHTML = '<x-namespace/><p:later/>';
+      return { trace, namespace: context.lastChild.namespaceURI, tree: describeTree(context) };
+    } finally { dom.window.close(); }
+  };
+  const expected = capture(runtimes.jsdom); const actual = capture(runtimes.rustdom);
+  report.cases.push({ route: 'fragment-reentrant-context', expected, actual });
+  assert.deepEqual(expected.trace, [true]); assert.equal(expected.namespace, 'urn:after'); assert.deepEqual(actual, expected);
+});
+
 after(() => { mkdirSync('reports/compatibility', { recursive: true }); writeFileSync(`reports/compatibility/${report.capturedAt.replaceAll(':', '-')}-xml-contracts.json`, `${JSON.stringify(report, null, 2)}\n`); });

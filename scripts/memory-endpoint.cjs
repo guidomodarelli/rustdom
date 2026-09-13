@@ -69,6 +69,8 @@ function isReleased(state, expected) {
     native.abortStates?.live === expected.abortStates?.live &&
     native.abortStates?.links === expected.abortStates?.links &&
     native.abortStates?.algorithms === expected.abortStates?.algorithms &&
+    native.xmlParsers?.live === expected.xmlParsers?.live &&
+    native.xmlParsers?.inputUnits === expected.xmlParsers?.inputUnits &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

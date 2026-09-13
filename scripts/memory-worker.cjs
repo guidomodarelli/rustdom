@@ -476,6 +476,8 @@ async function main() {
         nativeTree.abortStates.live === initialAttributeState.abortStates.live &&
         nativeTree.abortStates.links === initialAttributeState.abortStates.links &&
         nativeTree.abortStates.algorithms === initialAttributeState.abortStates.algorithms &&
+        nativeTree.xmlParsers.live === initialAttributeState.xmlParsers.live &&
+        nativeTree.xmlParsers.inputUnits === initialAttributeState.xmlParsers.inputUnits &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

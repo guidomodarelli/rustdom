@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, NativeObserverDelivery, NativeEventState, NativeListenerRegistry, NativeAbortState, ObserverDeliveryAction, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, NativeObserverDelivery, NativeEventState, NativeListenerRegistry, NativeAbortState, NativeXmlParser, ObserverDeliveryAction, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -901,6 +901,7 @@ class NativeSymbolTree extends SymbolTree {
       eventStates: NativeEventState.statistics(),
       listenerRegistries: NativeListenerRegistry.statistics(),
       abortStates: NativeAbortState.statistics(),
+      xmlParsers: NativeXmlParser.statistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

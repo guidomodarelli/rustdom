@@ -31,6 +31,13 @@ await mkdir(destination, { recursive: true });
 await cp(resolve(upstreamRoot, 'lib'), resolve(destination, 'lib'), { recursive: true });
 await cp(resolve(upstreamRoot, 'package.json'), resolve(destination, 'package.json'));
 await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt'));
+const xmlAdapter = await readFile('src/parser/xml.cjs', 'utf8');
+await writeFile('dist/xml-parser.cjs', substituteOnce(xmlAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const xmlParserPath = resolve(destination, 'lib/jsdom/browser/parser/xml.js');
+await writeFile(xmlParserPath, substituteOnce(await readFile(xmlParserPath, 'utf8'),
+  'const { SaxesParser } = require("saxes");', 'const { SaxesParser } = require("../../../../../xml-parser.cjs");'));
+await mkdir('dist/compatibility-licenses/saxes', { recursive: true });
+await cp('third-party/saxes/LICENSE', 'dist/compatibility-licenses/saxes/LICENSE');
 
 /** Patch the private copy; node_modules/jsdom remains the independent reference. */
 const parserPath = resolve(destination, 'lib/jsdom/browser/parser/html.js');

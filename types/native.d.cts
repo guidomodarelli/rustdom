@@ -1,5 +1,18 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics } from './index.cjs';
+
+export interface NativeXmlAttribute { name: string; prefix: string; local: string; uri: string; value: string; }
+export interface NativeXmlTag { name: string; prefix: string; local: string; uri: string; attributes: NativeXmlAttribute[]; }
+export interface NativeXmlEvent { kind: string; value?: string; target?: string; tag?: NativeXmlTag; errorType?: string; }
+/** Incremental native XML decisions; the caller supplies context namespaces and owns DOM effects. */
+export class NativeXmlParser {
+  constructor(input: string, fragment: boolean, filename?: string);
+  next(): NativeXmlEvent;
+  resolvePrefix(namespace?: string | null): NativeXmlEvent;
+  setEntity(name: string, value: string): void;
+  close(): void;
+  static statistics(): NativeXmlStatistics;
+}
 
 /** Native composition decision; sourceInputs resolves each source through that input's host-owned roots. */
 export interface NativeAbortAnyPlan { reasonSource: number; sources: number[]; sourceInputs: number[]; }
