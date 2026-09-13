@@ -67,4 +67,6 @@ mod slots;
 mod store;
 mod traversal;
 pub mod tree;
+mod tree_cursor;
+mod tree_cursor_binding;
 mod unicode_case;

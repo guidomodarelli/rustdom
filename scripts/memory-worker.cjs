@@ -53,6 +53,7 @@ function exerciseWindow(runtime, identity) {
   dom.window.setInterval(() => document.body, 60_000);
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
   exerciseHostRoots(document);
+  exerciseTraversals(document);
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);
@@ -77,9 +78,25 @@ function exerciseWindow(runtime, identity) {
   dom.window.close();
 }
 
+/** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
+function exerciseTraversals(document) {
+  const root = document.createElement('div'); root.innerHTML = '<a>A<b>B</b></a><p>P</p>';
+  document.body.append(root);
+  const filter = (node) => node.nodeType === 1 ? 1 : 3;
+  const iterator = document.createNodeIterator(root, 0xffffffff, filter);
+  const walker = document.createTreeWalker(root, 0xffffffff, filter);
+  assert.equal(iterator.nextNode(), root); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.nextNode(), root.firstChild);
+  root.firstChild.remove(); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.currentNode.textContent, 'AB');
+  root.remove();
+  comparisonReferences.push(new WeakRef(iterator), new WeakRef(walker), new WeakRef(filter), new WeakRef(root));
+}
+
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
   exerciseHostRoots(target.document);
+  exerciseTraversals(target.document);
   const text = target.document.querySelector('p').firstChild;
   text.nodeValue = text.data;
   const rejectedText = target.document.createTextNode('invalid document child');
@@ -478,6 +495,8 @@ async function main() {
         nativeTree.abortStates.algorithms === initialAttributeState.abortStates.algorithms &&
         nativeTree.xmlParsers.live === initialAttributeState.xmlParsers.live &&
         nativeTree.xmlParsers.inputUnits === initialAttributeState.xmlParsers.inputUnits &&
+        nativeTree.traversals.live === initialAttributeState.traversals.live &&
+        nativeTree.traversals.operations === initialAttributeState.traversals.operations &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

@@ -69,6 +69,14 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const traversalSource = await readFile('src/dom/tree-cursor.cjs', 'utf8');
+await writeFile('dist/tree-cursor.cjs', substituteOnce(traversalSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+for (const implementation of ['NodeIterator', 'TreeWalker']) {
+  await writeFile(resolve(destination, `lib/jsdom/living/traversal/${implementation}-impl.js`),
+    '"use strict";\nconst { createTraversalImplementations } = require("../../../../../tree-cursor.cjs");\n' +
+    'const { domSymbolTree } = require("../helpers/internal-constants");\nconst DOMException = require("../generated/DOMException");\n' +
+    `exports.implementation = createTraversalImplementations(domSymbolTree, DOMException).${implementation}Impl;\n`);
+}
 const mutationRecordPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationRecord-impl.js');
 await writeFile(mutationRecordPath, '"use strict";\n' +
   'const { createMutationRecordImplementation } = require("../../../../../mutation-record.cjs");\n' +

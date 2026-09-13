@@ -6,6 +6,7 @@ const { createHash } = require('node:crypto');
 const { listenerFixture } = require('./event-listeners.cjs');
 const { abortFixture } = require('./abort-signal.cjs');
 const { xmlFixture } = require('./xml-parser.cjs');
+const { traversalFixture } = require('./tree-traversal.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -303,6 +304,7 @@ async function measure(name, size) {
   const measuresListeners = ['listener-register', 'listener-remove', 'listener-dispatch'].includes(name);
   const measuresAbort = ['abort-lifecycle', 'abort-any', 'abort-propagation'].includes(name);
   const measuresXml = ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].includes(name);
+  const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -329,6 +331,7 @@ async function measure(name, size) {
     let listenerWork;
     let abortWork;
     let xmlWork;
+    let traversalWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -361,6 +364,7 @@ async function measure(name, size) {
       if (measuresListeners) listenerWork = listenerFixture(runtime, dom.window, size, name);
       if (measuresAbort) abortWork = abortFixture(runtime, dom.window, size, name);
       if (measuresXml) { xmlWork = xmlFixture(runtime, size, name); measuredInputBytes = xmlWork.inputBytes; }
+      if (measuresTraversal) traversalWork = traversalFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
         simpleEventListener = (event) => { event.preventDefault(); simpleEventCalls++; simpleEventPhases += event.eventPhase; };
@@ -479,8 +483,10 @@ async function measure(name, size) {
       observerDeliveryWork?.prepare();
       listenerWork?.prepare();
       xmlWork?.prepare();
+      traversalWork?.prepare();
       const start = performance.now();
       if (xmlWork) result = xmlWork.run();
+      else if (traversalWork) result = traversalWork.run();
       else if (abortWork) result = abortWork.run();
       else if (listenerWork) result = listenerWork.run();
       else if (runsEventLifecycle) {
@@ -721,6 +727,7 @@ async function measure(name, size) {
       listenerWork?.validate(result);
       abortWork?.validate(result);
       xmlWork?.validate(result);
+      traversalWork?.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -937,6 +944,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['listener-register', 'listener-remove', 'listener-dispatch'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['abort-lifecycle', 'abort-any', 'abort-propagation'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

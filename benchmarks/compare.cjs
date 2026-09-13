@@ -31,6 +31,7 @@ for (const path of measuredSources) sourceDigest.update(path).update('\0').updat
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  traversalMethodology: 'Prepare a real NodeIterator or TreeWalker on the table body, then time a complete forward scan with SHOW_ELEMENT. Filter workloads invoke a real JS callback on each candidate, accepting rows and skipping other elements. Consume names and retain visited identities during timing; verify every identity and callback count outside timing. Setup and cursor construction are excluded; native/JS crossings and operation allocations are included.',
   requestedWorkloads, workerTimeoutMs, complete: false,
   node: process.version, jsdom: require('jsdom/package.json').version,
   rustc: spawnSync('rustc', ['-Vv'], { encoding: 'utf8' }).stdout?.trim() || null,

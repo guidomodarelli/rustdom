@@ -74,3 +74,12 @@ errores con la referencia; no certifica todos los encodings o estándares.
 Doctype y entidades añaden 216 casos públicos y 902 inputs de comparación de
 reglas. La validación general pasó 214 tests Rust y 910 Node, más instalación y
 memoria. Estos avances profundizan el área parcial; el índice no cambia por hito.
+
+El hito de recorridos en feature/native-tree-traversal migra los nueve movimientos
+de NodeIterator/TreeWalker, el control de filtros y la reparación de referencias a
+Rust. Sus 202 contratos focales y 1.598 resultados adicionales de WPT mantuvieron
+paridad con jsdom; 26 de esos WPT son fallos de estándar compartidos. La validación
+general pasó 218 tests Rust y 1.112 Node. GC focal, estrés de memoria y Memcheck
+pasaron dentro de sus límites documentados en reports/validation/tree-traversal.md.
+La migración general de Node permanece parcial: este avance no cambia el 37,5%
+provisional ni acredita que los PR pendientes estén integrados en main.

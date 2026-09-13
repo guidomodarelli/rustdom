@@ -4,6 +4,17 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native traversal preserves accepted positions and callback suspension. */
+const traversalTree = new native.NativeTree(); const traversalRoot = traversalTree.allocate();
+traversalTree.setData(traversalRoot, JSON.stringify({ kind: 1, name: 'root' }));
+const traversal = traversalTree.createTraversal(traversalRoot, 1, true);
+const traversalOperation = traversal.start(native.TraversalMethod.IteratorNext);
+assert.equal(traversalTree.traversalStep(traversal, traversalOperation).kind, native.TraversalAction.Filter);
+traversal.active = false; traversalOperation.resume(1);
+assert.equal(traversalTree.traversalStep(traversal, traversalOperation).node, traversalRoot);
+assert.equal(traversal.current, traversalRoot); assert.equal(traversal.before, false);
+traversalTree.release(traversalRoot);
+
 /** Installed XML transport resolves context prefixes and releases its input buffer. */
 const xmlParser = new native.NativeXmlParser('<p:r/>', true);
 assert.deepEqual(native.NativeXmlParser.describeDoctype(' r SYSTEM "installed"'), { name: 'r', publicId: '', systemId: 'installed' });

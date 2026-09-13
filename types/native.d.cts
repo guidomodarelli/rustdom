@@ -254,8 +254,32 @@ export class NativeRangeExtract {
   cancel(): void;
   static statistics(): NativeRangeStatistics;
 }
+/** Forward-only method names emitted by the native traversal enum. */
+export const TraversalMethod: { readonly IteratorNext: 0; readonly IteratorPrevious: 1; readonly Parent: 2; readonly FirstChild: 3; readonly LastChild: 4; readonly PreviousSibling: 5; readonly NextSibling: 6; readonly PreviousNode: 7; readonly NextNode: 8 };
+export type TraversalMethod = (typeof TraversalMethod)[keyof typeof TraversalMethod];
+export const TraversalAction: { readonly Complete: 0; readonly Filter: 1; readonly Accepted: 2; readonly Recursive: 3 };
+export type TraversalAction = (typeof TraversalAction)[keyof typeof TraversalAction];
+export interface TraversalInstruction { kind: TraversalAction; node: number; }
+export interface TraversalStatistics { live: number; created: number; released: number; operations: number; }
+/** Native traversal metadata. The host must keep roots, current nodes and pending candidates alive. */
+export class NativeTraversal {
+  private constructor();
+  current: number;
+  readonly before: boolean;
+  set active(value: boolean);
+  start(method: TraversalMethod): NativeTraversalOperation;
+  static statistics(): TraversalStatistics;
+}
+/** Resumable movement with no JavaScript references. Each requested filter must be resumed once. */
+export class NativeTraversalOperation {
+  private constructor();
+  resume(result: number): void;
+}
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
+  createTraversal(root: number, mask: number, hasFilter: boolean): NativeTraversal;
+  traversalStep(cursor: NativeTraversal, operation: NativeTraversalOperation): TraversalInstruction;
+  traversalPreRemove(cursor: NativeTraversal, removed: number): void;
   constructor();
   readonly handleBatchSize: number;
   allocate(): number;

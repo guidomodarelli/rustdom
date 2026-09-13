@@ -14,8 +14,20 @@ import nativeRuntime, {
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
   NativeXmlParser,
+  NativeTraversal, TraversalMethod, TraversalAction,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM traversal names drive actual native movement, preserving literal action types. */
+const traversalTree = new NativeTree(); const traversalRoot = traversalTree.allocate();
+traversalTree.setData(traversalRoot, JSON.stringify({ kind: 1, name: 'root' }));
+const traversal = traversalTree.createTraversal(traversalRoot, 1, false);
+const traversalMethod: TraversalMethod = TraversalMethod.IteratorNext;
+const traversalStep = traversalTree.traversalStep(traversal, traversal.start(traversalMethod));
+const traversalAction: TraversalAction = traversalStep.kind;
+assert.equal(traversalAction, TraversalAction.Accepted); assert.equal(traversalStep.node, traversalRoot);
+assert.equal(NativeTraversal, nativeRuntime.NativeTraversal);
+traversalTree.release(traversalRoot);
 
 /** Forward-only native actions retain their literal value union in installed consumers. */
 const slotAssignmentActions: readonly SlotAssignmentAction[] = [

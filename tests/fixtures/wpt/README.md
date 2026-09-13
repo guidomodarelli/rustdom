@@ -6,6 +6,13 @@ Fuente: web-platform-tests, commit `8d124dbe46f46f55531f28f13eccf1113f794c12`, u
 
 Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad. El manifiesto permite ampliar la cobertura sin cambiar los tests upstream. Para recuperar cualquier archivo, usar su blob en la revisión fijada; `.gitattributes` evita conversiones de saltos de línea que alterarían los hashes.
 
+La suite `tree-traversal` agrega los 16 fixtures HTML de `dom/traversal` y sus
+recursos de la misma revisión. Cubre constantes NodeFilter, NodeIterator,
+reparación ante remociones, movimientos TreeWalker, filtros y realms. Puede
+ejecutarse con `npm run test:wpt -- tree-traversal`. Los borradores XML de
+`dom/traversal/unfinished` no forman parte de esta suite. Los 26 fallos compartidos
+observados se preservan en los resultados, sin reemplazar assertions upstream.
+
 La suite `namespaces` incluye las consultas de prefijo, URI y namespace por defecto,
 con los fixtures originales HTML y XHTML. Se aplica la misma comparación de
 estados y mensajes, conservando también los fallos compartidos con jsdom.

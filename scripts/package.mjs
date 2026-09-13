@@ -24,7 +24,7 @@ for (const path of ['src/environments', 'types', 'README.md', 'LICENSE']) {
 }
 /** An explicit runtime manifest excludes stale tool transactions and binaries from other builds. */
 const runtimeFiles = ['index.cjs', 'index.mjs', 'native.cjs', 'native.mjs', 'native-tree.cjs',
-  'parser-bridge.cjs', 'xml-parser.cjs', 'compatibility-licenses', 'private-require.cjs', 'data-bridge.cjs', 'host-unicode.cjs', 'range-state.cjs',
+  'parser-bridge.cjs', 'xml-parser.cjs', 'tree-cursor.cjs', 'compatibility-licenses', 'private-require.cjs', 'data-bridge.cjs', 'host-unicode.cjs', 'range-state.cjs',
   'range-content-driver.cjs', 'range-errors.cjs', 'mutation-record.cjs', 'mutation-observer.cjs', 'event-state.cjs', 'event-listeners.cjs', 'abort-signal.cjs', 'native-build.json', 'rustdom.node', 'vendor-jsdom'];
 await mkdir(join(staging, 'dist'), { recursive: true });
 for (const name of runtimeFiles) await cp(resolve('dist', name), join(staging, 'dist', name), { recursive: true });

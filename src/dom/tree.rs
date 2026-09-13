@@ -33,6 +33,7 @@ use super::{
     range_surround::SurroundStatus,
     slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
+    tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
 };
 use napi::{
     Error, JsValue, Result, Status,
@@ -466,6 +467,31 @@ fn simple_data(kind: u16, value: String) -> NodeData {
 pub struct NativeTree {
     store: store::TreeStore,
     queries: QueryEngine,
+}
+
+#[napi]
+impl NativeTree {
+    #[napi]
+    pub fn create_traversal(
+        &self,
+        root: f64,
+        mask: u32,
+        has_filter: bool,
+    ) -> Result<NativeTraversal> {
+        NativeTraversal::create(&self.store, root, mask, has_filter)
+    }
+    #[napi]
+    pub fn traversal_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+    ) -> Result<TraversalInstruction> {
+        cursor.step(&self.store, operation)
+    }
+    #[napi]
+    pub fn traversal_pre_remove(&self, cursor: &mut NativeTraversal, removed: f64) -> Result<()> {
+        cursor.pre_remove(&self.store, removed)
+    }
 }
 
 #[napi]
