@@ -44,6 +44,10 @@ pub struct NativeObserverInterest {
 
 #[napi(object)]
 pub struct NativeObserverRegistryStatistics {
+    pub queued_records: f64,
+    pub queue_observers: f64,
+    pub queue_capacity: f64,
+    pub queue_map_capacity: f64,
     pub observers: f64,
     pub observed_nodes: f64,
     pub registrations: f64,
@@ -56,6 +60,10 @@ pub struct NativeObserverRegistryStatistics {
 impl From<ObserverRegistryStatistics> for NativeObserverRegistryStatistics {
     fn from(stats: ObserverRegistryStatistics) -> Self {
         Self {
+            queued_records: stats.queued_records as f64,
+            queue_observers: stats.queue_observers as f64,
+            queue_capacity: stats.queue_capacity as f64,
+            queue_map_capacity: stats.queue_map_capacity as f64,
             observers: stats.observers as f64,
             observed_nodes: stats.observed_nodes as f64,
             registrations: stats.registrations as f64,

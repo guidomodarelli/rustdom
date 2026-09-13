@@ -503,6 +503,21 @@ class NativeSymbolTree extends SymbolTree {
   disconnectMutationObserver(observer) {
     for (const id of this._arena.disconnectMutationObserver(observer._id)) this._objects.get(id)?.deref()?._observerOwners.delete(observer);
   }
+  /** @param {object} observer - Selected observer. @param {object} record - Complete real MutationRecord implementation. @returns {void} Native order and payload ownership are committed before retaining the V8 owner. */
+  enqueueMutationRecord(observer, record) {
+    observer._selfReference.deref();
+    const token = this._arena.enqueueMutationRecord(observer._id, record._nativeRecord);
+    observer._recordOwners.set(token, record);
+  }
+  /** @param {object} observer - Observer anchored for this synchronous drain. @returns {object[]} Existing record implementations in native queue order. */
+  takeMutationRecords(observer) {
+    observer._selfReference.deref();
+    return this._arena.takeMutationRecords(observer._id).map((token) => {
+      const record = observer._recordOwners.get(token);
+      observer._recordOwners.delete(token);
+      return record;
+    });
+  }
   /** @param {string} kind - Mutation kind. @param {object} target - Mutated node. @param {string|null} name - Attribute local name. @param {string|null} namespace - Attribute namespace. @param {string|null} oldValue - Producer snapshot. @returns {object[]} Native-selected observers and old-value effects in first-match order. */
   interestedMutationObservers(kind, target, name, namespace, oldValue) {
     const targetId = this._ensure(target);

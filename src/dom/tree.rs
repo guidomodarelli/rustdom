@@ -5,6 +5,7 @@ use super::{
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
     mutation_record::{MutationKind, MutationRecordDraft, MutationRecordState},
+    mutation_record_binding::NativeMutationRecord,
     napi_error::to_napi_error,
     napi_string::string_result,
     node_constraints::ConstraintStatus,
@@ -658,6 +659,39 @@ impl NativeTree {
     #[napi]
     pub fn observer_registry_statistics(&self) -> NativeObserverRegistryStatistics {
         self.store.observer_registry.statistics().into()
+    }
+
+    #[napi]
+    pub fn enqueue_mutation_record(
+        &mut self,
+        observer: f64,
+        record: &NativeMutationRecord,
+    ) -> Result<f64> {
+        self.store
+            .observer_registry
+            .enqueue_record(observer, record.shared_state())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn take_mutation_records(&mut self, observer: f64) -> Result<Vec<f64>> {
+        self.store
+            .observer_registry
+            .take_records(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn queued_mutation_record(
+        &self,
+        observer: f64,
+        token: f64,
+    ) -> Result<Option<NativeMutationRecord>> {
+        self.store
+            .observer_registry
+            .queued_record(observer, token)
+            .map(|record| record.map(NativeMutationRecord::from_shared))
+            .map_err(to_napi_error)
     }
 
     #[napi]

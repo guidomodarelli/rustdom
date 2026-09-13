@@ -205,6 +205,14 @@ sin retener nodos inalcanzables. `mutationObservers` informa miembros y
 capacidades. Las colas de records, microtasks y callbacks aún conservan drivers
 JS. Ver [contratos y evidencia de retención](reports/validation/mutation-observer-registration.md).
 
+Las colas por observador también conservan su orden y payloads en Rust. Un mapa
+JS mantiene los owners V8 por token; takeRecords y la entrega resuelven esos
+tokens sin cambiar la identidad de los registros. Los payloads inmutables se
+comparten sin retener árboles. `mutationObservers.queuedRecords` y
+`queueObservers` muestran su liveness separado del contador de wrappers. El
+lote activo y la programación/entrega aún mantienen trabajo pendiente de
+migración. Ver [contratos de colas](reports/validation/mutation-observer-queues.md).
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.

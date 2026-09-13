@@ -57,6 +57,8 @@ function isReleased(state, expected) {
     native.mutationObservers?.observers === expected.mutationObservers?.observers &&
     native.mutationObservers?.observedNodes === expected.mutationObservers?.observedNodes &&
     native.mutationObservers?.registrations === expected.mutationObservers?.registrations &&
+    native.mutationObservers?.queuedRecords === expected.mutationObservers?.queuedRecords &&
+    native.mutationObservers?.queueObservers === expected.mutationObservers?.queueObservers &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

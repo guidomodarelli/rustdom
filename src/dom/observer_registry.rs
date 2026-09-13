@@ -3,11 +3,13 @@ use super::{
     compact_storage::{CompactMap, CompactSet, compact_vector},
     data::DomString,
     error::{Result, TreeError},
-    mutation_record::MutationKind,
+    mutation_record::{MutationKind, MutationRecordState},
+    observer_queues::ObserverQueues,
     store::{NodeId, TreeStore, node_id},
 };
 use napi_derive::napi;
 use rustc_hash::{FxBuildHasher, FxHashMap};
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct ObserverOptionsInput {
@@ -119,6 +121,7 @@ pub(crate) struct ObserverRegistry {
     observers: CompactMap<u64, CompactSet<NodeId, FxBuildHasher>, FxBuildHasher>,
     nodes: CompactMap<NodeId, Vec<Registration>, FxBuildHasher>,
     next_id: u64,
+    queues: ObserverQueues,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -136,6 +139,10 @@ pub struct ObserverRegistryStatistics {
     pub node_capacity: usize,
     pub registration_capacity: usize,
     pub target_capacity: usize,
+    pub queued_records: usize,
+    pub queue_observers: usize,
+    pub queue_capacity: usize,
+    pub queue_map_capacity: usize,
 }
 
 impl ObserverRegistry {
@@ -190,6 +197,7 @@ impl ObserverRegistry {
 
     pub fn disconnect(&mut self, handle: f64) -> Result<Vec<f64>> {
         let observer = self.validate_observer(handle)?;
+        self.queues.discard(observer);
         let targets = std::mem::take(
             self.observers
                 .get_mut(&observer)
@@ -239,7 +247,12 @@ impl ObserverRegistry {
     }
 
     pub fn statistics(&self) -> ObserverRegistryStatistics {
+        let queues = self.queues.statistics();
         ObserverRegistryStatistics {
+            queued_records: queues.queued_records,
+            queue_observers: queues.queue_observers,
+            queue_capacity: queues.queue_capacity,
+            queue_map_capacity: queues.queue_map_capacity,
             observers: self.observers.len(),
             observed_nodes: self.nodes.len(),
             registrations: self.nodes.values().map(Vec::len).sum(),
@@ -252,6 +265,30 @@ impl ObserverRegistry {
                 .map(|targets| targets.capacity())
                 .sum(),
         }
+    }
+
+    pub fn enqueue_record(
+        &mut self,
+        observer: f64,
+        record: Arc<MutationRecordState>,
+    ) -> Result<f64> {
+        let observer = self.validate_observer(observer)?;
+        self.queues.enqueue(observer, record)
+    }
+
+    pub fn take_records(&mut self, observer: f64) -> Result<Vec<f64>> {
+        let observer = self.validate_observer(observer)?;
+        Ok(self.queues.take(observer))
+    }
+
+    pub fn queued_record(
+        &self,
+        observer: f64,
+        token: f64,
+    ) -> Result<Option<Arc<MutationRecordState>>> {
+        let observer = self.validate_observer(observer)?;
+        let token = node_id(token)?;
+        Ok(self.queues.get(observer, token))
     }
 }
 
@@ -327,6 +364,68 @@ mod tests {
             subtree,
             ..ObserverOptionsInput::default()
         }
+    }
+
+    #[test]
+    fn should_preserve_queued_payloads_on_registration_changes_and_clear_them_on_disconnect_or_release()
+     {
+        use crate::dom::mutation_record::MutationRecordDraft;
+        let mut tree = TreeStore::new();
+        let target = tree.allocate().unwrap();
+        let first = tree.observer_registry.allocate().unwrap();
+        let second = tree.observer_registry.allocate().unwrap();
+        let payload = Arc::new(
+            tree.mutation_record(MutationRecordDraft {
+                kind: "childList".into(),
+                target,
+                previous_sibling: 0.0,
+                next_sibling: 0.0,
+                attribute_name: None,
+                attribute_namespace: None,
+                old_value: None,
+                added_nodes: vec![],
+                removed_nodes: vec![],
+            })
+            .unwrap(),
+        );
+        let weak = Arc::downgrade(&payload);
+        let token = tree
+            .observer_registry
+            .enqueue_record(first, Arc::clone(&payload))
+            .unwrap();
+        tree.observer_registry
+            .enqueue_record(second, Arc::clone(&payload))
+            .unwrap();
+        let before = tree.observer_registry.statistics();
+        assert!(
+            tree.observer_registry
+                .enqueue_record(999.0, Arc::clone(&payload))
+                .is_err()
+        );
+        assert!(tree.observer_registry.take_records(999.0).is_err());
+        assert!(tree.observer_registry.queued_record(first, 0.0).is_err());
+        assert_eq!(tree.observer_registry.statistics(), before);
+        tree.observe_mutations(first, target, attributes(false, false))
+            .unwrap();
+        tree.observe_mutations(first, target, attributes(true, true))
+            .unwrap();
+        tree.release(target).unwrap();
+        drop(payload);
+        assert_eq!(
+            tree.observer_registry
+                .queued_record(first, token)
+                .unwrap()
+                .unwrap()
+                .target,
+            target as u64
+        );
+        assert_eq!(tree.observer_registry.statistics().queued_records, 2);
+        tree.observer_registry.disconnect(first).unwrap();
+        assert!(weak.upgrade().is_some());
+        tree.observer_registry.release(second).unwrap();
+        assert!(weak.upgrade().is_none());
+        assert_eq!(tree.observer_registry.statistics().queued_records, 0);
+        assert_eq!(tree.observer_registry.statistics().queue_capacity, 0);
     }
 
     #[test]
@@ -590,6 +689,10 @@ mod tests {
         assert_eq!(
             tree.observer_registry.statistics(),
             ObserverRegistryStatistics {
+                queued_records: 0,
+                queue_observers: 0,
+                queue_capacity: 0,
+                queue_map_capacity: 0,
                 observers: 0,
                 observed_nodes: 0,
                 registrations: 0,

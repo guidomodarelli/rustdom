@@ -464,6 +464,8 @@ async function main() {
         nativeTree.mutationObservers.observers === initialAttributeState.mutationObservers.observers &&
         nativeTree.mutationObservers.observedNodes === initialAttributeState.mutationObservers.observedNodes &&
         nativeTree.mutationObservers.registrations === initialAttributeState.mutationObservers.registrations &&
+        nativeTree.mutationObservers.queuedRecords === initialAttributeState.mutationObservers.queuedRecords &&
+        nativeTree.mutationObservers.queueObservers === initialAttributeState.mutationObservers.queueObservers &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

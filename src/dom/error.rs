@@ -7,6 +7,7 @@ pub enum TreeError {
     InvalidMutationRecordType,
     UnknownMutationObserver(u64),
     MutationObserverIdsExhausted,
+    MutationRecordTokensExhausted,
     UninitializedRange,
     RangeContentProtocol(&'static str),
     UnknownHandle(u64),
@@ -39,6 +40,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MutationRecordTokensExhausted => write!(
+                formatter,
+                "NativeTree cannot queue a mutation record beyond JavaScript's exact integer range"
+            ),
             Self::UnknownMutationObserver(observer) => write!(
                 formatter,
                 "NativeTree mutation observer {observer} is not allocated"

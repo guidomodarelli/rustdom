@@ -604,6 +604,11 @@ shadowHelpers = substituteOnce(shadowHelpers, 'const { signalSlotList, queueMuta
 await writeFile(shadowHelpersPath, shadowHelpers);
 const mutationObserversPath = resolve(destination, 'lib/jsdom/living/helpers/mutation-observers.js');
 let mutationObserversSource = await readFile(mutationObserversPath, 'utf8');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    observer._recordQueue.push(record);', '    domSymbolTree.enqueueMutationRecord(observer, record);');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    const records = [...mo._recordQueue];\n    mo._recordQueue = [];',
+  '    const records = domSymbolTree.takeMutationRecords(mo);');
 const observerSelectionStart = mutationObserversSource.indexOf('  const interestedObservers = new Map();');
 const observerSelectionEnd = mutationObserversSource.indexOf('  for (const [observer, mappedOldValue] of interestedObservers.entries()) {', observerSelectionStart);
 if (observerSelectionStart < 0 || observerSelectionEnd < observerSelectionStart) throw new Error('rustdom build: missing mutation observer selection boundary');

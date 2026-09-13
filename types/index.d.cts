@@ -48,7 +48,7 @@ export interface NativeSlotAssignmentDriverStatistics { live: number; created: n
 export interface NativeMutationRecordStatistics { live: number; created: number; released: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
 /** Native observer membership and retained allocation capacity, without JavaScript references. */
-export interface NativeMutationObserverStatistics { observers: number; observedNodes: number; registrations: number; observerCapacity: number; nodeCapacity: number; registrationCapacity: number; targetCapacity: number; }
+export interface NativeMutationObserverStatistics { observers: number; observedNodes: number; registrations: number; observerCapacity: number; nodeCapacity: number; registrationCapacity: number; targetCapacity: number; queuedRecords: number; queueObservers: number; queueCapacity: number; queueMapCapacity: number; }
 export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; slotAssignmentDrivers: NativeSlotAssignmentDriverStatistics; mutationRecords: NativeMutationRecordStatistics; mutationObservers: NativeMutationObserverStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */

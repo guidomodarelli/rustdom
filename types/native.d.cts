@@ -193,6 +193,12 @@ export class NativeTree {
   disconnectMutationObserver(observer: number): number[];
   interestedMutationObservers(target: number, kind: 'attributes' | 'characterData' | 'childList', name?: string | null, namespace?: string | null): NativeObserverInterest[];
   observerRegistryStatistics(): NativeMutationObserverStatistics;
+  /** Queue an immutable payload and return its binding token; no JavaScript object is retained natively. */
+  enqueueMutationRecord(observer: number, record: NativeMutationRecord): number;
+  /** Drain tokens in insertion order, releasing the queue's payload shares. */
+  takeMutationRecords(observer: number): number[];
+  /** Inspect a queued payload through an independent native wrapper, or null when that token is absent. */
+  queuedMutationRecord(observer: number, token: number): NativeMutationRecord | null;
   /** Takes the current batch and resets native queue storage before the caller delivers any callbacks. */
   takeSlotSignals(): number[];
   slotSignalStatistics(): NativeSlotSignalStatistics;

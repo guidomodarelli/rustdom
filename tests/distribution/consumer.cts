@@ -58,6 +58,12 @@ assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecor
 assert.ok(native.NativeMutationRecord.statistics().created > 0);
 const nativeObserver = tree.allocateMutationObserver();
 assert.equal(tree.observeMutations(nativeObserver, handle, { attributeOldValue: true }), native.ObservationStatus.Added);
+const queuedToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 1);
+assert.equal(tree.queuedMutationRecord(nativeObserver, queuedToken)?.oldValue, 'old\0\udc00');
+assert.deepEqual(tree.takeMutationRecords(nativeObserver), [queuedToken]);
+assert.equal(tree.queuedMutationRecord(nativeObserver, queuedToken), null);
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 0);
 assert.deepEqual(tree.interestedMutationObservers(handle, 'attributes', 'title', null), [{ observer: nativeObserver, oldValue: true }]);
 assert.equal(tree.observeMutations(nativeObserver, handle, {}), native.ObservationStatus.MissingMutationKind);
 assert.deepEqual(tree.disconnectMutationObserver(nativeObserver), [handle]);

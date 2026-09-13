@@ -7,7 +7,7 @@ function createMutationObserverImplementation(tree, wrapperForImpl) {
     /** @param {object} globalObject - Creation realm. @param {Function[]} args - Converted callback. */
     constructor(globalObject, args) {
       this._callback = args[0];
-      this._recordQueue = [];
+      this._recordOwners = new Map();
       this._id = tree.allocateMutationObserver(this);
       this._selfReference = new WeakRef(this);
     }
@@ -20,13 +20,12 @@ function createMutationObserverImplementation(tree, wrapperForImpl) {
     disconnect() {
       this._selfReference.deref();
       tree.disconnectMutationObserver(this);
-      this._recordQueue = [];
+      this._recordOwners.clear();
     }
     /** @returns {MutationRecord[]} Existing wrappers in queue order; delivery remains with the host scheduler. */
     takeRecords() {
-      const records = this._recordQueue.map(wrapperForImpl);
-      this._recordQueue = [];
-      return records;
+      this._selfReference.deref();
+      return tree.takeMutationRecords(this).map(wrapperForImpl);
     }
   };
 }
