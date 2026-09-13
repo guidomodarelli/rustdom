@@ -127,6 +127,8 @@ export class NativeTree {
   rootHost(root: number): number;
   /** Retargets a node through shadow hosts; reference zero represents a non-node target. */
   retarget(node: number, reference: number): number;
+  /** Finds the first HTML slot with an exact UTF-16 name inside a DocumentFragment; zero means no match. */
+  findSlot(root: number, name: string): number;
   shadowIncludingRoot(node: number): number;
   isShadowInclusiveAncestor(ancestor: number, node: number): boolean;
   isHostInclusiveAncestor(ancestor: number, node: number): boolean;

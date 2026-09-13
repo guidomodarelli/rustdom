@@ -151,7 +151,10 @@ El retargeting de eventos recorre esas relaciones en Rust para elegir el target
 visible desde cada referencia, incluidos árboles shadow separados. El recorrido
 común evita crear un conjunto de ancestros; los cruces restantes comparten un
 conjunto temporal de raíces de referencia. No agrega referencias persistentes.
-Los guards originales y la entrega de eventos, listeners y slots siguen en JS.
+Los guards originales y la entrega de eventos y listeners siguen en JS.
+La búsqueda del primer slot HTML también recorre Rust y compara nombres
+UTF-16; los guards de raíces abiertas/cerradas, la asignación de listas,
+su aplanado y las notificaciones conservan los drivers JavaScript.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

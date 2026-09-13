@@ -31,6 +31,9 @@ const NODE_ROOT_ITERATIONS = 1000;
 const SHADOW_CREATION_COUNT = 100;
 /** Include event creation, dispatch and retargeted listener observations. */
 const RETARGET_EVENT_COUNT = 100;
+/** Exercise both prepared slot reads and assignment with its mutation hooks. */
+const SLOT_LOOKUP_ITERATIONS = 1000;
+const SLOT_REASSIGNMENT_ITERATIONS = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -88,6 +91,8 @@ async function measure(name, size) {
   const queriesShadowRoots = name === 'shadow-roots-1000';
   const createsShadowHosts = name === 'shadow-hosts-create-100';
   const dispatchesRetargetEvents = name === 'shadow-retarget-events-100';
+  const queriesSlots = name === 'slot-lookup-1000';
+  const reassignsSlots = name === 'slot-reassign-100';
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -136,7 +141,17 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents) shadowRoots = [];
+      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || queriesSlots || reassignsSlots) shadowRoots = [];
+      let slotTarget; let slots; let slotNames;
+      if (queriesSlots || reassignsSlots) {
+        const slotHost = document.body.appendChild(document.createElement('section'));
+        const root = slotHost.attachShadow({ mode: 'open' });
+        root.innerHTML = Array.from({ length: size }, (_, index) => `<slot name="slot-${index}">fallback-${index}</slot>`).join('');
+        slots = [...root.querySelectorAll('slot')]; slotNames = [slots[0].name, slots.at(-1).name];
+        slotTarget = document.createElement('b'); slotTarget.textContent = 'assigned'; slotTarget.slot = slotNames[1];
+        slotHost.append(slotTarget); shadowRoots.push(root);
+        assert.equal(slotTarget.assignedSlot, slots.at(-1));
+      }
       if (queriesShadowRoots) {
         shadowTarget = shadowChain(document, size, shadowRoots).leaf;
       }
@@ -222,7 +237,14 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (dispatchesRetargetEvents) {
+      if (queriesSlots || reassignsSlots) {
+        result = 0;
+        const iterations = queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS;
+        for (let iteration = 0; iteration < iterations; iteration++) {
+          if (reassignsSlots) slotTarget.slot = slotNames[iteration % 2];
+          result += Number(slotTarget.assignedSlot === (queriesSlots || iteration % 2 ? slots.at(-1) : slots[0]));
+        }
+      } else if (dispatchesRetargetEvents) {
         for (let index = 0; index < RETARGET_EVENT_COUNT; index++) {
           shadowTarget.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, composed: true, relatedTarget }));
         }
@@ -429,7 +451,13 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : SHADOW_CREATION_COUNT);
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : queriesSlots || reassignsSlots ? 1 : SHADOW_CREATION_COUNT);
+        if (queriesSlots || reassignsSlots) {
+          assert.equal(result, queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS);
+          assert.equal(slots.length, size);
+          assert.deepEqual(slots.at(-1).assignedNodes(), [slotTarget]);
+          for (const slot of slots.slice(0, -1)) assert.deepEqual(slot.assignedNodes(), []);
+        }
         if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
         if (dispatchesRetargetEvents) { assert.equal(observedRetargetEvents, RETARGET_EVENT_COUNT); assert.equal(invalidRetargetEvents, 0); }
         for (const root of shadowRoots) assert.equal(root.host.getRootNode({ composed: true }), document);
@@ -561,6 +589,7 @@ async function main() {
     ...[25, 100].map((size) => ({ name: 'shadow-roots-1000', size })),
     { name: 'shadow-hosts-create-100', size: 25 },
     ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
+    ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

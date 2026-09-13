@@ -542,6 +542,16 @@ shadowHelpers = shadowHelpers.slice(0, retargetStart) +
   '  if (!isNode(a)) return a;\n' +
   '  if (!isShadowRoot(nodeRoot(a))) return a;\n' +
   '  return domSymbolTree.retarget(a, isNode(b) ? b : null);\n}\n\n' + shadowHelpers.slice(retargetEnd);
+const findSlotStart = shadowHelpers.indexOf('function findSlot(slotable, openFlag) {');
+const findSlotEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#signal-a-slot-change', findSlotStart);
+if (findSlotStart < 0 || findSlotEnd < findSlotStart) throw new Error('rustdom build: findSlot helper boundary changed');
+shadowHelpers = shadowHelpers.slice(0, findSlotStart) +
+  'function findSlot(slotable, openFlag) {\n' +
+  '  const { parentNode: parent } = slotable;\n' +
+  '  if (!parent) return null;\n' +
+  '  const shadow = parent._shadowRoot;\n' +
+  '  if (!shadow || (openFlag && shadow.mode !== "open")) return null;\n' +
+  '  return domSymbolTree.findSlot(shadow, slotable._slotableName);\n}\n\n' + shadowHelpers.slice(findSlotEnd);
 await writeFile(shadowHelpersPath, shadowHelpers);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
