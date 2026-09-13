@@ -117,6 +117,14 @@ pub struct SlotBacklinkStatistics {
 }
 
 #[napi(object)]
+pub struct SlotSignalStatistics {
+    pub pending_slots: f64,
+    pub queue_entries: f64,
+    pub queue_capacity: f64,
+    pub membership_capacity: f64,
+}
+
+#[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
     pub parent: f64,
@@ -563,6 +571,27 @@ impl NativeTree {
     #[napi]
     pub fn event_parent(&self, node: f64) -> Result<f64> {
         self.store.event_parent(node).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn queue_slot_signal(&mut self, slot: f64) -> Result<bool> {
+        self.store.queue_slot_signal(slot).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn take_slot_signals(&mut self) -> Vec<f64> {
+        self.store.take_slot_signals()
+    }
+
+    #[napi]
+    pub fn slot_signal_statistics(&self) -> SlotSignalStatistics {
+        let state = self.store.slot_signals.statistics();
+        SlotSignalStatistics {
+            pending_slots: state.pending_slots as f64,
+            queue_entries: state.queue_entries as f64,
+            queue_capacity: state.queue_capacity as f64,
+            membership_capacity: state.membership_capacity as f64,
+        }
     }
 
     #[napi]

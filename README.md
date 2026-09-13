@@ -176,6 +176,12 @@ reemplazarlo o finalizar cualquiera de sus extremos limpia el índice inverso.
 `slotBacklinks` informa conteos y capacidades, incluidos los conjuntos de owners.
 El padre de eventos ordinario de Node se selecciona en Rust en una llamada;
 los overrides de Document/ShadowRoot y la entrega de señales y eventos siguen en JS.
+La cola de señales de slots conserva orden y deduplicación en Rust. Su lote se
+retira antes de invocar observadores; las señales nuevas de callbacks quedan en
+el siguiente lote. V8 conserva los owners pendientes y el snapshot de entrega.
+`slotSignals` informa señales vivas, entradas y capacidades; las entradas raw
+finalizadas se descartan al compactar o vaciar. La programación del microtask y
+la invocación de observadores/listeners conservan sus drivers JavaScript.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

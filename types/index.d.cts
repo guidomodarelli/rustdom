@@ -40,8 +40,10 @@ export interface NativeSlotableNameStatistics { namedNodes: number; capacity: nu
 export interface NativeSlotAssignmentStatistics { slots: number; entries: number; members: number; slotCapacity: number; memberCapacity: number; vectorCapacity: number; }
 /** Recorded slot links and capacities, including the reverse owner sets. */
 export interface NativeSlotBacklinkStatistics { assignedNodes: number; slotOwners: number; nodeCapacity: number; ownerCapacity: number; referenceCapacity: number; }
+/** Live queued slots and storage, including finalized numeric entries awaiting compaction or drain. */
+export interface NativeSlotSignalStatistics { pendingSlots: number; queueEntries: number; queueCapacity: number; membershipCapacity: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
-export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
+export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */
 export function getParserStatistics(): ParserStatistics;

@@ -41,6 +41,7 @@ mod serialization;
 mod slot_assignments;
 mod slot_backlinks;
 mod slot_flatten;
+mod slot_signals;
 mod slotable_names;
 mod slots;
 mod store;

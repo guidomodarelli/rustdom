@@ -27,6 +27,7 @@ class NativeSymbolTree extends SymbolTree {
     initializeHostUnicode(this._arena, process.versions.unicode);
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
+    this._signalSlotOwners = [];
     this._nextHandle = 0;
     this._handleLimit = 0;
     const arena = this._arena;
@@ -451,6 +452,16 @@ class NativeSymbolTree extends SymbolTree {
     const id = this._ensure(node); this._object(id);
     return this._object(this._arena.eventParent(id));
   }
+  /** @param {object} slot - Signaled slot. @returns {void} Keeps one V8 owner only when the native queue accepts a new member. */
+  queueSlotSignal(slot) {
+    if (this._arena.queueSlotSignal(this._ensure(slot))) this._signalSlotOwners.push(slot);
+  }
+  /** @returns {object[]} Drains native order and resolves every identity before releasing the pending ownership array. */
+  takeSlotSignals() {
+    const slots = this._arena.takeSlotSignals().map((id) => this._object(id));
+    this._signalSlotOwners = [];
+    return slots;
+  }
   /** @param {object} slot - Input implementation anchoring its tree and host. @returns {object[]} Flattened original nodes; temporary IDs do not own them. */
   findFlattenedSlotables(slot) {
     const id = this._ensure(slot);
@@ -751,6 +762,7 @@ class NativeSymbolTree extends SymbolTree {
       rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
       slotAssignments: this._arena.slotAssignmentStatistics(),
       slotBacklinks: this._arena.slotBacklinkStatistics(),
+      slotSignals: this._arena.slotSignalStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }
