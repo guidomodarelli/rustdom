@@ -624,6 +624,10 @@ impl NativeTree {
         self.store.root_host(root).map_err(to_napi_error)
     }
     #[napi]
+    pub fn retarget(&self, node: f64, reference: f64) -> Result<f64> {
+        self.store.retarget(node, reference).map_err(to_napi_error)
+    }
+    #[napi]
     pub fn shadow_including_root(&self, node: f64) -> Result<f64> {
         self.store
             .shadow_including_root(node)

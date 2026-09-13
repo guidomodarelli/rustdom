@@ -147,6 +147,12 @@ separadas de los enlaces padre/hijo. Los recorridos de raíz compuesta y
 ascendencia con hosts usan ese registro; JavaScript conserva las referencias
 de ownership visibles a V8. `rootHosts` expone sus contadores y capacidades.
 
+El retargeting de eventos recorre esas relaciones en Rust para elegir el target
+visible desde cada referencia, incluidos árboles shadow separados. El recorrido
+común evita crear un conjunto de ancestros; los cruces restantes comparten un
+conjunto temporal de raíces de referencia. No agrega referencias persistentes.
+Los guards originales y la entrega de eventos, listeners y slots siguen en JS.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
