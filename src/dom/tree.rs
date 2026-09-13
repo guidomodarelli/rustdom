@@ -92,6 +92,22 @@ pub struct SlotableNameStatistics {
 }
 
 #[napi(object)]
+pub struct SlotAssignmentPlan {
+    pub changed: bool,
+    pub nodes: Vec<f64>,
+}
+
+#[napi(object)]
+pub struct SlotAssignmentStatistics {
+    pub slots: f64,
+    pub entries: f64,
+    pub members: f64,
+    pub slot_capacity: f64,
+    pub member_capacity: f64,
+    pub vector_capacity: f64,
+}
+
+#[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
     pub parent: f64,
@@ -489,6 +505,50 @@ impl NativeTree {
         SlotableNameStatistics {
             named_nodes: named_nodes as f64,
             capacity: capacity as f64,
+        }
+    }
+
+    #[napi]
+    pub fn slot_assignment_plan(&self, slot: f64) -> Result<SlotAssignmentPlan> {
+        self.store
+            .slot_assignment_plan(slot)
+            .map(|plan| SlotAssignmentPlan {
+                changed: plan.changed,
+                nodes: plan.nodes,
+            })
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn set_slot_assignment(&mut self, slot: f64, nodes: Vec<f64>) -> Result<()> {
+        self.store
+            .set_slot_assignment(slot, &nodes)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn cached_slotables(&self, slot: f64) -> Result<Vec<f64>> {
+        self.store.cached_slotables(slot).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn assigned_node_count(&self, slot: f64) -> Result<f64> {
+        self.store
+            .assigned_node_count(slot)
+            .map(|count| count as f64)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn slot_assignment_statistics(&self) -> SlotAssignmentStatistics {
+        let state = self.store.slot_assignments.statistics();
+        SlotAssignmentStatistics {
+            slots: state.slots as f64,
+            entries: state.entries as f64,
+            members: state.members as f64,
+            slot_capacity: state.slot_capacity as f64,
+            member_capacity: state.member_capacity as f64,
+            vector_capacity: state.vector_capacity as f64,
         }
     }
 

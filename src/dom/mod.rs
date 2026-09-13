@@ -38,6 +38,7 @@ mod root_hosts;
 mod selector_element;
 mod selector_syntax;
 mod serialization;
+mod slot_assignments;
 mod slot_flatten;
 mod slotable_names;
 mod slots;

@@ -139,7 +139,17 @@ assert.equal(hostTree.getSlotableName(nativeCdata), ''); hostTree.setSlotableNam
 assert.equal(hostTree.findSlotFor(hostedRoot, nativeCdata), nativeSlot);
 hostTree.append(rootHost, nativeCdata); assert.deepEqual(hostTree.findSlotables(nativeSlot), [nativeCdata]);
 assert.deepEqual(hostTree.findFlattenedSlotables(nativeSlot), [nativeCdata]);
+const assignmentPlan = hostTree.slotAssignmentPlan(nativeSlot);
+assert.deepEqual(assignmentPlan, { changed: true, nodes: [nativeCdata] });
+assert.deepEqual(hostTree.cachedSlotables(nativeSlot), []);
+hostTree.setSlotAssignment(nativeSlot, assignmentPlan.nodes);
+assert.deepEqual(hostTree.cachedSlotables(nativeSlot), [nativeCdata]);
+assert.equal(hostTree.assignedNodeCount(nativeSlot), 1);
+assert.equal(hostTree.slotAssignmentPlan(nativeSlot).changed, false);
+assert.equal(hostTree.slotAssignmentStatistics().entries, 1);
 hostTree.release(nativeCdata);
+assert.deepEqual(hostTree.cachedSlotables(nativeSlot), []);
+assert.equal(hostTree.slotAssignmentStatistics().entries, 0);
 hostTree.release(nativeSlot);
 hostTree.release(rootHost); assert.equal(hostTree.rootHost(hostedRoot), 0); hostTree.release(hostedRoot);
 assert.equal(hostTree.rootHostStatistics().hostedRoots, 0); assert.equal(hostTree.rootHostStatistics().hostOwners, 0);

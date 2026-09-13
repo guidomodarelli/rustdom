@@ -163,7 +163,13 @@ La selección actual de asignados también se calcula en Rust: verifica el prime
 slot del nombre y filtra los hijos del host en orden, sin buscar repetidamente
 entre todos los slots por cada descendiente. El aplanado se calcula
 en Rust con una pila explícita, preserva fallback y CDATA y detecta ciclos en
-grafos raw. Las listas cacheadas y la entrega de señales siguen en JavaScript.
+grafos raw. Las listas cacheadas también son canónicas en Rust: un plan captura
+candidatos y decide si corresponde señalar un cambio antes de confirmar la lista.
+El driver mantiene el orden de señalización, commit y backlinks; V8 conserva un
+espejo de referencias únicamente para ownership. `assignedNodes()` lee el estado
+nativo y devuelve snapshots independientes. `slotAssignments` expone conteos y
+capacidades; liberar cualquiera de los extremos retira las referencias numéricas.
+La entrega de señales y los backlinks `_assignedSlot` siguen en JavaScript.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
