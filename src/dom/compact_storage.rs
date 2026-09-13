@@ -1,30 +1,27 @@
-//! Reclaim sparse attribute hash tables even when tombstones hide their allocated bucket count.
+//! Reclaim sparse native hash tables even when tombstones hide their allocated bucket count.
 use std::collections::{HashMap, HashSet, hash_map::RandomState};
 use std::hash::{BuildHasher, Hash};
 use std::ops::{Deref, DerefMut};
 
 /// Keep small allocations reusable while giving large sparse indexes room for the next burst.
-const MIN_REUSABLE_ATTRIBUTE_CAPACITY: usize = 16;
+const MIN_REUSABLE_CAPACITY: usize = 16;
 /// Rehash only after at least three quarters of a large allocation become unused.
-const ATTRIBUTE_COMPACTION_RATIO: usize = 4;
+const COMPACTION_RATIO: usize = 4;
 
 fn reduced_capacity(length: usize, capacity: usize) -> Option<usize> {
-    if capacity > MIN_REUSABLE_ATTRIBUTE_CAPACITY * ATTRIBUTE_COMPACTION_RATIO
-        && length <= capacity / ATTRIBUTE_COMPACTION_RATIO
+    if capacity > MIN_REUSABLE_CAPACITY * COMPACTION_RATIO && length <= capacity / COMPACTION_RATIO
     {
         Some(if length == 0 {
             0
         } else {
-            length
-                .saturating_mul(2)
-                .max(MIN_REUSABLE_ATTRIBUTE_CAPACITY)
+            length.saturating_mul(2).max(MIN_REUSABLE_CAPACITY)
         })
     } else {
         None
     }
 }
 
-pub(super) fn compact_vector<Value>(values: &mut Vec<Value>) {
+pub(crate) fn compact_vector<Value>(values: &mut Vec<Value>) {
     if let Some(target) = reduced_capacity(values.len(), values.capacity()) {
         values.shrink_to(target);
     }
@@ -82,7 +79,7 @@ impl<Key: Eq + Hash, Value, Hasher: BuildHasher + Clone> CompactMap<Key, Value, 
     }
 }
 
-/// Holder and constructor-owner sets need the same protection as keyed attribute tables.
+/// Native owner/reference sets need the same protection as keyed tables.
 pub struct CompactSet<Value, Hasher> {
     values: HashSet<Value, Hasher>,
     allocated_capacity: usize,
@@ -164,7 +161,7 @@ mod tests {
         // Reusing a table full of tombstones exposes its old bucket allocation again.
         values.insert(count, count);
         println!(
-            "attribute-storage map remaining={remaining} peak={count} after-reuse={}",
+            "compact-storage map remaining={remaining} peak={count} after-reuse={}",
             values.capacity()
         );
         assert!(values.capacity() < 256);
@@ -188,7 +185,7 @@ mod tests {
         }
         values.insert(count);
         println!(
-            "attribute-storage set remaining={remaining} peak={count} after-reuse={}",
+            "compact-storage set remaining={remaining} peak={count} after-reuse={}",
             values.capacity()
         );
         assert!(values.capacity() < 256);

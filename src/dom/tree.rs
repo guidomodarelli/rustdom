@@ -75,6 +75,15 @@ pub struct NormalizationGroup {
     pub siblings: Vec<f64>,
 }
 
+/// Numeric host registry diagnostics, without retaining DOM objects.
+#[napi(object)]
+pub struct RootHostStatistics {
+    pub hosted_roots: f64,
+    pub host_owners: f64,
+    pub root_capacity: f64,
+    pub owner_capacity: f64,
+}
+
 #[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
@@ -603,6 +612,44 @@ impl NativeTree {
     #[napi]
     pub fn node_root(&self, handle: f64) -> Result<f64> {
         self.store.node_root(handle).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn set_root_host(&mut self, root: f64, host: f64, shadow: bool) -> Result<()> {
+        self.store
+            .set_root_host(root, host, shadow)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn root_host(&self, root: f64) -> Result<f64> {
+        self.store.root_host(root).map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn shadow_including_root(&self, node: f64) -> Result<f64> {
+        self.store
+            .shadow_including_root(node)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn is_shadow_inclusive_ancestor(&self, ancestor: f64, node: f64) -> Result<bool> {
+        self.store
+            .is_shadow_inclusive_ancestor(ancestor, node)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn is_host_inclusive_ancestor(&self, ancestor: f64, node: f64) -> Result<bool> {
+        self.store
+            .is_host_inclusive_ancestor(ancestor, node)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn root_host_statistics(&self) -> RootHostStatistics {
+        let state = self.store.root_host_statistics();
+        RootHostStatistics {
+            hosted_roots: state.hosted_roots as f64,
+            host_owners: state.host_owners as f64,
+            root_capacity: state.root_capacity as f64,
+            owner_capacity: state.owner_capacity as f64,
+        }
     }
     #[napi]
     pub fn pre_insert_constraints(

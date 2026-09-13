@@ -404,6 +404,32 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} node - DOM implementation. @returns {number} Pinned DOM length in UTF-16 units or children. */
   nodeLength(node) { return this._arena.nodeLength(this._ensure(node)); }
+  /** @param {object} root - Fragment implementation. @returns {object|null|undefined} Original host value with a V8-visible ownership edge. */
+  rootHost(root) { return this._node(root).nativeHost; }
+  /** @param {object} root - Fragment implementation, possibly still constructing. @param {object|null|undefined} host - Original host value. @param {boolean} shadow - ShadowRoot relationship rather than template ownership. @returns {void} Commits numeric links before changing the visible ownership edge. */
+  setRootHost(root, host, shadow) {
+    const record = this._node(root);
+    if (!host) {
+      if (record.nativeHost) this._arena.setRootHost(this._identify(root), 0, false);
+      record.nativeHost = host; return;
+    }
+    this._arena.setRootHost(this._identify(root), this._identify(host), shadow);
+    record.nativeHost = host;
+  }
+  /** @param {object} node - DOM implementation. @returns {object} Native shadow-including root; template hosts are not crossed. */
+  shadowIncludingRoot(node) {
+    if (!node) return super.parent(node);
+    return this._object(this._arena.shadowIncludingRoot(this._ensure(node)));
+  }
+  /** @param {object} ancestor - Candidate ancestor. @param {object} node - Descendant candidate. @returns {boolean} Shadow-including ancestry. */
+  isShadowInclusiveAncestor(ancestor, node) {
+    return this._arena.isShadowInclusiveAncestor(this._ensure(ancestor), this._ensure(node));
+  }
+  /** @param {object|null} ancestor - Candidate ancestor. @param {object} node - Descendant candidate. @returns {boolean} Host-inclusive ancestry, including template hosts. */
+  isHostInclusiveAncestor(ancestor, node) {
+    if (!node) return super.parent(node);
+    return Boolean(ancestor) && this._arena.isHostInclusiveAncestor(this._ensure(ancestor), this._ensure(node));
+  }
   /** @param {object} parent - Validated insertion parent. @param {object} node - Candidate node. @param {object|null} child - Reference child or append. @param {object} exceptionFactory - Original DOMException factory. @returns {void} Throws in the parent's realm when native constraints reject insertion. */
   validateInsertionConstraints(parent, node, child, exceptionFactory) {
     const status = this._arena.preInsertConstraints(this._ensure(parent), this._ensure(node), child ? this._ensure(child) : 0);
@@ -669,7 +695,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
-      rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
+      rootHosts: this._arena.rootHostStatistics(), rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }
 

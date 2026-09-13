@@ -204,6 +204,11 @@ const equalityStart = nodeSource.indexOf('function nodeEquals(a, b) {');
 const equalityEnd = nodeSource.indexOf('// https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor', equalityStart);
 if (equalityStart < 0 || equalityEnd < equalityStart) throw new Error('rustdom build: Node equality boundary changed');
 nodeSource = nodeSource.slice(0, equalityStart) + nodeSource.slice(equalityEnd);
+const hostAncestorStart = nodeSource.indexOf('function isHostInclusiveAncestor(nodeImplA, nodeImplB) {');
+const hostAncestorEnd = nodeSource.indexOf('\nclass NodeImpl ', hostAncestorStart);
+if (hostAncestorStart < 0 || hostAncestorEnd < hostAncestorStart) throw new Error('rustdom build: host ancestor helper boundary changed');
+nodeSource = nodeSource.slice(0, hostAncestorStart) +
+  'function isHostInclusiveAncestor(nodeImplA, nodeImplB) { return domSymbolTree.isHostInclusiveAncestor(nodeImplA, nodeImplB); }\n' + nodeSource.slice(hostAncestorEnd);
 const positionStart = nodeSource.indexOf('  compareDocumentPosition(other) {');
 const positionEnd = nodeSource.indexOf('  lookupPrefix(namespace) {', positionStart);
 if (positionStart < 0 || positionEnd < positionStart) throw new Error('rustdom build: Node position boundary changed');
@@ -507,6 +512,29 @@ await writeFile(geometryHelpersPath, '"use strict";\n' +
   '  nodeRoot(node) { return domSymbolTree.nodeRoot(node); },\n' +
   '  isInclusiveAncestor(ancestor, node) { return domSymbolTree.isInclusiveAncestor(ancestor, node); },\n' +
   '  isFollowing(node, reference) { return domSymbolTree.isFollowing(node, reference); }\n};\n');
+/** All fragment host assignments, including parse5 template replacement, share native registration. */
+const fragmentImplementationPath = resolve(destination, 'lib/jsdom/living/nodes/DocumentFragment-impl.js');
+let fragmentImplementation = await readFile(fragmentImplementationPath, 'utf8');
+fragmentImplementation = substituteOnce(fragmentImplementation, '  // This is implemented separately for Document',
+  '  get _host() { return domSymbolTree.rootHost(this); }\n' +
+  '  set _host(host) { domSymbolTree.setRootHost(this, host, "host" in this); }\n\n' +
+  '  // This is implemented separately for Document');
+await writeFile(fragmentImplementationPath, fragmentImplementation);
+/** Preserve helper input guards while native traversal distinguishes shadow and template hosts. */
+const shadowHelpersPath = resolve(destination, 'lib/jsdom/living/helpers/shadow-dom.js');
+let shadowHelpers = await readFile(shadowHelpersPath, 'utf8');
+shadowHelpers = substituteOnce(shadowHelpers,
+  'function shadowIncludingRoot(node) {\n  const root = nodeRoot(node);\n  return isShadowRoot(root) ? shadowIncludingRoot(root.host) : root;\n}',
+  'function shadowIncludingRoot(node) { return domSymbolTree.shadowIncludingRoot(node); }');
+const shadowAncestorStart = shadowHelpers.indexOf('function isShadowInclusiveAncestor(ancestor, node) {');
+const shadowAncestorEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#retarget', shadowAncestorStart);
+if (shadowAncestorStart < 0 || shadowAncestorEnd < shadowAncestorStart) throw new Error('rustdom build: shadow ancestor helper boundary changed');
+shadowHelpers = shadowHelpers.slice(0, shadowAncestorStart) +
+  'function isShadowInclusiveAncestor(ancestor, node) {\n' +
+  '  if (!isNode(node)) return false;\n' +
+  '  if (!ancestor || (typeof ancestor !== "object" && typeof ancestor !== "function") || !("nodeType" in ancestor)) return false;\n' +
+  '  return domSymbolTree.isShadowInclusiveAncestor(ancestor, node);\n}\n\n' + shadowHelpers.slice(shadowAncestorEnd);
+await writeFile(shadowHelpersPath, shadowHelpers);
 /** All public namespace callers now reach Rust; remove the unused recursive helpers. */
 const nodeHelpersPath = resolve(destination, 'lib/jsdom/living/node.js');
 let nodeHelpers = await readFile(nodeHelpersPath, 'utf8');

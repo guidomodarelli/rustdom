@@ -120,6 +120,15 @@ assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textH
 assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);
 assert.deepEqual(rangeState.characterDataPlan(textHandle, 1, 3, 2), [{ start: false, node: textHandle, offset: 6 }]);
 assert.equal(rangeState.endOffset, 7);
+/** Host links remain separate from ordinary topology and disappear with either endpoint. */
+const hostTree = new native.NativeTree(); const hostedRoot = hostTree.allocate(); const rootHost = hostTree.allocate();
+hostTree.setRootHost(hostedRoot, rootHost, true);
+hostTree.setData(hostedRoot, '{"kind":11}'); hostTree.setHtmlElement(rootHost, 'div', []);
+assert.equal(hostTree.shadowIncludingRoot(hostedRoot), rootHost);
+assert.equal(hostTree.isHostInclusiveAncestor(rootHost, hostedRoot), true);
+assert.equal(hostTree.isShadowInclusiveAncestor(rootHost, hostedRoot), true);
+hostTree.release(rootHost); assert.equal(hostTree.rootHost(hostedRoot), 0); hostTree.release(hostedRoot);
+assert.equal(hostTree.rootHostStatistics().hostedRoots, 0); assert.equal(hostTree.rootHostStatistics().hostOwners, 0);
 const mutableRange = rangeState.copy(); mutableRange.applyCharacterData(textHandle, 1, 3, 2);
 assert.equal(mutableRange.endOffset, 6); assert.equal(rangeState.endOffset, 7);
 assert.equal(mutableRange.applyTreeMutation(native.RangeMutationKind.SplitText, textHandle, namespaceHandle, 2, 0), native.RangeEndpoint.End);

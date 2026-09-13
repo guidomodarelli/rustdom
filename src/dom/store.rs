@@ -61,6 +61,7 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    pub(crate) root_hosts: super::root_hosts::RootHosts,
     pub(crate) unicode_case: super::unicode_case::UnicodeCaseMapping,
     pub(crate) attribute_collections: super::attribute_index::AttributeCollections,
     // Handles are assigned internally; HTML input cannot choose colliding keys.
@@ -186,7 +187,7 @@ impl TreeStore {
     }
 
     /// Preview the detached links of a reserved handle without consuming its reservation.
-    fn links_or_reserved(&self, id: NodeId) -> Result<Links> {
+    pub(crate) fn links_or_reserved(&self, id: NodeId) -> Result<Links> {
         if let Some(links) = self.nodes.get(&id) {
             Ok(*links)
         } else if self.reserved.contains(&id) {
@@ -358,6 +359,7 @@ impl TreeStore {
         if self.attribute_collections.has_references(id) {
             return Err(TreeError::AttributeInUse(id));
         }
+        self.root_hosts.validate_metadata(id, data.kind)?;
         if self.attribute_collections.elements.contains_key(&id) {
             if data.kind != super::constants::ELEMENT_NODE {
                 return Err(TreeError::NotElement(id));
@@ -484,6 +486,7 @@ impl TreeStore {
             return Ok(false);
         }
         self.release_attribute_references(id)?;
+        self.root_hosts.release_node(id);
         self.detach(id)?;
         let mut child = self.nodes[&id].first;
         while child != 0 {
