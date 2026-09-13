@@ -243,10 +243,15 @@ El estado escalar de `Event` usa `NativeEventState`: tipo UTF-16, flags, fase,
 timestamp y confianza residen en Rust, junto con cancelación, propagación e
 initEvent. El recorrido de captura/burbujeo, la selección de overrides de target
 y la visibilidad de composedPath también se deciden en Rust. El bridge conserva
-los owners del path, su construcción, los listeners y datos de subclases. `eventStates` registra el lifetime
+los owners del path, su construcción, la ejecución de callbacks y datos de subclases. `eventStates` registra el lifetime
 nativo sin retener eventos o ventanas. Ver [alcance y contratos](reports/validation/event-state.md).
 El [control nativo de dispatch](reports/validation/event-dispatch.md) conserva
 reentrancia y estados parciales del reporter, y libera metadatos del path al terminar.
+El [registro de listeners](reports/validation/event-listeners.md) mantiene en Rust
+identidad, opciones, orden, membresía y selección por fase. Se crea de forma
+perezosa; callbacks, señales y snapshots de referencias permanecen en V8. Una
+marca nativa conserva el historial requerido por XHR/frames sin retener nombres
+de buckets vacíos. `listenerRegistries` permite observar su liberación.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

@@ -11,6 +11,7 @@ import nativeRuntime, {
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
   NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding,
+  NativeListenerRegistry, ListenerInvocation,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
 
@@ -39,6 +40,7 @@ assert.equal(ObserverDeliveryAction, nativeRuntime.ObserverDeliveryAction);
 assert.equal(NativeEventState, nativeRuntime.NativeEventState); assert.equal(EventStateFlag, nativeRuntime.EventStateFlag);
 assert.equal(EventDispatchStatus, nativeRuntime.EventDispatchStatus);
 assert.equal(EventInvocationEncoding, nativeRuntime.EventInvocationEncoding);
+assert.equal(NativeListenerRegistry, nativeRuntime.NativeListenerRegistry); assert.equal(ListenerInvocation, nativeRuntime.ListenerInvocation);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);

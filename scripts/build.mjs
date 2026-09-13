@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, relative, sep } from 'node:path';
 import { patchEventDispatch } from './build-event-dispatch.mjs';
+import { patchEventListeners } from './build-event-listeners.mjs';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
 const require = createRequire(import.meta.url);
@@ -93,7 +94,29 @@ eventSource = substituteOnce(eventSource, 'EventImpl.defaultInit = EventInit.con
 const eventTargetPath = resolve(destination, 'lib/jsdom/living/events/EventTarget-impl.js');
 const eventDispatchSources = patchEventDispatch(eventSource, await readFile(eventTargetPath, 'utf8'), substituteOnce);
 await writeFile(eventPath, eventDispatchSources.eventSource);
-await writeFile(eventTargetPath, eventDispatchSources.targetSource);
+await writeFile(eventTargetPath, patchEventListeners(eventDispatchSources.targetSource, substituteOnce));
+const eventListenersSource = await readFile('src/dom/event-listeners.cjs', 'utf8');
+await writeFile('dist/event-listeners.cjs', substituteOnce(eventListenersSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const listenerWindowPath = resolve(destination, 'lib/jsdom/browser/Window.js');
+let listenerWindowSource = await readFile(listenerWindowPath, 'utf8');
+listenerWindowSource = substituteOnce(listenerWindowSource, '"use strict";',
+  '"use strict";\nconst { createListenerStorage } = require("../../../../event-listeners.cjs");');
+for (const receiver of ['window', 'window._document']) listenerWindowSource = substituteOnce(listenerWindowSource,
+  `idlUtils.implForWrapper(${receiver})._eventListeners = Object.create(null);`,
+  `idlUtils.implForWrapper(${receiver})._eventListeners = createListenerStorage();`);
+await writeFile(listenerWindowPath, listenerWindowSource);
+const listenerSocketPath = resolve(destination, 'lib/jsdom/living/websockets/WebSocket-impl.js');
+let listenerSocketSource = await readFile(listenerSocketPath, 'utf8');
+listenerSocketSource = substituteOnce(listenerSocketSource, '"use strict";',
+  '"use strict";\nconst { createListenerStorage } = require("../../../../../event-listeners.cjs");');
+listenerSocketSource = substituteOnce(listenerSocketSource, '    this._eventListeners = Object.create(null);', '    this._eventListeners = createListenerStorage();');
+await writeFile(listenerSocketPath, listenerSocketSource);
+const listenerXhrPath = resolve(destination, 'lib/jsdom/living/xhr/XMLHttpRequest-impl.js');
+await writeFile(listenerXhrPath, substituteOnce(await readFile(listenerXhrPath, 'utf8'),
+  'Object.keys(upload._eventListeners).length > 0', 'upload._eventListeners.hasEventTypes'));
+const listenerFramePath = resolve(destination, 'lib/jsdom/living/nodes/HTMLFrameElement-impl.js');
+await writeFile(listenerFramePath, substituteOnce(await readFile(listenerFramePath, 'utf8'),
+  'Object.keys(frame._eventListeners).length === 0', '!frame._eventListeners.hasEventTypes'));
 const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
 await writeFile(mutationObserverPath, '"use strict";\n' +
   'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +

@@ -9,7 +9,7 @@
  * @returns {string} Updated implementation.
  * @throws {Error} When the pinned implementation no longer has the expected region.
  */
-function replaceRegion(source, start, end, replacement, substituteOnce) {
+export function replaceRegion(source, start, end, replacement, substituteOnce) {
   const startIndex = source.indexOf(start); const endIndex = source.indexOf(end, startIndex);
   if (startIndex < 0 || endIndex <= startIndex) throw new Error(`rustdom Event dispatch build: missing boundary ${start}`);
   return substituteOnce(source, source.slice(startIndex, endIndex), replacement);

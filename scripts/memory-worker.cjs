@@ -470,6 +470,9 @@ async function main() {
         nativeTree.mutationNotifications.microtaskQueued === initialAttributeState.mutationNotifications.microtaskQueued &&
         nativeTree.observerDeliveries.live === initialAttributeState.observerDeliveries.live &&
         nativeTree.eventStates.live === initialAttributeState.eventStates.live &&
+        nativeTree.listenerRegistries.live === initialAttributeState.listenerRegistries.live &&
+        nativeTree.listenerRegistries.listeners === initialAttributeState.listenerRegistries.listeners &&
+        nativeTree.listenerRegistries.eventTypes === initialAttributeState.listenerRegistries.eventTypes &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

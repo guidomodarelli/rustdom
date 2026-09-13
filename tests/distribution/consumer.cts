@@ -4,6 +4,15 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native listener metadata preserves duplicate options and one-shot removal. */
+const listenerRegistry = new native.NativeListenerRegistry();
+const listenerId = listenerRegistry.add('installed\ud800', 1, false, true, true);
+assert.equal(listenerRegistry.add('installed\ud800', 1, false, false, false), 0);
+assert.deepEqual(listenerRegistry.snapshot('installed\ud800'), [listenerId]);
+assert.deepEqual(listenerRegistry.snapshotSelection('installed\ud800', true), { ids: [listenerId], selected: [] });
+assert.equal(listenerRegistry.prepareInvocation(listenerId, false), native.ListenerInvocation.Invoke | native.ListenerInvocation.Once | native.ListenerInvocation.Passive | native.ListenerInvocation.ForgetCallback);
+assert.deepEqual(listenerRegistry.snapshot('installed\ud800'), []); assert.equal(listenerRegistry.hasEventTypes, true);
+
 const scalarEvent = new native.NativeEventState('installed\ud800\0', true, true, true);
 scalarEvent.setReturnValue('false'); assert.equal(scalarEvent.returnValue, true);
 scalarEvent.finishConstruction(true, 123.5); scalarEvent.preventDefault();

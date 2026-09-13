@@ -7,7 +7,7 @@ use super::data::{DomString, NodeData};
 use super::error::{Result, TreeError};
 
 /// JavaScript represents every integer up to this value exactly.
-const MAX_NODE_HANDLE: u64 = 9_007_199_254_740_991;
+const MAX_NODE_HANDLE: u64 = super::constants::JS_MAX_SAFE_INTEGER;
 /// Keep a small reusable table while releasing high-water capacity after collection.
 const MIN_NODE_CAPACITY: usize = 64;
 /// Amortize handle allocation across Node-API without allocating unused node records.

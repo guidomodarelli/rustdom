@@ -1,4 +1,5 @@
 //! DOM protocol values shared by native data consumers.
+pub const JS_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
 pub const XMLNS_NAMESPACE: &str = "http://www.w3.org/2000/xmlns/";
 pub const XMLNS_NAME: &str = "xmlns";

@@ -1,7 +1,29 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
+import type { NativeListenerStatistics } from './index.cjs';
 import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics, NativeEventStatistics } from './index.cjs';
 
 export const EventStateFlag: { readonly Bubbles: 1; readonly Cancelable: 2; readonly Composed: 4; readonly Initialized: 8; readonly PropagationStopped: 16; readonly ImmediatePropagationStopped: 32; readonly Canceled: 64; readonly PassiveListener: 128; readonly Dispatching: 256; readonly Trusted: 512 };
+/** Bit decisions returned before a callback; these values form a forward-only object. */
+export const ListenerInvocation: { readonly Missing: 0; readonly OtherPhase: 1; readonly Invoke: 2; readonly Once: 4; readonly Passive: 8; readonly ForgetCallback: 16 };
+export interface NativeListenerStorageStatistics { listeners: number; eventTypes: number; callbacks: number; recordsCapacity: number; typesCapacity: number; callbacksCapacity: number; bucketCapacity: number; }
+export interface NativeListenerSnapshot { ids: number[]; selected: number[]; }
+/** Native metadata only; the host owns callbacks, signals and captured callback snapshots. */
+export class NativeListenerRegistry {
+  constructor();
+  /** Returns a fresh registration ID, or zero for an existing callback/capture pair. */
+  add(type: string, callback: number, capture: boolean, once: boolean, passive: boolean): number;
+  /** Returns the removed registration ID, or zero if there was no match. */
+  remove(type: string, callback: number, capture: boolean): number;
+  snapshot(type: string): number[];
+  /** Captures all IDs for ownership and indices eligible for this phase. */
+  snapshotSelection(type: string, capturing: boolean): NativeListenerSnapshot;
+  /** Returns ListenerInvocation bits and removes an invoked once registration before returning. */
+  prepareInvocation(id: number, capturing: boolean): number;
+  hasCallback(callback: number): boolean;
+  readonly hasEventTypes: boolean;
+  storageStatistics(): NativeListenerStorageStatistics;
+  static statistics(): NativeListenerStatistics;
+}
 export type EventStateFlag = typeof EventStateFlag[keyof typeof EventStateFlag];
 export const EventDispatchStatus: { readonly Ready: 0; readonly UninitializedOrDispatching: 1; readonly InvalidPhase: 2 };
 export type EventDispatchStatus = typeof EventDispatchStatus[keyof typeof EventDispatchStatus];

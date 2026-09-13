@@ -11,6 +11,7 @@ export const {
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
   NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding,
+  NativeListenerRegistry, ListenerInvocation,
   parseDocumentTape, parseFragmentTape,
 } = native;
 export default native;
