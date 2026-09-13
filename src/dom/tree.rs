@@ -108,6 +108,15 @@ pub struct SlotAssignmentStatistics {
 }
 
 #[napi(object)]
+pub struct SlotBacklinkStatistics {
+    pub assigned_nodes: f64,
+    pub slot_owners: f64,
+    pub node_capacity: f64,
+    pub owner_capacity: f64,
+    pub reference_capacity: f64,
+}
+
+#[napi(object)]
 pub struct TreeLinks {
     pub id: f64,
     pub parent: f64,
@@ -537,6 +546,35 @@ impl NativeTree {
             .assigned_node_count(slot)
             .map(|count| count as f64)
             .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn slot_backlink(&self, node: f64) -> Result<f64> {
+        self.store.slot_backlink(node).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn set_slot_backlink(&mut self, node: f64, slot: f64) -> Result<()> {
+        self.store
+            .set_slot_backlink(node, slot)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn event_parent(&self, node: f64) -> Result<f64> {
+        self.store.event_parent(node).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn slot_backlink_statistics(&self) -> SlotBacklinkStatistics {
+        let stats = self.store.slot_backlinks.statistics();
+        SlotBacklinkStatistics {
+            assigned_nodes: stats.assigned_nodes as f64,
+            slot_owners: stats.slot_owners as f64,
+            node_capacity: stats.node_capacity as f64,
+            owner_capacity: stats.owner_capacity as f64,
+            reference_capacity: stats.reference_capacity as f64,
+        }
     }
 
     #[napi]

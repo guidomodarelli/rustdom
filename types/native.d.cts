@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics } from './index.cjs';
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics } from './index.cjs';
 
 /** A contextual parser attribute, including optional XML metadata. */
 export interface ContextAttribute { name: string; value: string; namespace?: string; prefix?: string; }
@@ -142,6 +142,13 @@ export class NativeTree {
   cachedSlotables(slot: number): number[];
   assignedNodeCount(slot: number): number;
   slotAssignmentStatistics(): NativeSlotAssignmentStatistics;
+  /** Reads the recorded backlink; zero means absent. Unlike findSlot, this does not recompute assignment. */
+  slotBacklink(node: number): number;
+  /** Records an initialized HTML slot for Element/Text/CDATA, or clears with zero; invalid inputs leave state intact. */
+  setSlotBacklink(node: number, slot: number): void;
+  /** Selects the recorded slot or ordinary parent; ShadowRoot/Document event-specific overrides are separate. */
+  eventParent(node: number): number;
+  slotBacklinkStatistics(): NativeSlotBacklinkStatistics;
   /** Default empty names consume no entry; nonempty state survives valid Element/Text metadata updates. */
   getSlotableName(node: number): string;
   setSlotableName(node: number, name: string): void;

@@ -455,6 +455,8 @@ async function main() {
         nativeTree.slotAssignments.slots === initialAttributeState.slotAssignments.slots &&
         nativeTree.slotAssignments.entries === initialAttributeState.slotAssignments.entries &&
         nativeTree.slotAssignments.members === initialAttributeState.slotAssignments.members &&
+        nativeTree.slotBacklinks.assignedNodes === initialAttributeState.slotBacklinks.assignedNodes &&
+        nativeTree.slotBacklinks.slotOwners === initialAttributeState.slotBacklinks.slotOwners &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

@@ -312,6 +312,12 @@ nodeSource = nodeSource.slice(0, nodeReplacementStart) + nodeReplacementPrefix +
   '    domSymbolTree.validateReplacementConstraints(this, nodeImpl, childImpl, DOMException);\n\n' + nodeSource.slice(nodeReplacementEffectsStart);
 if (!nodeSource.includes('this._assignedNodes.length')) throw new Error('rustdom build: Node assignment-count reads changed');
 nodeSource = nodeSource.replaceAll('this._assignedNodes.length', 'domSymbolTree.assignedNodeCount(this)');
+/** Route all internal backlink readers/writers through Node's accessor, preserving subclass overrides. */
+const nodeEventParent = '  _getTheParent() {\n    if (this._assignedSlot) {\n      return this._assignedSlot;\n    }\n\n    return domSymbolTree.parent(this);\n  }';
+nodeSource = substituteOnce(nodeSource, nodeEventParent,
+  '  get _assignedSlot() { return domSymbolTree.slotBacklink(this); }\n' +
+  '  set _assignedSlot(slot) { domSymbolTree.setSlotBacklink(this, slot); }\n' +
+  '  _getTheParent() { return domSymbolTree.eventParent(this); }');
 await writeFile(nodePath, nodeSource);
 const boundaryPointPath = resolve(destination, 'lib/jsdom/living/range/boundary-point.js');
 let boundaryPointSource = await readFile(boundaryPointPath, 'utf8');
