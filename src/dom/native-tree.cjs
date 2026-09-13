@@ -414,6 +414,8 @@ class NativeSymbolTree extends SymbolTree {
   setSlotableName(node, name) { this._arena.setSlotableName(this._ensure(node), name); }
   /** @param {object} root - Selected shadow root. @param {object} node - Candidate, including CDATASection inheriting Text's name in jsdom. @returns {object|null} First matching slot with its original identity. */
   findSlot(root, node) { return node.nodeType === 1 || node.nodeType === 3 || node.nodeType === 4 ? this._object(this._arena.findSlotFor(this._ensure(root), this._ensure(node))) : null; }
+  /** @param {object} slot - Real slot implementation. @returns {object[]} Current assigned candidates in host-child order, without changing cached assignments. */
+  findSlotables(slot) { return this._arena.findSlotables(this._ensure(slot)).map((id) => this._object(id)); }
   /** @param {object} root - Fragment implementation, possibly still constructing. @param {object|null|undefined} host - Original host value. @param {boolean} shadow - ShadowRoot relationship rather than template ownership. @returns {void} Commits numeric links before changing the visible ownership edge. */
   setRootHost(root, host, shadow) {
     const record = this._node(root);

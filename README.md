@@ -160,6 +160,10 @@ solo valores no vacíos. La búsqueda consulta ese estado directamente y los
 hooks conservan las particularidades de atributos con namespace y la herencia
 de CDATASection desde Text del jsdom fijado. `slotableNames`
 expone conteos y capacidad; liberar nodos o limpiar nombres retira las entradas.
+La selección actual de asignados también se calcula en Rust: verifica el primer
+slot del nombre y filtra los hijos del host en orden, sin buscar repetidamente
+entre todos los slots por cada descendiente. Las listas cacheadas, el aplanado
+y la entrega de señales mantienen sus drivers JavaScript.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

@@ -29,6 +29,13 @@ pub struct RootHostStatistics {
 }
 
 impl RootHosts {
+    pub(crate) fn shadow_host(&self, root: NodeId) -> Option<NodeId> {
+        self.roots
+            .get(&root)
+            .filter(|relation| relation.shadow)
+            .map(|relation| relation.host)
+    }
+
     fn compact(&mut self) {
         self.roots.compact();
         self.owners.compact();

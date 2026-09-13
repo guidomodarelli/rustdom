@@ -34,6 +34,8 @@ const RETARGET_EVENT_COUNT = 100;
 /** Exercise both prepared slot reads and assignment with its mutation hooks. */
 const SLOT_LOOKUP_ITERATIONS = 1000;
 const SLOT_REASSIGNMENT_ITERATIONS = 100;
+/** Recompute assignment lists rather than reading their existing cache. */
+const SLOT_ASSIGNMENT_QUERY_ITERATIONS = 100;
 /** Alternate visible values while timing complete public Node setters. */
 const TEXT_WRITE_ITERATIONS = 1000;
 const TEXT_WRITE_VALUES = ['first', 'second'];
@@ -68,6 +70,29 @@ function shadowChain(document, depth, roots) {
 }
 
 /**
+ * Prepare named slots and exact expected assignments before starting measurement.
+ * @param {Document} document - Actual DOM document.
+ * @param {number} size - Slot count.
+ * @param {boolean} dense - Use two candidates per slot instead of one total.
+ * @returns {object} Root, slots, mutable target, names and expected final identity lists.
+ */
+function slotAssignmentFixture(document, size, dense) {
+  const host = document.body.appendChild(document.createElement('section'));
+  const root = host.attachShadow({ mode: 'open' });
+  root.innerHTML = Array.from({ length: size }, (_, index) => `<slot name="slot-${index}">fallback-${index}</slot>`).join('');
+  const slots = [...root.querySelectorAll('slot')]; const names = [slots[0].name, slots.at(-1).name];
+  const targets = Array.from({ length: dense ? size * 2 : 1 }, (_, index) => {
+    const target = document.createElement('b'); target.textContent = dense ? `assigned-${index}` : 'assigned';
+    target.slot = dense ? `slot-${index % size}` : names[1]; return target;
+  });
+  if (dense) targets[0].slot = names[1];
+  host.append(...targets);
+  const assignments = slots.map((slot) => targets.filter((target) => target.slot === slot.name));
+  assert.equal(targets[0].assignedSlot, slots.at(-1));
+  return { root, slots, target: targets[0], names, assignments };
+}
+
+/**
  * Measure one complete public operation; setup and assertions stay outside the timer.
  * @param {string} name - Workload name, including its configuration.
  * @param {number} size - Fixture row count.
@@ -92,7 +117,10 @@ async function measure(name, size) {
   const createsShadowHosts = name === 'shadow-hosts-create-100';
   const dispatchesRetargetEvents = name === 'shadow-retarget-events-100';
   const queriesSlots = name === 'slot-lookup-1000';
-  const reassignsSlots = name === 'slot-reassign-100';
+  const reassignsSlots = name === 'slot-reassign-100' || name === 'slot-dense-reassign-100';
+  const queriesAssignments = name === 'slot-assigned-100';
+  const denseSlots = queriesAssignments || name === 'slot-dense-reassign-100';
+  const usesSlots = queriesSlots || reassignsSlots || queriesAssignments;
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -141,17 +169,10 @@ async function measure(name, size) {
       const comparisonPeer = name === 'node-equality-100' ? comparisonRoot.cloneNode(true) : null;
       const comparisonNodes = name === 'node-position-1000' ? [...comparisonRoot.querySelectorAll('tr')] : null;
       const readsRoots = name === 'node-roots-shallow-1000' || name === 'node-roots-deep-1000';
-      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || queriesSlots || reassignsSlots) shadowRoots = [];
-      let slotTarget; let slots; let slotNames;
-      if (queriesSlots || reassignsSlots) {
-        const slotHost = document.body.appendChild(document.createElement('section'));
-        const root = slotHost.attachShadow({ mode: 'open' });
-        root.innerHTML = Array.from({ length: size }, (_, index) => `<slot name="slot-${index}">fallback-${index}</slot>`).join('');
-        slots = [...root.querySelectorAll('slot')]; slotNames = [slots[0].name, slots.at(-1).name];
-        slotTarget = document.createElement('b'); slotTarget.textContent = 'assigned'; slotTarget.slot = slotNames[1];
-        slotHost.append(slotTarget); shadowRoots.push(root);
-        assert.equal(slotTarget.assignedSlot, slots.at(-1));
-      }
+      if (queriesShadowRoots || createsShadowHosts || dispatchesRetargetEvents || usesSlots) shadowRoots = [];
+      const slotAssignment = usesSlots ? slotAssignmentFixture(document, size, denseSlots) : null;
+      const slots = slotAssignment?.slots; const slotTarget = slotAssignment?.target; const slotNames = slotAssignment?.names;
+      if (slotAssignment) shadowRoots.push(slotAssignment.root);
       if (queriesShadowRoots) {
         shadowTarget = shadowChain(document, size, shadowRoots).leaf;
       }
@@ -237,7 +258,15 @@ async function measure(name, size) {
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
       global.gc?.();
       const start = performance.now();
-      if (queriesSlots || reassignsSlots) {
+      if (queriesAssignments) {
+        result = 0;
+        const expected = slotAssignment.assignments.at(-1);
+        for (let iteration = 0; iteration < SLOT_ASSIGNMENT_QUERY_ITERATIONS; iteration++) {
+          const selected = slots.at(-1).assignedNodes({ flatten: true });
+          result += Number(selected.length === expected.length);
+          for (let index = 0; index < selected.length; index++) result += Number(selected[index] === expected[index]);
+        }
+      } else if (queriesSlots || reassignsSlots) {
         result = 0;
         const iterations = queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS;
         for (let iteration = 0; iteration < iterations; iteration++) {
@@ -451,12 +480,16 @@ async function measure(name, size) {
       }
       if (readsRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
       if (shadowRoots) {
-        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : queriesSlots || reassignsSlots ? 1 : SHADOW_CREATION_COUNT);
-        if (queriesSlots || reassignsSlots) {
-          assert.equal(result, queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS);
+        assert.equal(shadowRoots.length, queriesShadowRoots ? size : dispatchesRetargetEvents ? size * 2 : usesSlots ? 1 : SHADOW_CREATION_COUNT);
+        if (usesSlots) {
+          assert.equal(result, queriesAssignments ? SLOT_ASSIGNMENT_QUERY_ITERATIONS * (slotAssignment.assignments.at(-1).length + 1)
+            : queriesSlots ? SLOT_LOOKUP_ITERATIONS : SLOT_REASSIGNMENT_ITERATIONS);
           assert.equal(slots.length, size);
-          assert.deepEqual(slots.at(-1).assignedNodes(), [slotTarget]);
-          for (const slot of slots.slice(0, -1)) assert.deepEqual(slot.assignedNodes(), []);
+          for (const [index, slot] of slots.entries()) {
+            assert.deepEqual(slot.assignedNodes(), slotAssignment.assignments[index]);
+            assert.deepEqual(slot.assignedNodes({ flatten: true }), slotAssignment.assignments[index].length
+              ? slotAssignment.assignments[index] : [slot.firstChild]);
+          }
           if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().slotableNames.namedNodes > 0);
         }
         if (queriesShadowRoots) assert.equal(result, NODE_ROOT_ITERATIONS * 2);
@@ -591,6 +624,7 @@ async function main() {
     { name: 'shadow-hosts-create-100', size: 25 },
     ...[10, 30].map((size) => ({ name: 'shadow-retarget-events-100', size })),
     ...[25, 100].flatMap((size) => ['slot-lookup-1000', 'slot-reassign-100'].map((name) => ({ name, size }))),
+    ...[25, 100].flatMap((size) => ['slot-assigned-100', 'slot-dense-reassign-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

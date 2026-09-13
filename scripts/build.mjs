@@ -552,6 +552,11 @@ shadowHelpers = shadowHelpers.slice(0, findSlotStart) +
   '  const shadow = parent._shadowRoot;\n' +
   '  if (!shadow || (openFlag && shadow.mode !== "open")) return null;\n' +
   '  return domSymbolTree.findSlot(shadow, slotable);\n}\n\n' + shadowHelpers.slice(findSlotEnd);
+const findSlotablesStart = shadowHelpers.indexOf('function findSlotable(slot) {');
+const findSlotablesEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#find-flattened-slotables', findSlotablesStart);
+if (findSlotablesStart < 0 || findSlotablesEnd < findSlotablesStart) throw new Error('rustdom build: findSlotable helper boundary changed');
+shadowHelpers = shadowHelpers.slice(0, findSlotablesStart) +
+  'function findSlotable(slot) {\n  return domSymbolTree.findSlotables(slot);\n}\n\n' + shadowHelpers.slice(findSlotablesEnd);
 await writeFile(shadowHelpersPath, shadowHelpers);
 /** Keep constructor defaults allocation-free; actual name writes occur after node initialization. */
 const slotablePath = resolve(destination, 'lib/jsdom/living/nodes/Slotable-impl.js');
