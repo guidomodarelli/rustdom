@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { performance } = require('node:perf_hooks');
 const { createHash } = require('node:crypto');
 const { listenerFixture } = require('./event-listeners.cjs');
+const { abortFixture } = require('./abort-signal.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -299,6 +300,7 @@ async function measure(name, size) {
   const runsEventLifecycle = name === 'event-state-lifecycle';
   const dispatchesSimpleEvents = name === 'event-dispatch';
   const measuresListeners = ['listener-register', 'listener-remove', 'listener-dispatch'].includes(name);
+  const measuresAbort = ['abort-lifecycle', 'abort-any', 'abort-propagation'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
@@ -322,6 +324,7 @@ async function measure(name, size) {
     let mutationRecordWork;
     let observerDeliveryWork;
     let listenerWork;
+    let abortWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -352,6 +355,7 @@ async function measure(name, size) {
       const document = dom.window.document;
       const eventStatesBefore = runtime.getNativeTreeStatistics?.().eventStates?.created;
       if (measuresListeners) listenerWork = listenerFixture(runtime, dom.window, size, name);
+      if (measuresAbort) abortWork = abortFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
         simpleEventListener = (event) => { event.preventDefault(); simpleEventCalls++; simpleEventPhases += event.eventPhase; };
@@ -470,7 +474,8 @@ async function measure(name, size) {
       observerDeliveryWork?.prepare();
       listenerWork?.prepare();
       const start = performance.now();
-      if (listenerWork) result = listenerWork.run();
+      if (abortWork) result = abortWork.run();
+      else if (listenerWork) result = listenerWork.run();
       else if (runsEventLifecycle) {
         result = 0;
         for (let index = 0; index < size; index++) {
@@ -707,6 +712,7 @@ async function measure(name, size) {
       if ((runsEventLifecycle || dispatchesSimpleEvents) && engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().eventStates.created >= eventStatesBefore + size);
       observerDeliveryWork?.validate();
       listenerWork?.validate(result);
+      abortWork?.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -873,6 +879,7 @@ async function measure(name, size) {
     mutationRecordWork?.dispose(); mutationRecordWork = null;
     observerDeliveryWork?.dispose(); observerDeliveryWork = null;
     listenerWork?.dispose(); listenerWork = null;
+    abortWork?.dispose(); abortWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
@@ -919,6 +926,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['observer-delivery-records', 'observer-delivery-empty', 'observer-delivery-slots'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['event-state-lifecycle', 'event-dispatch'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['listener-register', 'listener-remove', 'listener-dispatch'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['abort-lifecycle', 'abort-any', 'abort-propagation'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-replace-100', 'document-root-replace-100'].map((name) => ({ name, size }))),

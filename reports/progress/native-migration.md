@@ -1,12 +1,12 @@
 # Indicador provisional de migración a Rust
 
 Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`2a43faa8c3d47866658426d81c0c9b17ca2d65dd` (PR52 en borrador), con main
+`ae42288eb7177c33dca554d4516fad46957c2787` (PR53 en borrador), con main
 `b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-Los PR43–52 todavía no están integrados en main. PR43 tiene los ocho checks
-aprobados, pero su revisión automática sigue pendiente; PR44–52 conservan
-estado de borrador. PR51 y PR52 también tienen todos sus checks aprobados. El registro
-nativo de listeners se consolida en feature/native-event-listeners y no se
+Los PR43–53 todavía no están integrados en main. PR43 tiene los ocho checks
+aprobados, pero su revisión automática sigue pendiente; PR44–53 conservan
+estado de borrador. PR51–53 también tienen todos sus checks aprobados. El estado
+nativo de abort se consolida en feature/native-abort-signal y no se
 cuenta como un hito integrado en main.
 
 **1 área implementada, 6 parciales y 5 delegadas: índice 33,3%.**
@@ -37,7 +37,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 203 tests Rust, 620 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 207 tests Rust, 639 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -60,5 +60,8 @@ por fases en Rust; conserva el historial de XHR/frames sin nombres vacíos reten
 Sus 37 contratos focales, cuatro tests Rust, controles de memoria, corpus y
 36 controles instalados también pasaron. Construcción del path, ejecución de
 callbacks, integración de AbortSignal y datos/algoritmos de subclases todavía
-conservan lógica JavaScript. Estos recuentos tampoco cambian
+conservan lógica JavaScript. AbortSignal agrega flags, composición, dependencias
+y algoritmos nativos con razones y owners en V8; sus contratos, memoria,
+benchmarks y controles instalados están en reports/validation/abort-signal.md.
+Estos recuentos tampoco cambian
 el denominador ni acreditan compatibilidad total.

@@ -1,5 +1,26 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics } from './index.cjs';
+
+/** Native composition decision; sourceInputs resolves each source through that input's host-owned roots. */
+export interface NativeAbortAnyPlan { reasonSource: number; sources: number[]; sourceInputs: number[]; }
+export interface NativeAbortGraphStatistics { signals: number; links: number; algorithms: number; capacity: number; }
+/** Metadata handle in this thread's graph; reasons and JavaScript owners are never retained here. */
+export class NativeAbortState {
+  constructor();
+  readonly id: number;
+  aborted: boolean;
+  dependent: boolean;
+  initializeAny(inputs: number[]): NativeAbortAnyPlan;
+  markDependents(): number[];
+  /** Zero requests a new identity; an existing active identity preserves set semantics. */
+  addAlgorithm(existing: number): number;
+  removeAlgorithm(id: number): boolean;
+  /** Returns the next active identity after the cursor, or zero at the end. */
+  nextAlgorithm(after: number): number;
+  clearAlgorithms(): void;
+  graphStatistics(): NativeAbortGraphStatistics;
+  static statistics(): NativeAbortStatistics;
+}
 import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics, NativeEventStatistics } from './index.cjs';
 
 export const EventStateFlag: { readonly Bubbles: 1; readonly Cancelable: 2; readonly Composed: 4; readonly Initialized: 8; readonly PropagationStopped: 16; readonly ImmediatePropagationStopped: 32; readonly Canceled: 64; readonly PassiveListener: 128; readonly Dispatching: 256; readonly Trusted: 512 };

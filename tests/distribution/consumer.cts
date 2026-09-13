@@ -4,6 +4,11 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Native abort composition preserves source order and marks dependents before delivery. */
+const abortSource = new native.NativeAbortState(); const abortDependent = new native.NativeAbortState();
+assert.deepEqual(abortDependent.initializeAny([abortSource.id, abortSource.id]), { reasonSource: 0, sources: [abortSource.id], sourceInputs: [0] });
+abortSource.aborted = true; assert.deepEqual(abortSource.markDependents(), [abortDependent.id]); assert.equal(abortDependent.aborted, true);
+
 /** Installed native listener metadata preserves duplicate options and one-shot removal. */
 const listenerRegistry = new native.NativeListenerRegistry();
 const listenerId = listenerRegistry.add('installed\ud800', 1, false, true, true);

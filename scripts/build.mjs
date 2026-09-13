@@ -118,6 +118,14 @@ const listenerFramePath = resolve(destination, 'lib/jsdom/living/nodes/HTMLFrame
 await writeFile(listenerFramePath, substituteOnce(await readFile(listenerFramePath, 'utf8'),
   'Object.keys(frame._eventListeners).length === 0', '!frame._eventListeners.hasEventTypes'));
 const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
+const abortSignalSource = await readFile('src/dom/abort-signal.cjs', 'utf8');
+await writeFile('dist/abort-signal.cjs', substituteOnce(abortSignalSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/aborting/AbortSignal-impl.js'),
+  '"use strict";\nconst { createAbortSignalImplementation } = require("../../../../../abort-signal.cjs");\n' +
+  'const EventTargetImpl = require("../events/EventTarget-impl").implementation;\n' +
+  'const AbortSignal = require("../generated/AbortSignal");\nconst DOMException = require("../generated/DOMException");\n' +
+  'const { fireAnEvent } = require("../helpers/events");\nconst { setupForSimpleEventAccessors } = require("../helpers/create-event-accessor");\n' +
+  'module.exports = { implementation: createAbortSignalImplementation(EventTargetImpl, AbortSignal, DOMException, fireAnEvent, setupForSimpleEventAccessors) };\n');
 await writeFile(mutationObserverPath, '"use strict";\n' +
   'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +
   'const { wrapperForImpl } = require("../generated/utils");\n' +

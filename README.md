@@ -252,6 +252,10 @@ identidad, opciones, orden, membresía y selección por fase. Se crea de forma
 perezosa; callbacks, señales y snapshots de referencias permanecen en V8. Una
 marca nativa conserva el historial requerido por XHR/frames sin retener nombres
 de buckets vacíos. `listenerRegistries` permite observar su liberación.
+El [estado de AbortSignal](reports/validation/abort-signal.md) usa un grafo Rust
+para flags, composición, dependencias y algoritmos. Las razones y los owners
+fuertes quedan en V8; los callbacks, timers y excepciones usan el host real.
+`abortStates` registra estados, links y algoritmos sin conservar objetos DOM.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 

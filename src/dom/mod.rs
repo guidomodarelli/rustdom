@@ -1,4 +1,6 @@
 //! Native DOM storage components, independent of JavaScript realm management.
+mod abort_state;
+mod abort_state_binding;
 mod attribute_index;
 mod attribute_operations;
 mod attribute_view;
