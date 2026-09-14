@@ -4,6 +4,14 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed dataset plans preserve ASCII casing and error precedence. */
+const datasetTree = new native.NativeTree(); const datasetOwner = datasetTree.allocate();
+datasetTree.setData(datasetOwner, JSON.stringify({ kind: 1, name: 'div' }));
+assert.deepEqual(datasetTree.datasetNames(datasetOwner), []);
+assert.deepEqual(datasetTree.datasetNamePlan('userId', true), { status: native.DatasetNameStatus.Valid, attribute: 'data-user-id' });
+assert.equal(datasetTree.datasetNamePlan('bad-name', true).status, native.DatasetNameStatus.InvalidProperty);
+assert.equal(datasetTree.datasetValue(datasetOwner, 'missing'), null); datasetTree.release(datasetOwner);
+
 /** Installed token plans read canonical attributes, validate and normalize without writing behind the host. */
 const tokenTree = new native.NativeTree(); const tokenOwner = tokenTree.allocate();
 tokenTree.setData(tokenOwner, JSON.stringify({ kind: 1, name: 'div' }));

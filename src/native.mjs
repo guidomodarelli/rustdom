@@ -15,6 +15,7 @@ export const {
   NativeAbortState,
   NativeXmlParser,
   NativeTokenList, NativeTokenSet, TokenListMethod, TokenValidation,
+  DatasetNameStatus,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,
   parseDocumentTape, parseFragmentTape,

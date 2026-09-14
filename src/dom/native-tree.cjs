@@ -901,7 +901,7 @@ class NativeSymbolTree extends SymbolTree {
       eventStates: NativeEventState.statistics(),
       listenerRegistries: NativeListenerRegistry.statistics(),
       abortStates: NativeAbortState.statistics(),
-      xmlParsers: NativeXmlParser.statistics(), xmlSerialization: xmlSerializationStatistics(), traversals: NativeTraversal.statistics(), tokenLists: NativeTokenList.statistics(),
+      xmlParsers: NativeXmlParser.statistics(), xmlSerialization: xmlSerializationStatistics(), traversals: NativeTraversal.statistics(), tokenLists: NativeTokenList.statistics(), dataset: this._arena.datasetStatistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

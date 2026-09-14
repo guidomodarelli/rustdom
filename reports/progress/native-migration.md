@@ -1,10 +1,10 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 14/09/2026 sobre el hito de serialización XML en
-feature/native-xml-serialization, que parte del commit publicado
-`4b1eed00d030f6a38404518e92a3bdd23f05eb28` (PR58). Main continúa en
+Evaluación actualizada el 14/09/2026 sobre el hito de DOMStringMap en
+feature/native-dom-string-map, que parte del commit publicado
+`e7e49fd5ac85f9401ea94e40793d6f2601771dbd` (PR60). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–58 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–60 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
 **2 áreas implementadas, 6 parciales y 4 delegadas: índice 41,7%.**
@@ -35,7 +35,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 214 tests Rust, 910 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 227 tests Rust, 1.567 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -103,3 +103,11 @@ instalados y memoria. En 1.000 tokens, parsing/alta/búsqueda mejoraron frente a
 reemplazo y listas pequeñas conservan regresiones. Ver reports/validation/dom-token-list.md.
 Es otra familia dentro de las áreas compartidas de Node/atributos; no cambia el
 indicador provisional de 41,7% ni implica integración de los PR pendientes en main.
+
+DOMStringMap migra enumeración, lectura y conversión/validación de nombres de
+dataset a Rust. Conserva el Proxy WebIDL y los hooks de mutación del host. La
+validación general pasó 227 tests Rust, 1.567 Node, 10 Jest, 21 Vitest y 26 Vitest VM;
+el mismo paquete pasó 36 controles instalados en Node 22/24. WPT conserva 47.002
+resultados en paridad, incluidos 1.067 fallos de estándar compartidos. Memoria,
+muestras crudas y diferencias de rendimiento están en reports/validation/dom-string-map.md.
+El área general de Node/atributos sigue parcial y el indicador permanece en 41,7%.

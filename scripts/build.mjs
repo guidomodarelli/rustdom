@@ -78,6 +78,13 @@ await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
 const tokenListSource = await readFile('src/dom/token-list.cjs', 'utf8');
+const stringMapSource = await readFile('src/dom/string-map.cjs', 'utf8');
+await writeFile('dist/string-map.cjs', substituteOnce(stringMapSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/nodes/DOMStringMap-impl.js'),
+  '"use strict";\nconst { createStringMapImplementation } = require("../../../../../string-map.cjs");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\nconst DOMException = require("../generated/DOMException");\n' +
+  'const idlUtils = require("../generated/utils");\nconst attributes = require("../attributes.js");\n' +
+  'exports.implementation = createStringMapImplementation(domSymbolTree, DOMException, idlUtils, attributes);\n');
 await writeFile('dist/token-list.cjs', substituteOnce(tokenListSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/nodes/DOMTokenList-impl.js'),
   '"use strict";\nconst { createTokenListImplementation } = require("../../../../../token-list.cjs");\n' +

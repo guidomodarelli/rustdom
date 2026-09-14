@@ -15,10 +15,18 @@ import nativeRuntime, {
   NativeAbortState,
   NativeXmlParser,
   NativeTokenList, TokenListMethod, TokenValidation,
+  DatasetNameStatus,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** ESM dataset status values match the native naming plan. */
+const datasetTree = new NativeTree(); const datasetPlan = datasetTree.datasetNamePlan('bad-name', true);
+const datasetStatus: DatasetNameStatus = datasetPlan.status;
+assert.equal(datasetStatus, DatasetNameStatus.InvalidProperty);
+assert.equal(datasetTree.datasetNamePlan('userId', false).attribute, 'data-user-id');
+assert.equal(DatasetNameStatus, nativeRuntime.DatasetNameStatus);
 
 /** ESM token actions retain literal types and drive the real native set. */
 const tokenTree = new NativeTree(); const tokenOwner = tokenTree.allocate();

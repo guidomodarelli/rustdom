@@ -33,6 +33,7 @@ use super::{
     range_surround::SurroundStatus,
     slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
+    string_map_binding::{self, DatasetNamePlan, DatasetStatistics},
     token_list_binding::{NativeTokenList, NativeTokenSet, TokenListMethod, TokenListMutation},
     tree_cursor::TraversalMethod,
     tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
@@ -473,6 +474,29 @@ pub struct NativeTree {
 
 #[napi]
 impl NativeTree {
+    #[napi]
+    pub fn dataset_names(&self, owner: f64) -> Result<Vec<Utf16String>> {
+        self.store
+            .dataset_names(owner)
+            .map(|names| names.into_iter().map(Into::into).collect())
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn dataset_value(&self, owner: f64, name: Utf16String) -> Result<Option<Utf16String>> {
+        self.store
+            .dataset_value(owner, &name)
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn dataset_name_plan(&self, name: Utf16String, validate: bool) -> DatasetNamePlan {
+        string_map_binding::plan(&name, validate)
+    }
+    #[napi]
+    pub fn dataset_statistics(&self) -> DatasetStatistics {
+        string_map_binding::statistics()
+    }
+
     #[napi]
     pub fn create_token_list(
         &self,

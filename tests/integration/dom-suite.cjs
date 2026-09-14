@@ -12,6 +12,14 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should reflect dataset names and real attribute changes through the runner globals', () => {
+    const element = document.createElement('div'); document.body.append(element);
+    element.dataset.userId = '123'; element.setAttribute('data-next-value', 'next');
+    expect(element.getAttribute('data-user-id')).toBe('123');
+    expect(Object.entries(element.dataset)).toEqual([['userId', '123'], ['nextValue', 'next']]);
+    delete element.dataset.userId; expect(element.hasAttribute('data-user-id')).toBe(false);
+  });
+
   test('should synchronize classList and preserve replacement order through real attribute hooks', () => {
     const element = document.createElement('div'); document.body.append(element);
     element.className = ' a b a '; const list = element.classList;

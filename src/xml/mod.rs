@@ -12,6 +12,7 @@ mod serialize_host;
 mod serialize_namespaces;
 #[cfg_attr(test, allow(dead_code))]
 mod serialize_text;
+pub(crate) use input::valid_name as valid_xml_name;
 use input::{
     END, Input, NORMALIZED_NEWLINE, equals, is_name, is_name_start, is_space, is_xml_char, text,
     valid_name,

@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics } from './index.cjs';
 
 /** Serializes public properties synchronously; getter/iterator callbacks can mutate the DOM or reenter. */
 export function serializeXml(root: unknown, requireWellFormed: boolean): unknown;
@@ -287,6 +287,10 @@ export class NativeTraversalOperation {
 }
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
+  datasetNames(owner: number): string[];
+  datasetValue(owner: number, name: string): string | null;
+  datasetNamePlan(name: string, validate: boolean): DatasetNamePlan;
+  datasetStatistics(): DatasetStatistics;
   createTokenList(owner: number, name: string, supported?: string[]): NativeTokenList;
   tokenListLength(list: NativeTokenList): number;
   tokenListItem(list: NativeTokenList, index: number): string | null;
@@ -498,6 +502,10 @@ export const TokenListMethod: { readonly Add: 0; readonly Remove: 1; readonly To
 export type TokenListMethod = (typeof TokenListMethod)[keyof typeof TokenListMethod];
 export const TokenValidation: { readonly Valid: 0; readonly Empty: 1; readonly Space: 2 };
 export type TokenValidation = (typeof TokenValidation)[keyof typeof TokenValidation];
+export const DatasetNameStatus: { readonly Valid: 0; readonly InvalidProperty: 1; readonly InvalidName: 2 };
+export type DatasetNameStatus = (typeof DatasetNameStatus)[keyof typeof DatasetNameStatus];
+export interface DatasetNamePlan { status: DatasetNameStatus; attribute: string; }
+export type DatasetStatistics = NativeDatasetStatistics;
 export interface TokenListMutation { status: TokenValidation; result: boolean; value?: string; }
 export type TokenListStatistics = NativeTokenListStatistics;
 export interface TokenSetStorage { length: number; itemCapacity: number; memberCapacity: number; }
