@@ -12,6 +12,16 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should synchronize classList and preserve replacement order through real attribute hooks', () => {
+    const element = document.createElement('div'); document.body.append(element);
+    element.className = ' a b a '; const list = element.classList;
+    expect([...list]).toEqual(['a', 'b']); expect(list.replace('b', 'a')).toBe(true);
+    expect(element.className).toBe('a');
+    element.setAttribute('class', ' external external next ');
+    expect(list.contains('external')).toBe(true); expect(list.toggle('next', false)).toBe(false);
+    expect(list.value).toBe('external');
+  });
+
   test('should preserve XML namespaces and escaping through the runner browser globals', () => {
     const xml = new DOMParser().parseFromString('<root xmlns="urn:r"><child a="&amp;"/></root>', 'text/xml');
     expect(new XMLSerializer().serializeToString(xml)).toBe('<root xmlns="urn:r"><child a="&amp;"/></root>');

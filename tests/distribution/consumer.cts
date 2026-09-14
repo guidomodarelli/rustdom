@@ -4,6 +4,16 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed token plans read canonical attributes, validate and normalize without writing behind the host. */
+const tokenTree = new native.NativeTree(); const tokenOwner = tokenTree.allocate();
+tokenTree.setData(tokenOwner, JSON.stringify({ kind: 1, name: 'div' }));
+const tokenList = tokenTree.createTokenList(tokenOwner, 'class', ['stylesheet']);
+assert.equal(tokenList.supports('STYLESHEET'), true);
+assert.equal(tokenTree.tokenListMutate(tokenList, native.TokenListMethod.Add, ['a', 'b', 'a']).value, 'a b');
+assert.equal(tokenTree.tokenListLength(tokenList), 2); assert.equal(tokenTree.tokenListValue(tokenList), '');
+assert.equal(tokenTree.tokenListMutate(tokenList, native.TokenListMethod.Replace, ['bad space', '']).status, native.TokenValidation.Empty);
+assert.equal(tokenTree.tokenListSet(tokenList).get(1), 'b'); tokenTree.release(tokenOwner);
+
 /** Installed XML serializer preserves namespaces, UTF-16 and native cleanup. */
 const serializationDom = new rustdom.JSDOM('<r xmlns="urn:root"><child/></r>', { contentType: 'text/xml' });
 assert.equal(native.serializeXml(serializationDom.window.document.documentElement, true), '<r xmlns="urn:root"><child/></r>');

@@ -14,10 +14,21 @@ import nativeRuntime, {
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
   NativeXmlParser,
+  NativeTokenList, TokenListMethod, TokenValidation,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** ESM token actions retain literal types and drive the real native set. */
+const tokenTree = new NativeTree(); const tokenOwner = tokenTree.allocate();
+tokenTree.setData(tokenOwner, JSON.stringify({ kind: 1, name: 'div' }));
+const tokenList = tokenTree.createTokenList(tokenOwner, 'class');
+const tokenMethod: TokenListMethod = TokenListMethod.Add;
+const tokenPlan = tokenTree.tokenListMutate(tokenList, tokenMethod, ['kept']);
+const tokenStatus: TokenValidation = tokenPlan.status;
+assert.equal(tokenStatus, TokenValidation.Valid); assert.equal(tokenPlan.value, 'kept');
+assert.equal(NativeTokenList, nativeRuntime.NativeTokenList); tokenTree.release(tokenOwner);
 
 /** Installed ESM names execute the native XML serializer, including embedded NUL data. */
 const serializationDom = new JSDOM('<r/>', { contentType: 'text/xml' });

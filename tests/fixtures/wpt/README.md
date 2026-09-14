@@ -6,6 +6,11 @@ Fuente: web-platform-tests, commit `8d124dbe46f46f55531f28f13eccf1113f794c12`, u
 
 Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad. El manifiesto permite ampliar la cobertura sin cambiar los tests upstream. Para recuperar cualquier archivo, usar su blob en la revisión fijada; `.gitattributes` evita conversiones de saltos de línea que alterarían los hashes.
 
+La suite `dom-token-list` incluye `dom/nodes/Element-classlist.html` y los cinco
+fixtures DOMTokenList de `dom/lists`. Conserva los archivos originales y compara
+los resultados de classList, atributos, índices, iteración, value y stringificación.
+Puede ejecutarse con `npm run test:wpt -- dom-token-list`.
+
 La suite `xml-serialization` incorpora `domparsing/XMLSerializer-serializeToString.html`
 y `domparsing/xml-serialization.xhtml`, conservando sus bytes originales y recursos.
 Se ejecuta con `npm run test:wpt -- xml-serialization`. Sus resultados incluyen los

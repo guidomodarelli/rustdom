@@ -82,6 +82,9 @@ function exerciseWindow(runtime, identity) {
 /** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
 function exerciseTraversals(document) {
   const root = document.createElement('div'); root.innerHTML = '<a>A<b>B</b></a><p>P</p>';
+  const classes = root.classList; classes.value = ' one one two ';
+  classes.add('three'); classes.replace('two', 'one');
+  assert.equal(classes.value, 'one three'); comparisonReferences.push(new WeakRef(classes));
   document.body.append(root);
   const filter = (node) => node.nodeType === 1 ? 1 : 3;
   const iterator = document.createNodeIterator(root, 0xffffffff, filter);
@@ -511,6 +514,9 @@ async function main() {
         nativeTree.xmlSerialization.cleanupErrors === initialAttributeState.xmlSerialization.cleanupErrors &&
         nativeTree.traversals.live === initialAttributeState.traversals.live &&
         nativeTree.traversals.operations === initialAttributeState.traversals.operations &&
+        nativeTree.tokenLists.live === initialAttributeState.tokenLists.live &&
+        nativeTree.tokenLists.sets === initialAttributeState.tokenLists.sets &&
+        nativeTree.tokenLists.tokenUnits === initialAttributeState.tokenLists.tokenUnits &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

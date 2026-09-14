@@ -1,5 +1,5 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics } from './index.cjs';
 
 /** Serializes public properties synchronously; getter/iterator callbacks can mutate the DOM or reenter. */
 export function serializeXml(root: unknown, requireWellFormed: boolean): unknown;
@@ -287,6 +287,13 @@ export class NativeTraversalOperation {
 }
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
+  createTokenList(owner: number, name: string, supported?: string[]): NativeTokenList;
+  tokenListLength(list: NativeTokenList): number;
+  tokenListItem(list: NativeTokenList, index: number): string | null;
+  tokenListContains(list: NativeTokenList, token: string): boolean;
+  tokenListValue(list: NativeTokenList): string;
+  tokenListSet(list: NativeTokenList): NativeTokenSet;
+  tokenListMutate(list: NativeTokenList, method: TokenListMethod, tokens: string[], force?: boolean): TokenListMutation;
   createTraversal(root: number, mask: number, hasFilter: boolean): NativeTraversal;
   traversalStep(cursor: NativeTraversal, operation: NativeTraversalOperation): TraversalInstruction;
   /** Runs an unfiltered movement without allocating a suspended operation. */
@@ -484,6 +491,29 @@ export class NativeTree {
   descendants(handle: number): number[];
   release(handle: number): boolean;
   statistics(): Omit<NativeTreeStatistics, 'indexedNodes' | 'handleBatchSize'>;
+}
+
+/** Native token algorithms preserve order and UTF-16 while the host applies attribute effects. */
+export const TokenListMethod: { readonly Add: 0; readonly Remove: 1; readonly Toggle: 2; readonly Replace: 3 };
+export type TokenListMethod = (typeof TokenListMethod)[keyof typeof TokenListMethod];
+export const TokenValidation: { readonly Valid: 0; readonly Empty: 1; readonly Space: 2 };
+export type TokenValidation = (typeof TokenValidation)[keyof typeof TokenValidation];
+export interface TokenListMutation { status: TokenValidation; result: boolean; value?: string; }
+export type TokenListStatistics = NativeTokenListStatistics;
+export interface TokenSetStorage { length: number; itemCapacity: number; memberCapacity: number; }
+export class NativeTokenList {
+  private constructor();
+  invalidate(): void;
+  supports(token: string): boolean | null;
+  static statistics(): TokenListStatistics;
+}
+/** Shared set contents survive list synchronization without retaining the owning element or forest. */
+export class NativeTokenSet {
+  private constructor();
+  readonly size: number;
+  contains(token: string): boolean;
+  get(index: number): string | null;
+  storage(): TokenSetStorage;
 }
 
 /** Parses well-formed HTML input to the native event tape, returned as JSON. */

@@ -33,6 +33,7 @@ use super::{
     range_surround::SurroundStatus,
     slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
+    token_list_binding::{NativeTokenList, NativeTokenSet, TokenListMethod, TokenListMutation},
     tree_cursor::TraversalMethod,
     tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
 };
@@ -472,6 +473,54 @@ pub struct NativeTree {
 
 #[napi]
 impl NativeTree {
+    #[napi]
+    pub fn create_token_list(
+        &self,
+        owner: f64,
+        name: Utf16String,
+        supported: Option<Vec<Utf16String>>,
+    ) -> Result<NativeTokenList> {
+        NativeTokenList::create(&self.store, owner, name, supported)
+    }
+    #[napi]
+    pub fn token_list_length(&self, list: &mut NativeTokenList) -> Result<u32> {
+        list.length(&self.store)
+    }
+    #[napi]
+    pub fn token_list_item(
+        &self,
+        list: &mut NativeTokenList,
+        index: u32,
+    ) -> Result<Option<Utf16String>> {
+        list.item(&self.store, index)
+    }
+    #[napi]
+    pub fn token_list_contains(
+        &self,
+        list: &mut NativeTokenList,
+        token: Utf16String,
+    ) -> Result<bool> {
+        list.contains(&self.store, &token)
+    }
+    #[napi]
+    pub fn token_list_value(&self, list: &NativeTokenList) -> Result<Utf16String> {
+        list.value(&self.store).map(Into::into)
+    }
+    #[napi]
+    pub fn token_list_set(&self, list: &mut NativeTokenList) -> Result<NativeTokenSet> {
+        list.set(&self.store)
+    }
+    #[napi]
+    pub fn token_list_mutate(
+        &self,
+        list: &mut NativeTokenList,
+        method: TokenListMethod,
+        tokens: Vec<Utf16String>,
+        force: Option<bool>,
+    ) -> Result<TokenListMutation> {
+        list.mutate(&self.store, method, tokens, force)
+    }
+
     #[napi]
     pub fn create_traversal(
         &self,

@@ -96,3 +96,10 @@ reemplazo de todas las APIs de plataforma. La validación general de este hito p
 220 tests Rust, 1.301 Node y 45.348 resultados WPT en paridad, con 1.058 fallos de
 estándar compartidos. El porcentaje no mide esa compatibilidad ni el rendimiento,
 que todavía necesita mejoras.
+
+DOMTokenList agrega parsing, validación, membresía, orden y decisiones de escritura
+nativas sobre los atributos existentes. Pasó 224 tests Rust, 1.482 Node, 36 controles
+instalados y memoria. En 1.000 tokens, parsing/alta/búsqueda mejoraron frente a jsdom;
+reemplazo y listas pequeñas conservan regresiones. Ver reports/validation/dom-token-list.md.
+Es otra familia dentro de las áreas compartidas de Node/atributos; no cambia el
+indicador provisional de 41,7% ni implica integración de los PR pendientes en main.
