@@ -14,6 +14,7 @@ export const {
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
   NativeXmlParser,
+  serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,
   parseDocumentTape, parseFragmentTape,
 } = native;

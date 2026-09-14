@@ -1,8 +1,17 @@
-//! Incremental XML 1.0 compatibility parser. No JavaScript callbacks or owners are retained here.
+//! XML 1.0 parsing and serialization compatibility. Parser state has no JS owners; serialization scopes its temporary JS roots.
 //! State transitions follow saxes 6 (ISC, third-party/saxes/LICENSE); character classes reuse xmlparser.
 mod binding;
 mod doctype;
 mod input;
+// Standalone N-API exports are reached by Node integration tests; Rust test builds omit their registration.
+#[cfg_attr(test, allow(dead_code))]
+mod serialize;
+#[cfg_attr(test, allow(dead_code))]
+mod serialize_host;
+#[cfg_attr(test, allow(dead_code))]
+mod serialize_namespaces;
+#[cfg_attr(test, allow(dead_code))]
+mod serialize_text;
 use input::{
     END, Input, NORMALIZED_NEWLINE, equals, is_name, is_name_start, is_space, is_xml_char, text,
     valid_name,

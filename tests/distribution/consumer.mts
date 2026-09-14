@@ -14,9 +14,19 @@ import nativeRuntime, {
   NativeListenerRegistry, ListenerInvocation,
   NativeAbortState,
   NativeXmlParser,
+  serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM names execute the native XML serializer, including embedded NUL data. */
+const serializationDom = new JSDOM('<r/>', { contentType: 'text/xml' });
+const serializationText = serializationDom.window.document.createTextNode('\0<&>');
+assert.equal(serializeXml(serializationText, false), '\0&lt;&amp;&gt;');
+assert.equal(serializeXmlForest([serializationText], false), '\0&lt;&amp;&gt;');
+assert.equal(xmlSerializationStatistics().references, 0);
+assert.equal(serializeXml, nativeRuntime.serializeXml);
+serializationDom.window.close();
 
 /** Installed ESM traversal names drive actual native movement, preserving literal action types. */
 const traversalTree = new NativeTree(); const traversalRoot = traversalTree.allocate();

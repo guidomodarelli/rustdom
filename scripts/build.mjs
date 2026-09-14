@@ -31,6 +31,14 @@ await mkdir(destination, { recursive: true });
 await cp(resolve(upstreamRoot, 'lib'), resolve(destination, 'lib'), { recursive: true });
 await cp(resolve(upstreamRoot, 'package.json'), resolve(destination, 'package.json'));
 await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt'));
+const xmlSerializerAdapter = await readFile('src/dom/xml-serializer.cjs', 'utf8');
+await writeFile('dist/xml-serializer.cjs', substituteOnce(xmlSerializerAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+for (const file of ['serialization.js', 'XMLSerializer-impl.js']) {
+  const serializerPath = resolve(destination, 'lib/jsdom/living/domparsing', file);
+  await writeFile(serializerPath, substituteOnce(await readFile(serializerPath, 'utf8'), 'require("w3c-xmlserializer")', 'require("../../../../../xml-serializer.cjs")'));
+}
+await mkdir('dist/compatibility-licenses/w3c-xmlserializer', { recursive: true });
+await cp('third-party/w3c-xmlserializer/LICENSE.md', 'dist/compatibility-licenses/w3c-xmlserializer/LICENSE.md');
 const xmlAdapter = await readFile('src/parser/xml.cjs', 'utf8');
 await writeFile('dist/xml-parser.cjs', substituteOnce(xmlAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 const xmlParserPath = resolve(destination, 'lib/jsdom/browser/parser/xml.js');
@@ -777,9 +785,12 @@ nodeHelpers = substituteOnce(nodeHelpers.slice(0, namespaceHelpersStart),
   'const { HTML_NS, XMLNS_NS } = require("./helpers/namespaces");', 'const { HTML_NS } = require("./helpers/namespaces");');
 await writeFile(nodeHelpersPath, nodeHelpers);
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
-await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
+let serializationSource = substituteOnce(await readFile(serializationPath, 'utf8'),
   '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',
-  '    return domSymbolTree.serializeHTML(node, Boolean(outer), config.scriptingEnabled !== false);'));
+  '    return domSymbolTree.serializeHTML(node, Boolean(outer), config.scriptingEnabled !== false);');
+serializationSource = replaceRegion(serializationSource, '    let serialized = "";', '  } catch (e) {',
+  '    return produceXMLSerialization.serializeForest(childNodes.map(child => utils.wrapperForImpl(child)), requireWellFormed);\n', substituteOnce);
+await writeFile(serializationPath, serializationSource);
 
 /** Relocate authored modules without bundling or runtime module-cache mutations. */
 let bridge = await readFile('src/parser/bridge.cjs', 'utf8');

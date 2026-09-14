@@ -71,6 +71,9 @@ function isReleased(state, expected) {
     native.abortStates?.algorithms === expected.abortStates?.algorithms &&
     native.xmlParsers?.live === expected.xmlParsers?.live &&
     native.xmlParsers?.inputUnits === expected.xmlParsers?.inputUnits &&
+    native.xmlSerialization?.live === expected.xmlSerialization?.live &&
+    native.xmlSerialization?.references === expected.xmlSerialization?.references &&
+    native.xmlSerialization?.cleanupErrors === expected.xmlSerialization?.cleanupErrors &&
     native.traversals?.live === expected.traversals?.live &&
     native.traversals?.operations === expected.traversals?.operations &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;

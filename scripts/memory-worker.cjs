@@ -54,6 +54,7 @@ function exerciseWindow(runtime, identity) {
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
   exerciseHostRoots(document);
   exerciseTraversals(document);
+  exerciseXmlSerialization(dom.window);
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);
@@ -93,10 +94,20 @@ function exerciseTraversals(document) {
   comparisonReferences.push(new WeakRef(iterator), new WeakRef(walker), new WeakRef(filter), new WeakRef(root));
 }
 
+/** @param {object} target - Actual window or runner globals. @returns {void} Serialize a separate XML document and retain only weak observations. */
+function exerciseXmlSerialization(target) {
+  const xml = new target.DOMParser().parseFromString('<r xmlns="urn:r"><child a="&amp;"/></r>', 'text/xml');
+  const serializer = new target.XMLSerializer();
+  assert.equal(serializer.serializeToString(xml), '<r xmlns="urn:r"><child a="&amp;"/></r>');
+  assert.equal(xml.documentElement.innerHTML, '<child xmlns="urn:r" a="&amp;"/>');
+  references.push(new WeakRef(xml)); comparisonReferences.push(new WeakRef(serializer), new WeakRef(xml.documentElement));
+}
+
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
   exerciseHostRoots(target.document);
   exerciseTraversals(target.document);
+  exerciseXmlSerialization(target);
   const text = target.document.querySelector('p').firstChild;
   text.nodeValue = text.data;
   const rejectedText = target.document.createTextNode('invalid document child');
@@ -495,6 +506,9 @@ async function main() {
         nativeTree.abortStates.algorithms === initialAttributeState.abortStates.algorithms &&
         nativeTree.xmlParsers.live === initialAttributeState.xmlParsers.live &&
         nativeTree.xmlParsers.inputUnits === initialAttributeState.xmlParsers.inputUnits &&
+        nativeTree.xmlSerialization.live === initialAttributeState.xmlSerialization.live &&
+        nativeTree.xmlSerialization.references === initialAttributeState.xmlSerialization.references &&
+        nativeTree.xmlSerialization.cleanupErrors === initialAttributeState.xmlSerialization.cleanupErrors &&
         nativeTree.traversals.live === initialAttributeState.traversals.live &&
         nativeTree.traversals.operations === initialAttributeState.traversals.operations &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&

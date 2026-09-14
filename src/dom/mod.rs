@@ -8,7 +8,7 @@ mod attributes;
 mod boundary_points;
 mod character_data;
 mod compact_storage;
-mod constants;
+pub(crate) mod constants;
 mod data;
 mod error;
 mod event_listeners;

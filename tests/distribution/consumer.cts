@@ -4,6 +4,13 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed XML serializer preserves namespaces, UTF-16 and native cleanup. */
+const serializationDom = new rustdom.JSDOM('<r xmlns="urn:root"><child/></r>', { contentType: 'text/xml' });
+assert.equal(native.serializeXml(serializationDom.window.document.documentElement, true), '<r xmlns="urn:root"><child/></r>');
+assert.equal(native.serializeXmlForest([serializationDom.window.document.documentElement], false), serializationDom.serialize());
+assert.equal(native.xmlSerializationStatistics().references, 0);
+serializationDom.window.close();
+
 /** Installed native traversal preserves accepted positions and callback suspension. */
 const traversalTree = new native.NativeTree(); const traversalRoot = traversalTree.allocate();
 traversalTree.setData(traversalRoot, JSON.stringify({ kind: 1, name: 'root' }));

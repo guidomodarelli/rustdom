@@ -1,5 +1,12 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics } from './index.cjs';
+
+/** Serializes public properties synchronously; getter/iterator callbacks can mutate the DOM or reenter. */
+export function serializeXml(root: unknown, requireWellFormed: boolean): unknown;
+/** Concatenates a root snapshot with independent namespace scopes and normal string-addition coercion. */
+export function serializeXmlForest(roots: unknown[], requireWellFormed: boolean): string;
+export type XmlSerializationStatistics = NativeXmlSerializationStatistics;
+export function xmlSerializationStatistics(): XmlSerializationStatistics;
 
 export interface NativeXmlAttribute { name: string; prefix: string; local: string; uri: string; value: string; }
 export interface NativeXmlTag { name: string; prefix: string; local: string; uri: string; attributes: NativeXmlAttribute[]; }

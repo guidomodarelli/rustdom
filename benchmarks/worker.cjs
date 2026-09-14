@@ -6,6 +6,7 @@ const { createHash } = require('node:crypto');
 const { listenerFixture } = require('./event-listeners.cjs');
 const { abortFixture } = require('./abort-signal.cjs');
 const { xmlFixture } = require('./xml-parser.cjs');
+const { serializationFixture } = require('./xml-serialization.cjs');
 const { traversalFixture } = require('./tree-traversal.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
@@ -304,6 +305,7 @@ async function measure(name, size) {
   const measuresListeners = ['listener-register', 'listener-remove', 'listener-dispatch'].includes(name);
   const measuresAbort = ['abort-lifecycle', 'abort-any', 'abort-propagation'].includes(name);
   const measuresXml = ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].includes(name);
+  const measuresXmlSerialization = ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].includes(name);
   const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -364,6 +366,7 @@ async function measure(name, size) {
       if (measuresListeners) listenerWork = listenerFixture(runtime, dom.window, size, name);
       if (measuresAbort) abortWork = abortFixture(runtime, dom.window, size, name);
       if (measuresXml) { xmlWork = xmlFixture(runtime, size, name); measuredInputBytes = xmlWork.inputBytes; }
+      if (measuresXmlSerialization) { xmlWork = serializationFixture(runtime, size, name); measuredInputBytes = xmlWork.inputBytes; }
       if (measuresTraversal) traversalWork = traversalFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -944,6 +947,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['listener-register', 'listener-remove', 'listener-dispatch'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['abort-lifecycle', 'abort-any', 'abort-propagation'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),

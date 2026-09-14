@@ -12,6 +12,14 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should preserve XML namespaces and escaping through the runner browser globals', () => {
+    const xml = new DOMParser().parseFromString('<root xmlns="urn:r"><child a="&amp;"/></root>', 'text/xml');
+    expect(new XMLSerializer().serializeToString(xml)).toBe('<root xmlns="urn:r"><child a="&amp;"/></root>');
+    xml.documentElement.innerHTML = '<p:item xmlns:p="urn:p">&lt;</p:item>';
+    expect(xml.documentElement.outerHTML).toBe('<root xmlns="urn:r"><p:item xmlns:p="urn:p">&lt;</p:item></root>');
+    expect(xml.documentElement.innerHTML).toBe('<p:item xmlns:p="urn:p">&lt;</p:item>');
+  });
+
   test('should render and update React state when a user clicks a button', async () => {
     /**
      * Render an accessible button backed by actual React state.

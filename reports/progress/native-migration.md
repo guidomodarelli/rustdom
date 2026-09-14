@@ -1,19 +1,17 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 13/09/2026 sobre el estado publicado
-`09217850a2ad7361b53b374c7e03184e0bc85a0b` (PR55 en borrador), con main
-`b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
-Los PR43–55 todavía no están integrados en main. PR43 tiene los ocho checks
-aprobados, pero su revisión automática sigue pendiente; PR44–55 conservan
-estado de borrador. PR51–55 también tienen todos sus checks aprobados. El driver
-de doctype/entidades se consolida en feature/native-xml-doctype y no se
-cuenta como un hito integrado en main.
+Evaluación actualizada el 14/09/2026 sobre el hito de serialización XML en
+feature/native-xml-serialization, que parte del commit publicado
+`4b1eed00d030f6a38404518e92a3bdd23f05eb28` (PR58). Main continúa en
+`b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
+Los PR43–58 todavía no están integrados en main. Los avances de esta rama se
+cuentan como implementación, no como una versión integrada en main.
 
-**1 área implementada, 7 parciales y 4 delegadas: índice 37,5%.**
+**2 áreas implementadas, 6 parciales y 4 delegadas: índice 41,7%.**
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,
 líneas o esfuerzo. Las 12 áreas reciben el mismo peso: implementada = 1,
-parcial = 0,5 y todavía delegada = 0. Cálculo: `(1 + 7 × 0,5) / 12 × 100`.
+parcial = 0,5 y todavía delegada = 0. Cálculo: `(2 + 6 × 0,5) / 12 × 100`.
 El 0,5 de un área parcial es una convención, no una medición interna de esa área.
 No estima el tiempo restante ni acredita compatibilidad
 completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
@@ -24,7 +22,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Algoritmos generales de Node, creación, adopción y efectos de mutación | Parcial | `scripts/build.mjs` conecta decisiones nativas; `ROADMAP.md` conserva factories, hooks y otros drivers JS. | Alta |
 | Parsing HTML completo | Parcial | `src/parser/bridge.cjs:113` selecciona parseDocumentTape o fallback; scripts, posiciones y otros contextos siguen delegados. | Alta |
 | Parsing XML/XHTML | Parcial | `src/xml/` tokeniza, valida estructura/namespaces, interpreta doctype/entidades y emite eventos incrementales nativos; `src/parser/xml.cjs` conecta documentos y fragmentos reales. Persisten construcción y efectos del host; evidencia en `reports/validation/xml-parser.md` y `reports/validation/xml-doctype.md`. | Alta |
-| Serialización HTML/XML | Parcial | `scripts/build.mjs:583` conecta serializeHTML nativo; XML y rutas restantes conservan drivers originales. | Alta |
+| Algoritmos de serialización HTML/XML y concatenación de fragmentos | Implementada | HTML usa `src/dom/serialization.rs`; XML usa `src/xml/serialize*.rs` y `serializeXmlForest`. Las rutas públicas XMLSerializer, innerHTML/outerHTML XML y JSDOM.serialize ejecutan estos algoritmos. El bridge conserva opciones, wrappers y DOMException; los valores e iteradores V8 se acceden desde Rust. Ver `reports/validation/xml-serialization.md`. | Alta |
 | Selectores CSS completos y XPath | Parcial | `src/dom/tree.rs:1343` expone la consulta nativa; README declara selectores que vuelven al motor original. XPath pendiente. | Alta |
 | Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; ROADMAP enumera efectos, creación y Selection pendientes. | Alta |
 | Shadow DOM, slots y eventos completos | Parcial | Hosts, retargeting, selección, aplanado, caches, backlinks, cola de señales y driver de asignación usan Rust; ver `reports/validation/slot-assignment-driver.md`. Continúan pendientes microtasks, callbacks y algoritmos generales de eventos. | Alta |
@@ -43,7 +41,7 @@ denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.
 
-El índice pasa a 37,5% porque XML deja de estar completamente delegado y tiene
+El índice pasó a 37,5% cuando XML dejó de estar completamente delegado y obtuvo
 un parser incremental nativo verificado. Sigue siendo un área parcial. El índice
 no se incrementa automáticamente por cada commit, PR o checkpoint.
 Los avances publicados incluyen payloads de MutationRecord, registro, colas y
@@ -82,11 +80,19 @@ paridad con jsdom; 26 de esos WPT son fallos de estándar compartidos. La valida
 general pasó 218 tests Rust y 1.112 Node. GC focal, estrés de memoria y Memcheck
 pasaron dentro de sus límites documentados en reports/validation/tree-traversal.md.
 La migración general de Node permanece parcial: este avance no cambia el 37,5%
-provisional ni acredita que los PR pendientes estén integrados en main.
+provisional de ese momento ni acredita que los PR pendientes estén integrados en main.
 
 La optimización posterior conserva esos algoritmos en Rust y reduce los cruces
 N-API y las asignaciones de operaciones. El estado final pasó 218 tests Rust,
 1.118 Node, 36 controles de instalación, memoria y benchmarks. En 1.000 filas los
 recorridos bajaron 48–49% sin filtro y 16–17% con filtro respecto del hito anterior;
 siguen siendo más lentos que jsdom. Ver reports/validation/traversal-performance.md.
-Es un avance de rendimiento dentro de un área parcial; el índice permanece 37,5%.
+Ese avance de rendimiento no modificó el índice, que entonces permaneció en 37,5%.
+
+La serialización XML posterior completa la segunda área de algoritmos migrados y
+lleva el indicador a 41,7%. Los accesos a valores/callbacks V8 y el bridge de realms
+siguen siendo necesarios para integrarse con Node; no se los presenta como un
+reemplazo de todas las APIs de plataforma. La validación general de este hito pasó
+220 tests Rust, 1.301 Node y 45.348 resultados WPT en paridad, con 1.058 fallos de
+estándar compartidos. El porcentaje no mide esa compatibilidad ni el rendimiento,
+que todavía necesita mejoras.
