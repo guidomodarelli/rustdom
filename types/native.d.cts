@@ -180,7 +180,7 @@ export const SlotAssignmentAction: { readonly Complete: 0; readonly Signal: 1; r
 /** Numeric action values returned by the native assignment driver, without reverse mapping. */
 export type SlotAssignmentAction = typeof SlotAssignmentAction[keyof typeof SlotAssignmentAction];
 export interface SlotAssignmentInstruction { kind: SlotAssignmentAction; slot: number; nodes: number[]; nextNode: number; cacheChanged: boolean; }
-/** Numeric-only synchronous operation. The first tree step validates allocation and slot role. */
+/** Synchronous operation with numeric state and a weak identity bound to its first native forest. */
 export class NativeSlotAssignmentDriver {
   constructor(root: number, subtree: boolean);
   cancel(): void;
@@ -368,7 +368,12 @@ export class NativeTree {
   findFlattenedSlotables(slot: number): number[];
   /** Captures current candidates and whether they differ from cache; does not commit before signaling. */
   slotAssignmentPlan(slot: number): { changed: boolean; nodes: number[] };
-  /** Resume after delivering Signal, or applying the prior ownership update; native errors cancel the operation. */
+  /**
+   * Resume after Signal or the prior ownership update within the original forest.
+   * @param operation - Controller bound on its first step; completed controllers remain inert.
+   * @returns The next signal, ownership update or completion instruction.
+   * @throws InvalidArg when an active controller changes forests or its original forest was released; the operation is cancelled.
+   */
   slotAssignmentStep(operation: NativeSlotAssignmentDriver): SlotAssignmentInstruction;
   /** Commits the previously captured snapshot; errors leave the old cache intact. */
   setSlotAssignment(slot: number, nodes: number[]): void;

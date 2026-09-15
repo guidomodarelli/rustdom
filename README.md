@@ -188,6 +188,11 @@ requiere actualizar ownership. Conserva el siguiente nodo capturado por el
 iterador y los candidatos a través de reentrancia; no ejecuta JavaScript mientras
 el store está prestado por Rust. Los slots sin cambios se procesan en el mismo
 paso nativo. `slotAssignmentDrivers` expone el lifetime de los controladores.
+El primer paso vincula el driver débilmente con su bosque nativo. Reanudar una
+operación activa en otro `NativeTree`, aunque tenga handles iguales, devuelve
+`InvalidArg` y la cancela antes de modificar el árbol. El vínculo no conserva
+el bosque y se libera al completar o cancelar; un controlador completado sigue
+respondiendo `Complete` sin acceder a ningún árbol.
 
 Los nueve campos de `MutationRecord` usan un snapshot inmutable de Rust: tipo,
 texto UTF-16 nullable y IDs de target, siblings y listas ordenadas. El puente
