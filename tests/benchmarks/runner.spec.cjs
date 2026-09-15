@@ -11,12 +11,15 @@ const { resolve } = require('node:path');
  * @param {string} workload - Public workload selector.
  * @param {string | undefined} timeout - Optional worker budget in milliseconds.
  * @param {string | undefined} packageRoot - Optional actual package to load.
+ * @param {object} [shard] - Explicit partition configuration.
  * @returns {import('node:child_process').SpawnSyncReturns<string>} Captured process result.
  */
-function runBenchmark(workload, timeout, packageRoot) {
+function runBenchmark(workload, timeout, packageRoot, shard) {
   const env = { ...process.env };
   delete env.RUSTDOM_BENCHMARK_TIMEOUT_MS;
   delete env.RUSTDOM_BENCHMARK_PACKAGE;
+  delete env.RUSTDOM_BENCHMARK_SHARD_COUNT; delete env.RUSTDOM_BENCHMARK_SHARD_INDEX;
+  if (shard) { env.RUSTDOM_BENCHMARK_SHARD_COUNT = String(shard.count); env.RUSTDOM_BENCHMARK_SHARD_INDEX = String(shard.index); }
   if (packageRoot !== undefined) env.RUSTDOM_BENCHMARK_PACKAGE = packageRoot;
   if (timeout !== undefined) env.RUSTDOM_BENCHMARK_TIMEOUT_MS = timeout;
   return spawnSync(process.execPath, ['--expose-gc', 'benchmarks/compare.cjs', workload], {
@@ -100,4 +103,14 @@ test('benchmark CLI preserves complete real-engine samples and comparable output
   }
   assert.ok(hashes.every((hash) => hash === hashes[0]));
   for (const engine of ['jsdom', 'rustdom']) assert.equal(report.comparisons[0][engine].samples, 18);
+});
+
+test('benchmark CLI measures only its declared partition using real engines', () => {
+  const child = runBenchmark('storage-get', undefined, undefined, { count: 2, index: 1 });
+  assert.ifError(child.error); assert.equal(child.status, 0, child.stderr);
+  const match = child.stdout.match(/Guardado: (reports\/benchmarks\/[^\s]+\.json)/); assert.ok(match, child.stdout);
+  const report = JSON.parse(readFileSync(match[1], 'utf8')); assert.equal(report.complete, true);
+  assert.deepEqual(report.shard, { count: 2, index: 1 });
+  for (const run of report.runs) { assert.equal(run.workloads.length, 1); assert.equal(run.workloads[0].name, 'storage-get'); assert.equal(run.workloads[0].rows, 1000); assert.equal(run.workloads[0].samplesMs.length, 9); }
+  assert.equal(report.comparisons.length, 1);
 });

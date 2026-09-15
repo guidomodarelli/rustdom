@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
 const { BenchmarkReport } = require('./report.cjs');
+const { readBenchmarkShard } = require('./shard.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
@@ -14,6 +15,7 @@ const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
 const outputDirectory = 'reports/benchmarks';
 /** Optional workload names reuse the exact fixtures and sampling of the full benchmark. */
 const requestedWorkloads = process.argv.slice(2);
+const shard = readBenchmarkShard();
 /** Bound a complete worker plan, including untimed setup and cleanup, on slower CI hosts. */
 const workerTimeoutMs = Number(process.env.RUSTDOM_BENCHMARK_TIMEOUT_MS ?? 600_000);
 assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
@@ -32,6 +34,7 @@ for (const path of measuredSources) sourceDigest.update(path).update('\0').updat
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  shard, completionScope: 'Selected workload partition only; all partitions together cover the eligible plan.',
   storageMethodology: 'Size denotes 100 or 1000 UTF16 key/value pairs. Prepare a nonopaque window and entries outside timing except insert. Measure public insertion, overwrite, lookup, indexed key access, Object.entries, removal, clear or one quota rejection. The quota fixture has exactly the budget needed for existing entries. Consume results and validate every key/value/order outside timing. Real timer scheduling is included; notification drainage is outside timing before cleanup and GC.',
   rectMethodology: 'Size denotes 100 or 1000 public DOMRect instances. Time construction, all four edge reads, two mutations plus edge reads, or toJSON. Prepare inputs outside timing except construction workload; consume scalar results and validate all fields, JSON ordering and native allocation counts outside timing. Native crossings and public WebIDL wrappers are included.',
   datasetMethodology: 'Size denotes data-* attributes (4 or 1000). Prepare the owner and values before timing; measure all public reads, Object.entries, overwrites or deletions. Consume returned values/counts and validate every attribute, key order and exact output hash outside timing. Native dataset algorithms share the existing canonical attributes and mutation hooks.',
