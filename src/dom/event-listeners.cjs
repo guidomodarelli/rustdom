@@ -4,11 +4,12 @@ const { NativeListenerRegistry, ListenerInvocation } = require('../../dist/nativ
 
 /** A storage identity survives an active dispatch even when Window.close replaces the target's storage. */
 class ListenerStorage {
+  /** @type {Function|null} Own lifetime hook defined without invoking inherited setters. */
+  onChange = null;
+
   /** Allocate native state only after the first accepted listener. */
   constructor() {
     this.native = null; this.records = null; this.identities = null; this.primitiveIdentities = null; this.nextIdentity = 0;
-    // A lifetime hook belongs to this storage, never to a caller-modified prototype.
-    this.onChange = null;
   }
 
   /** @returns {boolean} Preserves the empty-bucket history used by XHR and frames. */

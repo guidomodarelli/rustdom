@@ -29,3 +29,11 @@ Los tres reportes de memoria siguientes identifican este addon mediante su hash 
 - `reports/memory/2026-09-15T14-42-10.186Z-abort-dependent-retention.json` (suite completa Node 24).
 
 Estos resultados sustituyen la primera validación para evaluar el runtime integrado; los reportes anteriores se mantienen como evidencia histórica. La medición de rendimiento final debe usar este addon y una ventana sin los builds/tests pesados de las otras tareas.
+
+## Campo propio frente a descriptores heredados
+
+La asignación de constructor `this.onChange = null` todavía podía invocar un setter heredado o fallar ante una propiedad heredada no escribible. Se reprodujeron ambos casos con `EventTarget` real: jsdom pasó y rustdom falló; el log previo está en `inherited-hook-descriptors-before.log`.
+
+La versión final declara `onChange = null` como campo de clase, que define una propiedad propia sin pasar por setters del prototipo. Se amplió la regresión a seis casos diferenciales (`writable`, `accessor`, `readonly` en ambos engines). Tras `build:js` pasaron 43 tests de AbortSignal/listeners/GC en Node 24 y 40 en Node 22, incluidos esos descriptores. El hash nativo continúa siendo `fb12b3d1fa14ec020cf520734b30b927176bff4dc3632e3b9fe8072f882b89cd`.
+
+Este último ajuste solo cambia la definición del campo JavaScript. No se repitió la suite completa ya aprobada: se conservan sus resultados para las superficies sin cambios y se añade esta validación focal ejecutada sobre el código final, registrada en `merged/class-field-*.log`.
