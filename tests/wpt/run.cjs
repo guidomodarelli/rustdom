@@ -4,6 +4,7 @@ const { readFileSync, writeFileSync, mkdirSync } = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
+const { assertWptParity } = require('./comparison.cjs');
 
 /** Corpus paths and digests identify the actual upstream input, not a claim of complete WPT coverage. */
 const root = path.resolve(__dirname, '../fixtures/wpt');
@@ -91,6 +92,7 @@ async function main() {
     wptRevision: manifest.revision, jsdom: require('jsdom/package.json').version, suites,
     outerTimeoutMs: TEST_TIMEOUT_MS,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
+    diagnosticNormalization: 'Only the wall-clock Date input description in the known Blob-constructor invalid-input assertion is canonicalized for comparison. Raw messages, statuses and actual/expected exception diagnostics are preserved.',
     blockedSuites, complete: Object.keys(blockedSuites).length === 0,
     results: [], pass: true };
   for (const [suite, blocker] of Object.entries(blockedSuites)) {
@@ -102,8 +104,7 @@ async function main() {
       const actual = await run(engines.rustdom, file);
       let pass = true;
       try {
-        assert.equal(expected.status, 0); assert.equal(actual.status, 0);
-        assert.ok(expected.tests.length > 0); assert.deepEqual(actual, expected);
+        assertWptParity(file, actual, expected);
       } catch { pass = false; }
       const standardsPass = actual.tests.filter((test) => test.status === 0).length;
       report.results.push({ file, pass, standardsPass, expected, actual });
