@@ -47,6 +47,8 @@ Los 30 Workers completaron su trabajo y salida sin fallos. Las estadísticas de 
 Muestras crudas, versiones, hardware, configuración, lockfile hashes y hashes de los dos binarios: `reports/benchmarks/2026-09-15T18-38-34.881Z-xml-intrinsics-init.json`. Las observaciones de memoria y salida de entornos están en `reports/memory/2026-09-15T18-38-34.881Z-xml-intrinsics-envs.json`.
 La limitación histórica sobre la captura de `Symbol.prototype.toString` registrada abajo fue corregida posteriormente. Ver [pr67-iterator-diagnostics.md](pr67-iterator-diagnostics.md) para la implementación y evidencia actualizadas.
 
+La dependencia histórica de `Array.prototype[Symbol.iterator]` registrada abajo fue corregida posteriormente mediante un fallback independiente y perezoso. Ver [pr67-iterator-key.md](pr67-iterator-key.md).
+
 ## Alcance y límites
 
 La corrección elimina la dependencia concreta de `Symbol.prototype.constructor` y conserva las protecciones ya cubiertas. No certifica todos los prototipos posibles manipulados antes de la carga: la captura de claves presupone que el prototipo intrínseco de array conserva su clave de iteración, y el formateador inicial de símbolos mantiene el supuesto previo sobre `Symbol.prototype.toString`. Estos escenarios diferenciales tampoco constituyen compatibilidad completa con jsdom o los estándares. El objetivo global 100% Rust y compatibilidad verificable continúa pendiente.
