@@ -58,6 +58,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - NodeIterator/TreeWalker ejecutan control, navegación y reparación de referencias en Rust sobre enlaces vivos. Los filtros suspenden el controlador nativo y el host ejecuta callbacks/conversiones sin préstamos Rust activos. Ver reports/validation/tree-traversal.md; quedan wrappers y otros algoritmos de Node dentro del objetivo integral.
 - DOMTokenList mueve validación, parsing HTML-space/UTF16, pertenencia, orden, reemplazo, toggle y decisiones de escritura a Rust. Se conservan los hooks de atributos y los consumers internos de tokenSet. Ver reports/validation/dom-token-list.md; los demás algoritmos de elementos/formularios siguen pendientes.
 - DOMStringMap/dataset convierte nombres, valida escrituras y consulta atributos canónicos en Rust. Mantiene el Proxy y los efectos de atributos, incluidas las asimetrías de namespaces de jsdom. Ver reports/validation/dom-string-map.md.
+- DOMRect/DOMRectReadOnly migran estado, bordes IEEE-754 y valores de toJSON a Rust. Conservan WebIDL/factories/realms en JavaScript. No completan CSSOM ni incorporan un motor de layout; ver reports/validation/dom-rect.md.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.
 - Compatibilidad completa: corpus upstream y WPT aplicables, errores, realms, módulos, instalación y runners; resultados faltantes, excluidos o no verificados impiden cerrar el objetivo.

@@ -38,6 +38,15 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
     expect(xml.documentElement.innerHTML).toBe('<p:item xmlns:p="urn:p">&lt;</p:item>');
   });
 
+  test('should preserve rectangle numerical edges and independent JSON through browser globals', () => {
+    const rect = new DOMRect(2, 3, -4, -5); const readOnly = DOMRectReadOnly.fromRect(rect);
+    expect(rect.left).toBe(-2); expect(rect.top).toBe(-2); rect.width = 10;
+    expect(rect.right).toBe(12); expect(readOnly.right).toBe(2);
+    const json = rect.toJSON(); json.x = 99; expect(rect.x).toBe(2);
+    expect(Object.is(new DOMRect(-0, -0, 0, 0).left, -0)).toBe(true);
+    expect(Number.isNaN(new DOMRect(Infinity, 0, -Infinity, 1).right)).toBe(true);
+  });
+
   test('should render and update React state when a user clicks a button', async () => {
     /**
      * Render an accessible button backed by actual React state.

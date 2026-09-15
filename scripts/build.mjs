@@ -77,6 +77,14 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const rectSource = await readFile('src/dom/dom-rect.cjs', 'utf8');
+await writeFile('dist/dom-rect.cjs', substituteOnce(rectSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/geometry/DOMRectReadOnly-impl.js'),
+  '"use strict";\nconst { createReadOnlyRectImplementation } = require("../../../../../dom-rect.cjs");\n' +
+  'exports.implementation = createReadOnlyRectImplementation(require("../generated/DOMRectReadOnly"));\n');
+await writeFile(resolve(destination, 'lib/jsdom/living/geometry/DOMRect-impl.js'),
+  '"use strict";\nconst { createMutableRectImplementation } = require("../../../../../dom-rect.cjs");\n' +
+  'exports.implementation = createMutableRectImplementation(require("./DOMRectReadOnly-impl").implementation, require("../generated/DOMRect"));\n');
 const tokenListSource = await readFile('src/dom/token-list.cjs', 'utf8');
 const stringMapSource = await readFile('src/dom/string-map.cjs', 'utf8');
 await writeFile('dist/string-map.cjs', substituteOnce(stringMapSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));

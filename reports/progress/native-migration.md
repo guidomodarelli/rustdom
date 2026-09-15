@@ -1,10 +1,10 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 14/09/2026 sobre el hito de DOMStringMap en
-feature/native-dom-string-map, que parte del commit publicado
-`e7e49fd5ac85f9401ea94e40793d6f2601771dbd` (PR60). Main continúa en
+Evaluación actualizada el 14/09/2026 sobre el hito de DOMRect en
+feature/native-dom-rect, que parte del commit publicado
+`60a0cd04b287834fd5a171b1c1beea513442d246` (PR61). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–60 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–61 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
 **2 áreas implementadas, 6 parciales y 4 delegadas: índice 41,7%.**
@@ -35,7 +35,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 227 tests Rust, 1.567 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 231 tests Rust, 1.595 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -111,3 +111,11 @@ el mismo paquete pasó 36 controles instalados en Node 22/24. WPT conserva 47.00
 resultados en paridad, incluidos 1.067 fallos de estándar compartidos. Memoria,
 muestras crudas y diferencias de rendimiento están en reports/validation/dom-string-map.md.
 El área general de Node/atributos sigue parcial y el indicador permanece en 41,7%.
+
+DOMRect y DOMRectReadOnly incorporan estado y cálculos geométricos nativos,
+con wrappers y realms conservados en el host. Los 70 WPT nuevos pasaron y la
+validación general mantuvo 47.072 resultados en paridad. Los 12 ciclos de memoria
+focal y los 36 controles instalados pasaron; la prueba adicional de setters
+heredados se ejecutó después de los 1.595 contratos Node del run general.
+Ver reports/validation/dom-rect.md. Este hito no completa CSSOM/layout ni cambia
+el estado global de las áreas; el índice se mantiene en 41,7%.

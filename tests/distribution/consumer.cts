@@ -4,6 +4,12 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native rectangle state preserves nonfinite arithmetic and independent snapshots. */
+const installedRect = new native.NativeDomRect(-0, 2, 3, -4);
+assert.ok(Object.is(installedRect.left, -0)); assert.equal(installedRect.top, -2);
+installedRect.width = Infinity; assert.equal(installedRect.right, Infinity);
+assert.deepEqual(Object.keys(installedRect.snapshot()), ['x', 'y', 'width', 'height', 'top', 'right', 'bottom', 'left']);
+
 /** Installed dataset plans preserve ASCII casing and error precedence. */
 const datasetTree = new native.NativeTree(); const datasetOwner = datasetTree.allocate();
 datasetTree.setData(datasetOwner, JSON.stringify({ kind: 1, name: 'div' }));

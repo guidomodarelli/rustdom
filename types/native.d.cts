@@ -1,5 +1,15 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics } from './index.cjs';
+
+/** Compact native rectangle. WebIDL conversion and read-only contracts belong to the public wrappers. */
+export class NativeDomRect {
+  constructor(x: number, y: number, width: number, height: number);
+  x: number; y: number; width: number; height: number;
+  readonly top: number; readonly right: number; readonly bottom: number; readonly left: number;
+  snapshot(): RectSnapshot;
+  static statistics(): NativeRectStatistics;
+}
+export interface RectSnapshot { x: number; y: number; width: number; height: number; top: number; right: number; bottom: number; left: number; }
 
 /** Serializes public properties synchronously; getter/iterator callbacks can mutate the DOM or reenter. */
 export function serializeXml(root: unknown, requireWellFormed: boolean): unknown;

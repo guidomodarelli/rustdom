@@ -10,6 +10,7 @@ const { serializationFixture } = require('./xml-serialization.cjs');
 const { traversalFixture } = require('./tree-traversal.cjs');
 const { tokenListFixture } = require('./dom-token-list.cjs');
 const { datasetFixture } = require('./dom-string-map.cjs');
+const { rectFixture } = require('./dom-rect.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -310,6 +311,7 @@ async function measure(name, size) {
   const measuresXmlSerialization = ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].includes(name);
   const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const measuresTokens = ['token-parse', 'token-contains', 'token-add', 'token-replace'].includes(name);
+  const measuresRect = ['rect-create', 'rect-read', 'rect-update', 'rect-json'].includes(name);
   const measuresDataset = ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -340,6 +342,7 @@ async function measure(name, size) {
     let traversalWork;
     let tokenWork;
     let datasetWork;
+    let rectWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -375,6 +378,7 @@ async function measure(name, size) {
       if (measuresXmlSerialization) { xmlWork = serializationFixture(runtime, size, name); measuredInputBytes = xmlWork.inputBytes; }
       if (measuresTraversal) traversalWork = traversalFixture(runtime, dom.window, size, name);
       if (measuresTokens) tokenWork = tokenListFixture(runtime, dom.window, size, name);
+      if (measuresRect) rectWork = rectFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -497,6 +501,7 @@ async function measure(name, size) {
       traversalWork?.prepare();
       const start = performance.now();
       if (xmlWork) result = xmlWork.run();
+      else if (rectWork) result = rectWork.run();
       else if (datasetWork) result = datasetWork.run();
       else if (tokenWork) result = tokenWork.run();
       else if (traversalWork) result = traversalWork.run();
@@ -743,6 +748,7 @@ async function measure(name, size) {
       traversalWork?.validate(result);
       tokenWork?.validate(result);
       datasetWork?.validate(result);
+      rectWork?.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -911,6 +917,7 @@ async function measure(name, size) {
     listenerWork?.dispose(); listenerWork = null;
     abortWork?.dispose(); abortWork = null;
     xmlWork?.dispose(); xmlWork = null;
+    rectWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
@@ -962,6 +969,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['token-parse', 'token-contains', 'token-add', 'token-replace'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['rect-create', 'rect-read', 'rect-update', 'rect-json'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),

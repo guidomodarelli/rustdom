@@ -81,6 +81,8 @@ function exerciseWindow(runtime, identity) {
 
 /** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
 function exerciseTraversals(document) {
+  const rect = new document.defaultView.DOMRect(2, 3, -4, -5); rect.width = -6;
+  assert.equal(rect.left, -4); comparisonReferences.push(new WeakRef(rect));
   const root = document.createElement('div'); root.innerHTML = '<a>A<b>B</b></a><p>P</p>';
   const dataset = root.dataset; dataset.ownerId = 'memory'; dataset.nextValue = 'next'; delete dataset.ownerId;
   assert.equal(root.getAttribute('data-next-value'), 'next'); comparisonReferences.push(new WeakRef(dataset));

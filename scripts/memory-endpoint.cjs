@@ -76,6 +76,7 @@ function isReleased(state, expected) {
     native.xmlSerialization?.cleanupErrors === expected.xmlSerialization?.cleanupErrors &&
     native.traversals?.live === expected.traversals?.live &&
     native.traversals?.operations === expected.traversals?.operations &&
+    native.rectangles?.live === expected.rectangles?.live &&
     native.tokenLists?.live === expected.tokenLists?.live &&
     native.tokenLists?.sets === expected.tokenLists?.sets &&
     native.tokenLists?.tokenUnits === expected.tokenLists?.tokenUnits &&

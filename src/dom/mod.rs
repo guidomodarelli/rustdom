@@ -10,6 +10,8 @@ mod character_data;
 mod compact_storage;
 pub(crate) mod constants;
 mod data;
+mod dom_rect;
+mod dom_rect_binding;
 mod error;
 mod event_listeners;
 mod event_listeners_binding;

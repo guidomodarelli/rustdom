@@ -15,11 +15,17 @@ import nativeRuntime, {
   NativeAbortState,
   NativeXmlParser,
   NativeTokenList, TokenListMethod, TokenValidation,
-  DatasetNameStatus,
+  DatasetNameStatus, NativeDomRect,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM rectangle state and snapshots use the actual native addon. */
+const installedRect = new NativeDomRect(-0, 2, 3, -4);
+assert.ok(Object.is(installedRect.left, -0)); assert.equal(installedRect.top, -2);
+installedRect.width = Infinity; assert.equal(installedRect.right, Infinity);
+assert.deepEqual(Object.keys(installedRect.snapshot()), ['x', 'y', 'width', 'height', 'top', 'right', 'bottom', 'left']);
 
 /** ESM dataset status values match the native naming plan. */
 const datasetTree = new NativeTree(); const datasetPlan = datasetTree.datasetNamePlan('bad-name', true);

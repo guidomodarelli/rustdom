@@ -43,3 +43,8 @@ La suite `boundary-points` incorpora comparaciones, puntos e intersecciones de
 Range, incluidos binding y shadow DOM. Los casos comparten `dom/common.js` de
 la misma revisión; los errores de preparación de rangos también quedan en el
 reporte y no se presentan como aserciones de estándares aprobadas.
+
+La suite `dom-rect` agrega DOMRect-001, DOMRect-002 y DOMRect-nan de la misma
+revisión upstream, sin modificar sus aserciones. Cubre DOMRect y DOMRectReadOnly,
+constructores, atributos y valores especiales; no certifica las otras interfaces
+geométricas ni layout.
