@@ -7,6 +7,8 @@ class ListenerStorage {
   /** Allocate native state only after the first accepted listener. */
   constructor() {
     this.native = null; this.records = null; this.identities = null; this.primitiveIdentities = null; this.nextIdentity = 0;
+    // A lifetime hook belongs to this storage, never to a caller-modified prototype.
+    this.onChange = null;
   }
 
   /** @returns {boolean} Preserves the empty-bucket history used by XHR and frames. */
