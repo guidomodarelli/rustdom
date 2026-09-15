@@ -4,6 +4,13 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed Blob metadata and byte construction use the real addon. */
+const blobMetadata = new native.NativeBlobMetadata('TEXT/PLAIN'); blobMetadata.setFile('name', 42);
+assert.ok(native.classReferenceStatistics().live > 0); assert.equal(native.classReferenceStatistics().cleanupErrors, 0);
+assert.equal(blobMetadata.mimeType, 'text/plain'); assert.equal(blobMetadata.fileName, 'name'); assert.equal(blobMetadata.lastModified, 42);
+assert.deepEqual([...native.concatenateBlobBuffers([Buffer.from([1, 2]), Buffer.from([3])], Buffer)], [1, 2, 3]);
+assert.equal(native.normalizeBlobEndings('a\r\nb'), 'a\nb'); assert.deepEqual(native.blobSliceRange(6, -3, -1), { start: 3, end: 5 });
+
 /** Installed native storage retains order and quota decisions without hidden mutation. */
 const storageArea = new native.NativeStorageArea(); storageArea.set('key', 'value');
 assert.equal(storageArea.planSet('key', 'value', 0).status, native.StorageSetStatus.Unchanged);

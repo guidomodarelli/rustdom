@@ -114,3 +114,14 @@ test('benchmark CLI measures only its declared partition using real engines', ()
   for (const run of report.runs) { assert.equal(run.workloads.length, 1); assert.equal(run.workloads[0].name, 'storage-get'); assert.equal(run.workloads[0].rows, 1000); assert.equal(run.workloads[0].samplesMs.length, 9); }
   assert.equal(report.comparisons.length, 1);
 });
+
+test('benchmark CLI preserves synchronous slot queue checks before asynchronous delivery', () => {
+  const child = runBenchmark('slot-signal-burst'); assert.ifError(child.error); assert.equal(child.status, 0, child.stderr);
+  const match = child.stdout.match(/Guardado: (reports\/benchmarks\/[^\s]+\.json)/); assert.ok(match, child.stdout);
+  const report = JSON.parse(readFileSync(match[1], 'utf8')); assert.equal(report.complete, true);
+  assert.equal(report.comparisons.length, 2);
+  for (const run of report.runs) {
+    assert.deepEqual(run.workloads.map((workload) => [workload.name, workload.rows]), [['slot-signal-burst', 100], ['slot-signal-burst', 1000]]);
+    assert.ok(run.workloads.every((workload) => workload.samplesMs.length === 9));
+  }
+});

@@ -77,6 +77,14 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const blobSource = await readFile('src/dom/blob-file.cjs', 'utf8');
+await writeFile('dist/blob-file.cjs', substituteOnce(blobSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/file-api/Blob-impl.js'),
+  '"use strict";\nconst { createBlobImplementation } = require("../../../../../blob-file.cjs");\n' +
+  'exports.implementation = createBlobImplementation(require("../generated/Blob"), require("../generated/utils").isArrayBuffer);\n');
+await writeFile(resolve(destination, 'lib/jsdom/living/file-api/File-impl.js'),
+  '"use strict";\nconst { createFileImplementation } = require("../../../../../blob-file.cjs");\n' +
+  'exports.implementation = createFileImplementation(require("./Blob-impl").implementation);\n');
 const storageSource = await readFile('src/dom/web-storage.cjs', 'utf8');
 await writeFile('dist/web-storage.cjs', substituteOnce(storageSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/webstorage/Storage-impl.js'),

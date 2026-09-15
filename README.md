@@ -295,6 +295,14 @@ ejecutar `RUSTDOM_BENCHMARK_PACKAGE=/ruta/al/package npm run bench -- selectors-
 La variable señala la raíz del paquete que contiene `dist/index.cjs`. El JSON
 registra esa raíz, metadata de build y hash del binario realmente cargado;
 `sourceCommit`/`sourceHash` describen el harness y árbol de trabajo actuales.
+`sourceHash`, `measuredSources` y `sourceChanges` comparten el mismo alcance:
+`src`, `scripts`, `benchmarks`, `third-party/napi`, los lockfiles de npm/Cargo,
+`Cargo.toml` y `tests/integration/read-dom-file.cjs`. El hash conserva nombres
+relativos y bytes; `sourceChanges` registra los estados porcelain de Git e incluye
+cada archivo no rastreado o ignorado dentro de esas rutas. Un fallo de Git produce
+el campo afectado en `null` y un diagnóstico seguro en `sourceGitErrors`; una lista
+vacía solo indica una consulta exitosa sin cambios. Los reportes generados quedan
+fuera de ese alcance.
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:
 
@@ -394,6 +402,8 @@ Las pruebas incluyen consumo único del body, errores multipart, señales ya abo
 - DOMStringMap (`dataset`) enumera y busca atributos por sus nombres locales y convierte nombres en Rust, conservando el Proxy WebIDL y los hooks de escritura/borrado. Ver [validación](reports/validation/dom-string-map.md).
 - DOMRect/DOMRectReadOnly guardan los cuatro escalares y calculan bordes/snapshots en Rust, incluyendo NaN, infinitos y cero con signo. WebIDL, creación de wrappers y realms siguen en el host. Esto no implementa layout; ver [validación](reports/validation/dom-rect.md).
 - localStorage/sessionStorage usan áreas compartidas Rust con IndexMap, datos UTF16, cuotas y cursores vivos sin tombstones. El host mantiene acceso por origen, wrappers y programación/entrega de StorageEvent. Se conservan los detalles de jsdom sobre valores vacíos y cuotas de iframes; ver [validación](reports/validation/web-storage.md).
+- Blob/File: metadatos, MIME, finales de línea, rangos de slice y concatenación de buffers ordinarios usan Rust. Los Buffer y sus vistas siguen integrados con V8, FileReader, FormData y XHR; buffers compartidos/desprendidos usan la operación de Node para conservar seguridad y errores. WebIDL, conversión a vistas, factories y reloj permanecen en el host. Ver [validación](reports/validation/blob-file.md).
+- La copia local de napi 3.12.3 libera las referencias de constructores al cerrar cada entorno. El parche, origen verificado y licencia están en `third-party/napi`; se incluyen en el paquete. Hay controles de cierre/recarga de workers y comparación Valgrind con Node sin addon.
 - Selectores dinámicos o no implementados por la ruta nativa, `nth-child(... of ...)`, shadow roots y árboles con datos UTF-16 no representables en UTF-8: motor de selectores original. Las ambigüedades de mayúsculas/minúsculas en atributos SVG e identificadores en quirks también conservan el comportamiento de jsdom.
 - `<select>`: parser original para mantener las reglas de jsdom 27, anteriores a los selects personalizables de HTML5 actual.
 - Texto con foster parenting en tablas, atributos de raíces repetidas y surrogates UTF-16 incompletos: rutas explícitas para preservar el resultado de jsdom.

@@ -53,3 +53,10 @@ Las suites `web-storage` y `web-storage-events` conservan 40 fixtures originales
 de Storage, propiedades, eventos entre iframes y cuotas, más sus recursos locales.
 No incluyen aquí escenarios de particionamiento, window.open o document.domain;
 no se interpreta este subconjunto como conformidad completa de almacenamiento.
+
+La suite `blob-file` conserva siete fixtures de constructores, finales de línea
+y slice, más el helper original `FileAPI/support/Blob.js`. Los archivos `.any.js`
+se ejecutan aquí únicamente en Window y sus scripts META se cargan antes de la
+fixture. No se acredita cobertura Worker. Los fallos compartidos por métodos
+modernos ausentes en jsdom (text/arrayBuffer) se registran como límites, no como
+lecturas de contenido aprobadas.

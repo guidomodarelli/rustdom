@@ -5,6 +5,12 @@ mod attribute_index;
 mod attribute_operations;
 mod attribute_view;
 mod attributes;
+// N-API registration is omitted from Rust test binaries; the addon contracts exercise these exports.
+#[cfg_attr(test, allow(dead_code))]
+mod blob_binding;
+#[cfg_attr(test, allow(dead_code))]
+mod blob_bytes;
+mod blob_data;
 mod boundary_points;
 mod character_data;
 mod compact_storage;
@@ -23,7 +29,9 @@ mod mutation_production_binding;
 mod mutation_record;
 mod mutation_record_binding;
 mod namespaces;
-mod napi_error;
+pub(crate) mod napi_error;
+#[cfg_attr(test, allow(dead_code))]
+mod napi_lifecycle;
 mod napi_string;
 mod node_comparison;
 mod node_constraints;

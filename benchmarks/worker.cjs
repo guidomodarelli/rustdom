@@ -14,6 +14,7 @@ const { tokenListFixture } = require('./dom-token-list.cjs');
 const { datasetFixture } = require('./dom-string-map.cjs');
 const { rectFixture } = require('./dom-rect.cjs');
 const { storageFixture, storageQuotaForSize } = require('./web-storage.cjs');
+const { blobFixture } = require('./blob-file.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
@@ -315,6 +316,7 @@ async function measure(name, size) {
   const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const measuresTokens = ['token-parse', 'token-contains', 'token-add', 'token-replace'].includes(name);
   const measuresRect = ['rect-create', 'rect-read', 'rect-update', 'rect-json'].includes(name);
+  const measuresBlob = ['blob-construct', 'blob-endings', 'blob-nested', 'blob-slice', 'file-construct'].includes(name);
   const measuresStorage = ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].includes(name);
   const measuresDataset = ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
@@ -348,6 +350,7 @@ async function measure(name, size) {
     let datasetWork;
     let rectWork;
     let storageWork;
+    let blobWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -386,6 +389,7 @@ async function measure(name, size) {
       if (measuresTokens) tokenWork = tokenListFixture(runtime, dom.window, size, name);
       if (measuresRect) rectWork = rectFixture(runtime, dom.window, size, name);
       if (measuresStorage) storageWork = storageFixture(runtime, dom.window, size, name);
+      if (measuresBlob) blobWork = blobFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -508,6 +512,7 @@ async function measure(name, size) {
       traversalWork?.prepare();
       const start = performance.now();
       if (xmlWork) result = xmlWork.run();
+      else if (blobWork) result = blobWork.run();
       else if (storageWork) result = storageWork.run();
       else if (rectWork) result = rectWork.run();
       else if (datasetWork) result = datasetWork.run();
@@ -758,6 +763,7 @@ async function measure(name, size) {
       datasetWork?.validate(result);
       rectWork?.validate(result);
       storageWork?.validate(result);
+      if (blobWork) await blobWork.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -928,6 +934,7 @@ async function measure(name, size) {
     xmlWork?.dispose(); xmlWork = null;
     rectWork = null;
     await storageWork?.dispose(); storageWork = null;
+    blobWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;

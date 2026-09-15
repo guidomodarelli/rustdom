@@ -33,6 +33,7 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['token-parse', 'token-contains', 'token-add', 'token-replace'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['rect-create', 'rect-read', 'rect-update', 'rect-json'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['blob-construct', 'blob-endings', 'blob-nested', 'blob-slice', 'file-construct'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),

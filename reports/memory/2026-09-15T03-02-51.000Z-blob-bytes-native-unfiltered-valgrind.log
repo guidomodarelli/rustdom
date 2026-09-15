@@ -1,0 +1,115 @@
+==2399281== Memcheck, a memory error detector
+==2399281== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==2399281== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==2399281== Command: .tools/node/bin/node --jitless --expose-gc tests/helpers/blob-bytes-memory.cjs native
+==2399281== Parent PID: 2399278
+==2399281== 
+==2399281== Warning: set address range perms: large range [0xa390000, 0x1a39f000) (noaccess)
+==2399281== Conditional jump or move depends on uninitialised value(s)
+==2399281==    at 0x18F338E: heap::base::(anonymous namespace)::IteratePointersInStack(heap::base::StackVisitor*, heap::base::Stack::Segment const&) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x18F3574: heap::base::Stack::IteratePointersUntilMarker(heap::base::StackVisitor*) const (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x1902FDC: cppgc::internal::MarkerBase::VisitLocalRoots(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x1903D6C: cppgc::internal::MarkerBase::EnterAtomicPause(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xDD7B37: v8::internal::CppHeap::EnterFinalPause(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xEB5704: v8::internal::MarkCompactCollector::MarkLiveObjects() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xEB9029: v8::internal::MarkCompactCollector::CollectGarbage() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE5923F: v8::internal::Heap::MarkCompact() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE59CEC: v8::internal::Heap::PerformGarbageCollection(v8::internal::GarbageCollector, v8::internal::GarbageCollectionReason, char const*) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE5A7C8: v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags)::{lambda()#2}::operator()() const (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE5EC3F: void heap::base::Stack::SetMarkerAndCallbackImpl<v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags)::{lambda()#2}>(heap::base::Stack*, void*, void const*) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x18F3680: PushAllRegistersAndIterateStack (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281== 
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZN4heap4base12_GLOBAL__N_122IteratePointersInStackEPNS0_12StackVisitorERKNS0_5Stack7SegmentE
+   fun:_ZNK4heap4base5Stack26IteratePointersUntilMarkerEPNS0_12StackVisitorE
+   fun:_ZN5cppgc8internal10MarkerBase15VisitLocalRootsENS_18EmbedderStackStateE
+   fun:_ZN5cppgc8internal10MarkerBase16EnterAtomicPauseENS_18EmbedderStackStateE
+   fun:_ZN2v88internal7CppHeap15EnterFinalPauseEN5cppgc18EmbedderStackStateE
+   fun:_ZN2v88internal20MarkCompactCollector15MarkLiveObjectsEv
+   fun:_ZN2v88internal20MarkCompactCollector14CollectGarbageEv
+   fun:_ZN2v88internal4Heap11MarkCompactEv
+   fun:_ZN2v88internal4Heap24PerformGarbageCollectionENS0_16GarbageCollectorENS0_23GarbageCollectionReasonEPKc
+   fun:_ZZN2v88internal4Heap14CollectGarbageENS0_15AllocationSpaceENS0_23GarbageCollectionReasonENS_15GCCallbackFlagsEENKUlvE0_clEv
+   fun:_ZN4heap4base5Stack24SetMarkerAndCallbackImplIZN2v88internal4Heap14CollectGarbageENS4_15AllocationSpaceENS4_23GarbageCollectionReasonENS3_15GCCallbackFlagsEEUlvE0_EEvPS1_PvPKv
+   fun:PushAllRegistersAndIterateStack
+}
+==2399281== Conditional jump or move depends on uninitialised value(s)
+==2399281==    at 0x1920694: cppgc::internal::ConservativeTracingVisitor::TraceConservativelyIfNeeded(void const*) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xDD2C41: v8::internal::(anonymous namespace)::UnifiedHeapConservativeMarkingVisitor::TraceConservativelyIfNeeded(void const*) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x18F339D: heap::base::(anonymous namespace)::IteratePointersInStack(heap::base::StackVisitor*, heap::base::Stack::Segment const&) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x18F3574: heap::base::Stack::IteratePointersUntilMarker(heap::base::StackVisitor*) const (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x1902FDC: cppgc::internal::MarkerBase::VisitLocalRoots(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x1903D6C: cppgc::internal::MarkerBase::EnterAtomicPause(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xDD7B37: v8::internal::CppHeap::EnterFinalPause(cppgc::EmbedderStackState) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xEB5704: v8::internal::MarkCompactCollector::MarkLiveObjects() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xEB9029: v8::internal::MarkCompactCollector::CollectGarbage() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE5923F: v8::internal::Heap::MarkCompact() (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE59CEC: v8::internal::Heap::PerformGarbageCollection(v8::internal::GarbageCollector, v8::internal::GarbageCollectionReason, char const*) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0xE5A7C8: v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags)::{lambda()#2}::operator()() const (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281== 
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   fun:_ZN5cppgc8internal26ConservativeTracingVisitor27TraceConservativelyIfNeededEPKv
+   fun:_ZN2v88internal12_GLOBAL__N_137UnifiedHeapConservativeMarkingVisitor27TraceConservativelyIfNeededEPKv
+   fun:_ZN4heap4base12_GLOBAL__N_122IteratePointersInStackEPNS0_12StackVisitorERKNS0_5Stack7SegmentE
+   fun:_ZNK4heap4base5Stack26IteratePointersUntilMarkerEPNS0_12StackVisitorE
+   fun:_ZN5cppgc8internal10MarkerBase15VisitLocalRootsENS_18EmbedderStackStateE
+   fun:_ZN5cppgc8internal10MarkerBase16EnterAtomicPauseENS_18EmbedderStackStateE
+   fun:_ZN2v88internal7CppHeap15EnterFinalPauseEN5cppgc18EmbedderStackStateE
+   fun:_ZN2v88internal20MarkCompactCollector15MarkLiveObjectsEv
+   fun:_ZN2v88internal20MarkCompactCollector14CollectGarbageEv
+   fun:_ZN2v88internal4Heap11MarkCompactEv
+   fun:_ZN2v88internal4Heap24PerformGarbageCollectionENS0_16GarbageCollectorENS0_23GarbageCollectionReasonEPKc
+   fun:_ZZN2v88internal4Heap14CollectGarbageENS0_15AllocationSpaceENS0_23GarbageCollectionReasonENS_15GCCallbackFlagsEENKUlvE0_clEv
+}
+==2399281== 
+==2399281== HEAP SUMMARY:
+==2399281==     in use at exit: 57,758 bytes in 386 blocks
+==2399281==   total heap usage: 153,685 allocs, 153,299 frees, 70,983,573 bytes allocated
+==2399281== 
+==2399281== 760 bytes in 19 blocks are definitely lost in loss record 354 of 368
+==2399281==    at 0x7057013: operator new(unsigned long) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/valgrind/usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==2399281==    by 0x830C67: napi_create_reference (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x22E1DAA6: napi_register_module_v1 (in /mnt/c/Users/guido/ghq/projects/rustdom/dist/rustdom.node)
+==2399281==    by 0x8520B8: napi_module_register_by_symbol(v8::Local<v8::Object>, v8::Local<v8::Value>, v8::Local<v8::Context>, napi_value__* (*)(napi_env__*, napi_value__*), int) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x85B4BC: std::_Function_handler<bool (node::binding::DLib*), node::binding::DLOpen(v8::FunctionCallbackInfo<v8::Value> const&)::{lambda(node::binding::DLib*)#1}>::_M_invoke(std::_Any_data const&, node::binding::DLib*&&) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x7FBE06: node::Environment::TryLoadAddon(char const*, int, std::function<bool (node::binding::DLib*)> const&) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x859224: node::binding::DLOpen(v8::FunctionCallbackInfo<v8::Value> const&) (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x196108C: Builtins_CallApiCallbackGeneric (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x195F653: Builtins_InterpreterEntryTrampoline (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x195F653: Builtins_InterpreterEntryTrampoline (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x195F653: Builtins_InterpreterEntryTrampoline (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281==    by 0x195F653: Builtins_InterpreterEntryTrampoline (in /mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node)
+==2399281== 
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:napi_create_reference
+   fun:napi_register_module_v1
+   fun:_Z30napi_module_register_by_symbolN2v85LocalINS_6ObjectEEENS0_INS_5ValueEEENS0_INS_7ContextEEEPFP12napi_value__P10napi_env__S8_Ei
+   fun:_ZNSt17_Function_handlerIFbPN4node7binding4DLibEEZNS1_6DLOpenERKN2v820FunctionCallbackInfoINS5_5ValueEEEEUlS3_E_E9_M_invokeERKSt9_Any_dataOS3_
+   fun:_ZN4node11Environment12TryLoadAddonEPKciRKSt8functionIFbPNS_7binding4DLibEEE
+   fun:_ZN4node7binding6DLOpenERKN2v820FunctionCallbackInfoINS1_5ValueEEE
+   fun:Builtins_CallApiCallbackGeneric
+   fun:Builtins_InterpreterEntryTrampoline
+   fun:Builtins_InterpreterEntryTrampoline
+   fun:Builtins_InterpreterEntryTrampoline
+   fun:Builtins_InterpreterEntryTrampoline
+}
+==2399281== LEAK SUMMARY:
+==2399281==    definitely lost: 760 bytes in 19 blocks
+==2399281==    indirectly lost: 0 bytes in 0 blocks
+==2399281==      possibly lost: 44,042 bytes in 340 blocks
+==2399281==    still reachable: 12,956 bytes in 27 blocks
+==2399281==         suppressed: 0 bytes in 0 blocks
+==2399281== Reachable blocks (those to which a pointer was found) are not shown.
+==2399281== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==2399281== 
+==2399281== Use --track-origins=yes to see where uninitialised values come from
+==2399281== For lists of detected and suppressed errors, rerun with: -s
+==2399281== ERROR SUMMARY: 71383 errors from 3 contexts (suppressed: 0 from 0)

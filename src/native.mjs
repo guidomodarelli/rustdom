@@ -18,6 +18,8 @@ export const {
   DatasetNameStatus,
   NativeDomRect,
   NativeStorageArea, NativeStorageKeyCursor, StorageSetStatus,
+  NativeBlobMetadata, normalizeBlobEndings, blobSliceRange, concatenateBlobBuffers,
+  classReferenceStatistics,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,
   parseDocumentTape, parseFragmentTape,
