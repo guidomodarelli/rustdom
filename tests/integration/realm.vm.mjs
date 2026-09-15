@@ -2,6 +2,13 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { test, expect } from 'vitest';
+import { createRequire } from 'node:module';
+
+/** Exercise the same native/host distinction in both actual VM pools. */
+const registerAbortSuite = createRequire(import.meta.url)('./abort-suite.cjs');
+/** Each owned native DOM is independent of the VM's host-signal bridge. */
+const { JSDOM } = createRequire(import.meta.url)('@rustdom/rustdom');
+registerAbortSuite({ test, expect, runnerGlobal: globalThis, createNativeDom: () => new JSDOM('<!doctype html>') });
 
 test('should run React updates inside the DOM VM realm', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;

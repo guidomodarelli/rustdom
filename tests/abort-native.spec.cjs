@@ -58,3 +58,13 @@ test('should release discarded dependents while preserving active abort work and
   assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
   const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5);
 });
+
+test('should release native DOMs created by runner fixtures while their parent remains alive', () => {
+  // Start an independent real runner; inherited child-v8 makes Node skip recursively requested test files.
+  const childEnvironment = { ...process.env }; delete childEnvironment.NODE_TEST_CONTEXT;
+  const child = spawnSync(process.execPath, ['--expose-gc', '--test', '--test-reporter=tap', 'tests/helpers/abort-runner-memory.cjs'], {
+    env: childEnvironment, encoding: 'utf8', timeout: 90_000, maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
+  assert.match(child.stdout, /^# tests 11$/m); assert.match(child.stdout, /^# pass 11$/m);
+});

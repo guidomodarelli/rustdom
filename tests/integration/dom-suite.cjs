@@ -4,9 +4,10 @@
 /**
  * Register the same public integration contracts in Jest and Vitest.
  * @param {object} runner - Test, expectation, and cleanup hooks supplied by the runner.
+ * @param {Function} [runner.createNativeDom] - Owned DOM factory when execution globals use host abort signals.
  * @returns {void} Registers integration tests using actual platform libraries.
  */
-module.exports = function registerDomSuite({ test, expect, afterEach }) {
+module.exports = function registerDomSuite({ test, expect, afterEach, createNativeDom }) {
   const React = require('react');
   const { render, screen, cleanup } = require('@testing-library/react/pure');
   const userEvent = require('@testing-library/user-event').default;
@@ -99,25 +100,7 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
     expect(Number.isNaN(new DOMRect(Infinity, 0, -Infinity, 1).right)).toBe(true);
   });
 
-  test('should preserve native composed abort ordering when a runner observes onabort and signaled listeners', () => {
-    const controller = new window.AbortController();
-    const signal = window.AbortSignal.any([controller.signal]);
-    const nested = window.AbortSignal.any([signal]);
-    const target = new window.EventTarget();
-    const trace = [];
-    target.addEventListener('work', () => trace.push('stale'), { signal: nested });
-    signal.onabort = () => trace.push('replaced');
-    signal.onabort = null;
-    signal.onabort = () => trace.push('signal');
-    nested.addEventListener('abort', () => { target.dispatchEvent(new window.Event('work')); trace.push('nested'); }, { once: true });
-    controller.signal.addEventListener('abort', () => {
-      expect(nested.reason).toBe('winner');
-      expect(signal.aborted).toBe(true);
-      trace.push('source');
-    });
-    controller.abort('winner'); controller.abort('ignored');
-    expect(trace).toEqual(['source', 'signal', 'nested']);
-  });
+  require('./abort-suite.cjs')({ test, expect, runnerGlobal: globalThis, createNativeDom });
 
   test('should render and update React state when a user clicks a button', async () => {
     /**

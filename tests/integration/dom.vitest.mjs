@@ -5,7 +5,9 @@ import { createRequire } from 'node:module';
 /** Share the actual CommonJS React integration without transforming it into ESM. */
 const registerDomSuite = createRequire(import.meta.url)('./dom-suite.cjs');
 
-registerDomSuite({ test, expect, afterEach });
+/** Load the real package with Node outside Jest's isolated module registry. */
+const { JSDOM } = createRequire(import.meta.url)('@rustdom/rustdom');
+registerDomSuite({ test, expect, afterEach, createNativeDom: () => new JSDOM('<!doctype html>') });
 
 test('should advance window timers when Vitest uses fake timers', () => {
   vi.useFakeTimers();
