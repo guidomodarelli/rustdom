@@ -5,6 +5,12 @@ const { NativeFormDataEntries, prepareFormDataValue, constructFormData } = requi
 /** @param {object} context - Existing WebIDL/factory primitives and the form-construction driver. @returns {Function} Private FormData implementation. */
 function createFormDataImplementation(context) {
   const { DOMException, idlUtils } = context;
+  /** Keep private storage independent of later host constructor replacements. */
+  const EntryMap = Map;
+  /** Preserve weak ownership of serializer projections without consulting mutable globals. */
+  const ViewIdMap = WeakMap;
+  /** Preserve duplicate-removal bookkeeping after a serializer has captured a view. */
+  const RemovedIdSet = Set;
   const helpers = { ...context,
     /** Capture the intrinsic iteration key during runtime initialization, before consumers replace host globals. */
     iteratorSymbol: Symbol.iterator,
@@ -25,7 +31,7 @@ function createFormDataImplementation(context) {
     /** @param {object} globalObject - Actual realm. @param {unknown[]} args - Converted constructor arguments. */
     constructor(globalObject, args) {
       this._globalObject = globalObject; this._nativeEntries = new NativeFormDataEntries();
-      this._entryValues = new Map(); this._view = null; this._viewIds = new WeakMap();
+      this._entryValues = new EntryMap(); this._view = null; this._viewIds = new ViewIdMap();
       if (args[0] !== undefined) {
         const [form, submitter = null] = args;
         constructFormData(form, submitter, globalObject, helpers, (name, value) => { this._appendEntry({ name, value }); });
@@ -65,7 +71,7 @@ function createFormDataImplementation(context) {
     delete(name) {
       const removed = this._nativeEntries.delete(name);
       for (const id of removed) this._entryValues.delete(id);
-      if (this._view !== null) { const ids = new Set(removed); this._view = this._view.filter((entry) => !ids.has(this._viewIds.get(entry))); }
+      if (this._view !== null) { const ids = new RemovedIdSet(removed); this._view = this._view.filter((entry) => !ids.has(this._viewIds.get(entry))); }
     }
     /** @param {string} name - Converted name. @returns {*} First public value or null. */
     get(name) { const id = this._nativeEntries.firstId(name); return id === null ? null : idlUtils.tryWrapperForImpl(this._entry(id).value); }
@@ -84,7 +90,7 @@ function createFormDataImplementation(context) {
         this._viewIds.set(entry, result.id);
         if (!result.existed) this._view.push(entry);
         else {
-          this._view[result.index] = entry; const removed = new Set(result.removed);
+          this._view[result.index] = entry; const removed = new RemovedIdSet(result.removed);
           this._view = this._view.filter((item) => !removed.has(this._viewIds.get(item)));
         }
       }

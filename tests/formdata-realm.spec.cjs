@@ -37,7 +37,9 @@ for (const mode of ['normal', 'vm']) {
       payload.append('empty', new target.File([], 'empty.txt', { type: 'text/plain' }));
       const request = new target.Request('http://localhost/upload', { method: 'POST', body: payload });
       const response = new target.Response(payload);
-      const wire = await response.clone().arrayBuffer();
+      // Keep the consumed transport clone alive until every reader completes: Node 22.12 can cancel its sibling during finalization.
+      const wireResponse = response.clone();
+      const wire = await wireResponse.arrayBuffer();
       const headers = { 'content-type': response.headers.get('content-type') };
       server.on('request', (_request, outgoing) => { outgoing.writeHead(200, headers); outgoing.end(Buffer.from(wire)); });
       server.listen(0, '127.0.0.1');
@@ -71,6 +73,7 @@ for (const mode of ['normal', 'vm']) {
         const roundtrip = await new target.Response(form).formData();
         assert.deepEqual(await readDomFile(target, roundtrip.get('binary')), [0, 128, 255]);
       }
+      assert.equal(wireResponse.bodyUsed, true);
       const other = await new second.target.Response(payload).formData();
       assert.ok(other instanceof second.target.FormData);
       assert.ok(other.get('binary') instanceof second.target.File);
