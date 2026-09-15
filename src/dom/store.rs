@@ -1,6 +1,6 @@
 //! Authoritative native forest with stable handles and atomic topology mutations.
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use super::constants::is_character_data;
 use super::data::{DomString, NodeData};
@@ -61,6 +61,8 @@ pub struct TreeStatistics {
 /// Store topology without JavaScript references; the binding maintains GC ownership edges.
 #[derive(Default)]
 pub struct TreeStore {
+    // Drivers identify this forest without retaining its storage or JavaScript wrappers.
+    pub(crate) assignment_identity: Arc<()>,
     pub(crate) slot_signals: super::slot_signals::SlotSignals,
     pub(crate) slot_backlinks: super::slot_backlinks::SlotBacklinks,
     pub(crate) slot_assignments: super::slot_assignments::SlotAssignments,

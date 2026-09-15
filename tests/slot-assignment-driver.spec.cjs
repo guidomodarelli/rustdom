@@ -40,6 +40,46 @@ test('should expose signal, applied and complete steps while preserving captured
   assert.equal(tree.slotAssignmentStep(operation).kind, SlotAssignmentAction.Complete);
 });
 
+/** @returns {object} Creates a distinct forest with deterministic slot and candidate handles. */
+function assignmentForest() {
+  const tree = new NativeTree();
+  const host = tree.allocate(); tree.setHtmlElement(host, 'div', []);
+  const root = tree.allocate(); tree.setData(root, '{"kind":11}'); tree.setRootHost(root, host, true);
+  const slot = tree.allocate(); tree.setHtmlElement(slot, 'slot', []); tree.append(root, slot);
+  const child = tree.allocate(); tree.setCharacterData(child, 3, 'child'); tree.append(host, child);
+  return { tree, host, root, slot, child };
+}
+
+test('should cancel a driver when another forest resumes it with matching handles', () => {
+  for (const subtree of [false, true]) {
+    for (const checkpoint of ['signal', 'applied']) {
+      const origin = assignmentForest(); const other = assignmentForest();
+      assert.deepEqual([origin.root, origin.slot, origin.child], [other.root, other.slot, other.child]);
+      const operation = new NativeSlotAssignmentDriver(subtree ? origin.root : origin.slot, subtree);
+      assert.equal(origin.tree.slotAssignmentStep(operation).kind, SlotAssignmentAction.Signal);
+      origin.tree.queueSlotSignal(origin.slot);
+      if (checkpoint === 'applied') assert.equal(origin.tree.slotAssignmentStep(operation).kind, SlotAssignmentAction.Applied);
+      const before = other.tree.statistics();
+
+      assert.throws(() => other.tree.slotAssignmentStep(operation), { code: 'InvalidArg', message: /different native forest/ });
+
+      assert.deepEqual(other.tree.statistics(), before);
+      assert.deepEqual(other.tree.cachedSlotables(other.slot), []);
+      assert.equal(other.tree.slotBacklink(other.child), 0);
+      assert.equal(other.tree.slotSignalStatistics().pendingSlots, 0);
+      assert.deepEqual(origin.tree.cachedSlotables(origin.slot), checkpoint === 'applied' ? [origin.child] : []);
+      assert.equal(origin.tree.slotBacklink(origin.child), checkpoint === 'applied' ? origin.slot : 0);
+      assert.deepEqual(origin.tree.takeSlotSignals(), [origin.slot]);
+      assert.equal(operation.complete, false);
+      for (const forest of [origin, other]) {
+        assert.throws(() => forest.tree.slotAssignmentStep(operation), { code: 'InvalidArg', message: /cancelled or failed/ });
+        for (const node of [forest.child, forest.slot, forest.root, forest.host]) forest.tree.release(node);
+      }
+      operation.cancel();
+    }
+  }
+});
+
 test('should preserve the own bridge signal boundary without mocking Promise or platform delivery', () => {
   const dom = new runtime.JSDOM('<main></main>');
   try {
@@ -89,5 +129,5 @@ test('should release trees and pending buffers even while raw driver objects rem
     encoding: 'utf8', timeout: 60_000, maxBuffer: 4 * 1024 * 1024,
   });
   assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
-  const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5);
+  const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5); assert.equal(report.rawForestCycles, 5);
 });

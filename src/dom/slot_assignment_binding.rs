@@ -1,4 +1,4 @@
-//! V8-finalized assignment controller; no JavaScript runs while TreeStore is mutably borrowed.
+//! V8-finalized assignment controller with weak forest identity; no JavaScript runs during a tree borrow.
 use super::{
     napi_error::to_napi_error,
     slot_assignment_driver::{AssignmentAction, AssignmentDriver},
@@ -83,7 +83,7 @@ impl Drop for NativeSlotAssignmentDriver {
 
 #[napi]
 impl NativeSlotAssignmentDriver {
-    /// Validate the numeric root here; the tree step validates allocation and the single-slot role.
+    /// Validate the numeric root here; the first tree step binds its weak forest identity and validates its role.
     #[napi(constructor)]
     pub fn new(root: f64, subtree: bool) -> Result<Self> {
         let driver = AssignmentDriver::new(root, subtree).map_err(to_napi_error)?;

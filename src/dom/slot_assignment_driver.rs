@@ -4,6 +4,7 @@ use super::{
     slots::is_html_slot,
     store::{NodeId, TreeStore, node_id},
 };
+use std::sync::{Arc, Weak};
 
 #[derive(Debug)]
 pub enum AssignmentAction {
@@ -27,6 +28,7 @@ struct PendingAssignment {
 }
 
 pub struct AssignmentDriver {
+    forest: Option<Weak<()>>,
     root: NodeId,
     next: NodeId,
     subtree: bool,
@@ -39,6 +41,7 @@ impl AssignmentDriver {
     pub fn new(root: f64, subtree: bool) -> Result<Self> {
         let root = node_id(root)?;
         Ok(Self {
+            forest: None,
             root,
             next: root,
             subtree,
@@ -53,6 +56,7 @@ impl AssignmentDriver {
     }
 
     pub fn cancel(&mut self) {
+        self.forest = None;
         self.root = 0;
         self.next = 0;
         self.pending = None;
@@ -77,6 +81,19 @@ impl AssignmentDriver {
     fn advance(&mut self, tree: &mut TreeStore) -> Result<AssignmentAction> {
         if self.complete {
             return Ok(AssignmentAction::Complete);
+        }
+        // Binding starts on the first step; an expired weak identity must never rebind.
+        if let Some(identity) = &self.forest {
+            let forest = identity.upgrade().ok_or(TreeError::SlotAssignmentProtocol(
+                "originating native forest was released",
+            ))?;
+            if !Arc::ptr_eq(&forest, &tree.assignment_identity) {
+                return Err(TreeError::SlotAssignmentProtocol(
+                    "cannot resume an assignment with a different native forest",
+                ));
+            }
+        } else {
+            self.forest = Some(Arc::downgrade(&tree.assignment_identity));
         }
         tree.links(self.root)?;
         if let Some(pending) = self.pending.take() {
@@ -117,6 +134,7 @@ impl AssignmentDriver {
             // No externally visible state or ownership edge changed; continue inside this native call.
         }
         self.complete = true;
+        self.forest = None;
         self.root = 0;
         Ok(AssignmentAction::Complete)
     }
@@ -199,6 +217,107 @@ mod tests {
         .unwrap();
         tree.append(root, slot).unwrap();
         slot
+    }
+
+    #[test]
+    fn should_reject_a_different_forest_with_matching_handles_before_committing() {
+        let (mut origin, origin_host, origin_root) = fixture();
+        let origin_slot = named_slot(&mut origin, origin_root, "");
+        let origin_child = element(&mut origin, "b");
+        origin.append(origin_host, origin_child).unwrap();
+        let (mut other, other_host, other_root) = fixture();
+        let other_slot = named_slot(&mut other, other_root, "");
+        let other_child = element(&mut other, "b");
+        other.append(other_host, other_child).unwrap();
+        assert_eq!(
+            (origin_root, origin_slot, origin_child),
+            (other_root, other_slot, other_child)
+        );
+        let mut driver = AssignmentDriver::new(origin_root, true).unwrap();
+        assert!(matches!(
+            driver.step(&mut origin).unwrap(),
+            AssignmentAction::Signal { .. }
+        ));
+        origin.queue_slot_signal(origin_slot).unwrap();
+        let before = other.statistics();
+
+        assert!(matches!(
+            driver.step(&mut other),
+            Err(TreeError::SlotAssignmentProtocol(_))
+        ));
+
+        assert!(other.cached_slotables(other_slot).unwrap().is_empty());
+        assert_eq!(other.slot_backlink(other_child).unwrap(), 0.0);
+        assert_eq!(other.slot_signals.statistics().pending_slots, 0);
+        assert_eq!(other.statistics().mutations, before.mutations);
+        assert_eq!(other.statistics().data_updates, before.data_updates);
+        assert!(origin.cached_slotables(origin_slot).unwrap().is_empty());
+        assert_eq!(origin.slot_backlink(origin_child).unwrap(), 0.0);
+        assert_eq!(origin.take_slot_signals(), [origin_slot]);
+        assert!(driver.step(&mut origin).is_err());
+        assert!(driver.step(&mut other).is_err());
+        assert!(!driver.complete());
+        assert!(driver.pending.is_none());
+    }
+
+    #[test]
+    fn should_release_the_origin_while_a_pending_driver_remains_alive() {
+        let (mut origin, host, root) = fixture();
+        named_slot(&mut origin, root, "");
+        let child = element(&mut origin, "b");
+        origin.append(host, child).unwrap();
+        let identity = Arc::downgrade(&origin.assignment_identity);
+        let mut driver = AssignmentDriver::new(root, true).unwrap();
+        driver.step(&mut origin).unwrap();
+        assert_eq!(Arc::strong_count(&origin.assignment_identity), 1);
+
+        drop(origin);
+
+        assert!(identity.upgrade().is_none());
+        let mut other = TreeStore::new();
+        assert!(matches!(
+            driver.step(&mut other),
+            Err(TreeError::SlotAssignmentProtocol(
+                "originating native forest was released"
+            ))
+        ));
+        assert!(driver.pending.is_none());
+        assert!(driver.forest.is_none());
+        assert!(driver.step(&mut other).is_err());
+    }
+
+    #[test]
+    fn should_preserve_identity_after_a_tree_move_and_release_it_at_completion_or_cancellation() {
+        let (mut origin, host, root) = fixture();
+        let slot = named_slot(&mut origin, root, "");
+        let child = element(&mut origin, "b");
+        origin.append(host, child).unwrap();
+        let mut driver = AssignmentDriver::new(root, true).unwrap();
+        driver.step(&mut origin).unwrap();
+        let mut moved = Box::new(origin);
+
+        assert!(matches!(
+            driver.step(&mut moved).unwrap(),
+            AssignmentAction::Applied { .. }
+        ));
+
+        assert_eq!(moved.cached_slotables(slot).unwrap(), [child]);
+        assert_eq!(moved.slot_backlink(child).unwrap(), slot);
+        assert!(matches!(
+            driver.step(&mut moved).unwrap(),
+            AssignmentAction::Complete
+        ));
+        assert_eq!(Arc::weak_count(&moved.assignment_identity), 0);
+        assert!(matches!(
+            driver.step(&mut TreeStore::new()).unwrap(),
+            AssignmentAction::Complete
+        ));
+        moved.set_slot_assignment(slot, &[]).unwrap();
+        let mut cancelled = AssignmentDriver::new(slot, false).unwrap();
+        cancelled.step(&mut moved).unwrap();
+        cancelled.cancel();
+        assert_eq!(Arc::weak_count(&moved.assignment_identity), 0);
+        assert!(cancelled.step(&mut moved).is_err());
     }
 
     #[test]
