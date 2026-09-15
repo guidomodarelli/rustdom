@@ -63,6 +63,11 @@ function exerciseWindow(runtime, identity) {
   const pendingReader = new dom.window.FileReader(); pendingReader.readAsArrayBuffer(slice);
   comparisonReferences.push(new WeakRef(reader), new WeakRef(pendingReader));
   comparisonReferences.push(new WeakRef(blob), new WeakRef(file), new WeakRef(slice));
+  const formData = new dom.window.FormData(); formData.append('file', file); formData.append('text', identity);
+  formData.append('file', slice, 'renamed'); formData.set('text', 'retained-result');
+  const formIterator = formData.entries(); formIterator.next();
+  assert.equal(formData.getAll('file').length, 2); retainedTextResults.push(formData.get('text'));
+  comparisonReferences.push(new WeakRef(formData), new WeakRef(formIterator));
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);

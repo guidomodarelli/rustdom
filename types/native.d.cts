@@ -1,5 +1,33 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics, NativeFormDataStatistics } from './index.cjs';
+
+/** Strings are native values; numeric values identify Files held by the GC-visible host owner map. */
+export interface NativeFormDataEntry { id: number; name: string; value: string | number; }
+export interface NativeFormDataSetResult { id: number; index: number; existed: boolean; removed: number[]; }
+/** Completed and active native construction operations; no host values are retained by these diagnostics. */
+export interface FormDataConstructionStatistics { builds: number; preparations: number; active: number; }
+export function formDataConstructionStatistics(): FormDataConstructionStatistics;
+/** Synchronous adapters around real platform helper objects; callbacks receive values in their original realms. */
+export function prepareFormDataValue(value: unknown, filename: unknown, helpers: object, receive: (value: unknown) => void): void;
+export function constructFormData(form: object, submitter: object | null, globalObject: object, helpers: object, append: (name: string, value: unknown) => void): void;
+/** Ordered entry storage. A null value creates a File marker; IDs identify entry slots, not immutable File objects. */
+export class NativeFormDataEntries {
+  constructor();
+  readonly length: number;
+  append(name: string, value: string | null): number | null;
+  set(name: string, value: string | null): NativeFormDataSetResult | null;
+  delete(name: string): number[];
+  has(name: string): boolean;
+  get(name: string): string | number | null;
+  getAll(name: string): Array<string | number>;
+  firstId(name: string): number | null;
+  ids(name: string): Float64Array;
+  idAt(index: number): number | null;
+  allIds(): Float64Array;
+  entryAt(index: number): NativeFormDataEntry | null;
+  snapshot(): NativeFormDataEntry[];
+  static statistics(): NativeFormDataStatistics;
+}
 
 /** Scalar reference-compatible read/abort state, without references to results or owners. */
 export class NativeFileReaderState {

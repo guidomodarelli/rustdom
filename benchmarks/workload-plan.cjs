@@ -35,6 +35,7 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => ['rect-create', 'rect-read', 'rect-update', 'rect-json'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['blob-construct', 'blob-endings', 'blob-nested', 'blob-slice', 'file-construct'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['reader-text-utf8', 'reader-text-legacy', 'reader-binary', 'reader-data-url', 'reader-buffer', 'reader-abort'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['form-data-append', 'form-data-get', 'form-data-get-all', 'form-data-set', 'form-data-delete', 'form-data-iterate', 'form-data-files', 'form-data-construct'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),

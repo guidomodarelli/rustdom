@@ -4,6 +4,14 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native FormData entries preserve duplicate order and File marker identity. */
+const nativeFormEntries = new native.NativeFormDataEntries();
+const nativeFormFile = nativeFormEntries.append('file', null); nativeFormEntries.append('text', 'value');
+assert.equal(nativeFormEntries.get('file'), nativeFormFile); assert.equal(nativeFormEntries.get('text'), 'value');
+assert.deepEqual(nativeFormEntries.delete('file'), [nativeFormFile]);
+assert.deepEqual(nativeFormEntries.snapshot().map((entry) => [entry.name, entry.value]), [['text', 'value']]);
+assert.equal(native.formDataConstructionStatistics().active, 0);
+
 /** Installed FileReader state and codecs execute native transitions and byte conversion. */
 const readerState = new native.NativeFileReaderState(); assert.equal(readerState.begin(), true); assert.equal(readerState.abort(), true);
 assert.equal(readerState.enterStage(), false); assert.equal(readerState.enterStage(), true);

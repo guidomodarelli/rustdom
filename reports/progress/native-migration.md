@@ -1,10 +1,10 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 15/09/2026 UTC durante FileReader en
-feature/native-file-reader, que parte del commit publicado
-`f238ad06d838b8e8befa48aea92d79b5f3534bc7` (PR65). Main continúa en
+Evaluación actualizada el 15/09/2026 UTC durante FormData en
+feature/native-form-data, que parte del commit publicado
+`1c28acd03165d7879c8f48b0982993d8c8ba36ae` (PR66). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–65 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–66 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
@@ -163,3 +163,14 @@ de salidas conserva Unicode y reduce las medianas de DataURL/UTF8/binario
 respecto de ese baseline, con todos los resultados y la variabilidad guardados
 en reports/validation/file-reader-performance.md. No completa otra área de
 migración ni cambia el índice de 45,8%.
+
+FormData incorpora lista ordenada, índice de nombres, mutaciones, iteración,
+constructor y preparación de File bajo control Rust. El bridge conserva
+representaciones de valores, owners visibles a V8, fábricas y helpers de
+elementos. La validación general pasó 244 tests Rust, 1.848 Node, los runners
+y 48.812 resultados WPT en paridad; memoria focal final pasó 28 escenarios.
+En 1.000 entradas hay ventajas de iteración/búsqueda/set/delete, pero otras
+rutas siguen siendo más lentas que jsdom. Memcheck del addon y del ejecutable
+Rust, los 36 controles de distribución Node22/24 y el arnés de benchmarks pasaron.
+La familia de plataforma permanece parcial: el indicador
+sigue en 45,8% y no acredita integración en main ni compatibilidad universal.

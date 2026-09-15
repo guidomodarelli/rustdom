@@ -77,6 +77,22 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const formDataAdapter = await readFile('src/dom/form-data.cjs', 'utf8');
+await writeFile('dist/form-data.cjs', substituteOnce(formDataAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const formDataPath = resolve(destination, 'lib/jsdom/living/xhr/FormData-impl.js');
+await writeFile(formDataPath, '"use strict";\nexports.implementation = require("../../../../../form-data.cjs").createFormDataImplementation({\n' +
+  ' DOMException: require("../generated/DOMException"), idlUtils: require("../generated/utils"),\n' +
+  ' ...require("../helpers/form-controls"), closest: require("../helpers/traversal").closest,\n' +
+  ' Blob: require("../generated/Blob.js"), File: require("../generated/File.js")\n});\n');
+const generatedFormDataPath = resolve(destination, 'lib/jsdom/living/generated/FormData.js');
+let generatedFormData = await readFile(generatedFormDataPath, 'utf8');
+generatedFormData = substituteOnce(generatedFormData, '      let pairs = Array.from(this[implSymbol]);', '      let pair;');
+generatedFormData = substituteOnce(generatedFormData, '      while (i < pairs.length) {', '      while ((pair = this[implSymbol]._entryAt(i)) !== null) {');
+generatedFormData = substituteOnce(generatedFormData, '        const [key, value] = pairs[i].map(utils.tryWrapperForImpl);', '        const [key, value] = pair.map(utils.tryWrapperForImpl);');
+generatedFormData = substituteOnce(generatedFormData, '        pairs = Array.from(this[implSymbol]);\n', '');
+generatedFormData = substituteOnce(generatedFormData, '      const values = Array.from(target[implSymbol]);\n      const len = values.length;\n      if (index >= len) {', '      const pair = target[implSymbol]._entryAt(index);\n      if (pair === null) {');
+generatedFormData = substituteOnce(generatedFormData, '      const pair = values[index];\n', '');
+await writeFile(generatedFormDataPath, generatedFormData);
 const readerSource = await readFile('src/dom/file-reader.cjs', 'utf8');
 await writeFile('dist/file-reader.cjs', substituteOnce(readerSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/file-api/FileReader-impl.js'),

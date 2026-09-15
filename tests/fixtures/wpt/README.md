@@ -69,3 +69,10 @@ siguen comparándose y todos los mensajes crudos se guardan sin cambios.
 La suite `file-reader` incorpora 13 fixtures originales de estados, resultados,
 abortos, eventos y detección de encoding. Los `.any.js` se ejecutan solo en
 Window; no se cuentan aquí los escenarios Worker ni los archivos manuales.
+
+La suite `form-data` incorpora 17 fixtures originales de `xhr/formdata`, con
+sus assertions intactas y el recurso de imagen de coordenadas. Compara entradas,
+iteración, formularios, submitters y archivos. La prueba
+`submitter-coordinate-value.html` requiere un click de test_driver y layout real;
+queda explícitamente excluida en el manifest y el reporte. Los `.any.js` se
+ejecutan solo en Window, sin acreditar Worker ni conformidad completa.

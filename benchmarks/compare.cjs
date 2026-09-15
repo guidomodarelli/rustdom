@@ -59,6 +59,7 @@ const report = {
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
   sourceHash: sourceDigest.digest('hex'), measuredSources,
   methodology: {
+    formData: 'At 100/1000 entries, time public append/get/getAll/set/delete/iteration, File filename copies, or construction from a real prepared form. Setup is excluded. getAll performs 100 complete reads; set starts with duplicate names. Validate every value, order, file identity/bytes and native activation outside timing, then release auxiliary references. Full runner/bridge cost is included.',
     build: 'cargo release, thin LTO', processOrders: ORDERS,
     timing: 'Public operation only; excludes module startup, setup, validation, window.close and explicit GC.',
     memory: 'Process memory after window.close, one event-loop turn and explicit GC; not peak memory or allocation totals.',

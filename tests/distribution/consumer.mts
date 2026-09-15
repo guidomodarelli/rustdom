@@ -7,6 +7,7 @@ import nativeRuntime, {
   RangeMutationKind, RangeEndpoint,
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
+  NativeFormDataEntries, formDataConstructionStatistics,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
@@ -21,6 +22,13 @@ import nativeRuntime, {
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM FormData names exercise the same native index and diagnostics. */
+const nativeFormEntries = new NativeFormDataEntries(); nativeFormEntries.append('text', 'first'); nativeFormEntries.append('text', 'second');
+assert.deepEqual(nativeFormEntries.getAll('text'), ['first', 'second']);
+assert.equal(nativeFormEntries.set('text', 'changed')?.existed, true);
+assert.equal(nativeFormEntries.entryAt(0)?.value, 'changed'); assert.equal(nativeFormEntries.length, 1);
+assert.equal(formDataConstructionStatistics().active, 0);
 
 /** Installed ESM FileReader exports preserve scalar state and BOM-prioritized decoding. */
 const readerState = new NativeFileReaderState(); assert.equal(readerState.begin(), true); assert.equal(readerState.abort(), true);
