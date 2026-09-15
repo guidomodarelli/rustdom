@@ -8,10 +8,10 @@ const { resolve } = require('node:path');
 const { createHash } = require('node:crypto');
 const os = require('node:os');
 
-/** @param {string} path - Exact addon artifact. @returns {Promise<object>} Timed real initialization and verified native work. */
-function sampleInitialization(path) {
+/** @param {string} path - Exact addon artifact. @param {boolean} harden - Remove both host keys before loading. @returns {Promise<object>} Timed initialization and verified native work. */
+function sampleInitialization(path, harden = false) {
   return new Promise((resolveSample, reject) => {
-    const worker = new Worker(__filename, { workerData: { addonPath: path } });
+    const worker = new Worker(__filename, { workerData: { addonPath: path, harden } });
     let result;
     worker.once('message', (message) => { result = message; });
     worker.once('error', reject);
@@ -31,29 +31,34 @@ async function settledMemory() {
 /** @returns {Promise<void>} Save reproducible initialization timings and the accompanying limited memory observations. */
 async function main() {
   assert.equal(typeof global.gc, 'function', 'Run with --expose-gc');
-  const [baselinePath, candidatePath] = process.argv.slice(2).map((path) => resolve(path));
+  const [baselinePath, candidatePath] = process.argv.slice(2, 4).map((path) => resolve(path));
   assert.ok(baselinePath && candidatePath, 'Provide baseline and candidate addon paths');
   /** Local sampling plan: warm each artifact before collecting an even-sized median sample. */
   const warmupRounds = 3;
   const measuredRounds = 12;
+  const includeHardened = process.argv.includes('--include-hardened');
   const artifacts = { baseline: baselinePath, candidate: candidatePath };
+  if (includeHardened) artifacts.candidateHardened = candidatePath;
   const report = {
     capturedAt: new Date().toISOString(), node: process.version, v8: process.versions.v8,
     platform: process.platform, arch: process.arch, osRelease: os.release(), cpu: os.cpus()[0].model,
     cpuCount: os.cpus().length, totalMemory: os.totalmem(),
     cargoLockSha256: createHash('sha256').update(readFileSync('Cargo.lock')).digest('hex'),
     packageLockSha256: createHash('sha256').update(readFileSync('package-lock.json')).digest('hex'),
-    command: 'node --expose-gc tests/helpers/xml-intrinsics-initialization.cjs BASELINE.node CANDIDATE.node',
-    warmupRounds, measuredRounds,
-    methodology: 'Fresh Worker for every sample; time require(addon) only. Alternate baseline/candidate order every round. Validate XML success and Symbol errors outside timing, then await Worker exit. Excludes Worker startup, validation, teardown and GC; not full package import or DOM construction. Warm file cache; no cold-start claim.',
+    command: 'node --expose-gc tests/helpers/xml-intrinsics-initialization.cjs BASELINE.node CANDIDATE.node' + (includeHardened ? ' --include-hardened' : ''),
+    warmupRounds, measuredRounds, includeHardened,
+    methodology: 'Fresh Worker for every sample; time require(addon) only. Rotate artifact order each round. Optional candidateHardened removes both host iterator keys before timing, restores them afterward and measures the clean-realm fallback separately; baseline cannot load in that scenario. Validate XML success and Symbol errors outside timing, then await Worker exit. Excludes Worker startup, validation, teardown and GC; not full package import or DOM construction. Warm file cache; no cold-start claim.',
     artifacts: Object.fromEntries(Object.entries(artifacts).map(([name, path]) => [name, {
       path, sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
     }])),
     samples: [],
   };
+  const artifactNames = Object.keys(artifacts);
   for (let round = 0; round < warmupRounds + measuredRounds; round++) {
-    for (const name of round % 2 ? ['candidate', 'baseline'] : ['baseline', 'candidate']) {
-      const result = await sampleInitialization(artifacts[name]);
+    const start = round % artifactNames.length;
+    const order = artifactNames.slice(start).concat(artifactNames.slice(0, start));
+    for (const name of order) {
+      const result = await sampleInitialization(artifacts[name], name === 'candidateHardened');
       report.samples.push({ round, warmup: round < warmupRounds, name, ...result, memoryAfterExitAndGc: await settledMemory() });
     }
   }
@@ -78,9 +83,25 @@ async function main() {
 if (isMainThread) {
   main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
 } else {
+  let restore = () => {};
+  if (workerData.harden) {
+    const key = Symbol.iterator;
+    const arrayPrototype = Array.prototype;
+    const iteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf(Object.getPrototypeOf((function* () {})())));
+    const arrayDescriptor = Object.getOwnPropertyDescriptor(arrayPrototype, key);
+    const iteratorDescriptor = Object.getOwnPropertyDescriptor(iteratorPrototype, key);
+    delete arrayPrototype[key]; delete iteratorPrototype[key];
+    restore = () => {
+      Object.defineProperty(arrayPrototype, key, arrayDescriptor);
+      Object.defineProperty(iteratorPrototype, key, iteratorDescriptor);
+    };
+  }
+  let native, initializationMs;
   const started = performance.now();
-  const native = require(workerData.addonPath);
-  const initializationMs = performance.now() - started;
+  try {
+    native = require(workerData.addonPath);
+    initializationMs = performance.now() - started;
+  } finally { restore(); }
   const root = { nodeType: 11, childNodes: [{ nodeType: 3, data: '<ready>' }] };
   const invalid = { nodeType: 11, childNodes: { [Symbol.iterator]() { return { next() { return Symbol('worker'); } }; } } };
   for (let iteration = 0; iteration < 100; iteration++) {

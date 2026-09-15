@@ -6,6 +6,8 @@ Base verificada: `66865bcb991b77b82ecb979feddc100366b502c9`, rama `feature/nativ
 
 SHA-256 del addon 668: `367531b6ec645ba26ee0b296ec31ce24e0eebeed8861d73f51505cd3ed255b8a`. Candidato final: `69e8d98086fcd873dfcb08785999edd2fe595686c63ffcf3f14d8b4705d28b95`.
 
+El fallback de este hito se amplió posteriormente para las combinaciones que eliminan ambas fuentes host. Ver [pr67-intrinsic-key-hardening.md](pr67-intrinsic-key-hardening.md) para la captura desde realm limpio y su evidencia de GC.
+
 ## Decisiones de implementación
 
 - La captura conserva primero la ruta de arrays creados por Node-API. Enumera sólo claves simbólicas propias y el probe de `for…of` identifica la clave real; no lee valores de métodos ni getters ni compara descripciones.

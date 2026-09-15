@@ -19,7 +19,7 @@ function run(workerData) {
   });
 }
 
-for (const mutation of ['array-deleted', 'array-getter', 'combined-globals', 'iterator-getter', 'iterator-decoy', 'iterator-deleted', 'generator-chain-null']) {
+for (const mutation of ['array-deleted', 'array-getter', 'combined-globals', 'iterator-getter', 'iterator-decoy', 'iterator-deleted', 'generator-chain-null', 'both-iterators-deleted', 'array-deleted-generator-chain-null', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype', 'builtin-loader-getter', 'array-deleted-builtin-loader-getter']) {
   test(`should initialize and serialize own iterables when ${mutation} is applied before load`, async () => {
     const addonPath = process.env.RUSTDOM_ITERATOR_KEY_ADDON ? resolve(process.env.RUSTDOM_ITERATOR_KEY_ADDON) : require.resolve('../dist/rustdom.node');
     const expected = await run({ engine: 'jsdom', mutation, addonPath });
@@ -34,6 +34,20 @@ for (const mutation of ['array-deleted', 'array-getter', 'combined-globals', 'it
   });
 }
 
+for (const mutation of ['both-deleted-globals', 'chain-null-globals']) {
+  test(`should keep the public XML runtime usable after native initialization with ${mutation}`, async () => {
+    const runtimeDirectory = process.env.RUSTDOM_ITERATOR_KEY_RUNTIME ? resolve(process.env.RUSTDOM_ITERATOR_KEY_RUNTIME) : resolve(__dirname, '../dist');
+    const addonPath = resolve(runtimeDirectory, 'rustdom.node');
+    const expected = await run({ engine: 'jsdom', mutation, addonPath, runtimeDirectory, publicRuntime: true });
+    const actual = await run({ engine: 'rustdom', mutation, addonPath, runtimeDirectory, publicRuntime: true });
+    observations.push({ mutation, entryPoint: 'public', expected, actual });
+    const { nativeCalls, nativeReleased, publicNativeCalls, ...observable } = actual;
+    assert.equal(expected.loadError, undefined); assert.equal(expected.publicError, undefined);
+    assert.equal(expected.publicValue, '<root><value>ready</value></root>');
+    assert.deepEqual(observable, expected);
+    assert.ok(nativeCalls > 0); assert.equal(nativeReleased, true); assert.ok(publicNativeCalls > 0);
+  });
+}
 after(() => {
   mkdirSync('reports/compatibility', { recursive: true });
   writeFileSync(`reports/compatibility/${capturedAt.replaceAll(':', '-')}-iterator-key.json`, `${JSON.stringify({

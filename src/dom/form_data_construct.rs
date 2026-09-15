@@ -1,5 +1,5 @@
 //! Synchronous FormData construction and File preparation with ordered, observable host reads.
-use super::napi_error::capture_pending_error;
+use super::napi_error::{self, IterationSource, StringConversionFault, capture_pending_error};
 use napi::{
     Env, Error, JsValue, Property, Result, Status, ValueType,
     bindgen_prelude::{
@@ -110,36 +110,69 @@ impl<'env> Host<'env> {
                 self.text("Value is a symbol, which cannot be converted to a string.")?,
             )?;
         }
-        let string = value.coerce_to_string()?.to_unknown();
-        let units = Utf16String::from_unknown(string)?;
-        if value.get_type()? == ValueType::String
-            && encoding_rs::mem::utf16_valid_up_to(&units) == units.len()
-        {
-            Ok(value)
-        } else {
-            self.text(&String::from_utf16_lossy(&units))
+        // webidl-conversions observes the current String constructor and toWellFormed method.
+        // These host calls can throw or run user code; coercing directly would bypass IteratorClose.
+        let constructor: Unknown = self.env.get_global()?.get_named_property("String")?;
+        if constructor.get_type()? != ValueType::Function {
+            return Err(napi_error::string_conversion_error(
+                self.env,
+                constructor,
+                StringConversionFault::Constructor,
+            )?);
         }
+        let receiver: Unknown = self.env.get_global()?.get_named_property("undefined")?;
+        let converted = self.call1(receiver, constructor, value)?;
+        if matches!(
+            converted.get_type()?,
+            ValueType::Null | ValueType::Undefined
+        ) {
+            return Err(napi_error::string_conversion_error(
+                self.env,
+                converted,
+                StringConversionFault::NullResult,
+            )?);
+        }
+        let method = self.get(converted, "toWellFormed")?;
+        if method.get_type()? != ValueType::Function {
+            return Err(napi_error::string_conversion_error(
+                self.env,
+                method,
+                StringConversionFault::Method,
+            )?);
+        }
+        self.call0(converted, method)
     }
 
     /// Keep iterator.next cached and run each body in a bounded handle scope.
     fn each(
         &self,
         iterable: Unknown,
+        site: IterationSource,
         mut body: impl FnMut(Unknown<'env>) -> Result<()>,
     ) -> Result<()> {
         let key = self.get(self.helpers, "iteratorSymbol")?;
+        if matches!(iterable.get_type()?, ValueType::Null | ValueType::Undefined) {
+            return Err(napi_error::iterator_method_error(
+                self.env, key, iterable, site,
+            )?);
+        }
         let method: Unknown = iterable.coerce_to_object()?.get_property(key)?;
+        if method.get_type()? != ValueType::Function {
+            return Err(napi_error::iterator_method_error(
+                self.env, key, method, site,
+            )?);
+        }
         let iterator = self.call0(iterable, method)?;
         if !matches!(
             iterator.get_type()?,
             ValueType::Object | ValueType::Function
         ) {
-            self.helper1(
-                "throwTypeError",
-                self.text("Result of the Symbol.iterator method is not an object")?,
-            )?;
+            return Err(napi_error::iterator_object_error(self.env, key, iterator)?);
         }
         let next = self.get(iterator, "next")?;
+        if next.get_type()? != ValueType::Function {
+            return Err(napi_error::iterator_next_error(self.env, key, next)?);
+        }
         loop {
             let more = self
                 .env
@@ -159,8 +192,9 @@ impl<'env> Host<'env> {
                         let original = capture_pending_error(self.env, error);
                         let close = (|| {
                             let method = self.get(iterator, "return")?;
-                            if !matches!(method.get_type()?, ValueType::Undefined | ValueType::Null)
-                            {
+                            // A non-callable return slot cannot replace the original throw.
+                            // Avoid passing it to napi_call_function; callable return still runs once.
+                            if method.get_type()? == ValueType::Function {
                                 self.call0(iterator, method)?;
                             }
                             Ok(())
@@ -313,16 +347,20 @@ impl<'env> Host<'env> {
             return Ok(());
         }
         if self.is_text(self.get(field, "localName")?, "select")? {
-            self.each(self.get(field, "options")?, |option| {
-                if self.equal(
-                    self.get(option, "_selectedness")?,
-                    self.env.to_js_value(&true)?,
-                )? && !self.helper1("isDisabled", field)?.coerce_to_bool()?
-                {
-                    self.append(callback, name, self.method0(option, "_getValue")?)?;
-                }
-                Ok(())
-            })?;
+            self.each(
+                self.get(field, "options")?,
+                IterationSource::Options,
+                |option| {
+                    if self.equal(
+                        self.get(option, "_selectedness")?,
+                        self.env.to_js_value(&true)?,
+                    )? && !self.helper1("isDisabled", field)?.coerce_to_bool()?
+                    {
+                        self.append(callback, name, self.method0(option, "_getValue")?)?;
+                    }
+                    Ok(())
+                },
+            )?;
         } else if self.is_text(self.get(field, "localName")?, "input")?
             && (self.is_text(self.get(field, "type")?, "checkbox")?
                 || self.is_text(self.get(field, "type")?, "radio")?)
@@ -432,7 +470,9 @@ pub fn construct_form_data(
             }
         }
         let controls = host.method0(form, "_getSubmittableElementNodes")?;
-        host.each(controls, |field| host.field(field, form, submitter, append))
+        host.each(controls, IterationSource::Controls, |field| {
+            host.field(field, form, submitter, append)
+        })
     })
 }
 

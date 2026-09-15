@@ -36,7 +36,7 @@ function createFormDataImplementation(context) {
   const helpers = { ...context,
     /** Capture the intrinsic iteration key during runtime initialization, before consumers replace host globals. */
     iteratorSymbol: Symbol.iterator,
-    /** @param {string} message - Native validation diagnostic. @returns {never} Original host error realm. */
+    /** @param {string} message - Explicit upstream constructor diagnostic. @returns {never} Original host error realm; iterator errors use engine intrinsics. */
     throwTypeError(message) { throw new TypeError(message); },
     /** @param {object} globalObject - FormData realm. @param {string} message - Native diagnostic. @returns {never} Realm DOMException. */
     throwNotFound(globalObject, message) { throw DOMException.create(globalObject, [message, 'NotFoundError']); },

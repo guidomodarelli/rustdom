@@ -2,8 +2,8 @@
 use napi::{
     Env, Error, JsValue, Property, Result, ValueType,
     bindgen_prelude::{
-        Function, JsObjectValue, KeyCollectionMode, KeyConversion, KeyFilter, Object, ObjectRef,
-        Unknown,
+        FnArgs, Function, JsObjectValue, KeyCollectionMode, KeyConversion, KeyFilter, Object,
+        ObjectRef, Unknown,
     },
 };
 use napi_derive::napi;
@@ -58,19 +58,57 @@ fn capture_iterator_key<'env>(env: &'env Env) -> Result<Unknown<'env>> {
     let generator_prototype = fresh_generator_prototype
         .get_prototype()?
         .coerce_to_object()?;
-    let iterator_prototype = generator_prototype.get_prototype()?.coerce_to_object()?;
-    let iterator_keys = iterator_prototype.get_all_property_names(
-        KeyCollectionMode::OwnOnly,
-        KeyFilter::SkipStrings,
-        KeyConversion::KeepNumbers,
-    )?;
-    let candidate = select.call(iterator_keys.to_unknown())?;
+    let iterator_prototype = generator_prototype.get_prototype()?;
+    if matches!(
+        iterator_prototype.get_type()?,
+        ValueType::Object | ValueType::Function
+    ) {
+        let iterator_keys = iterator_prototype
+            .coerce_to_object()?
+            .get_all_property_names(
+                KeyCollectionMode::OwnOnly,
+                KeyFilter::SkipStrings,
+                KeyConversion::KeepNumbers,
+            )?;
+        let candidate = select.call(iterator_keys.to_unknown())?;
+        if candidate.get_type()? == ValueType::Symbol {
+            return Ok(candidate);
+        }
+    }
+    // Both host prototype routes are unavailable. A fresh Node VM realm has its own intact
+    // intrinsics, while well-known symbols are shared across realms in this isolate.
+    let isolated_key = capture_clean_realm_key(env)?;
+    if isolated_key.get_type()? != ValueType::Symbol {
+        return Err(Error::from_reason(
+            "XML iterator intrinsics: clean realm did not return a Symbol",
+        ));
+    }
+    // Define the own element directly rather than invoking an inherited Array index setter.
+    let mut isolated_keys = env.create_array(1)?.to_unknown().coerce_to_object()?;
+    isolated_keys.define_properties(&[Property::new()
+        .with_utf8_name("0")?
+        .with_value(&isolated_key)])?;
+    let candidate = select.call(isolated_keys.to_unknown())?;
     if candidate.get_type()? == ValueType::Symbol {
         Ok(candidate)
     } else {
-        // Both probes failed on controlled objects; preserve the actual intrinsic exception.
         Err(Error::from_unknown_without_coercion(candidate))
     }
+}
+
+/// Use public Node APIs only, and return a primitive key without retaining the sandbox or realm.
+fn capture_clean_realm_key<'env>(env: &'env Env) -> Result<Unknown<'env>> {
+    let process: Object = env.get_global()?.get_named_property("process")?;
+    let get_builtin: Function<String, Object> = process.get_named_property("getBuiltinModule")?;
+    let vm = get_builtin.apply(process.to_unknown(), "node:vm".to_owned())?;
+    let evaluate: Function<FnArgs<(String, Object)>, Unknown> =
+        vm.get_named_property("runInNewContext")?;
+    // A null prototype prevents host Object.prototype properties from shadowing realm globals.
+    let sandbox: Object = env.run_script("({ __proto__: null })")?;
+    evaluate.apply(
+        vm.to_unknown(),
+        ("Symbol.iterator".to_owned(), sandbox).into(),
+    )
 }
 /// Capture before consumers replace host globals. Each Env owns and finalizes its own reference.
 #[napi(module_exports)]

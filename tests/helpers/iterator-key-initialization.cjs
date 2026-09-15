@@ -2,6 +2,7 @@
 'use strict';
 const { parentPort, workerData } = require('node:worker_threads');
 const reference = require('w3c-xmlserializer');
+const { resolve } = require('node:path');
 const intrinsicSymbol = Symbol;
 const iteratorKey = Symbol.iterator;
 const arrayPrototype = Array.prototype;
@@ -14,6 +15,8 @@ const symbolToString = Object.getOwnPropertyDescriptor(Symbol.prototype, 'toStri
 const globalSymbol = Object.getOwnPropertyDescriptor(globalThis, 'Symbol');
 const globalString = Object.getOwnPropertyDescriptor(globalThis, 'String');
 const globalArray = Object.getOwnPropertyDescriptor(globalThis, 'Array');
+const builtinLoader = Object.getOwnPropertyDescriptor(process, 'getBuiltinModule');
+const inheritedSymbol = Object.getOwnPropertyDescriptor(Object.prototype, 'Symbol');
 const decoy = Symbol('Symbol.iterator');
 const markerCause = {};
 const marker = new Error('iterator body', { cause: markerCause });
@@ -50,17 +53,26 @@ function exercise(serialize, cycle) {
 }
 
 try {
-  if (workerData.mutation === 'array-getter') Object.defineProperty(arrayPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
-  else if (workerData.mutation !== 'iterator-deleted' && workerData.mutation !== 'generator-chain-null') delete arrayPrototype[iteratorKey];
-  if (workerData.mutation === 'generator-chain-null') Object.setPrototypeOf(generatorPrototype, null);
-  if (workerData.mutation === 'iterator-deleted') delete iteratorPrototype[iteratorKey];
-  if (workerData.mutation === 'combined-globals') {
+  const mutation = workerData.mutation;
+  const keepArray = ['iterator-deleted', 'generator-chain-null', 'builtin-loader-getter'].includes(mutation);
+  const removeIterator = ['iterator-deleted', 'both-iterators-deleted', 'both-deleted-globals', 'both-deleted-poisoned-host-prototype'].includes(mutation);
+  const severGenerator = ['generator-chain-null', 'array-deleted-generator-chain-null', 'chain-null-globals'].includes(mutation);
+  const removeGlobals = ['combined-globals', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype'].includes(mutation);
+  if (mutation === 'array-getter') Object.defineProperty(arrayPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
+  else if (!keepArray) delete arrayPrototype[iteratorKey];
+  if (removeIterator) delete iteratorPrototype[iteratorKey];
+  if (severGenerator) Object.setPrototypeOf(generatorPrototype, null);
+  if (removeGlobals) {
     Object.defineProperty(intrinsicSymbol.prototype, 'constructor', { configurable: true, get: forbiddenRead });
     Object.defineProperty(intrinsicSymbol.prototype, 'toString', { configurable: true, get: forbiddenRead });
     globalThis.Symbol = undefined; globalThis.String = undefined; globalThis.Array = undefined;
   }
-  if (workerData.mutation === 'iterator-getter') Object.defineProperty(iteratorPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
-  if (workerData.mutation === 'iterator-decoy') {
+  if (mutation === 'both-deleted-poisoned-host-prototype') Object.defineProperty(Object.prototype, 'Symbol', { configurable: true, get: forbiddenRead });
+  if (mutation === 'builtin-loader-getter' || mutation === 'array-deleted-builtin-loader-getter') {
+    Object.defineProperty(process, 'getBuiltinModule', { configurable: true, get: forbiddenRead });
+  }
+  if (mutation === 'iterator-getter') Object.defineProperty(iteratorPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
+  if (mutation === 'iterator-decoy') {
     delete iteratorPrototype[iteratorKey];
     Object.defineProperty(iteratorPrototype, decoy, { configurable: true, get: forbiddenRead });
     Object.defineProperty(iteratorPrototype, iteratorKey, iteratorDescriptor);
@@ -87,5 +99,20 @@ try {
   Object.defineProperty(globalThis, 'Symbol', globalSymbol);
   Object.defineProperty(globalThis, 'String', globalString);
   Object.defineProperty(globalThis, 'Array', globalArray);
+  Object.defineProperty(process, 'getBuiltinModule', builtinLoader);
+  if (inheritedSymbol) Object.defineProperty(Object.prototype, 'Symbol', inheritedSymbol);
+  else delete Object.prototype.Symbol;
+}
+if (workerData.publicRuntime && !output.loadError) {
+  let dom;
+  try {
+    const native = workerData.engine === 'rustdom' ? require(workerData.addonPath) : null;
+    const before = native?.xmlSerializationStatistics().created;
+    const runtime = require(workerData.engine === 'rustdom' ? resolve(workerData.runtimeDirectory, 'index.cjs') : 'jsdom');
+    dom = new runtime.JSDOM('<root><value>ready</value></root>', { contentType: 'text/xml' });
+    output.publicValue = new dom.window.XMLSerializer().serializeToString(dom.window.document.documentElement);
+    if (native) output.publicNativeCalls = native.xmlSerializationStatistics().created - before;
+  } catch (error) { output.publicError = { name: error?.name, message: error?.message }; }
+  finally { dom?.window.close(); }
 }
 parentPort.postMessage(output);
