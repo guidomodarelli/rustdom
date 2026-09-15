@@ -37,3 +37,20 @@ La asignación de constructor `this.onChange = null` todavía podía invocar un 
 La versión final declara `onChange = null` como campo de clase, que define una propiedad propia sin pasar por setters del prototipo. Se amplió la regresión a seis casos diferenciales (`writable`, `accessor`, `readonly` en ambos engines). Tras `build:js` pasaron 43 tests de AbortSignal/listeners/GC en Node 24 y 40 en Node 22, incluidos esos descriptores. El hash nativo continúa siendo `fb12b3d1fa14ec020cf520734b30b927176bff4dc3632e3b9fe8072f882b89cd`.
 
 Este último ajuste solo cambia la definición del campo JavaScript. No se repitió la suite completa ya aprobada: se conservan sus resultados para las superficies sin cambios y se añade esta validación focal ejecutada sobre el código final, registrada en `merged/class-field-*.log`.
+
+## Benchmark final y publicación
+
+La medición final se ejecutó sobre `3522aa2134e3a64298fd5c258c5825cf9f97d17c`, con el addon validado `fb12b3d1fa14ec020cf520734b30b927176bff4dc3632e3b9fe8072f882b89cd`. Root y las otras tareas pausaron cargas pesadas durante la ventana. El runner terminó correctamente con cuatro procesos alternados, tres warmups y nueve muestras por proceso/escenario, conservando 18 muestras por engine y combinación de operación/tamaño.
+
+| Operación | Señales | jsdom, mediana ms | rustdom, mediana ms | jsdom/rustdom |
+|---|---:|---:|---:|---:|
+| `abort-lifecycle` | 100 | 0,805 | 1,987 | 0,41× |
+| `abort-any` | 100 | 0,326 | 0,683 | 0,48× |
+| `abort-propagation` | 100 | 0,497 | 1,683 | 0,30× |
+| `abort-lifecycle` | 1.000 | 5,648 | 17,133 | 0,33× |
+| `abort-any` | 1.000 | 2,131 | 4,840 | 0,44× |
+| `abort-propagation` | 1.000 | 3,270 | 14,842 | 0,22× |
+
+El resultado continúa siendo más lento que jsdom en estas tareas equivalentes. No se interpreta la variación respecto del primer addon como una mejora atribuible al fix: cambió la revisión integrada. Este reporte identifica el binario, el commit y el hash de fuentes finales, y registra las versiones Rust/Cargo mediante el PATH completo del toolchain. Las muestras crudas están en `reports/benchmarks/2026-09-15T15-04-36.693Z-linux-x64.json` y el resumen junto a ese archivo. WSL emitió un aviso de inicio de sesión systemd antes de iniciar el script; todos los workers y sus comprobaciones completaron correctamente.
+
+El refresh previo a publicar volvió a verificar el PR 67 abierto, la rama `feature/native-form-data` en `1cbe98875c7bc02fdf7d008cfe9cbce999fbb179` y `main` en `13f638bcade01fd80679236ccab4e7f891c78937`. No hubo cambios remotos posteriores a la unión probada. El commit de publicación agrega solamente estas mediciones y documentación, sin alterar el runtime medido.
