@@ -4,6 +4,18 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Forward-only native actions retain their literal value union in installed consumers. */
+const slotAssignmentActions: readonly native.SlotAssignmentAction[] = [
+  native.SlotAssignmentAction.Complete, native.SlotAssignmentAction.Signal, native.SlotAssignmentAction.Applied,
+];
+assert.deepEqual(slotAssignmentActions, [0, 1, 2]);
+assert.deepEqual(Object.getOwnPropertyNames(native.SlotAssignmentAction).sort(), ['Applied', 'Complete', 'Signal']);
+for (const action of slotAssignmentActions) {
+  // @ts-expect-error The native object has no reverse numeric mapping.
+  assert.equal(native.SlotAssignmentAction[action], undefined);
+  assert.equal(Object.hasOwn(native.SlotAssignmentAction, action), false);
+}
+
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
 const paragraph: Element | null = dom.window.document.querySelector('#target');
 assert.ok(paragraph);
@@ -37,6 +49,13 @@ dom.window.close();
 const tree = new native.NativeTree();
 const handle = tree.allocate();
 tree.setHtmlElement(handle, 'b', ['title', 'installed']);
+const nativeRecord = new native.NativeMutationRecord(tree, { kind: 'attributes', target: handle,
+  previousSibling: 0, nextSibling: 0, attributeName: 'flag\ud800', attributeNamespace: null,
+  oldValue: 'old\0\udc00', addedNodes: [], removedNodes: [] });
+assert.equal(nativeRecord.kind, 'attributes'); assert.equal(nativeRecord.target, handle);
+assert.equal(nativeRecord.attributeName, 'flag\ud800'); assert.equal(nativeRecord.attributeNamespace, null);
+assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecord.addedNodes, []);
+assert.ok(native.NativeMutationRecord.statistics().created > 0);
 assert.equal(tree.serializeHtml(handle, true, false), '<b title="installed"></b>');
 const doctypeHandle = tree.allocate();
 tree.initializeDocumentType(doctypeHandle, 'html', '\ud800', 'system');
@@ -152,8 +171,15 @@ hostTree.setSlotBacklink(nativeCdata, nativeSlot);
 assert.equal(hostTree.slotBacklink(nativeCdata), nativeSlot);
 hostTree.remove(nativeCdata); assert.equal(hostTree.eventParent(nativeCdata), nativeSlot);
 assert.equal(hostTree.slotBacklinkStatistics().assignedNodes, 1);
+const assignmentDriver = new native.NativeSlotAssignmentDriver(nativeSlot, false);
+assert.equal(hostTree.slotAssignmentStep(assignmentDriver).kind, native.SlotAssignmentAction.Signal);
+assert.deepEqual(hostTree.cachedSlotables(nativeSlot), [nativeCdata]);
 assert.equal(hostTree.queueSlotSignal(nativeSlot), true); assert.equal(hostTree.queueSlotSignal(nativeSlot), false);
 assert.equal(hostTree.slotSignalStatistics().pendingSlots, 1);
+assert.equal(hostTree.slotAssignmentStep(assignmentDriver).kind, native.SlotAssignmentAction.Applied);
+assert.deepEqual(hostTree.cachedSlotables(nativeSlot), []);
+assert.equal(hostTree.slotAssignmentStep(assignmentDriver).kind, native.SlotAssignmentAction.Complete);
+assert.equal(assignmentDriver.complete, true);
 assert.deepEqual(hostTree.takeSlotSignals(), [nativeSlot]);
 assert.equal(hostTree.slotSignalStatistics().pendingSlots, 0);
 hostTree.queueSlotSignal(nativeSlot);
@@ -166,6 +192,7 @@ assert.deepEqual(hostTree.takeSlotSignals(), []); assert.equal(hostTree.slotSign
 hostTree.release(rootHost); assert.equal(hostTree.rootHost(hostedRoot), 0); hostTree.release(hostedRoot);
 assert.equal(hostTree.rootHostStatistics().hostedRoots, 0); assert.equal(hostTree.rootHostStatistics().hostOwners, 0);
 assert.equal(hostTree.slotBacklinkStatistics().slotOwners, 0);
+assert.ok(native.NativeSlotAssignmentDriver.statistics().created > 0);
 const mutableRange = rangeState.copy(); mutableRange.applyCharacterData(textHandle, 1, 3, 2);
 assert.equal(mutableRange.endOffset, 6); assert.equal(rangeState.endOffset, 7);
 assert.equal(mutableRange.applyTreeMutation(native.RangeMutationKind.SplitText, textHandle, namespaceHandle, 2, 0), native.RangeEndpoint.End);

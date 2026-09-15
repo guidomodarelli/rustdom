@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -462,6 +462,42 @@ class NativeSymbolTree extends SymbolTree {
     this._signalSlotOwners = [];
     return slots;
   }
+  /** @param {object} data - Complete MutationRecord producer payload. @returns {object} Immutable native snapshot with allocated node identities. */
+  createMutationRecord(data) {
+    return new NativeMutationRecord(this._arena, { kind: data.type, target: this._ensure(data.target),
+      previousSibling: data.previousSibling ? this._ensure(data.previousSibling) : 0,
+      nextSibling: data.nextSibling ? this._ensure(data.nextSibling) : 0,
+      attributeName: data.attributeName, attributeNamespace: data.attributeNamespace, oldValue: data.oldValue,
+      addedNodes: data.addedNodes.map((node) => this._ensure(node)), removedNodes: data.removedNodes.map((node) => this._ensure(node)) });
+  }
+  /**
+   * Execute native assignment traversal and replay only ownership changes and signal effects.
+   * @param {object} root - Root to traverse, or the single slot.
+   * @param {boolean} subtree - Traverse the ordinary tree when true.
+   * @param {Function} signal - Original synchronous signal scheduling boundary.
+   * @returns {void}
+   * @throws {Error} Propagates signal and native errors after cancelling retained controller state.
+   */
+  runSlotAssignments(root, subtree, signal) {
+    const rootId = this._ensure(root); this._object(rootId);
+    const operation = new NativeSlotAssignmentDriver(rootId, subtree);
+    try {
+      while (true) {
+        const step = this._arena.slotAssignmentStep(operation);
+        if (step.kind === SlotAssignmentAction.Complete) return;
+        // Dereferencing pins the captured cursor and candidates for this synchronous job,
+        // even if signal scheduling reenters DOM code and detaches them from the root.
+        this._object(step.nextNode);
+        const slot = this._object(step.slot); const nodes = step.nodes.map((id) => this._object(id));
+        if (step.kind === SlotAssignmentAction.Signal) signal(slot);
+        else {
+          if (step.cacheChanged) this._node(slot).nativeAssignedNodes = nodes;
+          for (const node of nodes) this._node(node).nativeAssignedSlot = slot;
+          if (step.nextNode === 0) return;
+        }
+      }
+    } finally { operation.cancel(); }
+  }
   /** @param {object} slot - Input implementation anchoring its tree and host. @returns {object[]} Flattened original nodes; temporary IDs do not own them. */
   findFlattenedSlotables(slot) {
     const id = this._ensure(slot);
@@ -763,6 +799,8 @@ class NativeSymbolTree extends SymbolTree {
       slotAssignments: this._arena.slotAssignmentStatistics(),
       slotBacklinks: this._arena.slotBacklinkStatistics(),
       slotSignals: this._arena.slotSignalStatistics(),
+      slotAssignmentDrivers: NativeSlotAssignmentDriver.statistics(),
+      mutationRecords: NativeMutationRecord.statistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

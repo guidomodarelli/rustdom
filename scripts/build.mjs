@@ -51,6 +51,13 @@ await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
+await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const mutationRecordPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationRecord-impl.js');
+await writeFile(mutationRecordPath, '"use strict";\n' +
+  'const { createMutationRecordImplementation } = require("../../../../../mutation-record.cjs");\n' +
+  'const NodeList = require("../generated/NodeList");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'module.exports = { implementation: createMutationRecordImplementation(NodeList, domSymbolTree) };\n');
 const contentDriverSource = await readFile('src/dom/range-content-driver.cjs', 'utf8');
 await writeFile('dist/range-content-driver.cjs', substituteOnce(contentDriverSource,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
@@ -574,11 +581,12 @@ const assignmentStart = shadowHelpers.indexOf('function assignSlotable(slot) {')
 const assignmentEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#assign-slotables-for-a-tree', assignmentStart);
 if (assignmentStart < 0 || assignmentEnd < assignmentStart) throw new Error('rustdom build: slot assignment boundary changed');
 shadowHelpers = shadowHelpers.slice(0, assignmentStart) +
-  'function assignSlotable(slot) {\n' +
-  '  const plan = domSymbolTree.slotAssignmentPlan(slot);\n' +
-  '  if (plan.changed) signalSlotChange(slot);\n' +
-  '  domSymbolTree.commitSlotAssignment(slot, plan.nodes);\n' +
-  '  for (const slotable of plan.nodes) slotable._assignedSlot = slot;\n}\n\n' + shadowHelpers.slice(assignmentEnd);
+  'function assignSlotable(slot) {\n  domSymbolTree.runSlotAssignments(slot, false, signalSlotChange);\n}\n\n' + shadowHelpers.slice(assignmentEnd);
+const treeAssignmentStart = shadowHelpers.indexOf('function assignSlotableForTree(root) {');
+const treeAssignmentEnd = shadowHelpers.indexOf('// https://dom.spec.whatwg.org/#find-slotables', treeAssignmentStart);
+if (treeAssignmentStart < 0 || treeAssignmentEnd < treeAssignmentStart) throw new Error('rustdom build: tree assignment boundary changed');
+shadowHelpers = shadowHelpers.slice(0, treeAssignmentStart) +
+  'function assignSlotableForTree(root) {\n  domSymbolTree.runSlotAssignments(root, true, signalSlotChange);\n}\n\n' + shadowHelpers.slice(treeAssignmentEnd);
 /** Keep microtask scheduling and callback delivery in their original positions around the native batch. */
 const signalSlotChangeSource = 'function signalSlotChange(slot) {\n  if (!signalSlotList.some(entry => entry === slot)) {\n    signalSlotList.push(slot);\n  }\n\n  queueMutationObserverMicrotask();\n}';
 shadowHelpers = substituteOnce(shadowHelpers, signalSlotChangeSource,

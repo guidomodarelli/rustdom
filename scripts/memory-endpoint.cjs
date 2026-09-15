@@ -52,6 +52,8 @@ function isReleased(state, expected) {
     native.slotBacklinks?.slotOwners === expected.slotBacklinks?.slotOwners &&
     native.slotSignals?.pendingSlots === expected.slotSignals?.pendingSlots &&
     native.slotSignals?.queueEntries === expected.slotSignals?.queueEntries &&
+    native.slotAssignmentDrivers?.live === expected.slotAssignmentDrivers?.live &&
+    native.mutationRecords?.live === expected.mutationRecords?.live &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

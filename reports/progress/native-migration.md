@@ -1,8 +1,9 @@
 # Indicador provisional de migración a Rust
 
-Evaluación del estado publicado `9ac52d49c14e3c325e398f4d88045a6caa42163c`
-(PR37), sobre main `f6087d70aee6e126791d6f056a3af62f098c6b51`.
-El aplanado en preparación no se cuenta como implementado.
+Evaluación actualizada el 13/09/2026 sobre el estado publicado
+`6da23cccf820022a3b2f7e73fc2603ed439ec733` (PR43), con main
+`b9bbf64a67a9acb42ce30524d732fd348819daba` y checkpoint-048.
+El payload de MutationRecord en validación local no se cuenta como publicado.
 
 **1 área implementada, 6 parciales y 5 delegadas: índice 33,3%.**
 
@@ -22,7 +23,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Serialización HTML/XML | Parcial | `scripts/build.mjs:583` conecta serializeHTML nativo; XML y rutas restantes conservan drivers originales. | Alta |
 | Selectores CSS completos y XPath | Parcial | `src/dom/tree.rs:1343` expone la consulta nativa; README declara selectores que vuelven al motor original. XPath pendiente. | Alta |
 | Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; ROADMAP enumera efectos, creación y Selection pendientes. | Alta |
-| Shadow DOM, slots y eventos completos | Parcial | `src/dom/slots.rs:63` selecciona asignados; hosts/retargeting son nativos. Aplanado, caches y entrega de eventos/señales siguen pendientes. | Alta |
+| Shadow DOM, slots y eventos completos | Parcial | Hosts, retargeting, selección, aplanado, caches, backlinks, cola de señales y driver de asignación usan Rust; ver `reports/validation/slot-assignment-driver.md`. Continúan pendientes microtasks, callbacks y algoritmos generales de eventos. | Alta |
 | APIs específicas de elementos HTML, formularios y custom elements | Delegada | El runtime privado conserva sus implementaciones de elementos; los datos/atributos nativos compartidos ya se cuentan arriba. | Media |
 | CSSOM, estilos y layout | Delegada | `dist/vendor-jsdom/lib/jsdom/living/helpers/style-rules.js:4` y `:7` usan cssom/cssstyle; no se considera nativo por utilizar selectores nativos debajo. | Media |
 | Recursos/red, URL, cookies y navegación | Delegada | Runtime jsdom/Node y rutas de compatibilidad descritos en README; quedan algoritmos de plataforma fuera del core DOM. | Media |
@@ -32,8 +33,13 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 148 tests Rust, 495 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 169 tests Rust, 521 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.
+
+El índice permanece en 33,3% porque estos avances profundizan áreas todavía
+parciales. No se incrementa automáticamente por cada commit, PR o checkpoint.
+La validación local de MutationRecord suma tres tests Rust y ocho Node aprobados;
+estos recuentos tampoco cambian el denominador ni acreditan compatibilidad total.

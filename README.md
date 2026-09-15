@@ -182,6 +182,20 @@ el siguiente lote. V8 conserva los owners pendientes y el snapshot de entrega.
 `slotSignals` informa señales vivas, entradas y capacidades; las entradas raw
 finalizadas se descartan al compactar o vaciar. La programación del microtask y
 la invocación de observadores/listeners conservan sus drivers JavaScript.
+El driver de asignación simple y por árbol usa `NativeSlotAssignmentDriver`:
+recorre slots en Rust y se pausa antes de señalar y después de cada commit que
+requiere actualizar ownership. Conserva el siguiente nodo capturado por el
+iterador y los candidatos a través de reentrancia; no ejecuta JavaScript mientras
+el store está prestado por Rust. Los slots sin cambios se procesan en el mismo
+paso nativo. `slotAssignmentDrivers` expone el lifetime de los controladores.
+
+Los nueve campos de `MutationRecord` usan un snapshot inmutable de Rust: tipo,
+texto UTF-16 nullable y IDs de target, siblings y listas ordenadas. El puente
+retiene las referencias que V8 necesita y crea NodeLists estáticas en el realm
+original; el wrapper WebIDL conserva su identidad SameObject. Un registro raw
+no retiene su `NativeTree`. `mutationRecords` informa creación, liberación e
+instancias vivas. La selección de observadores, sus opciones, colas y entrega
+de callbacks todavía conservan algoritmos JavaScript pendientes de migración.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
