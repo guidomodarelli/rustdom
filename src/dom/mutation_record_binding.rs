@@ -11,6 +11,7 @@ use napi::{
     bindgen_prelude::{Either, Null, Utf16String},
 };
 use napi_derive::napi;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static LIVE_RECORDS: AtomicU64 = AtomicU64::new(0);
@@ -39,7 +40,18 @@ pub struct MutationRecordStatistics {
 
 #[napi]
 pub struct NativeMutationRecord {
-    state: MutationRecordState,
+    state: Arc<MutationRecordState>,
+}
+
+impl NativeMutationRecord {
+    pub(super) fn shared_state(&self) -> Arc<MutationRecordState> {
+        Arc::clone(&self.state)
+    }
+    pub(super) fn from_shared(state: Arc<MutationRecordState>) -> Self {
+        LIVE_RECORDS.fetch_add(1, Ordering::Relaxed);
+        CREATED_RECORDS.fetch_add(1, Ordering::Relaxed);
+        Self { state }
+    }
 }
 
 /// Optional object properties and explicit null are distinct inputs at the N-API object boundary.
@@ -74,9 +86,7 @@ impl NativeMutationRecord {
                 removed_nodes: input.removed_nodes,
             })
             .map_err(to_napi_error)?;
-        LIVE_RECORDS.fetch_add(1, Ordering::Relaxed);
-        CREATED_RECORDS.fetch_add(1, Ordering::Relaxed);
-        Ok(Self { state })
+        Ok(Self::from_shared(Arc::new(state)))
     }
     #[napi(getter)]
     pub fn kind(&self) -> &'static str {

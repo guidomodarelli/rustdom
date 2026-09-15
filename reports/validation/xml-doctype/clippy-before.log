@@ -1,0 +1,72 @@
+    Checking rustdom v0.1.0 (/mnt/c/Users/guido/ghq/projects/rustdom)
+error: this `if` statement can be collapsed
+   --> src/xml/doctype.rs:113:9
+    |
+113 | /         if l...
+114 | |             ...
+115 | |             ...
+116 | |             ...
+...   |
+121 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+113 ~         if let Some(start) = whitespace(&input, offset + "<!doctype".len())
+114 ~             && let Some((name, _)) = identifier(&input, start, true) {
+115 |                 return Some(Doctype {
+...
+119 |                 });
+120 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/xml/doctype.rs:139:9
+    |
+139 | /         if n...
+140 | |             ...
+141 | |             ...
+142 | |             ...
+...   |
+150 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+139 ~         if name_end > name_start && body.get(name_end) == Some(&32)
+140 ~             && let Some((value, after_quote)) = quoted(body, name_end + 1) {
+141 |                 if body.get(after_quote) == Some(&62) {
+...
+148 |                 }
+149 ~             }
+    |
+
+error: this `if` statement can be collapsed
+   --> src/xml/doctype.rs:140:13
+    |
+140 | /             if l...
+141 | |                 ...
+142 | |                 ...
+143 | |                 ...
+...   |
+149 | |             }
+    | |_____________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+140 ~             if let Some((value, after_quote)) = quoted(body, name_end + 1)
+141 ~                 && body.get(after_quote) == Some(&62) {
+142 |                     result.push(Entity {
+...
+147 |                     continue;
+148 ~                 }
+    |
+
+error: could not compile `rustdom` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `rustdom` (lib test) due to 3 previous errors

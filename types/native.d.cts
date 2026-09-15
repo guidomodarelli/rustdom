@@ -1,5 +1,163 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics } from './index.cjs';
+
+/** Native ordered UTF16 data. Public WebIDL conversion and scheduling remain at the host boundary. */
+export class NativeStorageArea {
+  constructor();
+  readonly size: number;
+  readonly units: number;
+  readonly capacity: number;
+  key(index: number): string | null;
+  get(key: string): string | null;
+  planSet(key: string, value: string, quota?: number): StorageSetPlan;
+  set(key: string, value: string): void;
+  delete(key: string): boolean;
+  clear(): void;
+  keyCursor(): NativeStorageKeyCursor;
+  static statistics(): NativeStorageStatistics;
+}
+/** Keeps only native data alive; exhaustion releases the area and is permanent. */
+export class NativeStorageKeyCursor {
+  private constructor();
+  next(): string | null;
+}
+export const StorageSetStatus: { readonly Unchanged: 0; readonly QuotaExceeded: 1; readonly Write: 2 };
+export type StorageSetStatus = (typeof StorageSetStatus)[keyof typeof StorageSetStatus];
+export interface StorageSetPlan { status: StorageSetStatus; oldValue: string | null; }
+
+/** Compact native rectangle. WebIDL conversion and read-only contracts belong to the public wrappers. */
+export class NativeDomRect {
+  constructor(x: number, y: number, width: number, height: number);
+  x: number; y: number; width: number; height: number;
+  readonly top: number; readonly right: number; readonly bottom: number; readonly left: number;
+  snapshot(): RectSnapshot;
+  static statistics(): NativeRectStatistics;
+}
+export interface RectSnapshot { x: number; y: number; width: number; height: number; top: number; right: number; bottom: number; left: number; }
+
+/** Serializes public properties synchronously; getter/iterator callbacks can mutate the DOM or reenter. */
+export function serializeXml(root: unknown, requireWellFormed: boolean): unknown;
+/** Concatenates a root snapshot with independent namespace scopes and normal string-addition coercion. */
+export function serializeXmlForest(roots: unknown[], requireWellFormed: boolean): string;
+export type XmlSerializationStatistics = NativeXmlSerializationStatistics;
+export function xmlSerializationStatistics(): XmlSerializationStatistics;
+
+export interface NativeXmlAttribute { name: string; prefix: string; local: string; uri: string; value: string; }
+export interface NativeXmlTag { name: string; prefix: string; local: string; uri: string; attributes: NativeXmlAttribute[]; }
+export interface NativeXmlEvent { kind: string; value?: string; target?: string; tag?: NativeXmlTag; errorType?: string; }
+export interface NativeXmlDoctype { name: string; publicId: string; systemId: string; }
+/** Incremental native XML decisions; the caller supplies context namespaces and owns DOM effects. */
+export class NativeXmlParser {
+  constructor(input: string, fragment: boolean, filename?: string);
+  next(): NativeXmlEvent;
+  resolvePrefix(namespace?: string | null): NativeXmlEvent;
+  setEntity(name: string, value: string): void;
+  /** Interprets the raw doctype body with pinned jsdom matching rules. */
+  static describeDoctype(body: string): NativeXmlDoctype | null;
+  /** Applies the jsdom entity extension after the host successfully appends DocumentType. */
+  applyDoctypeEntities(body: string): number;
+  close(): void;
+  static statistics(): NativeXmlStatistics;
+}
+
+/** Native composition decision; sourceInputs resolves each source through that input's host-owned roots. */
+export interface NativeAbortAnyPlan { reasonSource: number; sources: number[]; sourceInputs: number[]; }
+export interface NativeAbortGraphStatistics { signals: number; links: number; algorithms: number; capacity: number; }
+/** Metadata handle in this thread's graph; reasons and JavaScript owners are never retained here. */
+export class NativeAbortState {
+  constructor();
+  readonly id: number;
+  aborted: boolean;
+  dependent: boolean;
+  initializeAny(inputs: number[]): NativeAbortAnyPlan;
+  markDependents(): number[];
+  /** Zero requests a new identity; an existing active identity preserves set semantics. */
+  addAlgorithm(existing: number): number;
+  removeAlgorithm(id: number): boolean;
+  /** Returns the next active identity after the cursor, or zero at the end. */
+  nextAlgorithm(after: number): number;
+  clearAlgorithms(): void;
+  graphStatistics(): NativeAbortGraphStatistics;
+  static statistics(): NativeAbortStatistics;
+}
+import type { NativeTreeStatistics, NativeRangeStatistics, NativeRootHostStatistics, NativeSlotableNameStatistics, NativeSlotAssignmentStatistics, NativeSlotBacklinkStatistics, NativeSlotSignalStatistics, NativeSlotAssignmentDriverStatistics, NativeMutationRecordStatistics, NativeMutationObserverStatistics, NativeMutationNotificationStatistics, NativeObserverDeliveryStatistics, NativeEventStatistics } from './index.cjs';
+
+export const EventStateFlag: { readonly Bubbles: 1; readonly Cancelable: 2; readonly Composed: 4; readonly Initialized: 8; readonly PropagationStopped: 16; readonly ImmediatePropagationStopped: 32; readonly Canceled: 64; readonly PassiveListener: 128; readonly Dispatching: 256; readonly Trusted: 512 };
+/** Bit decisions returned before a callback; these values form a forward-only object. */
+export const ListenerInvocation: { readonly Missing: 0; readonly OtherPhase: 1; readonly Invoke: 2; readonly Once: 4; readonly Passive: 8; readonly ForgetCallback: 16 };
+export interface NativeListenerStorageStatistics { listeners: number; eventTypes: number; callbacks: number; recordsCapacity: number; typesCapacity: number; callbacksCapacity: number; bucketCapacity: number; }
+export interface NativeListenerSnapshot { ids: number[]; selected: number[]; }
+/** Native metadata only; the host owns callbacks, signals and captured callback snapshots. */
+export class NativeListenerRegistry {
+  constructor();
+  /** Returns a fresh registration ID, or zero for an existing callback/capture pair. */
+  add(type: string, callback: number, capture: boolean, once: boolean, passive: boolean): number;
+  /** Returns the removed registration ID, or zero if there was no match. */
+  remove(type: string, callback: number, capture: boolean): number;
+  snapshot(type: string): number[];
+  /** Captures all IDs for ownership and indices eligible for this phase. */
+  snapshotSelection(type: string, capturing: boolean): NativeListenerSnapshot;
+  /** Returns ListenerInvocation bits and removes an invoked once registration before returning. */
+  prepareInvocation(id: number, capturing: boolean): number;
+  hasCallback(callback: number): boolean;
+  readonly hasEventTypes: boolean;
+  storageStatistics(): NativeListenerStorageStatistics;
+  static statistics(): NativeListenerStatistics;
+}
+export type EventStateFlag = typeof EventStateFlag[keyof typeof EventStateFlag];
+export const EventDispatchStatus: { readonly Ready: 0; readonly UninitializedOrDispatching: 1; readonly InvalidPhase: 2 };
+export type EventDispatchStatus = typeof EventDispatchStatus[keyof typeof EventDispatchStatus];
+export const EventInvocationEncoding: { readonly Complete: -1; readonly Capturing: 1; readonly Invoke: 2; readonly Stride: 4 };
+/** Indices into the host-owned path; targetIndex is -1 when no override exists. */
+export interface NativeEventDispatchStep { index: number; targetIndex: number; capturing: boolean; invoke: boolean; }
+/** Native state and path metadata; this object never owns event targets or windows. */
+export class NativeEventState {
+  constructor(type: string, bubbles: boolean, cancelable: boolean, composed: boolean);
+  eventType: string; eventPhase: number; timeStamp: number; readonly returnValue: boolean;
+  flag(flag: EventStateFlag): boolean;
+  setFlag(flag: EventStateFlag, value: boolean): void;
+  finishConstruction(trusted: boolean, timestamp: number): void;
+  preventDefault(): void; stopPropagation(): void; stopImmediatePropagation(): void;
+  setCancelBubble(value: boolean): void;
+  /** Only the literal boolean false requests cancellation; other values are ignored. */
+  setReturnValue(value: unknown): void;
+  initialize(type: string, bubbles: boolean, cancelable: boolean): void;
+  initializeIfIdle(type: string, bubbles: boolean, cancelable: boolean): boolean;
+  static statistics(): NativeEventStatistics;
+  prepareDispatch(): EventDispatchStatus;
+  beginDispatch(): void;
+  /** Returns the nearest target-override index, or -1 if none exists. */
+  appendPath(rootClosed: boolean, slotClosed: boolean, hasTarget: boolean): number;
+  nextInvocation(): NativeEventDispatchStep | null;
+  /** Advances the same cursor without allocating a JS step object: index * Stride + flag bits, or Complete. */
+  advanceInvocation(): number;
+  /** Visible path indices; -1 represents the host's currentTarget, including null before invocation. */
+  visiblePathIndices(): number[];
+  finishDispatch(): void;
+  readonly pathLength: number;
+  readonly pathCapacity: number;
+}
+
+/** Native delivery steps; only nonempty observer queues produce Observer instructions. */
+export const ObserverDeliveryAction: { readonly Complete: 0; readonly Observer: 1; readonly Slot: 2 };
+export interface ObserverDeliveryInstruction { kind: typeof ObserverDeliveryAction[keyof typeof ObserverDeliveryAction]; observer: number; slot: number; records: number[]; complete: boolean; }
+/** A numeric-only captured batch tied to a weak originating-forest identity. The public constructor creates a completed empty operation. */
+export class NativeObserverDelivery {
+  constructor();
+  cancel(): void;
+  readonly complete: boolean;
+  readonly remainingObservers: number;
+  readonly remainingSlots: number;
+  static statistics(): NativeObserverDeliveryStatistics;
+}
+
+/** Forward-only native registration results; invalid options leave existing membership unchanged. */
+export const ObservationStatus: { readonly Added: 0; readonly Replaced: 1; readonly MissingMutationKind: 2; readonly AttributeOldValueWithoutAttributes: 3; readonly AttributeFilterWithoutAttributes: 4; readonly CharacterOldValueWithoutCharacterData: 5 };
+export interface NativeObserverOptionsInput { attributes?: boolean; characterData?: boolean; childList?: boolean; subtree?: boolean; attributeOldValue?: boolean; characterDataOldValue?: boolean; attributeFilter?: string[]; }
+export interface NativeObserverInterest { observer: number; oldValue: boolean; }
+export interface NativePreparedMutation { observer: number; record: NativeMutationRecord; }
+/** Native payload wrappers are shared; each observer references its immutable payload by index. */
+export interface NativeMutationBatch { observers: number[]; payloadIndices: number[]; payloads: NativeMutationRecord[]; }
 
 /** Complete scalar payload; zero represents a missing sibling, and text fields preserve null versus empty. */
 export interface NativeMutationRecordInput {
@@ -137,8 +295,52 @@ export class NativeRangeExtract {
   cancel(): void;
   static statistics(): NativeRangeStatistics;
 }
+/** Forward-only method names emitted by the native traversal enum. */
+export const TraversalMethod: { readonly IteratorNext: 0; readonly IteratorPrevious: 1; readonly Parent: 2; readonly FirstChild: 3; readonly LastChild: 4; readonly PreviousSibling: 5; readonly NextSibling: 6; readonly PreviousNode: 7; readonly NextNode: 8 };
+export type TraversalMethod = (typeof TraversalMethod)[keyof typeof TraversalMethod];
+export const TraversalAction: { readonly Complete: 0; readonly Filter: 1; readonly Accepted: 2; readonly Recursive: 3 };
+export type TraversalAction = (typeof TraversalAction)[keyof typeof TraversalAction];
+/** Positive direct-movement results are accepted node handles; zero ends the scan. */
+export const TraversalMoveResult: { readonly Recursive: -1; readonly Complete: 0 };
+export type TraversalMoveResult = (typeof TraversalMoveResult)[keyof typeof TraversalMoveResult];
+export interface TraversalInstruction { kind: TraversalAction; node: number; }
+export interface TraversalStatistics { live: number; created: number; released: number; operations: number; createdOperations: number; }
+/** Native traversal metadata. The host must keep roots, current nodes and pending candidates alive. */
+export class NativeTraversal {
+  private constructor();
+  current: number;
+  readonly before: boolean;
+  set active(value: boolean);
+  start(method: TraversalMethod): NativeTraversalOperation;
+  static statistics(): TraversalStatistics;
+}
+/** Resumable movement with no JavaScript references. Responses are consumed once; traversalRestartStep explicitly discards old state. */
+export class NativeTraversalOperation {
+  private constructor();
+  resume(result: number): void;
+}
 /** Owns a native forest. Handles are positive safe integers and are never reused. */
 export class NativeTree {
+  datasetNames(owner: number): string[];
+  datasetValue(owner: number, name: string): string | null;
+  datasetNamePlan(name: string, validate: boolean): DatasetNamePlan;
+  datasetStatistics(): DatasetStatistics;
+  createTokenList(owner: number, name: string, supported?: string[]): NativeTokenList;
+  tokenListLength(list: NativeTokenList): number;
+  tokenListItem(list: NativeTokenList, index: number): string | null;
+  tokenListContains(list: NativeTokenList, token: string): boolean;
+  tokenListValue(list: NativeTokenList): string;
+  tokenListSet(list: NativeTokenList): NativeTokenSet;
+  tokenListMutate(list: NativeTokenList, method: TokenListMethod, tokens: string[], force?: boolean): TokenListMutation;
+  createTraversal(root: number, mask: number, hasFilter: boolean): NativeTraversal;
+  traversalStep(cursor: NativeTraversal, operation: NativeTraversalOperation): TraversalInstruction;
+  /** Runs an unfiltered movement without allocating a suspended operation. */
+  traversalMove(cursor: NativeTraversal, method: TraversalMethod): number;
+  /** Consumes a filter response and advances on current topology in one native call. */
+  traversalResumeStep(cursor: NativeTraversal, operation: NativeTraversalOperation, result: number): TraversalInstruction;
+  /** Resets an idle operation before any old candidate can be read, then begins a new movement. */
+  traversalRestartStep(cursor: NativeTraversal, operation: NativeTraversalOperation, method: TraversalMethod): TraversalInstruction;
+  traversalPreRemove(cursor: NativeTraversal, removed: number): void;
   constructor();
   readonly handleBatchSize: number;
   allocate(): number;
@@ -182,6 +384,26 @@ export class NativeTree {
   slotBacklinkStatistics(): NativeSlotBacklinkStatistics;
   /** Queues an initialized HTML slot once, preserving its first position; returns whether it was newly accepted. */
   queueSlotSignal(slot: number): boolean;
+  allocateMutationObserver(): number;
+  releaseMutationObserver(observer: number): boolean;
+  observeMutations(observer: number, target: number, options: NativeObserverOptionsInput): typeof ObservationStatus[keyof typeof ObservationStatus];
+  disconnectMutationObserver(observer: number): number[];
+  interestedMutationObservers(target: number, kind: 'attributes' | 'characterData' | 'childList', name?: string | null, namespace?: string | null): NativeObserverInterest[];
+  observerRegistryStatistics(): NativeMutationObserverStatistics;
+  requestMutationObserverMicrotask(): boolean;
+  beginMutationObserverNotification(): number[];
+  observerNotificationStatistics(): NativeMutationNotificationStatistics;
+  startMutationObserverDelivery(): NativeObserverDelivery;
+  mutationObserverDeliveryStep(operation: NativeObserverDelivery): ObserverDeliveryInstruction;
+  /** Queue an immutable payload and return its binding token; no JavaScript object is retained natively. */
+  enqueueMutationRecord(observer: number, record: NativeMutationRecord): number;
+  /** Prepare selected payloads without enqueuing; text fields preserve null, trailing NUL and UTF-16. */
+  prepareMutationRecords(input: NativeMutationRecordInput): NativePreparedMutation[];
+  prepareMutationRecordBatch(input: NativeMutationRecordInput): NativeMutationBatch | null;
+  /** Drain tokens in insertion order, releasing the queue's payload shares. */
+  takeMutationRecords(observer: number): number[];
+  /** Inspect a queued payload through an independent native wrapper, or null when that token is absent. */
+  queuedMutationRecord(observer: number, token: number): NativeMutationRecord | null;
   /** Takes the current batch and resets native queue storage before the caller delivers any callbacks. */
   takeSlotSignals(): number[];
   slotSignalStatistics(): NativeSlotSignalStatistics;
@@ -307,6 +529,33 @@ export class NativeTree {
   descendants(handle: number): number[];
   release(handle: number): boolean;
   statistics(): Omit<NativeTreeStatistics, 'indexedNodes' | 'handleBatchSize'>;
+}
+
+/** Native token algorithms preserve order and UTF-16 while the host applies attribute effects. */
+export const TokenListMethod: { readonly Add: 0; readonly Remove: 1; readonly Toggle: 2; readonly Replace: 3 };
+export type TokenListMethod = (typeof TokenListMethod)[keyof typeof TokenListMethod];
+export const TokenValidation: { readonly Valid: 0; readonly Empty: 1; readonly Space: 2 };
+export type TokenValidation = (typeof TokenValidation)[keyof typeof TokenValidation];
+export const DatasetNameStatus: { readonly Valid: 0; readonly InvalidProperty: 1; readonly InvalidName: 2 };
+export type DatasetNameStatus = (typeof DatasetNameStatus)[keyof typeof DatasetNameStatus];
+export interface DatasetNamePlan { status: DatasetNameStatus; attribute: string; }
+export type DatasetStatistics = NativeDatasetStatistics;
+export interface TokenListMutation { status: TokenValidation; result: boolean; value?: string; }
+export type TokenListStatistics = NativeTokenListStatistics;
+export interface TokenSetStorage { length: number; itemCapacity: number; memberCapacity: number; }
+export class NativeTokenList {
+  private constructor();
+  invalidate(): void;
+  supports(token: string): boolean | null;
+  static statistics(): TokenListStatistics;
+}
+/** Shared set contents survive list synchronization without retaining the owning element or forest. */
+export class NativeTokenSet {
+  private constructor();
+  readonly size: number;
+  contains(token: string): boolean;
+  get(index: number): string | null;
+  storage(): TokenSetStorage;
 }
 
 /** Parses well-formed HTML input to the native event tape, returned as JSON. */

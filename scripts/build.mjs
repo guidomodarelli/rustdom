@@ -2,6 +2,8 @@
 import { cp, mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve, relative, sep } from 'node:path';
+import { patchEventDispatch, replaceRegion } from './build-event-dispatch.mjs';
+import { patchEventListeners } from './build-event-listeners.mjs';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
 const require = createRequire(import.meta.url);
@@ -29,6 +31,29 @@ await mkdir(destination, { recursive: true });
 await cp(resolve(upstreamRoot, 'lib'), resolve(destination, 'lib'), { recursive: true });
 await cp(resolve(upstreamRoot, 'package.json'), resolve(destination, 'package.json'));
 await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt'));
+const xmlSerializerAdapter = await readFile('src/dom/xml-serializer.cjs', 'utf8');
+await writeFile('dist/xml-serializer.cjs', substituteOnce(xmlSerializerAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+for (const file of ['serialization.js', 'XMLSerializer-impl.js']) {
+  const serializerPath = resolve(destination, 'lib/jsdom/living/domparsing', file);
+  await writeFile(serializerPath, substituteOnce(await readFile(serializerPath, 'utf8'), 'require("w3c-xmlserializer")', 'require("../../../../../xml-serializer.cjs")'));
+}
+await mkdir('dist/compatibility-licenses/w3c-xmlserializer', { recursive: true });
+await cp('third-party/w3c-xmlserializer/LICENSE.md', 'dist/compatibility-licenses/w3c-xmlserializer/LICENSE.md');
+const xmlAdapter = await readFile('src/parser/xml.cjs', 'utf8');
+await writeFile('dist/xml-parser.cjs', substituteOnce(xmlAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const xmlParserPath = resolve(destination, 'lib/jsdom/browser/parser/xml.js');
+let xmlParserSource = substituteOnce(await readFile(xmlParserPath, 'utf8'),
+  'const { SaxesParser } = require("saxes");', 'const { SaxesParser } = require("../../../../../xml-parser.cjs");');
+xmlParserSource = replaceRegion(xmlParserSource, 'const HTML5_DOCTYPE =', 'function createDocumentType(', '', substituteOnce);
+xmlParserSource = replaceRegion(xmlParserSource, '  parser.on("doctype", dt => {', '  parser.on("error", err => {',
+  '  parser.on("doctype", dt => {\n' +
+  '    const ownerDocument = getOwnerDocument();\n    const declaration = parser.describeDoctype(dt);\n' +
+  '    if (declaration === null) return declaration[1];\n' +
+  '    appendChild(createDocumentType(globalObject, ownerDocument, declaration.name, declaration.publicId, declaration.systemId));\n' +
+  '    parser.applyDoctypeEntities(dt);\n  });\n\n', substituteOnce);
+await writeFile(xmlParserPath, xmlParserSource);
+await mkdir('dist/compatibility-licenses/saxes', { recursive: true });
+await cp('third-party/saxes/LICENSE', 'dist/compatibility-licenses/saxes/LICENSE');
 
 /** Patch the private copy; node_modules/jsdom remains the independent reference. */
 const parserPath = resolve(destination, 'lib/jsdom/browser/parser/html.js');
@@ -52,12 +77,124 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const storageSource = await readFile('src/dom/web-storage.cjs', 'utf8');
+await writeFile('dist/web-storage.cjs', substituteOnce(storageSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/webstorage/Storage-impl.js'),
+  '"use strict";\nconst { createStorageImplementation } = require("../../../../../web-storage.cjs");\n' +
+  'exports.implementation = createStorageImplementation(require("../generated/DOMException"), require("../generated/StorageEvent"), require("../generated/utils"), require("../helpers/events").fireAnEvent);\n');
+const storageWindowPath = resolve(destination, 'lib/jsdom/browser/Window.js');
+let storageWindowSource = await readFile(storageWindowPath, 'utf8');
+storageWindowSource = substituteOnce(storageWindowSource, 'const Storage = require("../living/generated/Storage");',
+  'const Storage = require("../living/generated/Storage");\nconst { NativeStorageArea } = require("../../../../native.cjs");');
+for (const area of ['localStorageArea', 'sessionStorageArea']) storageWindowSource = substituteOnce(storageWindowSource, `${area}: new Map()`, `${area}: new NativeStorageArea()`);
+await writeFile(storageWindowPath, storageWindowSource);
+const rectSource = await readFile('src/dom/dom-rect.cjs', 'utf8');
+await writeFile('dist/dom-rect.cjs', substituteOnce(rectSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/geometry/DOMRectReadOnly-impl.js'),
+  '"use strict";\nconst { createReadOnlyRectImplementation } = require("../../../../../dom-rect.cjs");\n' +
+  'exports.implementation = createReadOnlyRectImplementation(require("../generated/DOMRectReadOnly"));\n');
+await writeFile(resolve(destination, 'lib/jsdom/living/geometry/DOMRect-impl.js'),
+  '"use strict";\nconst { createMutableRectImplementation } = require("../../../../../dom-rect.cjs");\n' +
+  'exports.implementation = createMutableRectImplementation(require("./DOMRectReadOnly-impl").implementation, require("../generated/DOMRect"));\n');
+const tokenListSource = await readFile('src/dom/token-list.cjs', 'utf8');
+const stringMapSource = await readFile('src/dom/string-map.cjs', 'utf8');
+await writeFile('dist/string-map.cjs', substituteOnce(stringMapSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/nodes/DOMStringMap-impl.js'),
+  '"use strict";\nconst { createStringMapImplementation } = require("../../../../../string-map.cjs");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\nconst DOMException = require("../generated/DOMException");\n' +
+  'const idlUtils = require("../generated/utils");\nconst attributes = require("../attributes.js");\n' +
+  'exports.implementation = createStringMapImplementation(domSymbolTree, DOMException, idlUtils, attributes);\n');
+await writeFile('dist/token-list.cjs', substituteOnce(tokenListSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/nodes/DOMTokenList-impl.js'),
+  '"use strict";\nconst { createTokenListImplementation } = require("../../../../../token-list.cjs");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\nconst DOMException = require("../generated/DOMException");\n' +
+  'const idlUtils = require("../generated/utils");\nconst { setAttributeValue } = require("../attributes.js");\n' +
+  'exports.implementation = createTokenListImplementation(domSymbolTree, DOMException, idlUtils, setAttributeValue);\n');
+const traversalSource = await readFile('src/dom/tree-cursor.cjs', 'utf8');
+await writeFile('dist/tree-cursor.cjs', substituteOnce(traversalSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+for (const implementation of ['NodeIterator', 'TreeWalker']) {
+  await writeFile(resolve(destination, `lib/jsdom/living/traversal/${implementation}-impl.js`),
+    '"use strict";\nconst { createTraversalImplementations } = require("../../../../../tree-cursor.cjs");\n' +
+    'const { domSymbolTree } = require("../helpers/internal-constants");\nconst DOMException = require("../generated/DOMException");\n' +
+    `exports.implementation = createTraversalImplementations(domSymbolTree, DOMException).${implementation}Impl;\n`);
+}
 const mutationRecordPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationRecord-impl.js');
 await writeFile(mutationRecordPath, '"use strict";\n' +
   'const { createMutationRecordImplementation } = require("../../../../../mutation-record.cjs");\n' +
   'const NodeList = require("../generated/NodeList");\n' +
   'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
   'module.exports = { implementation: createMutationRecordImplementation(NodeList, domSymbolTree) };\n');
+await cp('src/dom/mutation-observer.cjs', 'dist/mutation-observer.cjs');
+const eventStateSource = await readFile('src/dom/event-state.cjs', 'utf8');
+await writeFile('dist/event-state.cjs', substituteOnce(eventStateSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const eventPath = resolve(destination, 'lib/jsdom/living/events/Event-impl.js');
+let eventSource = await readFile(eventPath, 'utf8');
+eventSource = substituteOnce(eventSource, 'const EventInit = require("../generated/EventInit");',
+  'const EventInit = require("../generated/EventInit");\nconst { createNativeEvent, nativeEventInitFields, installNativeEventProperties } = require("../../../../../event-state.cjs");');
+const eventConstructorStart = eventSource.indexOf('    this.type = type;');
+const eventConstructorEnd = eventSource.indexOf('    this.timeStamp = Date.now();', eventConstructorStart) + '    this.timeStamp = Date.now();'.length;
+if (eventConstructorStart < 0 || eventConstructorEnd < eventConstructorStart) throw new Error('rustdom build: missing Event constructor boundary');
+eventSource = substituteOnce(eventSource, eventSource.slice(eventConstructorStart, eventConstructorEnd),
+  '    this._eventState = createNativeEvent(type, eventInitDict, this.constructor.defaultInit);\n' +
+  '    for (const key in eventInitDict) {\n      if (!nativeEventInitFields.has(key)) this[key] = eventInitDict[key];\n    }\n' +
+  '    for (const key in this.constructor.defaultInit) {\n      if (!(key in eventInitDict) && !nativeEventInitFields.has(key)) this[key] = this.constructor.defaultInit[key];\n    }\n' +
+  '    this.target = null;\n    this.currentTarget = null;\n    this._globalObject = globalObject;\n    this._path = [];\n' +
+  '    this._eventState.finishConstruction(Boolean(privateData.isTrusted), Date.now());');
+eventSource = substituteOnce(eventSource, '    if (this.cancelable && !this._inPassiveListenerFlag) {\n      this._canceledFlag = true;\n    }', '    this._eventState.preventDefault();');
+eventSource = substituteOnce(eventSource, '    return !this._canceledFlag;', '    return this._eventState.returnValue;');
+eventSource = substituteOnce(eventSource, '    if (v === false) {\n      this._setTheCanceledFlag();\n    }', '    this._eventState.setReturnValue(v);');
+eventSource = substituteOnce(eventSource, '  stopPropagation() {\n    this._stopPropagationFlag = true;\n  }', '  stopPropagation() {\n    this._eventState.stopPropagation();\n  }');
+eventSource = substituteOnce(eventSource, '    if (v) {\n      this._stopPropagationFlag = true;\n    }', '    this._eventState.setCancelBubble(v);');
+eventSource = substituteOnce(eventSource, '    this._stopPropagationFlag = true;\n    this._stopImmediatePropagationFlag = true;', '    this._eventState.stopImmediatePropagation();');
+const eventInitializeStart = eventSource.indexOf('  _initialize(type, bubbles, cancelable) {');
+const eventInitializeEnd = eventSource.indexOf('  initEvent(type, bubbles, cancelable) {', eventInitializeStart);
+if (eventInitializeStart < 0 || eventInitializeEnd < eventInitializeStart) throw new Error('rustdom build: missing Event initialization boundary');
+eventSource = substituteOnce(eventSource, eventSource.slice(eventInitializeStart, eventInitializeEnd),
+  '  _initialize(type, bubbles, cancelable) {\n    this._eventState.initialize(type, bubbles, cancelable);\n    this.target = null;\n  }\n\n');
+eventSource = substituteOnce(eventSource, '    if (this._dispatchFlag) {\n      return;\n    }\n\n    this._initialize(type, bubbles, cancelable);',
+  '    if (this._eventState.initializeIfIdle(type, bubbles, cancelable)) this.target = null;');
+eventSource = substituteOnce(eventSource, 'EventImpl.defaultInit = EventInit.convert(undefined, undefined);',
+  'installNativeEventProperties(EventImpl);\nEventImpl.defaultInit = EventInit.convert(undefined, undefined);');
+const eventTargetPath = resolve(destination, 'lib/jsdom/living/events/EventTarget-impl.js');
+const eventDispatchSources = patchEventDispatch(eventSource, await readFile(eventTargetPath, 'utf8'), substituteOnce);
+await writeFile(eventPath, eventDispatchSources.eventSource);
+await writeFile(eventTargetPath, patchEventListeners(eventDispatchSources.targetSource, substituteOnce));
+const eventListenersSource = await readFile('src/dom/event-listeners.cjs', 'utf8');
+await writeFile('dist/event-listeners.cjs', substituteOnce(eventListenersSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+const listenerWindowPath = resolve(destination, 'lib/jsdom/browser/Window.js');
+let listenerWindowSource = await readFile(listenerWindowPath, 'utf8');
+listenerWindowSource = substituteOnce(listenerWindowSource, '"use strict";',
+  '"use strict";\nconst { createListenerStorage } = require("../../../../event-listeners.cjs");');
+for (const receiver of ['window', 'window._document']) listenerWindowSource = substituteOnce(listenerWindowSource,
+  `idlUtils.implForWrapper(${receiver})._eventListeners = Object.create(null);`,
+  `idlUtils.implForWrapper(${receiver})._eventListeners = createListenerStorage();`);
+await writeFile(listenerWindowPath, listenerWindowSource);
+const listenerSocketPath = resolve(destination, 'lib/jsdom/living/websockets/WebSocket-impl.js');
+let listenerSocketSource = await readFile(listenerSocketPath, 'utf8');
+listenerSocketSource = substituteOnce(listenerSocketSource, '"use strict";',
+  '"use strict";\nconst { createListenerStorage } = require("../../../../../event-listeners.cjs");');
+listenerSocketSource = substituteOnce(listenerSocketSource, '    this._eventListeners = Object.create(null);', '    this._eventListeners = createListenerStorage();');
+await writeFile(listenerSocketPath, listenerSocketSource);
+const listenerXhrPath = resolve(destination, 'lib/jsdom/living/xhr/XMLHttpRequest-impl.js');
+await writeFile(listenerXhrPath, substituteOnce(await readFile(listenerXhrPath, 'utf8'),
+  'Object.keys(upload._eventListeners).length > 0', 'upload._eventListeners.hasEventTypes'));
+const listenerFramePath = resolve(destination, 'lib/jsdom/living/nodes/HTMLFrameElement-impl.js');
+await writeFile(listenerFramePath, substituteOnce(await readFile(listenerFramePath, 'utf8'),
+  'Object.keys(frame._eventListeners).length === 0', '!frame._eventListeners.hasEventTypes'));
+const mutationObserverPath = resolve(destination, 'lib/jsdom/living/mutation-observer/MutationObserver-impl.js');
+const abortSignalSource = await readFile('src/dom/abort-signal.cjs', 'utf8');
+await writeFile('dist/abort-signal.cjs', substituteOnce(abortSignalSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/aborting/AbortSignal-impl.js'),
+  '"use strict";\nconst { createAbortSignalImplementation } = require("../../../../../abort-signal.cjs");\n' +
+  'const EventTargetImpl = require("../events/EventTarget-impl").implementation;\n' +
+  'const AbortSignal = require("../generated/AbortSignal");\nconst DOMException = require("../generated/DOMException");\n' +
+  'const { fireAnEvent } = require("../helpers/events");\nconst { setupForSimpleEventAccessors } = require("../helpers/create-event-accessor");\n' +
+  'module.exports = { implementation: createAbortSignalImplementation(EventTargetImpl, AbortSignal, DOMException, fireAnEvent, setupForSimpleEventAccessors) };\n');
+await writeFile(mutationObserverPath, '"use strict";\n' +
+  'const { createMutationObserverImplementation } = require("../../../../../mutation-observer.cjs");\n' +
+  'const { wrapperForImpl } = require("../generated/utils");\n' +
+  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'module.exports = { implementation: createMutationObserverImplementation(domSymbolTree, wrapperForImpl) };\n');
 const contentDriverSource = await readFile('src/dom/range-content-driver.cjs', 'utf8');
 await writeFile('dist/range-content-driver.cjs', substituteOnce(contentDriverSource,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
@@ -206,6 +343,7 @@ await writeFile(doctypePath, doctypeSource);
 const nodePath = resolve(destination, 'lib/jsdom/living/nodes/Node-impl.js');
 let nodeSource = await readFile(nodePath, 'utf8');
 nodeSource = substituteOnce(nodeSource, 'const { simultaneousIterators } = require("../../utils");\n', '');
+nodeSource = substituteOnce(nodeSource, '    this._registeredObserverList = [];', '    this._observerOwners = new Set();');
 nodeSource = substituteOnce(nodeSource, 'const NODE_DOCUMENT_POSITION = require("../node-document-position");\n', '');
 const equalityStart = nodeSource.indexOf('function nodeEquals(a, b) {');
 const equalityEnd = nodeSource.indexOf('// https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor', equalityStart);
@@ -596,10 +734,62 @@ shadowHelpers = substituteOnce(shadowHelpers, 'const { signalSlotList, queueMuta
 await writeFile(shadowHelpersPath, shadowHelpers);
 const mutationObserversPath = resolve(destination, 'lib/jsdom/living/helpers/mutation-observers.js');
 let mutationObserversSource = await readFile(mutationObserversPath, 'utf8');
+mutationObserversSource = substituteOnce(mutationObserversSource, 'let mutationObserverMicrotaskQueueFlag = false;', '');
+mutationObserversSource = substituteOnce(mutationObserversSource, 'const activeMutationObservers = new Set();', '');
+mutationObserversSource = substituteOnce(mutationObserversSource, '    activeMutationObservers.add(observer);\n', '');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  if (mutationObserverMicrotaskQueueFlag) {\n    return;\n  }\n\n  mutationObserverMicrotaskQueueFlag = true;',
+  '  if (!domSymbolTree.requestMutationObserverMicrotask()) {\n    return;\n  }');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  mutationObserverMicrotaskQueueFlag = false;\n\n  const notifyList = [...activeMutationObservers].sort((a, b) => a._id - b._id);\n  activeMutationObservers.clear();',
+  '  const notifyList = domSymbolTree.beginMutationObserverNotification();');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    observer._recordQueue.push(record);', '    domSymbolTree.enqueueMutationRecord(observer, record);');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    const records = [...mo._recordQueue];\n    mo._recordQueue = [];',
+  '    const records = domSymbolTree.takeMutationRecords(mo);');
+const observerSelectionStart = mutationObserversSource.indexOf('  const interestedObservers = new Map();');
+const observerSelectionEnd = mutationObserversSource.indexOf('  for (const [observer, mappedOldValue] of interestedObservers.entries()) {', observerSelectionStart);
+if (observerSelectionStart < 0 || observerSelectionEnd < observerSelectionStart) throw new Error('rustdom build: missing mutation observer selection boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(observerSelectionStart, observerSelectionEnd),
+  '  const interestedObservers = domSymbolTree.interestedMutationObservers(type, target, name, namespace, oldValue);\n\n');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '  for (const [observer, mappedOldValue] of interestedObservers.entries()) {',
+  '  for (const { observer, oldValue: mappedOldValue } of interestedObservers) {');
+const mutationProductionStart = mutationObserversSource.indexOf('  const interestedObservers = domSymbolTree.interestedMutationObservers(');
+const mutationProductionEnd = mutationObserversSource.indexOf('  queueMutationObserverMicrotask();', mutationProductionStart);
+if (mutationProductionStart < 0 || mutationProductionEnd < mutationProductionStart) throw new Error('rustdom build: missing mutation record production boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(mutationProductionStart, mutationProductionEnd),
+  '  domSymbolTree.produceMutationRecords({ type, target, attributeName: name, attributeNamespace: namespace, oldValue,\n' +
+  '    addedNodes, removedNodes, previousSibling, nextSibling },\n' +
+  '  (nativeRecord, owners) => MutationRecord.createImpl(target._globalObject, [], { nativeRecord, owners }));\n\n');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  '    for (const node of mo._nodeList) {\n      node._registeredObserverList = node._registeredObserverList.filter(registeredObserver => {\n        return registeredObserver.source !== mo;\n      });\n    }\n\n', '');
 mutationObserversSource = substituteOnce(mutationObserversSource, '// https://dom.spec.whatwg.org/#signal-slot-list\nconst signalSlotList = [];\n\n', '');
 mutationObserversSource = substituteOnce(mutationObserversSource, '  const signalList = [...signalSlotList];\n  signalSlotList.splice(0, signalSlotList.length);',
   '  const signalList = domSymbolTree.takeSlotSignals();');
 mutationObserversSource = substituteOnce(mutationObserversSource, '  queueMutationObserverMicrotask,\n\n  signalSlotList', '  queueMutationObserverMicrotask');
+const observerDeliveryStart = mutationObserversSource.indexOf('function notifyMutationObservers() {');
+const observerDeliveryEnd = mutationObserversSource.indexOf('\n}\n\nmodule.exports = {', observerDeliveryStart);
+if (observerDeliveryStart < 0 || observerDeliveryEnd < observerDeliveryStart) throw new Error('rustdom build: missing mutation observer delivery boundary');
+mutationObserversSource = substituteOnce(mutationObserversSource,
+  mutationObserversSource.slice(observerDeliveryStart, observerDeliveryEnd + 2),
+  'function notifyMutationObservers() {\n' +
+  '  domSymbolTree.runObserverDelivery((mo, records) => {\n' +
+  '    try {\n' +
+  '      const moWrapper = idlUtils.wrapperForImpl(mo);\n' +
+  '      mo._callback.call(moWrapper, records.map(idlUtils.wrapperForImpl), moWrapper);\n' +
+  '    } catch (error) {\n' +
+  '      const { target } = records[0];\n' +
+  '      reportException(target._ownerDocument._defaultView, error);\n' +
+  '    }\n' +
+  '  }, (slot) => {\n' +
+  '    const event = Event.createImpl(slot._globalObject, ["slotchange", { bubbles: true }], { isTrusted: true });\n' +
+  '    slot._dispatch(event);\n' +
+  '  });\n' +
+  '}');
 await writeFile(mutationObserversPath, mutationObserversSource);
 const htmlSlotPath = resolve(destination, 'lib/jsdom/living/nodes/HTMLSlotElement-impl.js');
 let htmlSlotSource = await readFile(htmlSlotPath, 'utf8');
@@ -628,9 +818,12 @@ nodeHelpers = substituteOnce(nodeHelpers.slice(0, namespaceHelpersStart),
   'const { HTML_NS, XMLNS_NS } = require("./helpers/namespaces");', 'const { HTML_NS } = require("./helpers/namespaces");');
 await writeFile(nodeHelpersPath, nodeHelpers);
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
-await writeFile(serializationPath, substituteOnce(await readFile(serializationPath, 'utf8'),
+let serializationSource = substituteOnce(await readFile(serializationPath, 'utf8'),
   '    return outer ? parse5.serializeOuter(node, config) : parse5.serialize(node, config);',
-  '    return domSymbolTree.serializeHTML(node, Boolean(outer), config.scriptingEnabled !== false);'));
+  '    return domSymbolTree.serializeHTML(node, Boolean(outer), config.scriptingEnabled !== false);');
+serializationSource = replaceRegion(serializationSource, '    let serialized = "";', '  } catch (e) {',
+  '    return produceXMLSerialization.serializeForest(childNodes.map(child => utils.wrapperForImpl(child)), requireWellFormed);\n', substituteOnce);
+await writeFile(serializationPath, serializationSource);
 
 /** Relocate authored modules without bundling or runtime module-cache mutations. */
 let bridge = await readFile('src/parser/bridge.cjs', 'utf8');

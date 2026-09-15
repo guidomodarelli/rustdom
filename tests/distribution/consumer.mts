@@ -8,9 +8,72 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
-  NativeMutationRecord,
+  NativeMutationRecord, ObservationStatus,
+  NativeObserverDelivery, ObserverDeliveryAction,
+  NativeEventState, EventStateFlag, EventDispatchStatus, EventInvocationEncoding,
+  NativeListenerRegistry, ListenerInvocation,
+  NativeAbortState,
+  NativeXmlParser,
+  NativeTokenList, TokenListMethod, TokenValidation,
+  DatasetNameStatus, NativeDomRect, NativeStorageArea, StorageSetStatus,
+  serializeXml, serializeXmlForest, xmlSerializationStatistics,
+  NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM storage uses the actual native area and cursor. */
+const storageArea = new NativeStorageArea(); storageArea.set('key', 'value');
+assert.equal(storageArea.planSet('key', 'value', 0).status, StorageSetStatus.Unchanged);
+assert.equal(storageArea.planSet('other', 'value', 1).status, StorageSetStatus.QuotaExceeded);
+const storageCursor = storageArea.keyCursor(); assert.equal(storageCursor.next(), 'key'); assert.equal(storageCursor.next(), null);
+storageArea.clear(); assert.equal(storageArea.units, 0);
+
+/** Installed ESM rectangle state and snapshots use the actual native addon. */
+const installedRect = new NativeDomRect(-0, 2, 3, -4);
+assert.ok(Object.is(installedRect.left, -0)); assert.equal(installedRect.top, -2);
+installedRect.width = Infinity; assert.equal(installedRect.right, Infinity);
+assert.deepEqual(Object.keys(installedRect.snapshot()), ['x', 'y', 'width', 'height', 'top', 'right', 'bottom', 'left']);
+
+/** ESM dataset status values match the native naming plan. */
+const datasetTree = new NativeTree(); const datasetPlan = datasetTree.datasetNamePlan('bad-name', true);
+const datasetStatus: DatasetNameStatus = datasetPlan.status;
+assert.equal(datasetStatus, DatasetNameStatus.InvalidProperty);
+assert.equal(datasetTree.datasetNamePlan('userId', false).attribute, 'data-user-id');
+assert.equal(DatasetNameStatus, nativeRuntime.DatasetNameStatus);
+
+/** ESM token actions retain literal types and drive the real native set. */
+const tokenTree = new NativeTree(); const tokenOwner = tokenTree.allocate();
+tokenTree.setData(tokenOwner, JSON.stringify({ kind: 1, name: 'div' }));
+const tokenList = tokenTree.createTokenList(tokenOwner, 'class');
+const tokenMethod: TokenListMethod = TokenListMethod.Add;
+const tokenPlan = tokenTree.tokenListMutate(tokenList, tokenMethod, ['kept']);
+const tokenStatus: TokenValidation = tokenPlan.status;
+assert.equal(tokenStatus, TokenValidation.Valid); assert.equal(tokenPlan.value, 'kept');
+assert.equal(NativeTokenList, nativeRuntime.NativeTokenList); tokenTree.release(tokenOwner);
+
+/** Installed ESM names execute the native XML serializer, including embedded NUL data. */
+const serializationDom = new JSDOM('<r/>', { contentType: 'text/xml' });
+const serializationText = serializationDom.window.document.createTextNode('\0<&>');
+assert.equal(serializeXml(serializationText, false), '\0&lt;&amp;&gt;');
+assert.equal(serializeXmlForest([serializationText], false), '\0&lt;&amp;&gt;');
+assert.equal(xmlSerializationStatistics().references, 0);
+assert.equal(serializeXml, nativeRuntime.serializeXml);
+serializationDom.window.close();
+
+/** Installed ESM traversal names drive actual native movement, preserving literal action types. */
+const traversalTree = new NativeTree(); const traversalRoot = traversalTree.allocate();
+traversalTree.setData(traversalRoot, JSON.stringify({ kind: 1, name: 'root' }));
+const traversal = traversalTree.createTraversal(traversalRoot, 1, false);
+const traversalMethod: TraversalMethod = TraversalMethod.IteratorNext;
+const traversalStep = traversalTree.traversalStep(traversal, traversal.start(traversalMethod));
+const traversalAction: TraversalAction = traversalStep.kind;
+assert.equal(traversalAction, TraversalAction.Accepted); assert.equal(traversalStep.node, traversalRoot);
+assert.equal(NativeTraversal, nativeRuntime.NativeTraversal);
+assert.equal(traversalTree.traversalMove(traversal, TraversalMethod.IteratorPrevious), traversalRoot);
+const completedTraversal: TraversalMoveResult = TraversalMoveResult.Complete;
+assert.equal(traversalTree.traversalMove(traversal, TraversalMethod.IteratorPrevious), completedTraversal);
+assert.equal(TraversalMoveResult, nativeRuntime.TraversalMoveResult);
+traversalTree.release(traversalRoot);
 
 /** Forward-only native actions retain their literal value union in installed consumers. */
 const slotAssignmentActions: readonly SlotAssignmentAction[] = [
@@ -31,6 +94,15 @@ assert.equal(dom.window.document.querySelector('span')?.textContent, 'Installed'
 assert.ok(getNativeTreeStatistics().dataNodes > 0);
 const nativeTree = new NativeTree();
 assert.equal(NativeMutationRecord, nativeRuntime.NativeMutationRecord);
+assert.equal(ObservationStatus, nativeRuntime.ObservationStatus);
+assert.equal(NativeObserverDelivery, nativeRuntime.NativeObserverDelivery);
+assert.equal(ObserverDeliveryAction, nativeRuntime.ObserverDeliveryAction);
+assert.equal(NativeEventState, nativeRuntime.NativeEventState); assert.equal(EventStateFlag, nativeRuntime.EventStateFlag);
+assert.equal(EventDispatchStatus, nativeRuntime.EventDispatchStatus);
+assert.equal(EventInvocationEncoding, nativeRuntime.EventInvocationEncoding);
+assert.equal(NativeListenerRegistry, nativeRuntime.NativeListenerRegistry); assert.equal(ListenerInvocation, nativeRuntime.ListenerInvocation);
+assert.equal(NativeAbortState, nativeRuntime.NativeAbortState);
+assert.equal(NativeXmlParser, nativeRuntime.NativeXmlParser);
 const assignmentRoot = nativeTree.allocate(); nativeTree.setData(assignmentRoot, '{"kind":11}');
 const assignmentOperation = new NativeSlotAssignmentDriver(assignmentRoot, true);
 assert.equal(NativeSlotAssignmentDriver, nativeRuntime.NativeSlotAssignmentDriver);
@@ -103,13 +175,29 @@ dom.window.close();
 assert.ok(environment.setupVM);
 const session = await environment.setupVM({ jsdom: { html: '<p>VM package</p>' } });
 const context = session.getVmContext();
+const eventStatesBefore = getNativeTreeStatistics().eventStates.created;
+const installedEvent = new context.Event('installed-event', { bubbles: true, cancelable: true, composed: true });
+context.document.body.addEventListener('installed-event', (event: Event) => { event.preventDefault(); assert.equal(event.eventPhase, 2); }, { once: true });
+assert.equal(context.document.body.dispatchEvent(installedEvent), false); assert.equal(installedEvent.defaultPrevented, true);
+installedEvent.initEvent('reset-event', false, false); assert.equal(installedEvent.defaultPrevented, false); assert.equal(installedEvent.composed, true);
+assert.ok(getNativeTreeStatistics().eventStates.created > eventStatesBefore);
 const recordTarget = context.document.createElement('section'); context.document.body.append(recordTarget);
 const nativeRecordsBefore = getNativeTreeStatistics().mutationRecords.created;
+const nativeRegistrationsBefore = getNativeTreeStatistics().mutationObservers.registrations;
+const nativeQueuedBefore = getNativeTreeStatistics().mutationObservers.queuedRecords;
+const nativePendingBefore = getNativeTreeStatistics().mutationNotifications.pendingObservers;
 const recordObserver = new context.MutationObserver(() => {});
 recordObserver.observe(recordTarget, { childList: true, attributes: true, attributeOldValue: true });
+assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore + 1);
 const recordChild = context.document.createElement('b'); recordTarget.append(recordChild);
 recordTarget.setAttribute('data-record', 'one'); recordTarget.setAttribute('data-record', 'two');
+assert.equal(getNativeTreeStatistics().mutationObservers.queuedRecords, nativeQueuedBefore + 3);
+assert.equal(getNativeTreeStatistics().mutationNotifications.pendingObservers, nativePendingBefore + 1);
+assert.equal(getNativeTreeStatistics().mutationNotifications.microtaskQueued, true);
 const installedRecords = recordObserver.takeRecords(); recordObserver.disconnect();
+assert.equal(getNativeTreeStatistics().mutationObservers.queuedRecords, nativeQueuedBefore);
+assert.equal(getNativeTreeStatistics().mutationNotifications.pendingObservers, nativePendingBefore + 1);
+assert.equal(getNativeTreeStatistics().mutationObservers.registrations, nativeRegistrationsBefore);
 assert.equal(installedRecords.length, 3); assert.equal(installedRecords[0].target, recordTarget);
 assert.equal(installedRecords[0].addedNodes[0], recordChild);
 assert.equal(installedRecords[0].addedNodes, installedRecords[0].addedNodes);
@@ -117,6 +205,23 @@ assert.ok(installedRecords[0] instanceof context.MutationRecord);
 assert.ok(installedRecords[0].addedNodes instanceof context.NodeList);
 assert.equal(installedRecords[2].oldValue, 'one'); assert.equal(installedRecords[2].attributeName, 'data-record');
 assert.ok(getNativeTreeStatistics().mutationRecords.created >= nativeRecordsBefore + 3);
+const deliveriesBefore = getNativeTreeStatistics().observerDeliveries.created;
+const deliveredAttributes: string[] = [];
+const deliveryObserver = new context.MutationObserver((records: MutationRecord[]) => {
+  deliveredAttributes.push(...records.map((record) => record.attributeName ?? ''));
+});
+deliveryObserver.observe(recordTarget, { attributes: true }); recordTarget.setAttribute('data-delivery', 'ready');
+await new Promise((resolve) => setImmediate(resolve)); deliveryObserver.disconnect();
+assert.deepEqual(deliveredAttributes, ['data-delivery']);
+assert.ok(getNativeTreeStatistics().observerDeliveries.created > deliveriesBefore);
+const fullProducerObserver = new context.MutationObserver(() => {}); const leanProducerObserver = new context.MutationObserver(() => {});
+fullProducerObserver.observe(recordTarget, { attributeOldValue: true }); leanProducerObserver.observe(recordTarget, { attributes: true });
+recordTarget.setAttribute('data-producer', 'old'); recordTarget.setAttribute('data-producer', 'new');
+const fullProduced = fullProducerObserver.takeRecords(); const leanProduced = leanProducerObserver.takeRecords();
+assert.deepEqual(fullProduced.map((record: MutationRecord) => record.oldValue), [null, 'old']);
+assert.deepEqual(leanProduced.map((record: MutationRecord) => record.oldValue), [null, null]);
+assert.notEqual(fullProduced[0], leanProduced[0]); assert.equal(fullProduced[1].target, recordTarget);
+fullProducerObserver.disconnect(); leanProducerObserver.disconnect();
 assert.equal(context.document.querySelector('p').textContent, 'VM package');
 assert.equal(context.document.querySelector('p').firstChild.nodeValue, 'VM package');
 const paragraph = context.document.querySelector('p');

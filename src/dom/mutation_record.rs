@@ -13,7 +13,7 @@ pub enum MutationKind {
 }
 
 impl MutationKind {
-    fn parse(value: &str) -> Result<Self> {
+    pub(super) fn parse(value: &str) -> Result<Self> {
         match value {
             "attributes" => Ok(Self::Attributes),
             "characterData" => Ok(Self::CharacterData),

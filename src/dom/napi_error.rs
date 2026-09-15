@@ -3,7 +3,12 @@ use super::error::TreeError;
 use napi::{Error, Status};
 
 pub(super) fn to_napi_error(error: TreeError) -> Error {
-    let status = if matches!(&error, TreeError::HandleExhausted) {
+    let status = if matches!(
+        &error,
+        TreeError::HandleExhausted
+            | TreeError::MutationObserverIdsExhausted
+            | TreeError::MutationRecordTokensExhausted
+    ) {
         Status::GenericFailure
     } else {
         Status::InvalidArg

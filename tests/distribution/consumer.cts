@@ -4,6 +4,101 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native storage retains order and quota decisions without hidden mutation. */
+const storageArea = new native.NativeStorageArea(); storageArea.set('key', 'value');
+assert.equal(storageArea.planSet('key', 'value', 0).status, native.StorageSetStatus.Unchanged);
+assert.equal(storageArea.planSet('other', 'value', 1).status, native.StorageSetStatus.QuotaExceeded);
+const storageCursor = storageArea.keyCursor(); assert.equal(storageCursor.next(), 'key'); assert.equal(storageCursor.next(), null);
+storageArea.clear(); assert.equal(storageArea.units, 0);
+
+/** Installed native rectangle state preserves nonfinite arithmetic and independent snapshots. */
+const installedRect = new native.NativeDomRect(-0, 2, 3, -4);
+assert.ok(Object.is(installedRect.left, -0)); assert.equal(installedRect.top, -2);
+installedRect.width = Infinity; assert.equal(installedRect.right, Infinity);
+assert.deepEqual(Object.keys(installedRect.snapshot()), ['x', 'y', 'width', 'height', 'top', 'right', 'bottom', 'left']);
+
+/** Installed dataset plans preserve ASCII casing and error precedence. */
+const datasetTree = new native.NativeTree(); const datasetOwner = datasetTree.allocate();
+datasetTree.setData(datasetOwner, JSON.stringify({ kind: 1, name: 'div' }));
+assert.deepEqual(datasetTree.datasetNames(datasetOwner), []);
+assert.deepEqual(datasetTree.datasetNamePlan('userId', true), { status: native.DatasetNameStatus.Valid, attribute: 'data-user-id' });
+assert.equal(datasetTree.datasetNamePlan('bad-name', true).status, native.DatasetNameStatus.InvalidProperty);
+assert.equal(datasetTree.datasetValue(datasetOwner, 'missing'), null); datasetTree.release(datasetOwner);
+
+/** Installed token plans read canonical attributes, validate and normalize without writing behind the host. */
+const tokenTree = new native.NativeTree(); const tokenOwner = tokenTree.allocate();
+tokenTree.setData(tokenOwner, JSON.stringify({ kind: 1, name: 'div' }));
+const tokenList = tokenTree.createTokenList(tokenOwner, 'class', ['stylesheet']);
+assert.equal(tokenList.supports('STYLESHEET'), true);
+assert.equal(tokenTree.tokenListMutate(tokenList, native.TokenListMethod.Add, ['a', 'b', 'a']).value, 'a b');
+assert.equal(tokenTree.tokenListLength(tokenList), 2); assert.equal(tokenTree.tokenListValue(tokenList), '');
+assert.equal(tokenTree.tokenListMutate(tokenList, native.TokenListMethod.Replace, ['bad space', '']).status, native.TokenValidation.Empty);
+assert.equal(tokenTree.tokenListSet(tokenList).get(1), 'b'); tokenTree.release(tokenOwner);
+
+/** Installed XML serializer preserves namespaces, UTF-16 and native cleanup. */
+const serializationDom = new rustdom.JSDOM('<r xmlns="urn:root"><child/></r>', { contentType: 'text/xml' });
+assert.equal(native.serializeXml(serializationDom.window.document.documentElement, true), '<r xmlns="urn:root"><child/></r>');
+assert.equal(native.serializeXmlForest([serializationDom.window.document.documentElement], false), serializationDom.serialize());
+assert.equal(native.xmlSerializationStatistics().references, 0);
+serializationDom.window.close();
+
+/** Installed native traversal preserves accepted positions and callback suspension. */
+const traversalTree = new native.NativeTree(); const traversalRoot = traversalTree.allocate();
+traversalTree.setData(traversalRoot, JSON.stringify({ kind: 1, name: 'root' }));
+const traversal = traversalTree.createTraversal(traversalRoot, 1, true);
+const traversalOperation = traversal.start(native.TraversalMethod.IteratorNext);
+assert.equal(traversalTree.traversalStep(traversal, traversalOperation).kind, native.TraversalAction.Filter);
+traversal.active = false; traversalOperation.resume(1);
+assert.equal(traversalTree.traversalStep(traversal, traversalOperation).node, traversalRoot);
+assert.equal(traversal.current, traversalRoot); assert.equal(traversal.before, false);
+assert.equal(traversalTree.traversalRestartStep(traversal, traversalOperation, native.TraversalMethod.IteratorPrevious).kind, native.TraversalAction.Filter);
+traversal.active = false;
+assert.equal(traversalTree.traversalResumeStep(traversal, traversalOperation, 1).node, traversalRoot);
+const unfilteredTraversal = traversalTree.createTraversal(traversalRoot, 1, false);
+assert.equal(traversalTree.traversalMove(unfilteredTraversal, native.TraversalMethod.IteratorNext), traversalRoot);
+assert.equal(traversalTree.traversalMove(unfilteredTraversal, native.TraversalMethod.IteratorNext), native.TraversalMoveResult.Complete);
+traversalTree.release(traversalRoot);
+
+/** Installed XML transport resolves context prefixes and releases its input buffer. */
+const xmlParser = new native.NativeXmlParser('<p:r/>', true);
+assert.deepEqual(native.NativeXmlParser.describeDoctype(' r SYSTEM "installed"'), { name: 'r', publicId: '', systemId: 'installed' });
+assert.equal(xmlParser.applyDoctypeEntities('<!ENTITY installed "value">'), 1);
+assert.equal(xmlParser.next().kind, 'resolvePrefix'); xmlParser.resolvePrefix('urn:installed');
+assert.equal(xmlParser.next().tag?.uri, 'urn:installed'); assert.equal(xmlParser.next().kind, 'closetag');
+xmlParser.close(); assert.equal(xmlParser.next().kind, 'end');
+
+/** Native abort composition preserves source order and marks dependents before delivery. */
+const abortSource = new native.NativeAbortState(); const abortDependent = new native.NativeAbortState();
+assert.deepEqual(abortDependent.initializeAny([abortSource.id, abortSource.id]), { reasonSource: 0, sources: [abortSource.id], sourceInputs: [0] });
+abortSource.aborted = true; assert.deepEqual(abortSource.markDependents(), [abortDependent.id]); assert.equal(abortDependent.aborted, true);
+
+/** Installed native listener metadata preserves duplicate options and one-shot removal. */
+const listenerRegistry = new native.NativeListenerRegistry();
+const listenerId = listenerRegistry.add('installed\ud800', 1, false, true, true);
+assert.equal(listenerRegistry.add('installed\ud800', 1, false, false, false), 0);
+assert.deepEqual(listenerRegistry.snapshot('installed\ud800'), [listenerId]);
+assert.deepEqual(listenerRegistry.snapshotSelection('installed\ud800', true), { ids: [listenerId], selected: [] });
+assert.equal(listenerRegistry.prepareInvocation(listenerId, false), native.ListenerInvocation.Invoke | native.ListenerInvocation.Once | native.ListenerInvocation.Passive | native.ListenerInvocation.ForgetCallback);
+assert.deepEqual(listenerRegistry.snapshot('installed\ud800'), []); assert.equal(listenerRegistry.hasEventTypes, true);
+
+const scalarEvent = new native.NativeEventState('installed\ud800\0', true, true, true);
+scalarEvent.setReturnValue('false'); assert.equal(scalarEvent.returnValue, true);
+scalarEvent.finishConstruction(true, 123.5); scalarEvent.preventDefault();
+assert.equal(scalarEvent.eventType, 'installed\ud800\0'); assert.equal(scalarEvent.returnValue, false);
+assert.equal(scalarEvent.flag(native.EventStateFlag.Trusted), true);
+scalarEvent.setFlag(native.EventStateFlag.Dispatching, true);
+assert.equal(scalarEvent.initializeIfIdle('ignored', false, false), false);
+scalarEvent.setFlag(native.EventStateFlag.Dispatching, false);
+assert.equal(scalarEvent.initializeIfIdle('reset', false, false), true);
+assert.equal(scalarEvent.timeStamp, 123.5); assert.equal(scalarEvent.flag(native.EventStateFlag.Composed), true);
+assert.equal(scalarEvent.flag(native.EventStateFlag.Canceled), false);
+assert.equal(scalarEvent.prepareDispatch(), native.EventDispatchStatus.Ready); scalarEvent.beginDispatch();
+scalarEvent.appendPath(false, false, true); scalarEvent.appendPath(false, false, false);
+assert.deepEqual(scalarEvent.nextInvocation(), { index: 1, targetIndex: 0, capturing: true, invoke: true });
+assert.deepEqual(scalarEvent.visiblePathIndices(), [0, -1]); assert.equal(scalarEvent.eventPhase, 1);
+assert.equal(scalarEvent.advanceInvocation(), native.EventInvocationEncoding.Capturing + native.EventInvocationEncoding.Invoke);
+scalarEvent.finishDispatch(); assert.equal(scalarEvent.pathLength, 0); assert.equal(scalarEvent.pathCapacity, 0);
+
 /** Forward-only native actions retain their literal value union in installed consumers. */
 const slotAssignmentActions: readonly native.SlotAssignmentAction[] = [
   native.SlotAssignmentAction.Complete, native.SlotAssignmentAction.Signal, native.SlotAssignmentAction.Applied,
@@ -17,6 +112,11 @@ for (const action of slotAssignmentActions) {
 }
 
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
+/** BeforeUnloadEvent converts returnValue to DOMString before reaching the native state. */
+const beforeUnload = dom.window.document.createEvent('BeforeUnloadEvent');
+beforeUnload.initEvent('beforeunload', false, true);
+beforeUnload.returnValue = 'leave'; assert.equal(beforeUnload.defaultPrevented, false);
+beforeUnload.preventDefault(); assert.equal(beforeUnload.defaultPrevented, true);
 const paragraph: Element | null = dom.window.document.querySelector('#target');
 assert.ok(paragraph);
 assert.equal(dom.window.getComputedStyle(paragraph).display, 'block');
@@ -56,6 +156,40 @@ assert.equal(nativeRecord.kind, 'attributes'); assert.equal(nativeRecord.target,
 assert.equal(nativeRecord.attributeName, 'flag\ud800'); assert.equal(nativeRecord.attributeNamespace, null);
 assert.equal(nativeRecord.oldValue, 'old\0\udc00'); assert.deepEqual(nativeRecord.addedNodes, []);
 assert.ok(native.NativeMutationRecord.statistics().created > 0);
+const nativeObserver = tree.allocateMutationObserver();
+assert.equal(tree.observeMutations(nativeObserver, handle, { attributeOldValue: true }), native.ObservationStatus.Added);
+const preparedRecords = tree.prepareMutationRecords({ kind: 'attributes', target: handle, previousSibling: 0, nextSibling: 0,
+  attributeName: 'flag\ud800\0', attributeNamespace: null, oldValue: 'prepared\udc00\0', addedNodes: [], removedNodes: [] });
+assert.equal(preparedRecords.length, 1); assert.equal(preparedRecords[0].observer, nativeObserver);
+assert.equal(preparedRecords[0].record.attributeName, 'flag\ud800\0'); assert.equal(preparedRecords[0].record.oldValue, 'prepared\udc00\0');
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 0);
+const sharedBatch = tree.prepareMutationRecordBatch({ kind: 'attributes', target: handle, previousSibling: 0, nextSibling: 0,
+  attributeName: 'batch', attributeNamespace: null, oldValue: 'shared\0', addedNodes: [], removedNodes: [] });
+assert.ok(sharedBatch); assert.deepEqual(sharedBatch.observers, [nativeObserver]); assert.deepEqual(sharedBatch.payloadIndices, [0]);
+assert.equal(sharedBatch.payloads.length, 1); assert.equal(sharedBatch.payloads[0].oldValue, 'shared\0');
+const queuedToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
+assert.equal(tree.observerNotificationStatistics().pendingObservers, 1);
+assert.equal(tree.requestMutationObserverMicrotask(), true); assert.equal(tree.requestMutationObserverMicrotask(), false);
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 1);
+assert.equal(tree.queuedMutationRecord(nativeObserver, queuedToken)?.oldValue, 'old\0\udc00');
+assert.deepEqual(tree.takeMutationRecords(nativeObserver), [queuedToken]);
+assert.equal(tree.queuedMutationRecord(nativeObserver, queuedToken), null);
+assert.equal(tree.observerRegistryStatistics().queuedRecords, 0);
+assert.deepEqual(tree.interestedMutationObservers(handle, 'attributes', 'title', null), [{ observer: nativeObserver, oldValue: true }]);
+assert.equal(tree.observeMutations(nativeObserver, handle, {}), native.ObservationStatus.MissingMutationKind);
+assert.deepEqual(tree.disconnectMutationObserver(nativeObserver), [handle]);
+assert.equal(tree.observerNotificationStatistics().microtaskQueued, true);
+assert.deepEqual(tree.beginMutationObserverNotification(), [nativeObserver]);
+assert.deepEqual(tree.observerNotificationStatistics(), { pendingObservers: 0, capacity: 0, microtaskQueued: false });
+const deliveryToken = tree.enqueueMutationRecord(nativeObserver, nativeRecord);
+const delivery = tree.startMutationObserverDelivery();
+assert.ok(delivery instanceof native.NativeObserverDelivery);
+assert.deepEqual(tree.mutationObserverDeliveryStep(delivery), { kind: native.ObserverDeliveryAction.Observer,
+  observer: nativeObserver, slot: 0, records: [deliveryToken], complete: true });
+assert.equal(delivery.remainingObservers, 0); assert.equal(delivery.remainingSlots, 0);
+assert.equal(tree.mutationObserverDeliveryStep(delivery).kind, native.ObserverDeliveryAction.Complete);
+assert.equal(tree.releaseMutationObserver(nativeObserver), true);
+assert.equal(tree.observerRegistryStatistics().observers, 0); assert.equal(tree.observerRegistryStatistics().registrations, 0);
 assert.equal(tree.serializeHtml(handle, true, false), '<b title="installed"></b>');
 const doctypeHandle = tree.allocate();
 tree.initializeDocumentType(doctypeHandle, 'html', '\ud800', 'system');

@@ -12,8 +12,8 @@ function createMutationRecordImplementation(nodeList, tree) {
     /** @param {object} globalObject - Creation realm. @param {unknown[]} args - WebIDL arguments. @param {object} data - Complete producer payload. */
     constructor(globalObject, args, data) {
       this._globalObject = globalObject;
-      this._owners = [data.target, data.previousSibling, data.nextSibling, ...data.addedNodes, ...data.removedNodes];
-      this._nativeRecord = tree.createMutationRecord(data);
+      this._owners = data.owners;
+      this._nativeRecord = data.nativeRecord;
       this._selfReference = new WeakRef(this);
     }
     /** @returns {string} Native mutation kind. */
