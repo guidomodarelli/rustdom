@@ -60,3 +60,12 @@ se ejecutan aquí únicamente en Window y sus scripts META se cargan antes de la
 fixture. No se acredita cobertura Worker. Los fallos compartidos por métodos
 modernos ausentes en jsdom (text/arrayBuffer) se registran como límites, no como
 lecturas de contenido aprobadas.
+
+El comparador canoniza solo la fecha de la descripción del input `new Date()`
+en el fallo de argumentos no iterables de `Blob-constructor.any.js`: dos
+ejecuciones pueden cruzar un segundo. Los estados y diagnósticos de excepciones
+siguen comparándose y todos los mensajes crudos se guardan sin cambios.
+
+La suite `file-reader` incorpora 13 fixtures originales de estados, resultados,
+abortos, eventos y detección de encoding. Los `.any.js` se ejecutan solo en
+Window; no se cuentan aquí los escenarios Worker ni los archivos manuales.

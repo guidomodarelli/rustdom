@@ -77,6 +77,16 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const readerSource = await readFile('src/dom/file-reader.cjs', 'utf8');
+await writeFile('dist/file-reader.cjs', substituteOnce(readerSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/file-api/FileReader-impl.js'),
+  '"use strict";\nconst { createFileReaderImplementation } = require("../../../../../file-reader.cjs");\n' +
+  'exports.implementation = createFileReaderImplementation({\n' +
+  ' EventTargetImpl: require("../events/EventTarget-impl").implementation, DOMException: require("../generated/DOMException"),\n' +
+  ' ProgressEvent: require("../generated/ProgressEvent"), fireAnEvent: require("../helpers/events").fireAnEvent,\n' +
+  ' setupForSimpleEventAccessors: require("../helpers/create-event-accessor").setupForSimpleEventAccessors,\n' +
+  ' MIMEType: require("whatwg-mimetype"), ...require("@exodus/bytes/encoding.js"),\n' +
+  ' copyToArrayBufferInNewRealm: require("../helpers/binary-data").copyToArrayBufferInNewRealm\n});\n');
 const blobSource = await readFile('src/dom/blob-file.cjs', 'utf8');
 await writeFile('dist/blob-file.cjs', substituteOnce(blobSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/file-api/Blob-impl.js'),

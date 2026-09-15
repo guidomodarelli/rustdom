@@ -4,6 +4,12 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed FileReader state and codecs execute native transitions and byte conversion. */
+const readerState = new native.NativeFileReaderState(); assert.equal(readerState.begin(), true); assert.equal(readerState.abort(), true);
+assert.equal(readerState.enterStage(), false); assert.equal(readerState.enterStage(), true);
+assert.equal(native.fileReaderString(Buffer.from([0x80]), native.ReaderStringFormat.Text, 'windows-1252'), '€');
+assert.equal(native.fileReaderEncoding(' LATIN1 '), 'windows-1252');
+
 /** Installed Blob metadata and byte construction use the real addon. */
 const blobMetadata = new native.NativeBlobMetadata('TEXT/PLAIN'); blobMetadata.setFile('name', 42);
 assert.ok(native.classReferenceStatistics().live > 0); assert.equal(native.classReferenceStatistics().cleanupErrors, 0);
