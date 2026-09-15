@@ -54,4 +54,24 @@ test('should expose the reference shared-abort state transitions without owning 
   state.finish(); assert.equal(state.readyState, 2); assert.equal(state.abort(), false);
 });
 
+test('should preserve exact DataURL code units for ASCII, Unicode and incomplete-surrogate MIME strings', () => {
+  for (const mime of ['', 'text/plain', 'text/plain\0suffix', 'é/🦀', '\ud800', 'x\udfffy']) {
+    for (const data of [Buffer.alloc(0), Buffer.from([0, 1, 254, 255]), Buffer.alloc(4096, 0xab)]) {
+      assert.equal(fileReaderString(data, ReaderStringFormat.DataUrl, undefined, mime), `data:${mime};base64,${data.toString('base64')}`);
+    }
+  }
+});
+
+test('should encode every SIMD boundary, padding tail and unaligned input view exactly', () => {
+  const sizes = [...Array.from({ length: 130 }, (_, index) => index), 255, 256, 257, 511, 512, 513, 4095, 4096, 4097];
+  const backing = Buffer.from(Array.from({ length: 4130 }, (_, index) => (index * 197 + 29) % 256));
+  for (const offset of [0, 1, 2, 3, 7, 15, 16, 17, 31]) for (const size of sizes) {
+    const bytes = backing.subarray(offset, offset + size);
+    assert.equal(fileReaderString(bytes, ReaderStringFormat.BinaryString), bytes.toString('latin1'), `binary offset ${offset}, length ${size}`);
+    for (const mime of ['text/plain', 'é/\ud800']) {
+      assert.equal(fileReaderString(bytes, ReaderStringFormat.DataUrl, undefined, mime), `data:${mime};base64,${bytes.toString('base64')}`, `offset ${offset}, length ${size}`);
+    }
+  }
+});
+
 after(() => { mkdirSync('reports/compatibility', { recursive: true }); writeFileSync(`reports/compatibility/${report.capturedAt.replaceAll(':', '-')}-file-reader-codecs.json`, `${JSON.stringify(report, null, 2)}\n`); });

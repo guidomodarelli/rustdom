@@ -155,3 +155,11 @@ Los benchmarks registran mejoras de Shift_JIS y regresiones de las demás rutas;
 DataURL/UTF8 son la siguiente prioridad de rendimiento. El bloque de plataforma
 sigue parcial y el indicador permanece en 45,8%. El merge requiere sus checks
 y revisión remotos; estos casos adicionales no cambian el denominador.
+
+Los estados publicados de CI (`f238ad0`) y FileReader (`68497b6`) aprobaron
+los ocho checks remotos y tienen checkpoints 049/050. Permanecen fuera de main
+mientras continúa la revisión de las dependencias. La optimización posterior
+de salidas conserva Unicode y reduce las medianas de DataURL/UTF8/binario
+respecto de ese baseline, con todos los resultados y la variabilidad guardados
+en reports/validation/file-reader-performance.md. No completa otra área de
+migración ni cambia el índice de 45,8%.

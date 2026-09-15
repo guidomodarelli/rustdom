@@ -10,14 +10,14 @@ assert.equal(typeof global.gc, 'function');
 
 /** @param {number} cycle - Repeated creation/conversion cycle. @returns {void} Check contents and unsupported backing without retaining native state. */
 function checkCycle(cycle) {
-  const bytes = Buffer.alloc(4096, cycle % 128);
+  const bytes = Buffer.alloc(4096, cycle % 256);
   const view = bytes.subarray(1, bytes.length - 1);
   const binary = mode === 'native' ? native.fileReaderString(view, native.ReaderStringFormat.BinaryString) : view.toString('latin1');
   const text = mode === 'native' ? native.fileReaderString(view, native.ReaderStringFormat.Text, 'utf-8') : view.toString('utf8');
   const dataUrl = mode === 'native' ? native.fileReaderString(view, native.ReaderStringFormat.DataUrl, undefined, 'text/plain') : `data:text/plain;base64,${view.toString('base64')}`;
   assert.equal(binary, view.toString('latin1')); assert.equal(text, view.toString('utf8'));
   assert.equal(dataUrl, `data:text/plain;base64,${view.toString('base64')}`);
-  bytes.fill(255); assert.equal(binary.charCodeAt(0), cycle % 128);
+  bytes.fill(255); assert.equal(binary.charCodeAt(0), cycle % 256);
   if (mode === 'native') {
     const state = new native.NativeFileReaderState(); assert.equal(state.begin(), true); assert.equal(state.abort(), true);
     assert.equal(state.enterStage(), false); assert.equal(state.enterStage(), true); state.finish();
