@@ -30,10 +30,27 @@ Son pruebas finitas de los escenarios descritos. No demuestran ausencia absoluta
 
 Se instaló con `npm ci` y se construyó el addon desde este clon con Cargo release/Rust 1.98.1. `npm run build` y el posterior `build:js` pasaron. Binario validado: `fb12b3d1fa14ec020cf520734b30b927176bff4dc3632e3b9fe8072f882b89cd`. No se copió un addon de otro clon.
 
-Benchmarks y validación de la unión de PR67 pendientes en este estado local. No se afirma una mejora de velocidad.
+La unión con `074fcef4c1177e675d22cc5eae1a4b8bb1165254` quedó en `f265060b7ded2375ab86b253327bc56c68830c82`. El delta remoto modificó fixtures de Abort y evidencia; las fuentes runtime, scripts, dependencias y benchmarks permanecieron idénticas a las ya validadas. Se volvió a ejecutar la integración compartida: **Jest 18/18, Vitest 29/29, VM 30/30**. Se conservan los gates focales y GC previos; no se afirma haberlos repetido después del rebase.
 
 ## Diagnóstico de Response.clone en Node 22.12
 
 El test de realm consumía `response.clone().arrayBuffer()` sin conservar el clon y luego volvía a clonar la respuesta original. El mismo patrón, **sin cargar rustdom ni jsdom**, falla **20/20 ciclos** con GC explícito en Node 22.12.0: `bodyUsed` pasa a true en el original antes de fetch y el segundo clone arroja el mismo TypeError. El control que conserva el clon consumido hasta una lectura observable final pasa **20/20**; Node 24.14.1 pasa **20/20** aun liberando el clon temporal. Se conservan los tres JSON `host-clone-*` y el diagnóstico ejecutable `tests/helpers/node-response-clone-lifecycle.cjs`.
 
 El fixture ahora conserva `wireResponse` y comprueba `bodyUsed` al final de los lectores. Mantiene todos los contratos de multipart, File, Request/Response/fetch, clones, errores de body consumido y aislamiento entre realms. El bridge de producción permanece intacto. El fallo original `tests-node22.log` y el focal previo aislado 4/4 también se conservan; no se transforma la corrida 73/74 en una corrida completamente verde retroactiva.
+
+## Benchmark de la unión
+
+Resultado completo: `../benchmarks/2026-09-15T17-10-28.066Z-linux-x64.json`. Se midieron seis casos en cuatro procesos aislados con orden alternado, tres warmups y nueve muestras por caso/proceso: **18 muestras por engine/caso**. El coordinador mantuvo una ventana sin otras compilaciones, instalaciones, tests ni mediciones. Se conservaron todos los resultados, hashes de salida equivalentes, muestras crudas, memoria tras cleanup y metadatos de máquina/runtime. No es una medición de memoria pico ni del tiempo total de Jest/Vitest.
+
+| Operación | Entradas | jsdom mediana ms | rustdom mediana ms | jsdom / rustdom |
+| --- | ---: | ---: | ---: | ---: |
+| set | 100 | 0.446 | 0.357 | 1.25 |
+| delete | 100 | 0.159 | 0.195 | 0.81 |
+| construct | 100 | 0.486 | 1.740 | 0.28 |
+| set | 1000 | 23.643 | 11.470 | 2.06 |
+| delete | 1000 | 6.670 | 3.299 | 2.02 |
+| construct | 1000 | 2.915 | 16.072 | 0.18 |
+
+Valores mayores a uno favorecen rustdom; **la construcción resulta más lenta en ambos tamaños**, y delete es más lento a 100 entradas. No se atribuyen estos ratios a una mejora causada por capturar constructores: no es una comparación antes/después aislada del fix. `construct` incluye el constructor público desde un form preparado; set/delete excluyen setup y sirven como controles del runtime completo. Las rutas Rust y el puente JavaScript se incluyen; la carga de módulos y el teardown quedan fuera del intervalo medido.
+
+Procedencia: sourceCommit `f265060b7ded2375ab86b253327bc56c68830c82`, sourceHash `49cd4e4d2e75f7f5fa45026d441010b6551314f127fa1ebf356a9df4c2e24569`, sourceChanges vacío, binario `fb12b3d1fa14ec020cf520734b30b927176bff4dc3632e3b9fe8072f882b89cd`. Este commit todavía no incorpora el fix del inventario de fuentes de PR65; por eso se verificó adicionalmente `git status --porcelain --untracked-files=all --ignored` sobre `third-party/napi` y `tests/integration/read-dom-file.cjs`: **ambos vacíos antes y después**, con resultados guardados. Esas rutas sí están incluidas en el hash de fuentes del harness usado.
