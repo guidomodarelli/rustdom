@@ -1,17 +1,17 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 15/09/2026 UTC sobre la optimización de atributos en
-feature/native-attribute-cache-performance, que parte del commit publicado
-`ba2d441f252f563d88109b39a8299f3ff4b5c7e7` (PR62). Main continúa en
+Evaluación actualizada el 15/09/2026 UTC sobre Web Storage en
+feature/native-web-storage, que parte del commit publicado
+`abadc25ace32b3d4f9f92da71afc5143128e7538` (PR63). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–62 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–63 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
-**2 áreas implementadas, 6 parciales y 4 delegadas: índice 41,7%.**
+**2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,
 líneas o esfuerzo. Las 12 áreas reciben el mismo peso: implementada = 1,
-parcial = 0,5 y todavía delegada = 0. Cálculo: `(2 + 6 × 0,5) / 12 × 100`.
+parcial = 0,5 y todavía delegada = 0. Cálculo: `(2 + 7 × 0,5) / 12 × 100`.
 El 0,5 de un área parcial es una convención, no una medición interna de esa área.
 No estima el tiempo restante ni acredita compatibilidad
 completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
@@ -29,13 +29,13 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | APIs específicas de elementos HTML, formularios y custom elements | Delegada | El runtime privado conserva sus implementaciones de elementos; los datos/atributos nativos compartidos ya se cuentan arriba. | Media |
 | CSSOM, estilos y layout | Delegada | `dist/vendor-jsdom/lib/jsdom/living/helpers/style-rules.js:4` y `:7` usan cssom/cssstyle; no se considera nativo por utilizar selectores nativos debajo. | Media |
 | Recursos/red, URL, cookies y navegación | Delegada | Runtime jsdom/Node y rutas de compatibilidad descritos en README; quedan algoritmos de plataforma fuera del core DOM. | Media |
-| Blob/File/FormData, almacenamiento y demás APIs de plataforma | Delegada | README documenta reutilización de jsdom/Node y adaptadores JS. La integración funcional no equivale a migración a Rust. | Alta |
+| Blob/File/FormData, almacenamiento y demás APIs de plataforma | Parcial | Web Storage usa áreas Rust/IndexMap, UTF16, cuotas y cursores vivos. La gestión de origen y los eventos conservan su host; Blob/File/FormData y otras APIs siguen delegadas. Ver reports/validation/web-storage.md. | Alta |
 
 Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 231 tests Rust, 1.605 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 235 tests Rust, 1.657 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -127,3 +127,11 @@ Escritura/borrado de 1.000 atributos mejoraron 5,1/5,6 veces frente al estado
 anterior; los lectores conservan regresiones de 9–34% que se documentan en
 reports/validation/attribute-cache.md. Este trabajo de rendimiento no completa
 otra área de migración ni incrementa el indicador de 41,7%.
+
+Web Storage incorpora almacenamiento ordenado, cuotas y cursores nativos para
+localStorage/sessionStorage. Pasaron 235 tests Rust, 1.657 Node, 13 Jest,
+24 Vitest, 26 Vitest VM, corpus, memoria y 36 controles de instalación. El bloque
+de APIs de plataforma pasa de delegado a parcial y el índice convencional a
+45,8%. Esto no significa que la mitad de ese bloque esté migrada: el peso de
+0,5 es la convención del indicador. Orígenes, entrega de eventos y otras APIs
+permanecen pendientes; ver reports/validation/web-storage.md.

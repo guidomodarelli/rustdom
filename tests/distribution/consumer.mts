@@ -15,11 +15,18 @@ import nativeRuntime, {
   NativeAbortState,
   NativeXmlParser,
   NativeTokenList, TokenListMethod, TokenValidation,
-  DatasetNameStatus, NativeDomRect,
+  DatasetNameStatus, NativeDomRect, NativeStorageArea, StorageSetStatus,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM storage uses the actual native area and cursor. */
+const storageArea = new NativeStorageArea(); storageArea.set('key', 'value');
+assert.equal(storageArea.planSet('key', 'value', 0).status, StorageSetStatus.Unchanged);
+assert.equal(storageArea.planSet('other', 'value', 1).status, StorageSetStatus.QuotaExceeded);
+const storageCursor = storageArea.keyCursor(); assert.equal(storageCursor.next(), 'key'); assert.equal(storageCursor.next(), null);
+storageArea.clear(); assert.equal(storageArea.units, 0);
 
 /** Installed ESM rectangle state and snapshots use the actual native addon. */
 const installedRect = new NativeDomRect(-0, 2, 3, -4);

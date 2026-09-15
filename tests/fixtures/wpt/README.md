@@ -48,3 +48,8 @@ La suite `dom-rect` agrega DOMRect-001, DOMRect-002 y DOMRect-nan de la misma
 revisión upstream, sin modificar sus aserciones. Cubre DOMRect y DOMRectReadOnly,
 constructores, atributos y valores especiales; no certifica las otras interfaces
 geométricas ni layout.
+
+Las suites `web-storage` y `web-storage-events` conservan 40 fixtures originales
+de Storage, propiedades, eventos entre iframes y cuotas, más sus recursos locales.
+No incluyen aquí escenarios de particionamiento, window.open o document.domain;
+no se interpreta este subconjunto como conformidad completa de almacenamiento.

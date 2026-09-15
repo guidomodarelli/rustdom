@@ -76,3 +76,5 @@ pub mod tree;
 mod tree_cursor;
 mod tree_cursor_binding;
 mod unicode_case;
+mod web_storage;
+mod web_storage_binding;

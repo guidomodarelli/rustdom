@@ -4,6 +4,13 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed native storage retains order and quota decisions without hidden mutation. */
+const storageArea = new native.NativeStorageArea(); storageArea.set('key', 'value');
+assert.equal(storageArea.planSet('key', 'value', 0).status, native.StorageSetStatus.Unchanged);
+assert.equal(storageArea.planSet('other', 'value', 1).status, native.StorageSetStatus.QuotaExceeded);
+const storageCursor = storageArea.keyCursor(); assert.equal(storageCursor.next(), 'key'); assert.equal(storageCursor.next(), null);
+storageArea.clear(); assert.equal(storageArea.units, 0);
+
 /** Installed native rectangle state preserves nonfinite arithmetic and independent snapshots. */
 const installedRect = new native.NativeDomRect(-0, 2, 3, -4);
 assert.ok(Object.is(installedRect.left, -0)); assert.equal(installedRect.top, -2);

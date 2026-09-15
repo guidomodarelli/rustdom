@@ -11,6 +11,7 @@ const { traversalFixture } = require('./tree-traversal.cjs');
 const { tokenListFixture } = require('./dom-token-list.cjs');
 const { datasetFixture } = require('./dom-string-map.cjs');
 const { rectFixture } = require('./dom-rect.cjs');
+const { storageFixture, storageQuotaForSize } = require('./web-storage.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
@@ -313,6 +314,7 @@ async function measure(name, size) {
   const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const measuresTokens = ['token-parse', 'token-contains', 'token-add', 'token-replace'].includes(name);
   const measuresRect = ['rect-create', 'rect-read', 'rect-update', 'rect-json'].includes(name);
+  const measuresStorage = ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].includes(name);
   const measuresDataset = ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].includes(name);
   const mutatesTreeRanges = name === 'range-tree-mutations-100';
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
@@ -344,6 +346,7 @@ async function measure(name, size) {
     let tokenWork;
     let datasetWork;
     let rectWork;
+    let storageWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -370,7 +373,8 @@ async function measure(name, size) {
       elapsed = performance.now() - start;
       assert.equal(dom.window.document.querySelectorAll('tr').length, size);
     } else {
-      dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html);
+      dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html,
+        measuresStorage ? { url: 'https://benchmark.example.test/', storageQuota: name === 'storage-quota' ? storageQuotaForSize(size) : undefined } : undefined);
       const document = dom.window.document;
       const eventStatesBefore = runtime.getNativeTreeStatistics?.().eventStates?.created;
       if (measuresListeners) listenerWork = listenerFixture(runtime, dom.window, size, name);
@@ -380,6 +384,7 @@ async function measure(name, size) {
       if (measuresTraversal) traversalWork = traversalFixture(runtime, dom.window, size, name);
       if (measuresTokens) tokenWork = tokenListFixture(runtime, dom.window, size, name);
       if (measuresRect) rectWork = rectFixture(runtime, dom.window, size, name);
+      if (measuresStorage) storageWork = storageFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -502,6 +507,7 @@ async function measure(name, size) {
       traversalWork?.prepare();
       const start = performance.now();
       if (xmlWork) result = xmlWork.run();
+      else if (storageWork) result = storageWork.run();
       else if (rectWork) result = rectWork.run();
       else if (datasetWork) result = datasetWork.run();
       else if (tokenWork) result = tokenWork.run();
@@ -750,6 +756,7 @@ async function measure(name, size) {
       tokenWork?.validate(result);
       datasetWork?.validate(result);
       rectWork?.validate(result);
+      storageWork?.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -919,6 +926,7 @@ async function measure(name, size) {
     abortWork?.dispose(); abortWork = null;
     xmlWork?.dispose(); xmlWork = null;
     rectWork = null;
+    await storageWork?.dispose(); storageWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;
@@ -971,6 +979,7 @@ async function main() {
     ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['token-parse', 'token-contains', 'token-add', 'token-replace'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['rect-create', 'rect-read', 'rect-update', 'rect-json'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['node-value-writes-1000', 'node-text-writes-1000'].map((name) => ({ name, size }))),
     ...[250, 1000].flatMap((size) => ['document-comments-insert-100', 'document-duplicate-element-100'].map((name) => ({ name, size }))),

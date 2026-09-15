@@ -17,6 +17,7 @@ export const {
   NativeTokenList, NativeTokenSet, TokenListMethod, TokenValidation,
   DatasetNameStatus,
   NativeDomRect,
+  NativeStorageArea, NativeStorageKeyCursor, StorageSetStatus,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,
   parseDocumentTape, parseFragmentTape,

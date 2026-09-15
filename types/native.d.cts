@@ -1,5 +1,29 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics } from './index.cjs';
+
+/** Native ordered UTF16 data. Public WebIDL conversion and scheduling remain at the host boundary. */
+export class NativeStorageArea {
+  constructor();
+  readonly size: number;
+  readonly units: number;
+  readonly capacity: number;
+  key(index: number): string | null;
+  get(key: string): string | null;
+  planSet(key: string, value: string, quota?: number): StorageSetPlan;
+  set(key: string, value: string): void;
+  delete(key: string): boolean;
+  clear(): void;
+  keyCursor(): NativeStorageKeyCursor;
+  static statistics(): NativeStorageStatistics;
+}
+/** Keeps only native data alive; exhaustion releases the area and is permanent. */
+export class NativeStorageKeyCursor {
+  private constructor();
+  next(): string | null;
+}
+export const StorageSetStatus: { readonly Unchanged: 0; readonly QuotaExceeded: 1; readonly Write: 2 };
+export type StorageSetStatus = (typeof StorageSetStatus)[keyof typeof StorageSetStatus];
+export interface StorageSetPlan { status: StorageSetStatus; oldValue: string | null; }
 
 /** Compact native rectangle. WebIDL conversion and read-only contracts belong to the public wrappers. */
 export class NativeDomRect {

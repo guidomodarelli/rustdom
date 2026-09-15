@@ -59,6 +59,7 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - DOMTokenList mueve validación, parsing HTML-space/UTF16, pertenencia, orden, reemplazo, toggle y decisiones de escritura a Rust. Se conservan los hooks de atributos y los consumers internos de tokenSet. Ver reports/validation/dom-token-list.md; los demás algoritmos de elementos/formularios siguen pendientes.
 - DOMStringMap/dataset convierte nombres, valida escrituras y consulta atributos canónicos en Rust. Mantiene el Proxy y los efectos de atributos, incluidas las asimetrías de namespaces de jsdom. Ver reports/validation/dom-string-map.md.
 - DOMRect/DOMRectReadOnly migran estado, bordes IEEE-754 y valores de toJSON a Rust. Conservan WebIDL/factories/realms en JavaScript. No completan CSSOM ni incorporan un motor de layout; ver reports/validation/dom-rect.md.
+- Web Storage migra estado ordenado UTF16, cuotas, decisiones de escritura y cursores vivos a Rust/IndexMap. Las áreas se comparten con los mismos grupos de origen de jsdom; acceso por origen y programación/entrega de eventos permanecen en el host. Ver reports/validation/web-storage.md. El resto de APIs de plataforma sigue pendiente.
 - Todos los selectores, XPath, estilos/CSSOM y APIs HTML específicas de elementos.
 - URL, cookies, recursos, red, blobs/archivos, almacenamiento y demás APIs públicas de jsdom.
 - Compatibilidad completa: corpus upstream y WPT aplicables, errores, realms, módulos, instalación y runners; resultados faltantes, excluidos o no verificados impiden cerrar el objetivo.

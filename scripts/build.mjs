@@ -77,6 +77,17 @@ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
 await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+const storageSource = await readFile('src/dom/web-storage.cjs', 'utf8');
+await writeFile('dist/web-storage.cjs', substituteOnce(storageSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/webstorage/Storage-impl.js'),
+  '"use strict";\nconst { createStorageImplementation } = require("../../../../../web-storage.cjs");\n' +
+  'exports.implementation = createStorageImplementation(require("../generated/DOMException"), require("../generated/StorageEvent"), require("../generated/utils"), require("../helpers/events").fireAnEvent);\n');
+const storageWindowPath = resolve(destination, 'lib/jsdom/browser/Window.js');
+let storageWindowSource = await readFile(storageWindowPath, 'utf8');
+storageWindowSource = substituteOnce(storageWindowSource, 'const Storage = require("../living/generated/Storage");',
+  'const Storage = require("../living/generated/Storage");\nconst { NativeStorageArea } = require("../../../../native.cjs");');
+for (const area of ['localStorageArea', 'sessionStorageArea']) storageWindowSource = substituteOnce(storageWindowSource, `${area}: new Map()`, `${area}: new NativeStorageArea()`);
+await writeFile(storageWindowPath, storageWindowSource);
 const rectSource = await readFile('src/dom/dom-rect.cjs', 'utf8');
 await writeFile('dist/dom-rect.cjs', substituteOnce(rectSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/geometry/DOMRectReadOnly-impl.js'),

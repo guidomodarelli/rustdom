@@ -12,6 +12,15 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should preserve storage order, UTF16 and independent storage types through runner globals', () => {
+    localStorage.clear(); sessionStorage.clear();
+    localStorage.setItem('a', '🦀'); localStorage.setItem('b', 'second'); localStorage.setItem('a', 'changed');
+    expect(localStorage.key(0)).toBe('a'); expect(sessionStorage.getItem('a')).toBe(null);
+    localStorage.removeItem('a'); localStorage.setItem('a', '\ud800');
+    expect(localStorage.key(1)).toBe('a'); expect(localStorage.getItem('a')).toBe('\ud800');
+    localStorage.clear(); expect(localStorage.length).toBe(0);
+  });
+
   test('should read current canonical attributes through selectors and serialization after mutation', () => {
     const element = document.createElement('div'); document.body.append(element);
     element.setAttribute('data-state', 'before'); const attribute = element.getAttributeNode('data-state');

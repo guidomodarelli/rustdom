@@ -44,7 +44,7 @@ const OPERATIONS_PER_BATCH = 40;
  * @returns {void} Keeps only a weak document reference.
  */
 function exerciseWindow(runtime, identity) {
-  const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>');
+  const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>', { url: 'https://memory.example.test/' });
   const document = dom.window.document;
   windowReferences.push(new WeakRef(dom.window));
   const observer = new dom.window.MutationObserver(() => {});
@@ -55,6 +55,7 @@ function exerciseWindow(runtime, identity) {
   exerciseHostRoots(document);
   exerciseTraversals(document);
   exerciseXmlSerialization(dom.window);
+  exerciseStorage(dom.window);
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);
@@ -77,6 +78,14 @@ function exerciseWindow(runtime, identity) {
   // Leave the observer connected: closing the window must release the entire cycle.
   references.push(new WeakRef(document));
   dom.window.close();
+}
+
+/** @param {Window} window - Real same-origin owner. @returns {void} Leave populated native areas and retain only copied strings/weak wrappers. */
+function exerciseStorage(window) {
+  const local = window.localStorage; const session = window.sessionStorage;
+  local.setItem('kept', 'value\0\ud800'); local.setItem('removed', 'temporary'); local.removeItem('removed');
+  session.setItem('other', 'session'); assert.deepEqual(Object.keys(local), ['kept']);
+  retainedTextResults.push(local.getItem('kept')); comparisonReferences.push(new WeakRef(local), new WeakRef(session));
 }
 
 /** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
