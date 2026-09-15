@@ -141,23 +141,14 @@ impl<'env> Host<'env> {
         }))
     }
 
-    /// V8's iterator diagnostics describe primitive symbols without ordinary ToString coercion.
+    /// Preserve the engine's primitive diagnostics without calling mutable conversion hooks.
     fn iterator_result_error(&self, result: Unknown) -> Result<Error> {
-        let description = if result.get_type()? == ValueType::Symbol {
-            self.call0(
-                result,
-                super::serialize_intrinsics::get(self.env, "symbolToString")?,
-                "XML serialization: intrinsic Symbol formatter is unavailable",
-            )?
-        } else {
-            result
-        };
-        let mut message: Vec<u16> = "Iterator result ".encode_utf16().collect();
-        message.extend(self.string(description)?);
-        message.extend(" is not an object".encode_utf16());
-        self.type_error(&message)
+        crate::dom::napi_error::iterator_result_error(
+            self.env,
+            super::serialize_intrinsics::get(self.env, "iterator")?,
+            result,
+        )
     }
-
     /// Non-callable cached next values are described without invoking object conversion hooks.
     fn iterator_next_error(&self, value: Unknown) -> Result<Error> {
         let kind = value.get_type()?;

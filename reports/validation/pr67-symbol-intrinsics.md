@@ -45,6 +45,8 @@ La diferencia de medianas fue +0,0671 ms (+1,34%) para el candidato, con rangos 
 Los 30 Workers completaron su trabajo y salida sin fallos. Las estadísticas de cada muestra devolvieron `live`, `references` y `cleanupErrors` en cero. Tras los seis Workers de warmup y hasta el último, el heap del proceso pasó de 4.991.696 a 5.073.480 bytes, RSS de 69.427.200 a 69.853.184 y memoria externa permaneció en 2.158.639. El informe mantiene muestras escalares; los números no prueban ausencia absoluta de fugas ni distinguen por sí solos retención del allocator. La liberación de Window/Document está cubierta por el escenario separado anterior.
 
 Muestras crudas, versiones, hardware, configuración, lockfile hashes y hashes de los dos binarios: `reports/benchmarks/2026-09-15T18-38-34.881Z-xml-intrinsics-init.json`. Las observaciones de memoria y salida de entornos están en `reports/memory/2026-09-15T18-38-34.881Z-xml-intrinsics-envs.json`.
+La limitación histórica sobre la captura de `Symbol.prototype.toString` registrada abajo fue corregida posteriormente. Ver [pr67-iterator-diagnostics.md](pr67-iterator-diagnostics.md) para la implementación y evidencia actualizadas.
+
 ## Alcance y límites
 
 La corrección elimina la dependencia concreta de `Symbol.prototype.constructor` y conserva las protecciones ya cubiertas. No certifica todos los prototipos posibles manipulados antes de la carga: la captura de claves presupone que el prototipo intrínseco de array conserva su clave de iteración, y el formateador inicial de símbolos mantiene el supuesto previo sobre `Symbol.prototype.toString`. Estos escenarios diferenciales tampoco constituyen compatibilidad completa con jsdom o los estándares. El objetivo global 100% Rust y compatibilidad verificable continúa pendiente.

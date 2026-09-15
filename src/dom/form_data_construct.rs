@@ -146,16 +146,9 @@ impl<'env> Host<'env> {
                 .run_in_scope(|| {
                     let step = self.call0(iterator, next)?;
                     if !matches!(step.get_type()?, ValueType::Object | ValueType::Function) {
-                        let global = self.env.get_global()?.to_unknown();
-                        let text = self.call1(global, self.get(global, "String")?, step)?;
-                        let text = Utf16String::from_unknown(text)?;
-                        self.helper1(
-                            "throwTypeError",
-                            self.text(&format!(
-                                "Iterator result {} is not an object",
-                                String::from_utf16_lossy(&text)
-                            ))?,
-                        )?;
+                        return Err(super::napi_error::iterator_result_error(
+                            self.env, key, step,
+                        )?);
                     }
                     if self.get(step, "done")?.coerce_to_bool()? {
                         return Ok(false);

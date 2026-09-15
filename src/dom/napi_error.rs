@@ -1,6 +1,9 @@
 //! Shared Node-API error translation, outside the runtime-independent domain errors.
 use super::error::TreeError;
-use napi::{Env, Error, Status, bindgen_prelude::Unknown};
+use napi::{
+    Env, Error, Result, Status,
+    bindgen_prelude::{FnArgs, Function, Unknown},
+};
 
 /// Preserve arbitrary JavaScript thrown values without coercing them to an Error message.
 pub(crate) fn capture_pending_error(env: &Env, error: Error) -> Error {
@@ -25,6 +28,32 @@ pub(crate) fn capture_pending_error(env: &Env, error: Error) -> Error {
     })
 }
 
+/// Ask the engine to create its intrinsic TypeError for an already-read primitive iterator result.
+/// This deliberately avoids mutable conversion hooks and creates no persistent references.
+/// The synthetic iterator cannot reenter or close the caller's actual iterator.
+pub(crate) fn iterator_result_error(
+    env: &Env,
+    iterator_key: Unknown,
+    result: Unknown,
+) -> Result<Error> {
+    let reject: Function<FnArgs<(Unknown, Unknown)>, ()> = env.run_script(
+        r#"((iteratorKey, result) => {
+            const iterable = {
+                __proto__: null,
+                [iteratorKey]() {
+                    return { __proto__: null, next() { return result; } };
+                }
+            };
+            for (const value of iterable) break;
+        })"#,
+    )?;
+    match reject.call((iterator_key, result).into()) {
+        Err(error) => Ok(capture_pending_error(env, error)),
+        Ok(()) => Err(Error::from_reason(
+            "Iterator diagnostic requires a primitive iteration result",
+        )),
+    }
+}
 pub(super) fn to_napi_error(error: TreeError) -> Error {
     let status = if matches!(
         &error,

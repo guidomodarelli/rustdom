@@ -53,23 +53,12 @@ fn initialize_xml_intrinsics(env: Env) -> Result<()> {
     if env.get_instance_data::<XmlIntrinsics>()?.is_some() {
         return Ok(());
     }
-    // Boxing a Node-API symbol obtains its intrinsic prototype even if globalThis.Symbol was replaced.
-    let prototype = env
-        .create_symbol(None)?
-        .coerce_to_object()?
-        .get_prototype()?
-        .coerce_to_object()?;
     let iterator = capture_iterator_key(&env)?;
-    let symbol_to_string: Unknown = prototype.get_named_property("toString")?;
+
     let mut values = Object::new(&env)?;
-    values.define_properties(&[
-        Property::new()
-            .with_utf8_name("iterator")?
-            .with_value(&iterator),
-        Property::new()
-            .with_utf8_name("symbolToString")?
-            .with_value(&symbol_to_string),
-    ])?;
+    values.define_properties(&[Property::new()
+        .with_utf8_name("iterator")?
+        .with_value(&iterator)])?;
     let values = values.create_ref()?;
     env.set_instance_data(XmlIntrinsics { values }, (), |context| {
         if context.value.values.unref(&context.env).is_err() {
