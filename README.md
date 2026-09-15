@@ -188,11 +188,11 @@ requiere actualizar ownership. Conserva el siguiente nodo capturado por el
 iterador y los candidatos a través de reentrancia; no ejecuta JavaScript mientras
 el store está prestado por Rust. Los slots sin cambios se procesan en el mismo
 paso nativo. `slotAssignmentDrivers` expone el lifetime de los controladores.
-El primer paso vincula el driver d�bilmente con su bosque nativo. Reanudar una
-operaci�n activa en otro `NativeTree`, aunque tenga handles iguales, devuelve
-`InvalidArg` y la cancela antes de modificar el �rbol. El v�nculo no conserva
+El primer paso vincula el driver débilmente con su bosque nativo. Reanudar una
+operación activa en otro `NativeTree`, aunque tenga handles iguales, devuelve
+`InvalidArg` y la cancela antes de modificar el árbol. El vínculo no conserva
 el bosque y se libera al completar o cancelar; un controlador completado sigue
-respondiendo `Complete` sin acceder a ning�n �rbol.
+respondiendo `Complete` sin acceder a ningún árbol.
 
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
