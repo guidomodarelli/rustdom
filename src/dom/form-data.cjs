@@ -6,6 +6,8 @@ const { NativeFormDataEntries, prepareFormDataValue, constructFormData } = requi
 function createFormDataImplementation(context) {
   const { DOMException, idlUtils } = context;
   const helpers = { ...context,
+    /** Capture the intrinsic iteration key during runtime initialization, before consumers replace host globals. */
+    iteratorSymbol: Symbol.iterator,
     /** @param {string} message - Native validation diagnostic. @returns {never} Original host error realm. */
     throwTypeError(message) { throw new TypeError(message); },
     /** @param {object} globalObject - FormData realm. @param {string} message - Native diagnostic. @returns {never} Realm DOMException. */

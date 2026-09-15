@@ -127,8 +127,7 @@ impl<'env> Host<'env> {
         iterable: Unknown,
         mut body: impl FnMut(Unknown<'env>) -> Result<()>,
     ) -> Result<()> {
-        let symbol = self.get(self.env.get_global()?.to_unknown(), "Symbol")?;
-        let key = self.get(symbol, "iterator")?;
+        let key = self.get(self.helpers, "iteratorSymbol")?;
         let method: Unknown = iterable.coerce_to_object()?.get_property(key)?;
         let iterator = self.call0(iterable, method)?;
         if !matches!(
