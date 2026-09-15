@@ -164,6 +164,10 @@ impl NativeListenerRegistry {
         }
     }
     #[napi]
+    pub fn listener_count(&self, event_type: Utf16String) -> f64 {
+        self.state.listener_count(&event_type) as f64
+    }
+    #[napi]
     pub fn has_callback(&self, callback: f64) -> Result<bool> {
         Ok(self
             .state

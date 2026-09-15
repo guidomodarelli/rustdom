@@ -195,6 +195,18 @@ impl NativeAbortState {
             .collect())
     }
     #[napi]
+    pub fn source_ids(&self) -> Result<Vec<f64>> {
+        Ok(self
+            .read(|graph| graph.source_ids(self.id))?
+            .into_iter()
+            .map(|id| id as f64)
+            .collect())
+    }
+    #[napi]
+    pub fn detach_sources(&self) -> Result<()> {
+        self.mutate(|graph| graph.detach_sources(self.id))
+    }
+    #[napi]
     pub fn add_algorithm(&self, existing: f64) -> Result<f64> {
         let existing = identity(existing, true)?;
         Ok(self.mutate(|graph| {

@@ -23,6 +23,10 @@ test('should expose ordered native composition and reject invalid identities bef
   first.aborted = true; assert.deepEqual(first.markDependents(), [combined.id, nested.id]);
   assert.equal(combined.aborted, true); assert.equal(nested.aborted, true);
   second.aborted = true; assert.deepEqual(second.markDependents(), []);
+  assert.deepEqual(combined.sourceIds(), [first.id, second.id]);
+  combined.detachSources(); combined.detachSources();
+  assert.deepEqual(combined.sourceIds(), []);
+  assert.deepEqual(nested.sourceIds(), [first.id, second.id]);
   assert.throws(() => combined.initializeAny([]), { code: 'InvalidArg' });
   for (const foreign of [{}, new NativeTree(), Object.create(NativeAbortState.prototype)]) {
     assert.throws(() => Reflect.apply(first.markDependents, foreign, []), { name: 'TypeError' });
@@ -41,6 +45,14 @@ test('should keep live native algorithm order and independent iteration cursors'
 
 test('should collect strong signal graphs, reasons and callbacks while native states remain retained', () => {
   const child = spawnSync(process.execPath, ['--expose-gc', 'tests/helpers/abort-memory.cjs'], {
+    encoding: 'utf8', timeout: 90_000, maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
+  const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5);
+});
+
+test('should release discarded dependents while preserving active abort work and realm teardown', () => {
+  const child = spawnSync(process.execPath, ['--expose-gc', 'tests/helpers/abort-dependent-memory.cjs'], {
     encoding: 'utf8', timeout: 90_000, maxBuffer: 4 * 1024 * 1024,
   });
   assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);

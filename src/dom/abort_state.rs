@@ -151,6 +151,23 @@ impl AbortGraph {
         Ok(selected)
     }
 
+    /// Returns roots in composition order for host lifetime bookkeeping only.
+    pub fn source_ids(&self, signal: u64) -> Result<Vec<u64>, AbortStateError> {
+        Ok(self.state(signal)?.sources.values().copied().collect())
+    }
+
+    /// Removes terminal dependency edges from every source without changing reason or algorithms.
+    pub fn detach_sources(&mut self, signal: u64) -> Result<(), AbortStateError> {
+        let sources = std::mem::take(&mut self.state_mut(signal)?.sources);
+        for (link, source) in sources {
+            if let Some(parent) = self.states.get_mut(&source) {
+                parent.dependents.remove(&link);
+            }
+            self.links -= 1;
+        }
+        Ok(())
+    }
+
     pub fn add_algorithm(
         &mut self,
         signal: u64,
@@ -280,6 +297,25 @@ mod tests {
         assert!(graph.mark_dependents(2).unwrap().is_empty());
         assert!(graph.initialize_any(5, &[]).unwrap().sources.is_empty());
         assert!(graph.dependent(5).unwrap());
+    }
+    #[test]
+    fn should_detach_terminal_roots_without_losing_algorithm_state_or_double_releasing_links() {
+        let mut graph = graph();
+        graph.initialize_any(3, &[2, 1]).unwrap();
+        graph.initialize_any(4, &[3]).unwrap();
+        assert_eq!(graph.source_ids(3).unwrap(), [2, 1]);
+        let algorithm = graph.add_algorithm(3, None).unwrap();
+        graph.set_aborted(1, true).unwrap();
+        assert_eq!(graph.mark_dependents(1).unwrap(), [3, 4]);
+        graph.detach_sources(3).unwrap();
+        graph.detach_sources(3).unwrap();
+        assert!(graph.source_ids(3).unwrap().is_empty());
+        assert_eq!(graph.source_ids(4).unwrap(), [2, 1]);
+        assert_eq!(graph.next_algorithm(3, 0).unwrap(), Some(algorithm));
+        assert_eq!(graph.counts().1, 2);
+        graph.release(3);
+        graph.release(4);
+        assert_eq!(graph.counts().1, 0);
     }
     #[test]
     fn should_keep_algorithm_iteration_live_and_never_reuse_removed_ids() {

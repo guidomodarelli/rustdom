@@ -133,6 +133,10 @@ export class NativeAbortState {
   dependent: boolean;
   initializeAny(inputs: number[]): NativeAbortAnyPlan;
   markDependents(): number[];
+  /** Returns root identities in native composition order for weak host ownership. */
+  sourceIds(): number[];
+  /** Removes source links after terminal abort without clearing remaining algorithms. */
+  detachSources(): void;
   /** Zero requests a new identity; an existing active identity preserves set semantics. */
   addAlgorithm(existing: number): number;
   removeAlgorithm(id: number): boolean;
@@ -161,6 +165,8 @@ export class NativeListenerRegistry {
   snapshotSelection(type: string, capturing: boolean): NativeListenerSnapshot;
   /** Returns ListenerInvocation bits and removes an invoked once registration before returning. */
   prepareInvocation(id: number, capturing: boolean): number;
+  /** Counts active registrations without allocating a callback snapshot. */
+  listenerCount(type: string): number;
   hasCallback(callback: number): boolean;
   readonly hasEventTypes: boolean;
   storageStatistics(): NativeListenerStorageStatistics;
