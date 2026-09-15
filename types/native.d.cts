@@ -1,5 +1,22 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics } from './index.cjs';
+
+/** Diagnose constructor reference ownership across worker/env teardown. */
+export function classReferenceStatistics(): NativeClassReferenceStatistics;
+
+/** Native Blob/File metadata contains no references to JavaScript owners or buffers. */
+export class NativeBlobMetadata {
+  constructor(mimeType: string);
+  readonly mimeType: string;
+  readonly fileName: string | null;
+  readonly lastModified: number;
+  setFile(name: string, lastModified: number): void;
+  static statistics(): NativeBlobStatistics;
+}
+export function normalizeBlobEndings(value: string): string;
+export function blobSliceRange(size: number, start?: number, end?: number): { start: number; end: number };
+/** Ordinary bytes are copied in Rust after all getters; shared/detached inputs use the supplied Node primitive. */
+export function concatenateBlobBuffers(buffers: readonly Buffer[], constructor: typeof Buffer): Buffer;
 
 /** Native ordered UTF16 data. Public WebIDL conversion and scheduling remain at the host boundary. */
 export class NativeStorageArea {

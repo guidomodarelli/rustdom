@@ -63,10 +63,13 @@ async function run(engine, file) {
           return result;
         }
       }
-      const html = sourceFile.endsWith('.window.js')
-        ? `<!doctype html><script src="/resources/testharness.js"></script><script src="/resources/testharnessreport.js"></script><script src="/${sourceFile}"></script>`
-        : readFileSync(path.join(root, sourceFile));
-      fixtureUrl.pathname = fixtureUrl.pathname.replace(/\.window\.js$/, '.window.html');
+      const source = readFileSync(path.join(root, sourceFile));
+      const scriptFixture = /\.(window|any)\.js$/.test(sourceFile);
+      const scripts = scriptFixture ? [...source.toString().matchAll(/^\/\/\s*META:\s*script=(.+)$/gm)].map((match) => match[1].trim()) : [];
+      const scriptTags = ['/resources/testharness.js', '/resources/testharnessreport.js', ...scripts, `/${sourceFile}`]
+        .map((address) => `<script src="${address.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"></script>`).join('');
+      const html = scriptFixture ? `<!doctype html>${scriptTags}` : source;
+      fixtureUrl.pathname = fixtureUrl.pathname.replace(/\.(window|any)\.js$/, '.$1.html');
       dom = new engine.JSDOM(html, {
         url: fixtureUrl.href,
         contentType: mediaType(sourceFile),

@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
 const { BenchmarkReport } = require('./report.cjs');
+const { readBenchmarkShard } = require('./shard.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
@@ -14,6 +15,7 @@ const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
 const outputDirectory = 'reports/benchmarks';
 /** Optional workload names reuse the exact fixtures and sampling of the full benchmark. */
 const requestedWorkloads = process.argv.slice(2);
+const shard = readBenchmarkShard();
 /** Bound a complete worker plan, including untimed setup and cleanup, on slower CI hosts. */
 const workerTimeoutMs = Number(process.env.RUSTDOM_BENCHMARK_TIMEOUT_MS ?? 600_000);
 assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
@@ -24,14 +26,16 @@ function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory() ? sourceFiles(`${directory}/${entry.name}`) : [`${directory}/${entry.name}`]);
 }
-const measuredSources = [...sourceFiles('src'), ...sourceFiles('scripts'), ...sourceFiles('benchmarks'),
-  'package-lock.json', 'Cargo.toml', 'Cargo.lock'].sort();
+const measuredSources = [...sourceFiles('src'), ...sourceFiles('scripts'), ...sourceFiles('benchmarks'), ...sourceFiles('third-party/napi'),
+  'package-lock.json', 'Cargo.toml', 'Cargo.lock', 'tests/integration/read-dom-file.cjs'].sort();
 const sourceDigest = createHash('sha256');
 for (const path of measuredSources) sourceDigest.update(path).update('\0').update(readFileSync(path)).update('\0');
 
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  shard, completionScope: 'Selected workload partition only; all partitions together cover the eligible plan.',
+  blobMethodology: 'Size denotes 100/1000 parts for blob-construct/blob-nested (256 bytes each), repetitions for blob-endings, or KiB for blob-slice/file-construct. Prepare inputs before timing; slice creates 100 public 64-byte views. Measure construction/slicing and size consumption, then read all result bytes with real FileReader outside timing. Validate metadata and native concatenation activity; release fixture references before cleanup/GC. Node Buffer views preserve sharing; shared/detached backing uses the host primitive outside these ordinary-input workloads.',
   storageMethodology: 'Size denotes 100 or 1000 UTF16 key/value pairs. Prepare a nonopaque window and entries outside timing except insert. Measure public insertion, overwrite, lookup, indexed key access, Object.entries, removal, clear or one quota rejection. The quota fixture has exactly the budget needed for existing entries. Consume results and validate every key/value/order outside timing. Real timer scheduling is included; notification drainage is outside timing before cleanup and GC.',
   rectMethodology: 'Size denotes 100 or 1000 public DOMRect instances. Time construction, all four edge reads, two mutations plus edge reads, or toJSON. Prepare inputs outside timing except construction workload; consume scalar results and validate all fields, JSON ordering and native allocation counts outside timing. Native crossings and public WebIDL wrappers are included.',
   datasetMethodology: 'Size denotes data-* attributes (4 or 1000). Prepare the owner and values before timing; measure all public reads, Object.entries, overwrites or deletions. Consume returned values/counts and validate every attribute, key order and exact output hash outside timing. Native dataset algorithms share the existing canonical attributes and mutation hooks.',

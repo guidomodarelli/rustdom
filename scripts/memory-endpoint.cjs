@@ -76,6 +76,11 @@ function isReleased(state, expected) {
     native.xmlSerialization?.cleanupErrors === expected.xmlSerialization?.cleanupErrors &&
     native.traversals?.live === expected.traversals?.live &&
     native.traversals?.operations === expected.traversals?.operations &&
+    native.napiClasses?.live === expected.napiClasses?.live &&
+    native.napiClasses?.cleanupErrors === expected.napiClasses?.cleanupErrors &&
+    native.blobs?.live === expected.blobs?.live &&
+    native.blobs?.mimeUnits === expected.blobs?.mimeUnits &&
+    native.blobs?.fileNameUnits === expected.blobs?.fileNameUnits &&
     native.webStorage?.live === expected.webStorage?.live &&
     native.webStorage?.entries === expected.webStorage?.entries &&
     native.webStorage?.units === expected.webStorage?.units &&

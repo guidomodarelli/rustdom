@@ -16,10 +16,18 @@ import nativeRuntime, {
   NativeXmlParser,
   NativeTokenList, TokenListMethod, TokenValidation,
   DatasetNameStatus, NativeDomRect, NativeStorageArea, StorageSetStatus,
+  NativeBlobMetadata, concatenateBlobBuffers, normalizeBlobEndings, blobSliceRange, classReferenceStatistics,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM Blob exports preserve byte order and native metadata. */
+const blobMetadata = new NativeBlobMetadata('TEXT/PLAIN'); blobMetadata.setFile('name', 42);
+assert.ok(classReferenceStatistics().live > 0); assert.equal(classReferenceStatistics().cleanupErrors, 0);
+assert.equal(blobMetadata.mimeType, 'text/plain'); assert.equal(blobMetadata.fileName, 'name'); assert.equal(blobMetadata.lastModified, 42);
+assert.deepEqual([...concatenateBlobBuffers([Buffer.from([1, 2]), Buffer.from([3])], Buffer)], [1, 2, 3]);
+assert.equal(normalizeBlobEndings('a\r\nb'), 'a\nb'); assert.deepEqual(blobSliceRange(6, -3, -1), { start: 3, end: 5 });
 
 /** Installed ESM storage uses the actual native area and cursor. */
 const storageArea = new NativeStorageArea(); storageArea.set('key', 'value');

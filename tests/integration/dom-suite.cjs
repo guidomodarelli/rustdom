@@ -12,6 +12,16 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should preserve Blob/File bytes, native endings and sliced metadata through FileReader', async () => {
+    const blob = new Blob(['a\r\nb\ud800'], { endings: 'native', type: 'TEXT/PLAIN' });
+    const file = new File([blob], 'file.txt', { lastModified: 42 }); const slice = file.slice(2, undefined, 'IMAGE/PNG');
+    expect(file.name).toBe('file.txt'); expect(file.lastModified).toBe(42); expect(slice.type).toBe('image/png');
+    const bytes = await new Promise((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve([...new Uint8Array(reader.result)]); reader.onerror = () => reject(reader.error); reader.readAsArrayBuffer(slice);
+    });
+    expect(bytes).toEqual([98, 239, 191, 189]);
+  });
+
   test('should preserve storage order, UTF16 and independent storage types through runner globals', () => {
     localStorage.clear(); sessionStorage.clear();
     localStorage.setItem('a', '🦀'); localStorage.setItem('b', 'second'); localStorage.setItem('a', 'changed');

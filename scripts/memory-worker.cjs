@@ -56,6 +56,10 @@ function exerciseWindow(runtime, identity) {
   exerciseTraversals(document);
   exerciseXmlSerialization(dom.window);
   exerciseStorage(dom.window);
+  const blob = new dom.window.Blob(['a'.repeat(2048)], { type: 'TEXT/PLAIN' });
+  const file = new dom.window.File([blob], 'memory.txt', { lastModified: 42 });
+  const slice = file.slice(10, 20); assert.equal(slice.size, 10);
+  comparisonReferences.push(new WeakRef(blob), new WeakRef(file), new WeakRef(slice));
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);

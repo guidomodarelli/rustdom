@@ -254,25 +254,7 @@ impl<'env> Host<'env> {
 
     /// Detach a pending exception before IteratorClose runs; do not stringify user-thrown values.
     pub fn capture_error(&self, error: Error) -> Error {
-        let mut pending = false;
-        // SAFETY: this Env belongs to the active synchronous N-API invocation.
-        if unsafe { napi::sys::napi_is_exception_pending(self.env.raw(), &mut pending) }
-            != napi::sys::Status::napi_ok
-            || !pending
-        {
-            return error;
-        }
-        let mut exception = std::ptr::null_mut();
-        // SAFETY: the pending exception is a live value in the current handle scope.
-        if unsafe { napi::sys::napi_get_and_clear_last_exception(self.env.raw(), &mut exception) }
-            != napi::sys::Status::napi_ok
-        {
-            return error;
-        }
-        // SAFETY: the checked runtime operation above initialized the handle in this Env.
-        Error::from_unknown_without_coercion(unsafe {
-            Unknown::from_raw_unchecked(self.env.raw(), exception)
-        })
+        crate::dom::napi_error::capture_pending_error(self.env, error)
     }
 
     pub fn close_after_error(&self, iterator: &IteratorRecord, error: Error) -> Error {
