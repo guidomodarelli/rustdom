@@ -4,10 +4,22 @@ use super::{
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
+    mutation_production_binding::{
+        self, NativeMutationBatch, NativeMutationProductionInput, NativePreparedMutation,
+    },
+    mutation_record::{MutationKind, MutationRecordDraft, MutationRecordState},
+    mutation_record_binding::NativeMutationRecord,
     napi_error::to_napi_error,
+    napi_string::string_result,
     node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
+    observer_delivery_binding::{NativeObserverDelivery, ObserverDeliveryInstruction},
+    observer_registry::ObservationStatus,
+    observer_registry_binding::{
+        NativeObserverInterest, NativeObserverNotificationStatistics, NativeObserverOptionsInput,
+        NativeObserverRegistryStatistics,
+    },
     queries::{QueryEngine, QueryKind, QueryRequest},
     range_boundaries::{BoundaryMode, BoundaryPlan},
     range_clone_binding::{NativeRangeClone, RangeCloneInstruction},
@@ -21,6 +33,10 @@ use super::{
     range_surround::SurroundStatus,
     slot_assignment_binding::{NativeSlotAssignmentDriver, SlotAssignmentInstruction},
     store,
+    string_map_binding::{self, DatasetNamePlan, DatasetStatistics},
+    token_list_binding::{NativeTokenList, NativeTokenSet, TokenListMethod, TokenListMutation},
+    tree_cursor::TraversalMethod,
+    tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
 };
 use napi::{
     Error, JsValue, Result, Status,
@@ -28,12 +44,13 @@ use napi::{
 };
 use napi_derive::napi;
 
-/// Node-API copies borrowed UTF-8 directly into V8; preserve isolated UTF-16 units on the fallback.
-fn string_result(value: Option<&DomString>) -> Option<Either<&str, Utf16String>> {
-    value.map(|value| match value {
-        DomString::Text(value) => Either::A(value.as_str()),
-        DomString::Utf16(value) => Either::B(value.clone().into()),
-    })
+impl NativeTree {
+    pub(super) fn mutation_record_state(
+        &self,
+        draft: MutationRecordDraft,
+    ) -> super::error::Result<MutationRecordState> {
+        self.store.mutation_record(draft)
+    }
 }
 
 /// Scalar text setter decision; effects run in the host after the native borrow ends.
@@ -457,6 +474,128 @@ pub struct NativeTree {
 
 #[napi]
 impl NativeTree {
+    #[napi]
+    pub fn dataset_names(&self, owner: f64) -> Result<Vec<Utf16String>> {
+        self.store
+            .dataset_names(owner)
+            .map(|names| names.into_iter().map(Into::into).collect())
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn dataset_value(&self, owner: f64, name: Utf16String) -> Result<Option<Utf16String>> {
+        self.store
+            .dataset_value(owner, &name)
+            .map(|value| value.map(Into::into))
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn dataset_name_plan(&self, name: Utf16String, validate: bool) -> DatasetNamePlan {
+        string_map_binding::plan(&name, validate)
+    }
+    #[napi]
+    pub fn dataset_statistics(&self) -> DatasetStatistics {
+        string_map_binding::statistics()
+    }
+
+    #[napi]
+    pub fn create_token_list(
+        &self,
+        owner: f64,
+        name: Utf16String,
+        supported: Option<Vec<Utf16String>>,
+    ) -> Result<NativeTokenList> {
+        NativeTokenList::create(&self.store, owner, name, supported)
+    }
+    #[napi]
+    pub fn token_list_length(&self, list: &mut NativeTokenList) -> Result<u32> {
+        list.length(&self.store)
+    }
+    #[napi]
+    pub fn token_list_item(
+        &self,
+        list: &mut NativeTokenList,
+        index: u32,
+    ) -> Result<Option<Utf16String>> {
+        list.item(&self.store, index)
+    }
+    #[napi]
+    pub fn token_list_contains(
+        &self,
+        list: &mut NativeTokenList,
+        token: Utf16String,
+    ) -> Result<bool> {
+        list.contains(&self.store, &token)
+    }
+    #[napi]
+    pub fn token_list_value(&self, list: &NativeTokenList) -> Result<Utf16String> {
+        list.value(&self.store).map(Into::into)
+    }
+    #[napi]
+    pub fn token_list_set(&self, list: &mut NativeTokenList) -> Result<NativeTokenSet> {
+        list.set(&self.store)
+    }
+    #[napi]
+    pub fn token_list_mutate(
+        &self,
+        list: &mut NativeTokenList,
+        method: TokenListMethod,
+        tokens: Vec<Utf16String>,
+        force: Option<bool>,
+    ) -> Result<TokenListMutation> {
+        list.mutate(&self.store, method, tokens, force)
+    }
+
+    #[napi]
+    pub fn create_traversal(
+        &self,
+        root: f64,
+        mask: u32,
+        has_filter: bool,
+    ) -> Result<NativeTraversal> {
+        NativeTraversal::create(&self.store, root, mask, has_filter)
+    }
+    #[napi]
+    pub fn traversal_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+    ) -> Result<TraversalInstruction> {
+        cursor.step(&self.store, operation)
+    }
+    #[napi]
+    pub fn traversal_pre_remove(&self, cursor: &mut NativeTraversal, removed: f64) -> Result<()> {
+        cursor.pre_remove(&self.store, removed)
+    }
+    #[napi]
+    pub fn traversal_move(
+        &self,
+        cursor: &mut NativeTraversal,
+        method: TraversalMethod,
+    ) -> Result<f64> {
+        cursor.move_unfiltered(&self.store, method)
+    }
+    #[napi]
+    pub fn traversal_resume_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+        result: u16,
+    ) -> Result<TraversalInstruction> {
+        cursor.resume_step(&self.store, operation, result)
+    }
+    #[napi]
+    pub fn traversal_restart_step(
+        &self,
+        cursor: &mut NativeTraversal,
+        operation: &mut NativeTraversalOperation,
+        method: TraversalMethod,
+    ) -> Result<TraversalInstruction> {
+        cursor.restart_step(&self.store, operation, method)
+    }
+}
+
+#[napi]
+impl NativeTree {
     /// Share the canonical allocation policy with JavaScript without duplicating constants.
     #[napi(getter)]
     pub fn handle_batch_size(&self) -> u32 {
@@ -585,6 +724,157 @@ impl NativeTree {
     #[napi]
     pub fn queue_slot_signal(&mut self, slot: f64) -> Result<bool> {
         self.store.queue_slot_signal(slot).map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn allocate_mutation_observer(&mut self) -> Result<f64> {
+        self.store
+            .observer_registry
+            .allocate()
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn release_mutation_observer(&mut self, observer: f64) -> Result<bool> {
+        self.store
+            .observer_registry
+            .release(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn observe_mutations(
+        &mut self,
+        observer: f64,
+        target: f64,
+        options: NativeObserverOptionsInput,
+    ) -> Result<ObservationStatus> {
+        self.store
+            .observe_mutations(observer, target, options.into())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn disconnect_mutation_observer(&mut self, observer: f64) -> Result<Vec<f64>> {
+        self.store
+            .observer_registry
+            .disconnect(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn interested_mutation_observers(
+        &self,
+        target: f64,
+        kind: String,
+        name: Option<Utf16String>,
+        namespace: Option<Utf16String>,
+    ) -> Result<Vec<NativeObserverInterest>> {
+        let kind = MutationKind::parse(&kind).map_err(to_napi_error)?;
+        let name = name.map(|name| DomString::from_units(&name));
+        let namespace = namespace.map(|namespace| DomString::from_units(&namespace));
+        self.store
+            .interested_mutation_observers(target, kind, name.as_ref(), namespace.as_ref())
+            .map(|interests| {
+                interests
+                    .into_iter()
+                    .map(|interest| NativeObserverInterest {
+                        observer: interest.observer as f64,
+                        old_value: interest.old_value,
+                    })
+                    .collect()
+            })
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn observer_registry_statistics(&self) -> NativeObserverRegistryStatistics {
+        self.store.observer_registry.statistics().into()
+    }
+
+    #[napi]
+    pub fn request_mutation_observer_microtask(&mut self) -> bool {
+        self.store
+            .observer_registry
+            .notifications
+            .request_microtask()
+    }
+
+    #[napi]
+    pub fn begin_mutation_observer_notification(&mut self) -> Vec<f64> {
+        self.store.observer_registry.notifications.begin()
+    }
+
+    #[napi]
+    pub fn observer_notification_statistics(&self) -> NativeObserverNotificationStatistics {
+        let stats = self.store.observer_registry.notifications.statistics();
+        NativeObserverNotificationStatistics {
+            pending_observers: stats.pending_observers as f64,
+            capacity: stats.capacity as f64,
+            microtask_queued: stats.microtask_queued,
+        }
+    }
+
+    #[napi]
+    pub fn start_mutation_observer_delivery(&mut self) -> NativeObserverDelivery {
+        NativeObserverDelivery::from_driver(self.store.start_observer_delivery())
+    }
+
+    #[napi]
+    pub fn mutation_observer_delivery_step(
+        &mut self,
+        operation: &mut NativeObserverDelivery,
+    ) -> Result<ObserverDeliveryInstruction> {
+        operation.step(&mut self.store)
+    }
+
+    #[napi]
+    pub fn enqueue_mutation_record(
+        &mut self,
+        observer: f64,
+        record: &NativeMutationRecord,
+    ) -> Result<f64> {
+        self.store
+            .observer_registry
+            .enqueue_record(observer, record.shared_state())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn prepare_mutation_records(
+        &self,
+        input: NativeMutationProductionInput<'_>,
+    ) -> Result<Vec<NativePreparedMutation>> {
+        mutation_production_binding::prepare(&self.store, input)
+    }
+
+    #[napi]
+    pub fn prepare_mutation_record_batch(
+        &self,
+        input: NativeMutationProductionInput<'_>,
+    ) -> Result<Option<NativeMutationBatch>> {
+        mutation_production_binding::prepare_batch(&self.store, input)
+    }
+
+    #[napi]
+    pub fn take_mutation_records(&mut self, observer: f64) -> Result<Vec<f64>> {
+        self.store
+            .observer_registry
+            .take_records(observer)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn queued_mutation_record(
+        &self,
+        observer: f64,
+        token: f64,
+    ) -> Result<Option<NativeMutationRecord>> {
+        self.store
+            .observer_registry
+            .queued_record(observer, token)
+            .map(|record| record.map(NativeMutationRecord::from_shared))
+            .map_err(to_napi_error)
     }
 
     #[napi]

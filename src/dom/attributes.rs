@@ -51,7 +51,7 @@ impl TreeStore {
         Ok(value.map(|value| value.units().collect()))
     }
 
-    /// Change only the canonical value; element caches are rebuilt by the mutation hook.
+    /// Change the canonical value; every reader borrows the current Attr payload.
     pub fn set_attribute_value(&mut self, handle: f64, units: &[u16]) -> Result<()> {
         let id = node_id(handle)?;
         self.attribute(id)?;
@@ -62,7 +62,7 @@ impl TreeStore {
         self.non_utf8_nodes += usize::from(data.has_non_utf8());
         self.data_updates += 1;
         if let Some(&owner) = self.attribute_collections.owners.get(&id) {
-            self.refresh_attribute_cache(owner)?;
+            self.record_attribute_change(owner);
         }
         Ok(())
     }

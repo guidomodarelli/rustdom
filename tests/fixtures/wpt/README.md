@@ -6,6 +6,28 @@ Fuente: web-platform-tests, commit `8d124dbe46f46f55531f28f13eccf1113f794c12`, u
 
 Este subconjunto no equivale a todos los WPT ni prueba el 100% de compatibilidad. El manifiesto permite ampliar la cobertura sin cambiar los tests upstream. Para recuperar cualquier archivo, usar su blob en la revisión fijada; `.gitattributes` evita conversiones de saltos de línea que alterarían los hashes.
 
+La suite `dom-string-map` incorpora los siete fixtures dataset de
+`html/dom/elements/global-attributes`. El archivo `.window.js` conserva sus bytes
+y se ejecuta con el wrapper HTML que ya provee el arnés; las assertions no cambian.
+Se reproduce con `npm run test:wpt -- dom-string-map`.
+
+La suite `dom-token-list` incluye `dom/nodes/Element-classlist.html` y los cinco
+fixtures DOMTokenList de `dom/lists`. Conserva los archivos originales y compara
+los resultados de classList, atributos, índices, iteración, value y stringificación.
+Puede ejecutarse con `npm run test:wpt -- dom-token-list`.
+
+La suite `xml-serialization` incorpora `domparsing/XMLSerializer-serializeToString.html`
+y `domparsing/xml-serialization.xhtml`, conservando sus bytes originales y recursos.
+Se ejecuta con `npm run test:wpt -- xml-serialization`. Sus resultados incluyen los
+fallos de estándar compartidos con la referencia; no se modifican las assertions.
+
+La suite `tree-traversal` agrega los 16 fixtures HTML de `dom/traversal` y sus
+recursos de la misma revisión. Cubre constantes NodeFilter, NodeIterator,
+reparación ante remociones, movimientos TreeWalker, filtros y realms. Puede
+ejecutarse con `npm run test:wpt -- tree-traversal`. Los borradores XML de
+`dom/traversal/unfinished` no forman parte de esta suite. Los 26 fallos compartidos
+observados se preservan en los resultados, sin reemplazar assertions upstream.
+
 La suite `namespaces` incluye las consultas de prefijo, URI y namespace por defecto,
 con los fixtures originales HTML y XHTML. Se aplica la misma comparación de
 estados y mensajes, conservando también los fallos compartidos con jsdom.
@@ -21,3 +43,13 @@ La suite `boundary-points` incorpora comparaciones, puntos e intersecciones de
 Range, incluidos binding y shadow DOM. Los casos comparten `dom/common.js` de
 la misma revisión; los errores de preparación de rangos también quedan en el
 reporte y no se presentan como aserciones de estándares aprobadas.
+
+La suite `dom-rect` agrega DOMRect-001, DOMRect-002 y DOMRect-nan de la misma
+revisión upstream, sin modificar sus aserciones. Cubre DOMRect y DOMRectReadOnly,
+constructores, atributos y valores especiales; no certifica las otras interfaces
+geométricas ni layout.
+
+Las suites `web-storage` y `web-storage-events` conservan 40 fixtures originales
+de Storage, propiedades, eventos entre iframes y cuotas, más sus recursos locales.
+No incluyen aquí escenarios de particionamiento, window.open o document.domain;
+no se interpreta este subconjunto como conformidad completa de almacenamiento.

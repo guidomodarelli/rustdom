@@ -7,7 +7,7 @@ use super::data::{DomString, NodeData};
 use super::error::{Result, TreeError};
 
 /// JavaScript represents every integer up to this value exactly.
-const MAX_NODE_HANDLE: u64 = 9_007_199_254_740_991;
+const MAX_NODE_HANDLE: u64 = super::constants::JS_MAX_SAFE_INTEGER;
 /// Keep a small reusable table while releasing high-water capacity after collection.
 const MIN_NODE_CAPACITY: usize = 64;
 /// Amortize handle allocation across Node-API without allocating unused node records.
@@ -63,6 +63,9 @@ pub struct TreeStatistics {
 pub struct TreeStore {
     // Drivers identify this forest without retaining its storage or JavaScript wrappers.
     pub(crate) assignment_identity: Arc<()>,
+    // Weak delivery identity prevents using captured IDs with another forest, without retaining tree data.
+    pub(crate) delivery_identity: std::sync::Arc<()>,
+    pub(crate) observer_registry: super::observer_registry::ObserverRegistry,
     pub(crate) slot_signals: super::slot_signals::SlotSignals,
     pub(crate) slot_backlinks: super::slot_backlinks::SlotBacklinks,
     pub(crate) slot_assignments: super::slot_assignments::SlotAssignments,
@@ -374,7 +377,8 @@ impl TreeStore {
             if data.kind != super::constants::ELEMENT_NODE {
                 return Err(TreeError::NotElement(id));
             }
-            data.attributes = self.snapshot_attributes(id)?;
+            // Canonical Attr nodes own all names/values. Drop incoming snapshot capacity too.
+            data.attributes = Vec::new();
         }
         let template = if data.template_content == 0.0 {
             None
@@ -501,6 +505,7 @@ impl TreeStore {
         self.slot_assignments.release_node(id);
         self.slot_backlinks.release_node(id);
         self.slot_signals.release_node(id);
+        self.observer_registry.release_node(id);
         self.detach(id)?;
         let mut child = self.nodes[&id].first;
         while child != 0 {

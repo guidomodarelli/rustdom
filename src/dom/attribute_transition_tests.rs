@@ -154,24 +154,27 @@ fn should_protect_metadata_updates_without_restricting_initialization_or_retypin
 }
 
 #[test]
-fn should_skip_snapshot_refresh_without_hiding_invalid_canonical_data() {
+fn should_borrow_snapshots_and_reject_invalid_canonical_data_at_the_reader() {
     let (mut tree, element, _source, _incoming) = fixture(false, true);
     let before = state(&tree);
-    tree.refresh_attribute_cache(element as NodeId).unwrap();
+    assert_eq!(tree.attribute_views(element as NodeId).unwrap().count(), 1);
     assert_eq!(state(&tree), before);
     assert_eq!(markup(&mut tree, element), "<div id=\"preserved\"></div>");
     assert!(matches!(
-        tree.refresh_attribute_cache(1000),
-        Err(TreeError::NotElement(_))
+        tree.attribute_views(1000),
+        Err(TreeError::MissingData(_))
     ));
     // The storage primitive has no metadata. An invalid canonical handle must still surface
-    // through the cache boundary instead of being swallowed by the snapshot-only guard.
+    // through the borrowed view instead of being replaced by an obsolete snapshot.
     tree.attribute_collections.initialize(element as NodeId);
     tree.attribute_collections
         .append(element as NodeId, 1000, vec![65]);
     assert!(matches!(
-        tree.refresh_attribute_cache(element as NodeId),
+        tree.attribute_views(element as NodeId).unwrap().next(),
+        Some(Err(TreeError::NotAttribute(_)))
+    ));
+    assert!(matches!(
+        tree.serialize_html(element, true, false),
         Err(TreeError::NotAttribute(_))
     ));
-    assert_eq!(markup(&mut tree, element), "<div id=\"preserved\"></div>");
 }

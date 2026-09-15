@@ -44,8 +44,29 @@ export interface NativeSlotBacklinkStatistics { assignedNodes: number; slotOwner
 export interface NativeSlotSignalStatistics { pendingSlots: number; queueEntries: number; queueCapacity: number; membershipCapacity: number; }
 /** V8-finalized assignment controller lifetimes across this addon. */
 export interface NativeSlotAssignmentDriverStatistics { live: number; created: number; released: number; }
+/** Immutable native MutationRecord boxes; counters do not retain instances. */
+export interface NativeMutationRecordStatistics { live: number; created: number; released: number; }
 /** Forest diagnostics plus the addon-wide native Range lifetime counters. */
-export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; slotAssignmentDrivers: NativeSlotAssignmentDriverStatistics; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
+/** Native observer membership and retained allocation capacity, without JavaScript references. */
+export interface NativeMutationObserverStatistics { observers: number; observedNodes: number; registrations: number; observerCapacity: number; nodeCapacity: number; registrationCapacity: number; targetCapacity: number; queuedRecords: number; queueObservers: number; queueCapacity: number; queueMapCapacity: number; }
+/** Native active membership and coalescing flag; callbacks and owners remain in the host. */
+export interface NativeMutationNotificationStatistics { pendingObservers: number; capacity: number; microtaskQueued: boolean; }
+export interface NativeObserverDeliveryStatistics { live: number; created: number; released: number; }
+export interface NativeEventStatistics { live: number; created: number; released: number; }
+export interface NativeListenerStatistics { live: number; created: number; released: number; listeners: number; eventTypes: number; }
+export interface NativeAbortStatistics { live: number; created: number; released: number; links: number; algorithms: number; }
+export interface NativeXmlStatistics { live: number; created: number; released: number; inputUnits: number; events: number; }
+/** Active serialization calls and their temporary roots, including cleanup diagnostics. */
+export interface NativeXmlSerializationStatistics { live: number; created: number; references: number; cleanupErrors: number; }
+/** Lists and shared token-set allocations, without references to DOM owners. */
+export interface NativeTokenListStatistics { live: number; created: number; released: number; sets: number; tokenUnits: number; }
+/** Cumulative calls to stateless dataset algorithms; no owner references are stored in these counters. */
+export interface NativeDatasetStatistics { reads: number; enumerations: number; namePlans: number; }
+/** V8-finalized rectangle allocations; each instance owns four native doubles. */
+export interface NativeRectStatistics { live: number; created: number; released: number; }
+/** Shared Rust storage areas, UTF16 units, map capacity and live cursor wrappers. */
+export interface NativeStorageStatistics { live: number; created: number; released: number; entries: number; units: number; capacity: number; cursors: number; }
+export interface NativeRuntimeStatistics extends NativeTreeStatistics { rootHosts: NativeRootHostStatistics; slotableNames: NativeSlotableNameStatistics; slotAssignments: NativeSlotAssignmentStatistics; slotBacklinks: NativeSlotBacklinkStatistics; slotSignals: NativeSlotSignalStatistics; slotAssignmentDrivers: NativeSlotAssignmentDriverStatistics; mutationRecords: NativeMutationRecordStatistics; mutationObservers: NativeMutationObserverStatistics; mutationNotifications: NativeMutationNotificationStatistics; observerDeliveries: NativeObserverDeliveryStatistics; eventStates: NativeEventStatistics; listenerRegistries: NativeListenerStatistics; abortStates: NativeAbortStatistics; xmlParsers: NativeXmlStatistics; xmlSerialization: NativeXmlSerializationStatistics; tokenLists: NativeTokenListStatistics; dataset: NativeDatasetStatistics; rectangles: NativeRectStatistics; webStorage: NativeStorageStatistics; traversals: { live: number; created: number; released: number; operations: number; createdOperations: number }; rangeStates: NativeRangeStatistics; rangeClones: NativeRangeStatistics; rangeExtracts: NativeRangeStatistics; }
 
 /** @returns A snapshot of actual native and compatibility parser calls. */
 export function getParserStatistics(): ParserStatistics;

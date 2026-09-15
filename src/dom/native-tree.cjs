@@ -1,7 +1,7 @@
 /** @module rustdom/native-tree Keeps Rust topology authoritative and JS ownership edges visible to V8 GC. */
 'use strict';
 const SymbolTree = require('symbol-tree');
-const { NativeTree, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
+const { NativeTree, NativeDomRect, NativeStorageArea, NativeRange, NativeRangeClone, NativeRangeExtract, NativeSlotAssignmentDriver, NativeMutationRecord, NativeObserverDelivery, NativeEventState, NativeListenerRegistry, NativeAbortState, NativeXmlParser, xmlSerializationStatistics, NativeTraversal, NativeTokenList, ObserverDeliveryAction, ObservationStatus, SlotAssignmentAction, QueryMode, AttributeField, DocumentTypeField, RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus, RangeMutationKind, RangeEndpoint, NodeTextWriteAction, NodeInsertionStatus } = require('../../dist/native.cjs');
 const { writeNodeData, writeAttribute } = require('./data-bridge.cjs');
 const { runContents } = require('./range-content-driver.cjs');
 const { BOUNDARY_ROOT_ERROR_MESSAGE } = require('./range-errors.cjs');
@@ -14,6 +14,15 @@ const RANGE_NO_PARENT_MESSAGE = 'The given Node has no parent.';
 /** Pinned public comparison diagnostic, independent of which endpoint pair is selected. */
 const RANGE_COMPARISON_METHOD_MESSAGE = "The comparison method provided must be one of 'START_TO_START', 'START_TO_END', 'END_TO_END', " +
   "or 'END_TO_START'.";
+/** Preserve the reference implementation's host TypeError and rejection precedence after native normalization. */
+const OBSERVATION_ERROR_MESSAGES = {
+  [ObservationStatus.MissingMutationKind]: "The options object must set at least one of 'attributes', 'characterData', or 'childList' to true.",
+  [ObservationStatus.AttributeOldValueWithoutAttributes]: "The options object may only set 'attributeOldValue' to true when 'attributes' is true or not present.",
+  [ObservationStatus.AttributeFilterWithoutAttributes]: "The options object may only set 'attributeFilter' when 'attributes' is true or not present.",
+  [ObservationStatus.CharacterOldValueWithoutCharacterData]: "The options object may only set 'characterDataOldValue' to true when 'characterData' is true or not present.",
+};
+/** Empty input lists are immutable binding data and need not be reallocated for every unobserved mutation. */
+const EMPTY_NODE_HANDLES = Object.freeze([]);
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -27,11 +36,18 @@ class NativeSymbolTree extends SymbolTree {
     initializeHostUnicode(this._arena, process.versions.unicode);
     this._handleBatchSize = this._arena.handleBatchSize;
     this._objects = new Map();
+    this._observers = new Map();
+    this._activeObserverOwners = new Map();
     this._signalSlotOwners = [];
     this._nextHandle = 0;
     this._handleLimit = 0;
     const arena = this._arena;
     const objects = this._objects;
+    const observers = this._observers;
+    this._collectedObservers = new FinalizationRegistry((id) => {
+      observers.delete(id);
+      arena.releaseMutationObserver(id);
+    });
     this._collected = new FinalizationRegistry((id) => {
       objects.delete(id);
       arena.release(id);
@@ -462,6 +478,92 @@ class NativeSymbolTree extends SymbolTree {
     this._signalSlotOwners = [];
     return slots;
   }
+  /** @param {object} data - Complete mutation payload. @param {Function} createRecord - Real WebIDL factory effect. @returns {void} Prepares native payloads once and commits each wrapper in original order. */
+  produceMutationRecords(data, createRecord) {
+    const targetId = this._ensure(data.target); this._objects.get(targetId).deref();
+    const prepared = this._arena.prepareMutationRecordBatch({ kind: data.type, target: targetId,
+      previousSibling: data.previousSibling ? this._ensure(data.previousSibling) : 0,
+      nextSibling: data.nextSibling ? this._ensure(data.nextSibling) : 0,
+      attributeName: data.attributeName, attributeNamespace: data.attributeNamespace, oldValue: data.oldValue,
+      addedNodes: data.addedNodes.length ? data.addedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES,
+      removedNodes: data.removedNodes.length ? data.removedNodes.map((node) => this._ensure(node)) : EMPTY_NODE_HANDLES });
+    if (prepared === null) return;
+    const owners = [data.target, data.previousSibling, data.nextSibling, ...data.addedNodes, ...data.removedNodes];
+    const observers = prepared.observers.map((id) => this._observers.get(id).deref());
+    for (let index = 0; index < observers.length; index++) {
+      const record = createRecord(prepared.payloads[prepared.payloadIndices[index]], owners);
+      this.enqueueMutationRecord(observers[index], record);
+    }
+  }
+  /** @param {object} observer - Real implementation, weakly indexed. @returns {number} Monotonic native creation-order ID. */
+  allocateMutationObserver(observer) {
+    const id = this._arena.allocateMutationObserver();
+    this._observers.set(id, new WeakRef(observer));
+    this._collectedObservers.register(observer, id);
+    return id;
+  }
+  /** @param {object} observer - Live implementation. @param {object} target - Observed node. @param {object} options - Converted dictionary. @returns {void} */
+  observeMutations(observer, target, options) {
+    const status = this._arena.observeMutations(observer._id, this._identify(target), options);
+    const message = OBSERVATION_ERROR_MESSAGES[status];
+    if (message) throw new TypeError(message);
+    if (status === ObservationStatus.Added) {
+      target._observerOwners.add(observer);
+    }
+  }
+  /** @param {object} observer - Anchored observer. @returns {void} Removes ownership from surviving targets; collected nodes no longer own anything. */
+  disconnectMutationObserver(observer) {
+    for (const id of this._arena.disconnectMutationObserver(observer._id)) this._objects.get(id)?.deref()?._observerOwners.delete(observer);
+  }
+  /** @param {object} observer - Selected observer. @param {object} record - Complete real MutationRecord implementation. @returns {void} Native order and payload ownership are committed before retaining the V8 owner. */
+  enqueueMutationRecord(observer, record) {
+    observer._selfReference.deref();
+    const token = this._arena.enqueueMutationRecord(observer._id, record._nativeRecord);
+    observer._recordOwners.set(token, record);
+    this._activeObserverOwners.set(observer._id, observer);
+  }
+  /** @param {object} observer - Observer anchored for this synchronous drain. @returns {object[]} Existing record implementations in native queue order. */
+  takeMutationRecords(observer) {
+    observer._selfReference.deref();
+    return this._arena.takeMutationRecords(observer._id).map((token) => {
+      const record = observer._recordOwners.get(token);
+      observer._recordOwners.delete(token);
+      return record;
+    });
+  }
+  /** @returns {boolean} Whether the host must enqueue a microtask at this exact point. */
+  requestMutationObserverMicrotask() { return this._arena.requestMutationObserverMicrotask(); }
+  /** @returns {object[]} Strong observer owners in the native batch's creation order; later activations use a new owner map. */
+  beginMutationObserverNotification() {
+    const owners = this._activeObserverOwners;
+    const observers = this._arena.beginMutationObserverNotification();
+    this._activeObserverOwners = new Map();
+    return observers.map((id) => owners.get(id));
+  }
+  /** @param {Function} notifyObserver - Existing callback/error effect for a nonempty record batch. @param {Function} notifySlot - Existing slotchange effect. @returns {void} Runs native delivery control with callbacks outside the native borrow. */
+  runObserverDelivery(notifyObserver, notifySlot) {
+    const owners = { observers: this._activeObserverOwners, slots: this._signalSlotOwners };
+    // Preserve every captured owner for this synchronous job, including slots detached by callbacks.
+    new WeakRef(owners).deref();
+    const operation = this._arena.startMutationObserverDelivery();
+    this._activeObserverOwners = new Map(); this._signalSlotOwners = [];
+    try {
+      while (true) {
+        const step = this._arena.mutationObserverDeliveryStep(operation);
+        if (step.kind === ObserverDeliveryAction.Complete) return;
+        if (step.kind === ObserverDeliveryAction.Observer) {
+          const observer = owners.observers.get(step.observer);
+          const records = step.records.map((token) => {
+            const record = observer._recordOwners.get(token); observer._recordOwners.delete(token); return record;
+          });
+          notifyObserver(observer, records);
+        } else {
+          notifySlot(this._object(step.slot));
+        }
+        if (step.complete) return;
+      }
+    } finally { operation.cancel(); }
+  }
   /**
    * Execute native assignment traversal and replay only ownership changes and signal effects.
    * @param {object} root - Root to traverse, or the single slot.
@@ -792,6 +894,14 @@ class NativeSymbolTree extends SymbolTree {
       slotBacklinks: this._arena.slotBacklinkStatistics(),
       slotSignals: this._arena.slotSignalStatistics(),
       slotAssignmentDrivers: NativeSlotAssignmentDriver.statistics(),
+      mutationRecords: NativeMutationRecord.statistics(),
+      mutationObservers: this._arena.observerRegistryStatistics(),
+      mutationNotifications: this._arena.observerNotificationStatistics(),
+      observerDeliveries: NativeObserverDelivery.statistics(),
+      eventStates: NativeEventState.statistics(),
+      listenerRegistries: NativeListenerRegistry.statistics(),
+      abortStates: NativeAbortState.statistics(),
+      xmlParsers: NativeXmlParser.statistics(), xmlSerialization: xmlSerializationStatistics(), traversals: NativeTraversal.statistics(), tokenLists: NativeTokenList.statistics(), dataset: this._arena.datasetStatistics(), rectangles: NativeDomRect.statistics(), webStorage: NativeStorageArea.statistics(),
       rangeStates: NativeRange.statistics(), rangeClones: NativeRangeClone.statistics(), rangeExtracts: NativeRangeExtract.statistics() };
   }
 }

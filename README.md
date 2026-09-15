@@ -194,11 +194,79 @@ operaci�n activa en otro `NativeTree`, aunque tenga handles iguales, devuelve
 el bosque y se libera al completar o cancelar; un controlador completado sigue
 respondiendo `Complete` sin acceder a ning�n �rbol.
 
+Los nueve campos de `MutationRecord` usan un snapshot inmutable de Rust: tipo,
+texto UTF-16 nullable y IDs de target, siblings y listas ordenadas. El puente
+retiene las referencias que V8 necesita y crea NodeLists estáticas en el realm
+original; el wrapper WebIDL conserva su identidad SameObject. Un registro raw
+no retiene su `NativeTree`. `mutationRecords` informa creación, liberación e
+instancias vivas. La selección de observadores, sus opciones, colas y entrega
+de callbacks se detallan en el siguiente bloque de migración.
+
+La normalización de opciones, las inscripciones y la selección por ancestros
+de MutationObserver se ejecutan en Rust. Se mantienen orden, deduplicación,
+oldValue, filtros UTF-16 y errores del jsdom fijado. Los nodos conservan a sus
+observadores; los observadores identifican targets mediante el registro nativo
+sin retener nodos inalcanzables. `mutationObservers` informa miembros y
+capacidades. Las colas de records, microtasks y callbacks aún conservan drivers
+JS. Ver [contratos y evidencia de retención](reports/validation/mutation-observer-registration.md).
+
+Las colas por observador también conservan su orden y payloads en Rust. Un mapa
+JS mantiene los owners V8 por token; takeRecords y la entrega resuelven esos
+tokens sin cambiar la identidad de los registros. Los payloads inmutables se
+comparten sin retener árboles. `mutationObservers.queuedRecords` y
+`queueObservers` muestran su liveness separado del contador de wrappers. El
+lote activo y la programación/entrega aún mantienen trabajo pendiente de
+migración. Ver [contratos de colas](reports/validation/mutation-observer-queues.md).
+
+Los observadores activos y el flag que coalesce microtasks también son nativos.
+Rust retira el lote en orden de creación y reinicia el flag antes de callbacks;
+JS conserva los owners y llama a Promise cuando corresponde.
+`mutationNotifications` informa miembros pendientes, capacidad y estado del
+job. La entrega concreta mantiene su puente actual, con los registros vaciados
+por observador al llegar a su callback.
+
+El control de entrega usa `NativeObserverDelivery`: Rust recorre observadores
+y slots, omite colas vacías y pausa para efectos del host. El driver mantiene
+una identidad débil del forest y libera buffers al completar o cancelar.
+`observerDeliveries` expone su lifetime. Se conservan callbacks reentrantes,
+errores y slots capturados retirados durante la entrega; los efectos de Event
+y la invocación JavaScript continúan en sus bindings actuales.
+
+El productor prepara en Rust los registros seleccionados de una mutación y
+comparte como máximo dos payloads, con y sin oldValue. Los strings JS se toman
+prestados solo durante la llamada y oldValue se copia cuando hace falta.
+El bridge conserva los owners y confirma cada wrapper en orden, preservando
+prefijos ante errores. [Perfiles, contratos y costos pendientes](reports/validation/mutation-production.md).
+
+El binding DOM usa `prepareMutationRecordBatch` para compartir también el wrapper
+nativo de cada payload. Los `MutationRecord` públicos y sus `NodeList` conservan
+identidad independiente; `prepareMutationRecords` mantiene la API raw anterior.
+`mutationRecords` cuenta wrappers nativos, que pueden respaldar varios registros
+públicos. Ver [contratos y GC de la compartición](reports/validation/shared-mutation-bindings.md).
+
+El estado escalar de `Event` usa `NativeEventState`: tipo UTF-16, flags, fase,
+timestamp y confianza residen en Rust, junto con cancelación, propagación e
+initEvent. El recorrido de captura/burbujeo, la selección de overrides de target
+y la visibilidad de composedPath también se deciden en Rust. El bridge conserva
+los owners del path, su construcción, la ejecución de callbacks y datos de subclases. `eventStates` registra el lifetime
+nativo sin retener eventos o ventanas. Ver [alcance y contratos](reports/validation/event-state.md).
+El [control nativo de dispatch](reports/validation/event-dispatch.md) conserva
+reentrancia y estados parciales del reporter, y libera metadatos del path al terminar.
+El [registro de listeners](reports/validation/event-listeners.md) mantiene en Rust
+identidad, opciones, orden, membresía y selección por fase. Se crea de forma
+perezosa; callbacks, señales y snapshots de referencias permanecen en V8. Una
+marca nativa conserva el historial requerido por XHR/frames sin retener nombres
+de buckets vacíos. `listenerRegistries` permite observar su liberación.
+El [estado de AbortSignal](reports/validation/abort-signal.md) usa un grafo Rust
+para flags, composición, dependencias y algoritmos. Las razones y los owners
+fuertes quedan en V8; los callbacks, timers y excepciones usan el host real.
+`abortStates` registra estados, links y algoritmos sin conservar objetos DOM.
+
 En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFromAttributes` y `setHtmlElementFromAttributes` reemplazan snapshots sin colección canónica. Después de `initializeAttributeCollection`, esos inicializadores rechazan el elemento con `InvalidArg`, incluso si la lista entrante está vacía; no descartan atributos silenciosamente ni modifican el estado. Para elementos con colección, usar `setElementMetadata`/`setHtmlElementMetadata` para metadata y `appendAttribute`/`setAttribute`/`removeAttribute` para sus atributos. Las APIs de metadata conservan la colección y su ownership.
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
 
-Las mutaciones de atributos y los owners proporcionados al constructor pasan por la misma frontera. Un owner válido establece una colección canónica después de validar todos los handles; los setters de snapshot no pueden reemplazar ese estado después. Las actualizaciones `set*Metadata` rechazan snapshots existentes con atributos y sin índice, mientras conservan metadata inicial y retipados previamente válidos. Para reemplazar un snapshot deliberadamente se mantienen `setData`, `setHtmlElement` y `set*FromAttributes`. Un refresh sin índice canónico conserva el snapshot; los errores de metadata o de Attr canónicos inválidos siguen siendo errores.
+Las mutaciones de atributos y los owners proporcionados al constructor pasan por la misma frontera. Un owner válido establece una colección canónica después de validar todos los handles; los setters de snapshot no pueden reemplazar ese estado después. Las actualizaciones `set*Metadata` rechazan snapshots existentes con atributos y sin índice, mientras conservan metadata inicial y retipados previamente válidos. Para reemplazar un snapshot deliberadamente se mantienen `setData`, `setHtmlElement` y `set*FromAttributes`. Serialización HTML, selectores y slots leen los Attr canónicos directamente; los nodos de snapshot sin índice conservan sus propios datos. Los lectores rechazan Attr canónicos inválidos en lugar de servir copias obsoletas. Ver [validación y mediciones](reports/validation/attribute-cache.md).
 
 El [benchmark de colecciones nativas](reports/benchmarks/2026-09-12T00-20-27.127Z-linux-x64.md) conserva el costo de esta transición: 0,45× en reemplazos/búsquedas de colecciones, 0,67× en valores de atributos y mejoras en consultas repetidas y serialización. El siguiente trabajo debe reducir llamadas al puente y copias, manteniendo el estado y las decisiones en Rust.
 
@@ -221,6 +289,12 @@ npm run bench
 npm run bench -- node-position-1000 node-equality-100
 npm run test:memory -- jsdom rustdom
 ```
+
+Para comparar un paquete histórico extraído sin reemplazar `dist`, se puede
+ejecutar `RUSTDOM_BENCHMARK_PACKAGE=/ruta/al/package npm run bench -- selectors-100 serialize-utf8`.
+La variable señala la raíz del paquete que contiene `dist/index.cjs`. El JSON
+registra esa raíz, metadata de build y hash del binario realmente cargado;
+`sourceCommit`/`sourceHash` describen el harness y árbol de trabajo actuales.
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:
 
@@ -312,7 +386,14 @@ Las pruebas incluyen consumo único del body, errores multipart, señales ya abo
 - Documentos con `runScripts: 'dangerously'`: parser original, para preservar scripts durante el parsing y `document.write`.
 - `includeNodeLocations`: parser original, para conservar posiciones exactas.
 - Custom elements registrados y fragmentos dentro de formularios: parser original, para conservar reacciones y contexto.
-- XML/XHTML: implementación original de jsdom.
+- XML/XHTML: tokenización, estructura, namespaces e interpretación de doctype/entidades en Rust. El driver conserva creación de nodos y efectos del host; ver [parser](reports/validation/xml-parser.md) y [doctype/entidades](reports/validation/xml-doctype.md).
+- La serialización XML y su concatenación de fragmentos ejecutan sus algoritmos en Rust, conservando getters, iteradores y errores observables del host. Ver [contratos, memoria y mediciones](reports/validation/xml-serialization.md); el benchmark inicial sigue siendo más lento que jsdom.
+- NodeIterator y TreeWalker: posiciones, máscaras, movimientos, aceptación/poda y reparación antes de remover nodos en Rust. El host conserva wrappers, owners, callbacks y conversión WebIDL de sus resultados. Ver [recorridos](reports/validation/tree-traversal.md).
+- Los recorridos sin filtro usan una llamada nativa por movimiento; los cursores con filtro reutilizan como máximo una operación inactiva. Se conservan las reentradas y la topología viva. Ver [validación y mediciones](reports/validation/traversal-performance.md); todavía hay rutas más lentas que jsdom.
+- DOMTokenList (`classList`, `relList`, `htmlFor`) valida, parsea y modifica conjuntos ordenados en Rust sobre atributos canónicos. El host aplica las escrituras y sus efectos. Ver [contratos, memoria y benchmarks](reports/validation/dom-token-list.md).
+- DOMStringMap (`dataset`) enumera y busca atributos por sus nombres locales y convierte nombres en Rust, conservando el Proxy WebIDL y los hooks de escritura/borrado. Ver [validación](reports/validation/dom-string-map.md).
+- DOMRect/DOMRectReadOnly guardan los cuatro escalares y calculan bordes/snapshots en Rust, incluyendo NaN, infinitos y cero con signo. WebIDL, creación de wrappers y realms siguen en el host. Esto no implementa layout; ver [validación](reports/validation/dom-rect.md).
+- localStorage/sessionStorage usan áreas compartidas Rust con IndexMap, datos UTF16, cuotas y cursores vivos sin tombstones. El host mantiene acceso por origen, wrappers y programación/entrega de StorageEvent. Se conservan los detalles de jsdom sobre valores vacíos y cuotas de iframes; ver [validación](reports/validation/web-storage.md).
 - Selectores dinámicos o no implementados por la ruta nativa, `nth-child(... of ...)`, shadow roots y árboles con datos UTF-16 no representables en UTF-8: motor de selectores original. Las ambigüedades de mayúsculas/minúsculas en atributos SVG e identificadores en quirks también conservan el comportamiento de jsdom.
 - `<select>`: parser original para mantener las reglas de jsdom 27, anteriores a los selects personalizables de HTML5 actual.
 - Texto con foster parenting en tablas, atributos de raíces repetidas y surrogates UTF-16 incompletos: rutas explícitas para preservar el resultado de jsdom.

@@ -4,6 +4,11 @@ use std::fmt;
 #[derive(Debug)]
 pub enum TreeError {
     InvalidHandle,
+    InvalidMutationRecordType,
+    UnknownMutationObserver(u64),
+    MutationObserverIdsExhausted,
+    MutationRecordTokensExhausted,
+    ObserverDeliveryProtocol(&'static str),
     UninitializedRange,
     RangeContentProtocol(&'static str),
     UnknownHandle(u64),
@@ -36,6 +41,25 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ObserverDeliveryProtocol(reason) => {
+                write!(formatter, "NativeObserverDelivery: {reason}")
+            }
+            Self::MutationRecordTokensExhausted => write!(
+                formatter,
+                "NativeTree cannot queue a mutation record beyond JavaScript's exact integer range"
+            ),
+            Self::UnknownMutationObserver(observer) => write!(
+                formatter,
+                "NativeTree mutation observer {observer} is not allocated"
+            ),
+            Self::MutationObserverIdsExhausted => write!(
+                formatter,
+                "NativeTree cannot allocate a mutation observer beyond JavaScript's exact integer range"
+            ),
+            Self::InvalidMutationRecordType => write!(
+                formatter,
+                "NativeMutationRecord: kind must be attributes, characterData, or childList"
+            ),
             Self::SlotAssignmentProtocol(reason) => {
                 write!(formatter, "NativeSlotAssignmentDriver: {reason}")
             }

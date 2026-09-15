@@ -56,7 +56,7 @@ fn unprefixed_html(data: &NodeData) -> Option<&str> {
     data.name.as_ref().and_then(DomString::as_str)
 }
 
-fn qualified_name(output: &mut Vec<u16>, name: &DomString, prefix: &Option<DomString>) {
+fn qualified_name(output: &mut Vec<u16>, name: &DomString, prefix: Option<&DomString>) {
     if let Some(prefix) = prefix {
         raw(output, prefix);
         ascii(output, ":");
@@ -65,6 +65,16 @@ fn qualified_name(output: &mut Vec<u16>, name: &DomString, prefix: &Option<DomSt
 }
 
 impl TreeStore {
+    fn has_serialized_is_attribute(&self, id: NodeId, data: &NodeData) -> Result<bool> {
+        for attribute in self.attribute_views_for_data(id, data) {
+            let attribute = attribute?;
+            if attribute.prefix.is_none() && attribute.name.as_str() == Some("is") {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     fn serialization_data(&self, id: NodeId) -> Result<&NodeData> {
         self.data.get(&id).ok_or(TreeError::MissingData(id))
     }
@@ -113,7 +123,7 @@ impl TreeStore {
                     qualified_name(
                         &mut output,
                         data.name.as_ref().ok_or(TreeError::MissingData(id))?,
-                        &data.prefix,
+                        data.prefix.as_ref(),
                     );
                     ascii(&mut output, ">");
                     continue;
@@ -125,22 +135,21 @@ impl TreeStore {
                 ELEMENT_NODE => {
                     let name = data.name.as_ref().ok_or(TreeError::MissingData(id))?;
                     ascii(&mut output, "<");
-                    qualified_name(&mut output, name, &data.prefix);
+                    qualified_name(&mut output, name, data.prefix.as_ref());
                     if let Some(is_value) = data.is_value.as_ref().filter(|value| !value.is_empty())
-                        && !data.attributes.iter().any(|attribute| {
-                            attribute.prefix.is_none() && attribute.name.as_str() == Some("is")
-                        })
+                        && !self.has_serialized_is_attribute(id, data)?
                     {
                         ascii(&mut output, " is=\"");
                         escaped(&mut output, is_value, true);
                         ascii(&mut output, "\"");
                     }
                     // jsdom's serialization adapter supplies qualified Attr.name values.
-                    for attribute in &data.attributes {
+                    for attribute in self.attribute_views_for_data(id, data) {
+                        let attribute = attribute?;
                         ascii(&mut output, " ");
-                        qualified_name(&mut output, &attribute.name, &attribute.prefix);
+                        qualified_name(&mut output, attribute.name, attribute.prefix);
                         ascii(&mut output, "=\"");
-                        escaped(&mut output, &attribute.value, true);
+                        escaped(&mut output, attribute.value, true);
                         ascii(&mut output, "\"");
                     }
                     ascii(&mut output, ">");

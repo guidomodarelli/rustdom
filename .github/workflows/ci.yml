@@ -53,8 +53,16 @@ jobs:
           name: validation-${{ matrix.os }}
           path: reports/
 
-  benchmarks:
+  benchmark_shards:
+    name: Benchmark shard ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     runs-on: ubuntu-latest
+    env:
+      RUSTDOM_BENCHMARK_SHARD_COUNT: '4'
+      RUSTDOM_BENCHMARK_SHARD_INDEX: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,5 +78,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: benchmark-linux
+          name: benchmark-linux-${{ matrix.shard }}
           path: reports/benchmarks/
+
+  benchmarks:
+    needs: benchmark_shards
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every benchmark shard to succeed
+        env:
+          SHARD_RESULT: ${{ needs.benchmark_shards.result }}
+        run: test "$SHARD_RESULT" = success

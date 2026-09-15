@@ -53,6 +53,38 @@ function isReleased(state, expected) {
     native.slotSignals?.pendingSlots === expected.slotSignals?.pendingSlots &&
     native.slotSignals?.queueEntries === expected.slotSignals?.queueEntries &&
     native.slotAssignmentDrivers?.live === expected.slotAssignmentDrivers?.live &&
+    native.mutationRecords?.live === expected.mutationRecords?.live &&
+    native.mutationObservers?.observers === expected.mutationObservers?.observers &&
+    native.mutationObservers?.observedNodes === expected.mutationObservers?.observedNodes &&
+    native.mutationObservers?.registrations === expected.mutationObservers?.registrations &&
+    native.mutationObservers?.queuedRecords === expected.mutationObservers?.queuedRecords &&
+    native.mutationObservers?.queueObservers === expected.mutationObservers?.queueObservers &&
+    native.mutationNotifications?.pendingObservers === expected.mutationNotifications?.pendingObservers &&
+    native.mutationNotifications?.microtaskQueued === expected.mutationNotifications?.microtaskQueued &&
+    native.observerDeliveries?.live === expected.observerDeliveries?.live &&
+    native.eventStates?.live === expected.eventStates?.live &&
+    native.listenerRegistries?.live === expected.listenerRegistries?.live &&
+    native.listenerRegistries?.listeners === expected.listenerRegistries?.listeners &&
+    native.listenerRegistries?.eventTypes === expected.listenerRegistries?.eventTypes &&
+    native.abortStates?.live === expected.abortStates?.live &&
+    native.abortStates?.links === expected.abortStates?.links &&
+    native.abortStates?.algorithms === expected.abortStates?.algorithms &&
+    native.xmlParsers?.live === expected.xmlParsers?.live &&
+    native.xmlParsers?.inputUnits === expected.xmlParsers?.inputUnits &&
+    native.xmlSerialization?.live === expected.xmlSerialization?.live &&
+    native.xmlSerialization?.references === expected.xmlSerialization?.references &&
+    native.xmlSerialization?.cleanupErrors === expected.xmlSerialization?.cleanupErrors &&
+    native.traversals?.live === expected.traversals?.live &&
+    native.traversals?.operations === expected.traversals?.operations &&
+    native.webStorage?.live === expected.webStorage?.live &&
+    native.webStorage?.entries === expected.webStorage?.entries &&
+    native.webStorage?.units === expected.webStorage?.units &&
+    native.webStorage?.capacity === expected.webStorage?.capacity &&
+    native.webStorage?.cursors === expected.webStorage?.cursors &&
+    native.rectangles?.live === expected.rectangles?.live &&
+    native.tokenLists?.live === expected.tokenLists?.live &&
+    native.tokenLists?.sets === expected.tokenLists?.sets &&
+    native.tokenLists?.tokenUnits === expected.tokenLists?.tokenUnits &&
     native.indexedNodes === native.liveNodes && native.reservedHandles <= native.handleBatchSize;
 }
 

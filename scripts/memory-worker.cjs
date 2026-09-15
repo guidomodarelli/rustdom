@@ -44,7 +44,7 @@ const OPERATIONS_PER_BATCH = 40;
  * @returns {void} Keeps only a weak document reference.
  */
 function exerciseWindow(runtime, identity) {
-  const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>');
+  const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>', { url: 'https://memory.example.test/' });
   const document = dom.window.document;
   windowReferences.push(new WeakRef(dom.window));
   const observer = new dom.window.MutationObserver(() => {});
@@ -53,6 +53,9 @@ function exerciseWindow(runtime, identity) {
   dom.window.setInterval(() => document.body, 60_000);
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
   exerciseHostRoots(document);
+  exerciseTraversals(document);
+  exerciseXmlSerialization(dom.window);
+  exerciseStorage(dom.window);
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);
   const detached = document.createTextNode('detached-' + identity);
@@ -77,9 +80,50 @@ function exerciseWindow(runtime, identity) {
   dom.window.close();
 }
 
+/** @param {Window} window - Real same-origin owner. @returns {void} Leave populated native areas and retain only copied strings/weak wrappers. */
+function exerciseStorage(window) {
+  const local = window.localStorage; const session = window.sessionStorage;
+  local.setItem('kept', 'value\0\ud800'); local.setItem('removed', 'temporary'); local.removeItem('removed');
+  session.setItem('other', 'session'); assert.deepEqual(Object.keys(local), ['kept']);
+  retainedTextResults.push(local.getItem('kept')); comparisonReferences.push(new WeakRef(local), new WeakRef(session));
+}
+
+/** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
+function exerciseTraversals(document) {
+  const rect = new document.defaultView.DOMRect(2, 3, -4, -5); rect.width = -6;
+  assert.equal(rect.left, -4); comparisonReferences.push(new WeakRef(rect));
+  const root = document.createElement('div'); root.innerHTML = '<a>A<b>B</b></a><p>P</p>';
+  const dataset = root.dataset; dataset.ownerId = 'memory'; dataset.nextValue = 'next'; delete dataset.ownerId;
+  assert.equal(root.getAttribute('data-next-value'), 'next'); comparisonReferences.push(new WeakRef(dataset));
+  const classes = root.classList; classes.value = ' one one two ';
+  classes.add('three'); classes.replace('two', 'one');
+  assert.equal(classes.value, 'one three'); comparisonReferences.push(new WeakRef(classes));
+  document.body.append(root);
+  const filter = (node) => node.nodeType === 1 ? 1 : 3;
+  const iterator = document.createNodeIterator(root, 0xffffffff, filter);
+  const walker = document.createTreeWalker(root, 0xffffffff, filter);
+  assert.equal(iterator.nextNode(), root); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.nextNode(), root.firstChild);
+  root.firstChild.remove(); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.currentNode.textContent, 'AB');
+  root.remove();
+  comparisonReferences.push(new WeakRef(iterator), new WeakRef(walker), new WeakRef(filter), new WeakRef(root));
+}
+
+/** @param {object} target - Actual window or runner globals. @returns {void} Serialize a separate XML document and retain only weak observations. */
+function exerciseXmlSerialization(target) {
+  const xml = new target.DOMParser().parseFromString('<r xmlns="urn:r"><child a="&amp;"/></r>', 'text/xml');
+  const serializer = new target.XMLSerializer();
+  assert.equal(serializer.serializeToString(xml), '<r xmlns="urn:r"><child a="&amp;"/></r>');
+  assert.equal(xml.documentElement.innerHTML, '<child xmlns="urn:r" a="&amp;"/>');
+  references.push(new WeakRef(xml)); comparisonReferences.push(new WeakRef(serializer), new WeakRef(xml.documentElement));
+}
+
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
   exerciseHostRoots(target.document);
+  exerciseTraversals(target.document);
+  exerciseXmlSerialization(target);
   const text = target.document.querySelector('p').firstChild;
   text.nodeValue = text.data;
   const rejectedText = target.document.createTextNode('invalid document child');
@@ -460,6 +504,32 @@ async function main() {
         nativeTree.slotSignals.pendingSlots === initialAttributeState.slotSignals.pendingSlots &&
         nativeTree.slotSignals.queueEntries === initialAttributeState.slotSignals.queueEntries &&
         nativeTree.slotAssignmentDrivers.live === initialAttributeState.slotAssignmentDrivers.live &&
+        nativeTree.mutationRecords.live === initialAttributeState.mutationRecords.live &&
+        nativeTree.mutationObservers.observers === initialAttributeState.mutationObservers.observers &&
+        nativeTree.mutationObservers.observedNodes === initialAttributeState.mutationObservers.observedNodes &&
+        nativeTree.mutationObservers.registrations === initialAttributeState.mutationObservers.registrations &&
+        nativeTree.mutationObservers.queuedRecords === initialAttributeState.mutationObservers.queuedRecords &&
+        nativeTree.mutationObservers.queueObservers === initialAttributeState.mutationObservers.queueObservers &&
+        nativeTree.mutationNotifications.pendingObservers === initialAttributeState.mutationNotifications.pendingObservers &&
+        nativeTree.mutationNotifications.microtaskQueued === initialAttributeState.mutationNotifications.microtaskQueued &&
+        nativeTree.observerDeliveries.live === initialAttributeState.observerDeliveries.live &&
+        nativeTree.eventStates.live === initialAttributeState.eventStates.live &&
+        nativeTree.listenerRegistries.live === initialAttributeState.listenerRegistries.live &&
+        nativeTree.listenerRegistries.listeners === initialAttributeState.listenerRegistries.listeners &&
+        nativeTree.listenerRegistries.eventTypes === initialAttributeState.listenerRegistries.eventTypes &&
+        nativeTree.abortStates.live === initialAttributeState.abortStates.live &&
+        nativeTree.abortStates.links === initialAttributeState.abortStates.links &&
+        nativeTree.abortStates.algorithms === initialAttributeState.abortStates.algorithms &&
+        nativeTree.xmlParsers.live === initialAttributeState.xmlParsers.live &&
+        nativeTree.xmlParsers.inputUnits === initialAttributeState.xmlParsers.inputUnits &&
+        nativeTree.xmlSerialization.live === initialAttributeState.xmlSerialization.live &&
+        nativeTree.xmlSerialization.references === initialAttributeState.xmlSerialization.references &&
+        nativeTree.xmlSerialization.cleanupErrors === initialAttributeState.xmlSerialization.cleanupErrors &&
+        nativeTree.traversals.live === initialAttributeState.traversals.live &&
+        nativeTree.traversals.operations === initialAttributeState.traversals.operations &&
+        nativeTree.tokenLists.live === initialAttributeState.tokenLists.live &&
+        nativeTree.tokenLists.sets === initialAttributeState.tokenLists.sets &&
+        nativeTree.tokenLists.tokenUnits === initialAttributeState.tokenLists.tokenUnits &&
         nativeTree.indexedNodes === nativeTree.liveNodes &&
         nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
       growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };

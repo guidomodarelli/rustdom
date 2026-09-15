@@ -5,7 +5,7 @@ use super::{
     attribute_index::AttributeDelta,
     attributes::AttributeField,
     constants::{ELEMENT_NODE, HTML_NAMESPACE},
-    data::{AttributeData, DomString, NodeData},
+    data::{DomString, NodeData},
     error::{Result, TreeError},
     store::{NodeId, TreeStore, node_id},
     unicode_case::UnicodeCaseMapping,
@@ -65,37 +65,11 @@ impl TreeStore {
             .attribute_field(id as f64, AttributeField::QualifiedName)?
             .expect("validated Attr name"))
     }
-    pub(crate) fn snapshot_attributes(&self, element: NodeId) -> Result<Vec<AttributeData>> {
-        let mut values = Vec::new();
-        if let Some(index) = self.attribute_collections.elements.get(&element) {
-            values.reserve(index.ordered.len());
-            for &id in &index.ordered {
-                let data = self.attribute(id)?;
-                values.push(AttributeData {
-                    name: data.name.as_ref().expect("Attr name").clone(),
-                    namespace: data.namespace.clone(),
-                    prefix: data.prefix.clone(),
-                    value: data.value.clone(),
-                });
-            }
-        }
-        Ok(values)
-    }
-    pub(crate) fn refresh_attribute_cache(&mut self, element: NodeId) -> Result<()> {
-        if !self.attribute_collections.elements.contains_key(&element) {
-            // Snapshot-only data has no canonical source to rebuild from. Still reject
-            // missing/wrong-type metadata instead of swallowing an unrelated state error.
-            self.element(element)?;
-            return Ok(());
-        }
-        let attributes = self.snapshot_attributes(element)?;
-        if let Some(data) = self.data.get_mut(&element) {
-            self.non_utf8_nodes -= usize::from(data.has_non_utf8());
-            data.attributes = attributes;
-            self.non_utf8_nodes += usize::from(data.has_non_utf8());
+    /// Keep the observable owner-update count without duplicating its canonical payloads.
+    pub(crate) fn record_attribute_change(&mut self, element: NodeId) {
+        if self.data.contains_key(&element) {
             self.data_updates += 1;
         }
-        Ok(())
     }
     /// Update element metadata without replacing its canonical Attr collection.
     pub fn set_element_metadata(&mut self, handle: f64, data: NodeData) -> Result<()> {
@@ -310,7 +284,7 @@ impl TreeStore {
         let delta = self
             .attribute_collections
             .append(element_id, attribute_id, name);
-        self.refresh_attribute_cache(element_id)?;
+        self.record_attribute_change(element_id);
         Ok(delta)
     }
     /// Select append/replace/no-op in native code, including the in-use guard.
@@ -350,7 +324,7 @@ impl TreeStore {
         self.initialize_attribute_collection_id(element)?;
         let delta = self.attribute_collections.remove(element, attribute, &name);
         if delta.changed {
-            self.refresh_attribute_cache(element)?;
+            self.record_attribute_change(element);
         }
         Ok(delta)
     }
@@ -378,7 +352,7 @@ impl TreeStore {
         self.initialize_attribute_collection_id(element)?;
         let delta = self.attribute_collections.replace(element, old, new, name);
         if delta.changed {
-            self.refresh_attribute_cache(element)?;
+            self.record_attribute_change(element);
         }
         Ok(delta)
     }
@@ -392,7 +366,7 @@ impl TreeStore {
         };
         let affected = self.attribute_collections.release_node(id, name.as_deref());
         for element in affected {
-            self.refresh_attribute_cache(element)?;
+            self.record_attribute_change(element);
         }
         Ok(())
     }

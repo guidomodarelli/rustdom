@@ -2,6 +2,7 @@
 //! The JavaScript adapter owns browser objects; no JavaScript callbacks occur here.
 
 mod dom;
+mod xml;
 
 use html5ever::interface::QuirksMode;
 use html5ever::{ParseOpts, QualName, parse_document, parse_fragment, tendril::TendrilSink};
