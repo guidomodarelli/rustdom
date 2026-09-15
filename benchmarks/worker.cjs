@@ -11,12 +11,13 @@ const { traversalFixture } = require('./tree-traversal.cjs');
 const { tokenListFixture } = require('./dom-token-list.cjs');
 const { datasetFixture } = require('./dom-string-map.cjs');
 const { rectFixture } = require('./dom-rect.cjs');
+const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
 if (!['jsdom', 'rustdom'].includes(engine)) throw new Error('benchmark: engine must be jsdom or rustdom');
 /** Load dependencies before measurement; cold module startup is explicitly excluded. */
-const runtime = engine === 'jsdom' ? require('jsdom') : require('../dist/index.cjs');
+const runtime = engine === 'jsdom' ? require('jsdom') : require(runtimeEntry);
 /** Warm both JIT and parser before collecting independent samples. */
 const WARMUP_SAMPLES = 3;
 /** Keep raw samples so noise and distributions remain inspectable. */
@@ -317,7 +318,7 @@ async function measure(name, size) {
   const mutatesRanges = mutatesCharacterRanges || mutatesTreeRanges;
   const environment = name.startsWith('environment-')
     ? engine === 'jsdom' ? (await import('vitest/runtime')).builtinEnvironments.jsdom
-      : (await import('../src/environments/vitest.mjs')).default
+      : (await import(environmentEntry)).default
     : null;
   const samplesMs = [];
   const memory = [];

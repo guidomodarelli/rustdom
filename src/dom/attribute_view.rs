@@ -13,6 +13,15 @@ pub(crate) struct AttributeView<'a> {
     pub value: &'a DomString,
 }
 
+impl AttributeView<'_> {
+    pub(crate) fn has_non_utf8(&self) -> bool {
+        self.name.as_str().is_none()
+            || self.value.as_str().is_none()
+            || self.namespace.is_some_and(|value| value.as_str().is_none())
+            || self.prefix.is_some_and(|value| value.as_str().is_none())
+    }
+}
+
 pub(crate) enum AttributeViews<'a> {
     Canonical {
         store: &'a TreeStore,
@@ -26,7 +35,7 @@ impl<'a> Iterator for AttributeViews<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Canonical { store, ids } => ids.next().map(|id| {
-                let data = store.data.get(id).ok_or(TreeError::MissingData(*id))?;
+                let data = store.attribute(*id)?;
                 Ok(AttributeView {
                     name: data.name.as_ref().ok_or(TreeError::MissingData(*id))?,
                     namespace: data.namespace.as_ref(),
@@ -55,12 +64,21 @@ impl TreeStore {
         if data.kind != ELEMENT_NODE {
             return Err(TreeError::NotElement(element));
         }
-        Ok(match self.attribute_collections.elements.get(&element) {
+        Ok(self.attribute_views_for_data(element, data))
+    }
+
+    /// Reuse already validated element metadata during immutable native traversals.
+    pub(crate) fn attribute_views_for_data<'a>(
+        &'a self,
+        element: NodeId,
+        data: &'a super::data::NodeData,
+    ) -> AttributeViews<'a> {
+        match self.attribute_collections.elements.get(&element) {
             Some(collection) => AttributeViews::Canonical {
                 store: self,
                 ids: collection.ordered.iter(),
             },
             None => AttributeViews::Snapshot(data.attributes.iter()),
-        })
+        }
     }
 }

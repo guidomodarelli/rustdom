@@ -4,7 +4,7 @@ use super::{
     data::{DomString, NodeData},
     error::{Result, TreeError},
     slotable_names::supports_slotable_name,
-    store::{TreeStore, node_id},
+    store::{NodeId, TreeStore, node_id},
 };
 
 /// Compare ordinary metadata directly and preserve the lossless representation when supplied.
@@ -27,14 +27,6 @@ pub(super) fn is_html_slot(data: &NodeData) -> bool {
             .is_some_and(|namespace| equals_text(namespace, HTML_NAMESPACE))
 }
 
-/// Element snapshots are refreshed by the canonical attribute mutation boundary.
-fn slot_name(data: &NodeData) -> Option<&DomString> {
-    data.attributes
-        .iter()
-        .find(|attribute| attribute.namespace.is_none() && equals_text(&attribute.name, "name"))
-        .map(|attribute| &attribute.value)
-}
-
 fn same_name(left: Option<&DomString>, right: Option<&DomString>) -> bool {
     match (left, right) {
         (Some(DomString::Text(left)), Some(DomString::Text(right))) => left == right,
@@ -44,21 +36,18 @@ fn same_name(left: Option<&DomString>, right: Option<&DomString>) -> bool {
     }
 }
 
-fn matches_slot(
-    data: &NodeData,
-    empty_name: bool,
-    accepts_name: &impl Fn(&DomString) -> bool,
-) -> bool {
-    if !is_html_slot(data) {
-        return false;
-    }
-    match slot_name(data) {
-        Some(value) => accepts_name(value),
-        None => empty_name,
-    }
-}
-
 impl TreeStore {
+    /// Borrow the current canonical name, with snapshot support for raw native fixtures.
+    fn slot_name<'a>(&'a self, id: NodeId, data: &'a NodeData) -> Result<Option<&'a DomString>> {
+        for attribute in self.attribute_views_for_data(id, data) {
+            let attribute = attribute?;
+            if attribute.namespace.is_none() && equals_text(attribute.name, "name") {
+                return Ok(Some(attribute.value));
+            }
+        }
+        Ok(None)
+    }
+
     /// Select the current slotables, without changing cached assignments or retaining objects.
     pub fn find_slotables(&self, slot: f64) -> Result<Vec<f64>> {
         let slot_id = node_id(slot)?;
@@ -70,7 +59,7 @@ impl TreeStore {
         let Some(host) = self.root_hosts.shadow_host(root as u64) else {
             return Ok(Vec::new());
         };
-        let name = slot_name(data);
+        let name = self.slot_name(slot_id, data)?;
         if self.find_slot_matching_name(root, name.is_none_or(DomString::is_empty), |value| {
             same_name(Some(value), name)
         })? != slot
@@ -120,12 +109,14 @@ impl TreeStore {
         let stop = self.after_subtree(root)?;
         let mut current = root;
         while current != stop {
-            if self
-                .data
-                .get(&current)
-                .is_some_and(|data| matches_slot(data, empty_name, &accepts_name))
-            {
-                return Ok(current as f64);
+            if let Some(data) = self.data.get(&current).filter(|data| is_html_slot(data)) {
+                let matches = match self.slot_name(current, data)? {
+                    Some(name) => accepts_name(name),
+                    None => empty_name,
+                };
+                if matches {
+                    return Ok(current as f64);
+                }
             }
             current = self.following_node(current)?;
         }

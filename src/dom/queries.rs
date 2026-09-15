@@ -95,7 +95,13 @@ impl QueryEngine {
             let Some(data) = store.data.get(&id) else {
                 return false;
             };
-            if data.has_non_utf8() {
+            if data.has_non_utf8()
+                || (data.kind == ELEMENT_NODE
+                    && store.attribute_views(id).map_or(true, |mut attributes| {
+                        attributes
+                            .any(|attribute| attribute.map_or(true, |value| value.has_non_utf8()))
+                    }))
+            {
                 return false;
             }
             let mut child = store.nodes[&id].first;

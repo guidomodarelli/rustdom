@@ -261,7 +261,7 @@ En la API de bajo nivel `NativeTree`, `setData`, `setHtmlElement`, `setElementFr
 
 `initializeAttributeCollection` admite la construcción antes de que exista metadata y la transición desde un snapshot de Element sin atributos. Rechaza con `InvalidArg` un snapshot no vacío o metadata de otro tipo de nodo, preservando datos, consultas y contadores. Repetir la inicialización de una colección canónica existente conserva sus atributos y propietarios.
 
-Las mutaciones de atributos y los owners proporcionados al constructor pasan por la misma frontera. Un owner válido establece una colección canónica después de validar todos los handles; los setters de snapshot no pueden reemplazar ese estado después. Las actualizaciones `set*Metadata` rechazan snapshots existentes con atributos y sin índice, mientras conservan metadata inicial y retipados previamente válidos. Para reemplazar un snapshot deliberadamente se mantienen `setData`, `setHtmlElement` y `set*FromAttributes`. Un refresh sin índice canónico conserva el snapshot; los errores de metadata o de Attr canónicos inválidos siguen siendo errores.
+Las mutaciones de atributos y los owners proporcionados al constructor pasan por la misma frontera. Un owner válido establece una colección canónica después de validar todos los handles; los setters de snapshot no pueden reemplazar ese estado después. Las actualizaciones `set*Metadata` rechazan snapshots existentes con atributos y sin índice, mientras conservan metadata inicial y retipados previamente válidos. Para reemplazar un snapshot deliberadamente se mantienen `setData`, `setHtmlElement` y `set*FromAttributes`. Serialización HTML, selectores y slots leen los Attr canónicos directamente; los nodos de snapshot sin índice conservan sus propios datos. Los lectores rechazan Attr canónicos inválidos en lugar de servir copias obsoletas. Ver [validación y mediciones](reports/validation/attribute-cache.md).
 
 El [benchmark de colecciones nativas](reports/benchmarks/2026-09-12T00-20-27.127Z-linux-x64.md) conserva el costo de esta transición: 0,45× en reemplazos/búsquedas de colecciones, 0,67× en valores de atributos y mejoras en consultas repetidas y serialización. El siguiente trabajo debe reducir llamadas al puente y copias, manteniendo el estado y las decisiones en Rust.
 
@@ -284,6 +284,12 @@ npm run bench
 npm run bench -- node-position-1000 node-equality-100
 npm run test:memory -- jsdom rustdom
 ```
+
+Para comparar un paquete histórico extraído sin reemplazar `dist`, se puede
+ejecutar `RUSTDOM_BENCHMARK_PACKAGE=/ruta/al/package npm run bench -- selectors-100 serialize-utf8`.
+La variable señala la raíz del paquete que contiene `dist/index.cjs`. El JSON
+registra esa raíz, metadata de build y hash del binario realmente cargado;
+`sourceCommit`/`sourceHash` describen el harness y árbol de trabajo actuales.
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:
 

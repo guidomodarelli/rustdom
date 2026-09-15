@@ -1,5 +1,6 @@
 //! Servo's element view over immutable native data during a query.
 use super::{
+    attribute_view::AttributeView,
     constants::{ELEMENT_NODE, HTML_NAMESPACE, TEXT_NODE},
     data::{DomString, NodeData},
     selector_syntax::{DomSelectors, Name, UnsupportedPseudo, Value},
@@ -49,8 +50,19 @@ impl<'a> SelectorElement<'a> {
                 compatibility: self.compatibility,
             })
     }
-    fn data(&self) -> &NodeData {
+    fn data(&self) -> &'a NodeData {
         &self.store.data[&self.id]
+    }
+    fn attributes(&self) -> impl Iterator<Item = AttributeView<'a>> + '_ {
+        self.store
+            .attribute_views_for_data(self.id, self.data())
+            .filter_map(|attribute| match attribute {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    self.compatibility.set(true);
+                    None
+                }
+            })
     }
     fn sibling(&self, mut id: NodeId, previous: bool) -> Option<Self> {
         while id != 0 {
@@ -66,18 +78,16 @@ impl<'a> SelectorElement<'a> {
         None
     }
     fn attribute(&self, name: &str) -> Option<&str> {
-        self.data()
-            .attributes
-            .iter()
+        let html = self.is_html_element_in_html_document();
+        self.attributes()
             .find(|attribute| {
                 attribute
                     .namespace
-                    .as_ref()
                     .and_then(DomString::as_str)
                     .unwrap_or("")
                     .is_empty()
                     && attribute.name.as_str().is_some_and(|candidate| {
-                        if self.is_html_element_in_html_document() {
+                        if html {
                             candidate.eq_ignore_ascii_case(name)
                         } else {
                             candidate == name
@@ -155,19 +165,19 @@ impl Element for SelectorElement<'_> {
         name: &Name,
         operation: &AttrSelectorOperation<&Value>,
     ) -> bool {
-        self.data().attributes.iter().any(|attribute| {
+        let html = self.is_html_element_in_html_document();
+        self.attributes().any(|attribute| {
             let namespace_matches = match namespace {
                 NamespaceConstraint::Any => true,
                 NamespaceConstraint::Specific(expected) => {
                     attribute
                         .namespace
-                        .as_ref()
                         .and_then(DomString::as_str)
                         .unwrap_or("")
                         == expected.value
                 }
             };
-            if !self.is_html_element_in_html_document()
+            if !html
                 && attribute.name.as_str().is_some_and(|actual| {
                     actual != name.value && actual.eq_ignore_ascii_case(&name.value)
                 })
@@ -177,7 +187,7 @@ impl Element for SelectorElement<'_> {
             }
             namespace_matches
                 && attribute.name.as_str().is_some_and(|actual| {
-                    if self.is_html_element_in_html_document() {
+                    if html {
                         actual.eq_ignore_ascii_case(&name.value)
                     } else {
                         actual == name.value

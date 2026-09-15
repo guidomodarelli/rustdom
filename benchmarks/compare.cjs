@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
 const { BenchmarkReport } = require('./report.cjs');
+const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -43,7 +44,11 @@ const report = {
   sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout?.trim() || null,
   sourceChanges: spawnSync('git', ['status', '--porcelain', '--', 'src', 'scripts', 'benchmarks', 'Cargo.toml', 'Cargo.lock', 'package-lock.json'],
     { encoding: 'utf8' }).stdout?.trim().split('\n').filter(Boolean) ?? null,
-  nativeBinarySha256: createHash('sha256').update(readFileSync('dist/rustdom.node')).digest('hex'),
+  nativeBinarySha256: createHash('sha256').update(readFileSync(nativeBinaryPath)).digest('hex'),
+  runtimeSource: { kind: process.env.RUSTDOM_BENCHMARK_PACKAGE ? 'package-override' : 'workspace',
+    root: runtimeRoot, entry: runtimeEntry,
+    nativeBuild: JSON.parse(readFileSync(`${runtimeRoot}/dist/native-build.json`, 'utf8')),
+    identityNote: 'sourceCommit/sourceHash/sourceChanges describe the working tree and benchmark harness; runtimeSource and nativeBinarySha256 identify the engine actually loaded, including historical packages.' },
   machine: { platform: platform(), arch: arch(), release: release(), cpu: cpus()[0].model,
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
   sourceHash: sourceDigest.digest('hex'), measuredSources,

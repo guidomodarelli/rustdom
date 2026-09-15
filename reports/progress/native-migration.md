@@ -1,10 +1,10 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 14/09/2026 sobre el hito de DOMRect en
-feature/native-dom-rect, que parte del commit publicado
-`60a0cd04b287834fd5a171b1c1beea513442d246` (PR61). Main continúa en
+Evaluación actualizada el 15/09/2026 UTC sobre la optimización de atributos en
+feature/native-attribute-cache-performance, que parte del commit publicado
+`ba2d441f252f563d88109b39a8299f3ff4b5c7e7` (PR62). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–61 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–62 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
 **2 áreas implementadas, 6 parciales y 4 delegadas: índice 41,7%.**
@@ -35,7 +35,7 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 231 tests Rust, 1.595 contratos Node, 1.784 casos HTML5 comparables y el corpus
+Los 231 tests Rust, 1.605 contratos Node, 1.784 casos HTML5 comparables y el corpus
 WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
@@ -119,3 +119,11 @@ focal y los 36 controles instalados pasaron; la prueba adicional de setters
 heredados se ejecutó después de los 1.595 contratos Node del run general.
 Ver reports/validation/dom-rect.md. Este hito no completa CSSOM/layout ni cambia
 el estado global de las áreas; el índice se mantiene en 41,7%.
+
+La optimización siguiente elimina snapshots redundantes de atributos canónicos
+y migra sus lectores a vistas prestadas. Pasaron 231 tests Rust, 1.605 Node,
+12 Jest, 23 Vitest, 26 Vitest VM, corpus, memoria y 36 controles de instalación.
+Escritura/borrado de 1.000 atributos mejoraron 5,1/5,6 veces frente al estado
+anterior; los lectores conservan regresiones de 9–34% que se documentan en
+reports/validation/attribute-cache.md. Este trabajo de rendimiento no completa
+otra área de migración ni incrementa el indicador de 41,7%.

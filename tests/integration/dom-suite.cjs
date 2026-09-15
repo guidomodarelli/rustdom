@@ -12,6 +12,15 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should read current canonical attributes through selectors and serialization after mutation', () => {
+    const element = document.createElement('div'); document.body.append(element);
+    element.setAttribute('data-state', 'before'); const attribute = element.getAttributeNode('data-state');
+    attribute.value = 'after'; expect(document.querySelector('[data-state="after"]')).toBe(element);
+    expect(element.outerHTML).toBe('<div data-state="after"></div>');
+    const clone = element.cloneNode(true); element.removeAttributeNode(attribute);
+    expect(element.matches('[data-state]')).toBe(false); expect(clone.getAttribute('data-state')).toBe('after');
+  });
+
   test('should reflect dataset names and real attribute changes through the runner globals', () => {
     const element = document.createElement('div'); document.body.append(element);
     element.dataset.userId = '123'; element.setAttribute('data-next-value', 'next');

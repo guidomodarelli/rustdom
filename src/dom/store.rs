@@ -375,7 +375,8 @@ impl TreeStore {
             if data.kind != super::constants::ELEMENT_NODE {
                 return Err(TreeError::NotElement(id));
             }
-            data.attributes = self.snapshot_attributes(id)?;
+            // Canonical Attr nodes own all names/values. Drop incoming snapshot capacity too.
+            data.attributes = Vec::new();
         }
         let template = if data.template_content == 0.0 {
             None
