@@ -763,7 +763,7 @@ async function measure(name, size) {
       datasetWork?.validate(result);
       rectWork?.validate(result);
       storageWork?.validate(result);
-      await blobWork?.validate(result);
+      if (blobWork) await blobWork.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
