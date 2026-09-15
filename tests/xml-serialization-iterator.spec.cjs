@@ -4,6 +4,7 @@ const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { mkdirSync, writeFileSync } = require('node:fs');
 const { Worker } = require('node:worker_threads');
+const { spawnSync } = require('node:child_process');
 const { runInNewContext } = require('node:vm');
 const reference = require('w3c-xmlserializer');
 const { serializeXml, xmlSerializationStatistics } = require('../dist/native.cjs');
@@ -160,6 +161,19 @@ test('should preserve the originating error realm when called from a foreign VM 
   assert.deepEqual({ ...actual }, { ...expected });
 });
 
+for (const scenario of ['null', 'undefined', 'wrong-iterator', 'throwing-getter', 'decoy-first']) {
+  test(`should load and serialize a public DOM when Symbol's constructor is ${scenario} before import`, () => {
+    const fixturePath = require.resolve('./integration/xml-intrinsics-init.cjs');
+    const outputs = ['jsdom', 'rustdom'].map((engine) => {
+      const result = spawnSync(process.execPath, [fixturePath, engine, scenario], { encoding: 'utf8' });
+      assert.equal(result.status, 0, `${engine} ${scenario}: ${result.stderr}`);
+      return JSON.parse(result.stdout);
+    });
+    assert.deepEqual(outputs[1], outputs[0]);
+    observations.push({ name: `initialization ${scenario}`, expected: outputs[0], actual: outputs[1] });
+  });
+}
+
 test('should preserve native iterator contracts across independent worker environments and reloads', async () => {
   const nativePath = require.resolve('../dist/native.cjs');
   const addonPath = require.resolve('../dist/rustdom.node');
@@ -171,9 +185,11 @@ test('should preserve native iterator contracts across independent worker enviro
     const invalid = { nodeType: 11, childNodes: { [Symbol.iterator]() { return { next() { return invalidValue; } }; } } };
     const IntrinsicTypeError = TypeError;
     const originalSymbol = Symbol;
+    const originalConstructor = Object.getOwnPropertyDescriptor(Symbol.prototype, 'constructor');
     const originalTypeError = TypeError;
     let failure, statistics;
     try {
+      Object.defineProperty(originalSymbol.prototype, 'constructor', { configurable: true, get() { assert.fail('must not read Symbol constructor'); } });
       globalThis.Symbol = undefined;
       globalThis.TypeError = function () { assert.fail('must use intrinsic error realm'); };
       const native = require(workerData.nativePath);
@@ -185,7 +201,10 @@ test('should preserve native iterator contracts across independent worker enviro
         try { native.serializeXml(invalid, false); } catch (error) { failure = error; }
       }
       statistics = native.xmlSerializationStatistics();
-    } finally { globalThis.Symbol = originalSymbol; globalThis.TypeError = originalTypeError; }
+    } finally {
+      globalThis.Symbol = originalSymbol; globalThis.TypeError = originalTypeError;
+      Object.defineProperty(originalSymbol.prototype, 'constructor', originalConstructor);
+    }
     assert.ok(failure instanceof IntrinsicTypeError);
     assert.equal(failure.message, 'Iterator result Symbol(worker) is not an object');
     parentPort.postMessage(statistics);

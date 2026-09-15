@@ -1,13 +1,50 @@
 //! Immutable iterator intrinsics captured once per addon Env, never retaining a caller's DOM.
 use napi::{
     Env, Error, JsValue, Property, Result,
-    bindgen_prelude::{JsObjectValue, Object, ObjectRef, Unknown},
+    bindgen_prelude::{
+        Function, JsObjectValue, KeyCollectionMode, KeyConversion, KeyFilter, Object, ObjectRef,
+        Unknown,
+    },
 };
 use napi_derive::napi;
 use std::sync::atomic::Ordering;
 
 struct XmlIntrinsics {
     values: ObjectRef,
+}
+
+/// Let the engine select its well-known key without consulting replaceable Symbol constructors.
+fn capture_iterator_key<'env>(env: &'env Env) -> Result<Unknown<'env>> {
+    // Node-API obtains the array's intrinsic prototype and enumerates keys without invoking getters.
+    let prototype = env
+        .create_array(0)?
+        .to_unknown()
+        .coerce_to_object()?
+        .get_prototype()?
+        .coerce_to_object()?;
+    let keys = prototype.get_all_property_names(
+        KeyCollectionMode::OwnOnly,
+        KeyFilter::SkipStrings,
+        KeyConversion::KeepNumbers,
+    )?;
+    // Node-API has no well-known-symbol accessor. This one-time syntax probe observes the key
+    // chosen by for-of itself, so a user symbol with the same description cannot impersonate it.
+    // It only touches fresh objects and local values: no Symbol, Object, Reflect or Array globals.
+    let select: Function<Unknown, Unknown> = env.run_script(
+        r#"(keys => {
+            const probe = { __proto__: null };
+            for (let index = 0; index < keys.length; index++) {
+                const key = keys[index];
+                probe[key] = () => ({
+                    next: () => ({ done: false, value: key }),
+                    return: () => ({ done: true })
+                });
+            }
+            for (const key of probe) return key;
+        })"#,
+    )?;
+    // The function, keys and probe stay in this handle scope; only the selected symbol is retained.
+    select.call(keys.to_unknown())
 }
 
 /// Capture before consumers replace host globals. Each Env owns and finalizes its own reference.
@@ -22,8 +59,7 @@ fn initialize_xml_intrinsics(env: Env) -> Result<()> {
         .coerce_to_object()?
         .get_prototype()?
         .coerce_to_object()?;
-    let symbol: Unknown = prototype.get_named_property("constructor")?;
-    let iterator: Unknown = symbol.coerce_to_object()?.get_named_property("iterator")?;
+    let iterator = capture_iterator_key(&env)?;
     let symbol_to_string: Unknown = prototype.get_named_property("toString")?;
     let mut values = Object::new(&env)?;
     values.define_properties(&[

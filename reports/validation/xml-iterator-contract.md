@@ -11,7 +11,9 @@ Decisiones:
 - Mantener referencias del DOM únicamente durante la serialización síncrona. Los getters y callbacks continúan ejecutándose sin un préstamo mutable del estado del entorno.
 - Mantener el cierre del iterador solo para errores del cuerpo y preservar el error original ante fallos de `return()`.
 
-Límite: la captura inicial presupone que `Symbol.prototype.constructor` y `Symbol.prototype.toString` todavía son los intrínsecos del entorno. Las pruebas cubren sustitución de `globalThis.Symbol` antes de cargar el addon y sustitución de globals/métodos después de la carga; no afirman compatibilidad frente a un prototipo de Symbol ya manipulado antes de la inicialización. Los mensajes de iteración siguen el runtime Node/V8 comprobado; esto no certifica todos los motores JavaScript.
+La limitación histórica sobre `Symbol.prototype.constructor` documentada en este hito se corrigió después en el PR 67. La implementación, pruebas y límites actualizados están en [pr67-symbol-intrinsics.md](pr67-symbol-intrinsics.md).
+
+Límite del hito histórico: la captura inicial presupone que `Symbol.prototype.constructor` y `Symbol.prototype.toString` todavía son los intrínsecos del entorno. Las pruebas cubren sustitución de `globalThis.Symbol` antes de cargar el addon y sustitución de globals/métodos después de la carga; no afirman compatibilidad frente a un prototipo de Symbol ya manipulado antes de la inicialización. Los mensajes de iteración siguen el runtime Node/V8 comprobado; esto no certifica todos los motores JavaScript.
 
 Resultados previos ejecutados sobre `9aa77e8e49f4452b1006837efd60f068f81caee5` (respaldo local `b692e73af0e78e1baf5e2019e56ef231e2d41949`) en Linux x64 (WSL Ubuntu 22.04), Node 24.14.1, addon N-API 8:
 

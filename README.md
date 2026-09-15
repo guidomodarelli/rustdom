@@ -188,6 +188,11 @@ requiere actualizar ownership. Conserva el siguiente nodo capturado por el
 iterador y los candidatos a través de reentrancia; no ejecuta JavaScript mientras
 el store está prestado por Rust. Los slots sin cambios se procesan en el mismo
 paso nativo. `slotAssignmentDrivers` expone el lifetime de los controladores.
+El primer paso vincula el driver débilmente con su bosque nativo. Reanudar una
+operación activa en otro `NativeTree`, aunque tenga handles iguales, devuelve
+`InvalidArg` y la cancela antes de modificar el árbol. El vínculo no conserva
+el bosque y se libera al completar o cancelar; un controlador completado sigue
+respondiendo `Complete` sin acceder a ningún árbol.
 
 Los nueve campos de `MutationRecord` usan un snapshot inmutable de Rust: tipo,
 texto UTF-16 nullable y IDs de target, siblings y listas ordenadas. El puente
@@ -290,6 +295,14 @@ ejecutar `RUSTDOM_BENCHMARK_PACKAGE=/ruta/al/package npm run bench -- selectors-
 La variable señala la raíz del paquete que contiene `dist/index.cjs`. El JSON
 registra esa raíz, metadata de build y hash del binario realmente cargado;
 `sourceCommit`/`sourceHash` describen el harness y árbol de trabajo actuales.
+`sourceHash`, `measuredSources` y `sourceChanges` comparten el mismo alcance:
+`src`, `scripts`, `benchmarks`, `third-party/napi`, los lockfiles de npm/Cargo,
+`Cargo.toml` y `tests/integration/read-dom-file.cjs`. El hash conserva nombres
+relativos y bytes; `sourceChanges` registra los estados porcelain de Git e incluye
+cada archivo no rastreado o ignorado dentro de esas rutas. Un fallo de Git produce
+el campo afectado en `null` y un diagnóstico seguro en `sourceGitErrors`; una lista
+vacía solo indica una consulta exitosa sin cambios. Los reportes generados quedan
+fuera de ese alcance.
 
 En esta máquina Windows se usa WSL Ubuntu con herramientas locales del proyecto:
 

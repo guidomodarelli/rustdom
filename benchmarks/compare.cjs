@@ -1,12 +1,13 @@
 /** @file Runs isolated benchmark processes, preserves raw samples, and writes comparable summaries. */
 'use strict';
 const { spawnSync } = require('node:child_process');
-const { readFileSync, readdirSync } = require('node:fs');
+const { readFileSync } = require('node:fs');
 const assert = require('node:assert/strict');
 const { cpus, platform, arch, release, totalmem } = require('node:os');
 const { createHash } = require('node:crypto');
 const { BenchmarkReport } = require('./report.cjs');
 const { readBenchmarkShard } = require('./shard.cjs');
+const { captureSourceIdentity } = require('./sources.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
@@ -20,16 +21,6 @@ const shard = readBenchmarkShard();
 const workerTimeoutMs = Number(process.env.RUSTDOM_BENCHMARK_TIMEOUT_MS ?? 600_000);
 assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
   'RUSTDOM_BENCHMARK_TIMEOUT_MS must be a positive safe integer in milliseconds');
-
-/** @param {string} directory - Owned source directory. @returns {string[]} Files included in the reproducibility digest. */
-function sourceFiles(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory() ? sourceFiles(`${directory}/${entry.name}`) : [`${directory}/${entry.name}`]);
-}
-const measuredSources = [...sourceFiles('src'), ...sourceFiles('scripts'), ...sourceFiles('benchmarks'), ...sourceFiles('third-party/napi'),
-  'package-lock.json', 'Cargo.toml', 'Cargo.lock', 'tests/integration/read-dom-file.cjs'].sort();
-const sourceDigest = createHash('sha256');
-for (const path of measuredSources) sourceDigest.update(path).update('\0').update(readFileSync(path)).update('\0');
 
 /** Capture source and dependency identities alongside machine information. */
 const report = {
@@ -47,9 +38,7 @@ const report = {
   node: process.version, jsdom: require('jsdom/package.json').version,
   rustc: spawnSync('rustc', ['-Vv'], { encoding: 'utf8' }).stdout?.trim() || null,
   cargo: spawnSync('cargo', ['-V'], { encoding: 'utf8' }).stdout?.trim() || null,
-  sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout?.trim() || null,
-  sourceChanges: spawnSync('git', ['status', '--porcelain', '--', 'src', 'scripts', 'benchmarks', 'Cargo.toml', 'Cargo.lock', 'package-lock.json'],
-    { encoding: 'utf8' }).stdout?.trim().split('\n').filter(Boolean) ?? null,
+  ...captureSourceIdentity(),
   nativeBinarySha256: createHash('sha256').update(readFileSync(nativeBinaryPath)).digest('hex'),
   runtimeSource: { kind: process.env.RUSTDOM_BENCHMARK_PACKAGE ? 'package-override' : 'workspace',
     root: runtimeRoot, entry: runtimeEntry,
@@ -57,7 +46,6 @@ const report = {
     identityNote: 'sourceCommit/sourceHash/sourceChanges describe the working tree and benchmark harness; runtimeSource and nativeBinarySha256 identify the engine actually loaded, including historical packages.' },
   machine: { platform: platform(), arch: arch(), release: release(), cpu: cpus()[0].model,
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
-  sourceHash: sourceDigest.digest('hex'), measuredSources,
   methodology: {
     formData: 'At 100/1000 entries, time public append/get/getAll/set/delete/iteration, File filename copies, or construction from a real prepared form. Setup is excluded. getAll performs 100 complete reads; set starts with duplicate names. Validate every value, order, file identity/bytes and native activation outside timing, then release auxiliary references. Full runner/bridge cost is included.',
     build: 'cargo release, thin LTO', processOrders: ORDERS,

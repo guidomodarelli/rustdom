@@ -6,8 +6,8 @@ import { createRequire } from 'node:module';
 
 /** Exercise the same native/host distinction in both actual VM pools. */
 const registerAbortSuite = createRequire(import.meta.url)('./abort-suite.cjs');
-/** Each owned native DOM is independent of the VM's host-signal bridge. */
-const { JSDOM } = createRequire(import.meta.url)('@rustdom/rustdom');
+/** Use Node's loader: Vitest's VM require cannot load jsdom's ESM dependencies on Node 22.12. */
+const { JSDOM } = process.getBuiltinModule('node:module').createRequire(import.meta.url)('@rustdom/rustdom');
 registerAbortSuite({ test, expect, runnerGlobal: globalThis, createNativeDom: () => new JSDOM('<!doctype html>') });
 
 test('should run React updates inside the DOM VM realm', async () => {
