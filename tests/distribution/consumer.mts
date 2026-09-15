@@ -16,11 +16,17 @@ import nativeRuntime, {
   NativeXmlParser,
   NativeTokenList, TokenListMethod, TokenValidation,
   DatasetNameStatus, NativeDomRect, NativeStorageArea, StorageSetStatus,
-  NativeBlobMetadata, concatenateBlobBuffers, normalizeBlobEndings, blobSliceRange, classReferenceStatistics,
+  NativeBlobMetadata, concatenateBlobBuffers, normalizeBlobEndings, blobSliceRange, classReferenceStatistics, NativeFileReaderState, ReaderStringFormat, fileReaderString, fileReaderEncoding,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, TraversalMethod, TraversalAction, TraversalMoveResult,
 } from '@rustdom/rustdom/native';
 import environment from '@rustdom/rustdom/vitest';
+
+/** Installed ESM FileReader exports preserve scalar state and BOM-prioritized decoding. */
+const readerState = new NativeFileReaderState(); assert.equal(readerState.begin(), true); assert.equal(readerState.abort(), true);
+assert.equal(readerState.enterStage(), false); assert.equal(readerState.enterStage(), true);
+assert.equal(fileReaderString(Buffer.from([0xff, 0xfe, 65, 0]), ReaderStringFormat.Text, 'windows-1252'), 'A');
+assert.equal(fileReaderEncoding(' LATIN1 '), 'windows-1252');
 
 /** Installed ESM Blob exports preserve byte order and native metadata. */
 const blobMetadata = new NativeBlobMetadata('TEXT/PLAIN'); blobMetadata.setFile('name', 42);

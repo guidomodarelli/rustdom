@@ -1,10 +1,10 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 15/09/2026 UTC sobre Blob/File en
-feature/native-blob-file, que parte del commit publicado
-`e5135f89cb3d6e9f25029b7f882ed2427ef69edc` (PR64). Main continúa en
+Evaluación actualizada el 15/09/2026 UTC durante FileReader en
+feature/native-file-reader, que parte del commit publicado
+`f238ad06d838b8e8befa48aea92d79b5f3534bc7` (PR65). Main continúa en
 `b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–64 todavía no están integrados en main. Los avances de esta rama se
+Los PR43–65 todavía no están integrados en main. Los avances de esta rama se
 cuentan como implementación, no como una versión integrada en main.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
@@ -29,7 +29,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | APIs específicas de elementos HTML, formularios y custom elements | Delegada | El runtime privado conserva sus implementaciones de elementos; los datos/atributos nativos compartidos ya se cuentan arriba. | Media |
 | CSSOM, estilos y layout | Delegada | `dist/vendor-jsdom/lib/jsdom/living/helpers/style-rules.js:4` y `:7` usan cssom/cssstyle; no se considera nativo por utilizar selectores nativos debajo. | Media |
 | Recursos/red, URL, cookies y navegación | Delegada | Runtime jsdom/Node y rutas de compatibilidad descritos en README; quedan algoritmos de plataforma fuera del core DOM. | Media |
-| Blob/File/FormData, almacenamiento y demás APIs de plataforma | Parcial | Web Storage usa áreas Rust/IndexMap; Blob/File incorporan metadatos, texto, rangos y concatenación ordinaria nativos. Orígenes, eventos, preparación de vistas y drivers FileReader/FormData/XHR conservan su host. Ver reports/validation/web-storage.md y reports/validation/blob-file.md. | Alta |
+| Blob/File/FormData, almacenamiento y demás APIs de plataforma | Parcial | Web Storage usa áreas Rust/IndexMap; Blob/File incorporan metadatos, texto, rangos y concatenación ordinaria nativos. FileReader agrega estado y decodificación Rust; orígenes, eventos, tareas y otros drivers conservan su host. Ver reports/validation/web-storage.md, reports/validation/blob-file.md y reports/validation/file-reader.md. | Alta |
 
 Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 18 controles de paquete por cada
@@ -143,3 +143,15 @@ en napi y se verificó el cierre/recarga de workers. Pasaron 238 tests Rust,
 Las diferencias de licencia del archivo final y las regresiones de slice están
 documentadas en reports/validation/blob-file.md. El área sigue parcial y el
 indicador permanece en 45,8%.
+
+FileReader incorpora control de lecturas/abortos y decodificación Rust mediante
+encoding_rs, además de conversión binaria y base64. La validación focal final pasó
+100 pruebas, 21.216 comparaciones de codecs y 20 escenarios de memoria. Conserva
+45 resultados WPT en paridad (34 estándar aprobados y 11 fallos compartidos).
+La validación local del hito pasó 241 tests Rust, 1.797 Node, los runners, 36
+controles de distribución, memoria y Memcheck. El corpus WPT general conserva
+48.733 resultados en paridad, incluidos 1.195 fallos de estándar compartidos.
+Los benchmarks registran mejoras de Shift_JIS y regresiones de las demás rutas;
+DataURL/UTF8 son la siguiente prioridad de rendimiento. El bloque de plataforma
+sigue parcial y el indicador permanece en 45,8%. El merge requiere sus checks
+y revisión remotos; estos casos adicionales no cambian el denominador.

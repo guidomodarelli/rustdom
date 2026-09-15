@@ -15,6 +15,28 @@ struct BufferInfo {
     length: usize,
 }
 
+/// Execute native computation on a validated ordinary buffer without an intermediate byte copy.
+///
+/// # Safety
+/// The operation must not invoke JavaScript or otherwise allow the backing store to resize,
+/// detach or mutate concurrently. Its returned value must not borrow the input bytes.
+pub(super) unsafe fn with_ordinary_buffer<T>(
+    env: Env,
+    value: Unknown,
+    operation: impl FnOnce(&[u8]) -> T,
+) -> Result<Option<T>> {
+    let Some(info) = buffer_info(env, value)? else {
+        return Ok(None);
+    };
+    let bytes = if info.length == 0 {
+        &[]
+    } else {
+        // SAFETY: buffer_info excludes shared/detached storage and this callback owns a live handle.
+        unsafe { std::slice::from_raw_parts(info.pointer, info.length) }
+    };
+    Ok(Some(operation(bytes)))
+}
+
 /// Inspect internal backing stores without invoking overridden JavaScript properties.
 fn buffer_info(env: Env, value: Unknown) -> Result<Option<BufferInfo>> {
     let mut is_buffer = false;

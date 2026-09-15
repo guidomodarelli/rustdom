@@ -59,6 +59,9 @@ function exerciseWindow(runtime, identity) {
   const blob = new dom.window.Blob(['a'.repeat(2048)], { type: 'TEXT/PLAIN' });
   const file = new dom.window.File([blob], 'memory.txt', { lastModified: 42 });
   const slice = file.slice(10, 20); assert.equal(slice.size, 10);
+  const reader = new dom.window.FileReader(); reader.readAsText(blob); reader.abort();
+  const pendingReader = new dom.window.FileReader(); pendingReader.readAsArrayBuffer(slice);
+  comparisonReferences.push(new WeakRef(reader), new WeakRef(pendingReader));
   comparisonReferences.push(new WeakRef(blob), new WeakRef(file), new WeakRef(slice));
   const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
   const comment = document.createComment('comment-' + identity);

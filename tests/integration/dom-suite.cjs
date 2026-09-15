@@ -12,6 +12,18 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should preserve FileReader decoding and abort events through runner globals', async () => {
+    const reader = new FileReader(); const events = [];
+    for (const type of ['loadstart', 'progress', 'load', 'abort', 'loadend']) reader.addEventListener(type, () => events.push(type));
+    reader.readAsText(new Blob(['aborted'])); reader.abort();
+    expect(reader.readyState).toBe(FileReader.DONE); expect(reader.result).toBe(null); expect(events).toEqual(['abort', 'loadend']);
+    const decoded = await new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result); reader.onerror = () => reject(reader.error);
+      reader.readAsText(new Blob([new Uint8Array([0xff, 0xfe, 65, 0])]), 'windows-1252');
+    });
+    expect(decoded).toBe('A'); expect(reader.readyState).toBe(FileReader.DONE);
+  });
+
   test('should preserve Blob/File bytes, native endings and sliced metadata through FileReader', async () => {
     const blob = new Blob(['a\r\nb\ud800'], { endings: 'native', type: 'TEXT/PLAIN' });
     const file = new File([blob], 'file.txt', { lastModified: 42 }); const slice = file.slice(2, undefined, 'IMAGE/PNG');

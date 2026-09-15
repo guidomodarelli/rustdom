@@ -24,6 +24,9 @@ mod event_listeners_binding;
 mod event_path;
 mod event_state;
 mod event_state_binding;
+mod file_reader;
+#[cfg_attr(test, allow(dead_code))]
+mod file_reader_binding;
 mod mutation_production;
 mod mutation_production_binding;
 mod mutation_record;

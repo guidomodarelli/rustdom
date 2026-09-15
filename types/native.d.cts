@@ -1,5 +1,22 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics } from './index.cjs';
+
+/** Scalar reference-compatible read/abort state, without references to results or owners. */
+export class NativeFileReaderState {
+  constructor();
+  readonly readyState: number;
+  begin(): boolean;
+  abort(): boolean;
+  enterStage(): boolean;
+  finish(): void;
+  static statistics(): NativeFileReaderStatistics;
+}
+export const ReaderStringFormat: { readonly BinaryString: 0; readonly DataUrl: 1; readonly Text: 2 };
+export type ReaderStringFormat = (typeof ReaderStringFormat)[keyof typeof ReaderStringFormat];
+/** Null requests host handling for shared/detached/unsupported backing; ordinary bytes decode natively. */
+export function fileReaderString(data: Buffer, format: ReaderStringFormat, label?: string, mime?: string): string | null;
+/** Resolve a canonical native encoding name, falling back to UTF-8 for unknown labels. */
+export function fileReaderEncoding(label?: string): string;
 
 /** Diagnose constructor reference ownership across worker/env teardown. */
 export function classReferenceStatistics(): NativeClassReferenceStatistics;

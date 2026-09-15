@@ -78,6 +78,7 @@ function isReleased(state, expected) {
     native.traversals?.operations === expected.traversals?.operations &&
     native.napiClasses?.live === expected.napiClasses?.live &&
     native.napiClasses?.cleanupErrors === expected.napiClasses?.cleanupErrors &&
+    native.fileReaders?.live === expected.fileReaders?.live &&
     native.blobs?.live === expected.blobs?.live &&
     native.blobs?.mimeUnits === expected.blobs?.mimeUnits &&
     native.blobs?.fileNameUnits === expected.blobs?.fileNameUnits &&
