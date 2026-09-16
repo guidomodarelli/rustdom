@@ -1,11 +1,13 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 15/09/2026 UTC durante FormData en
-feature/native-form-data, que parte del commit publicado
-`1c28acd03165d7879c8f48b0982993d8c8ba36ae` (PR66). Main continúa en
-`b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–66 todavía no están integrados en main. Los avances de esta rama se
-cuentan como implementación, no como una versión integrada en main.
+Evaluación actualizada el 16/09/2026 UTC durante FormData en
+feature/native-form-data. La base que motivó las correcciones finales de este PR es
+`65abdbc1214fc2fa73ca67c50133f16d43648e63`; los fixes posteriores tienen validación conjunta aprobada en
+reports/validation/pr67-host-intrinsics.md. Main está en `ece7d46c9cdb94eea3c23e517b341771ee9719d4`,
+checkpoint-054-file-reader. Los PR43–66 ya están integrados en main.
+FormData y sus correcciones del PR67 se cuentan como implementación en curso,
+no como una versión integrada en main. Selection continúa en un checkout local
+y no tiene un PR publicado.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
@@ -32,11 +34,11 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Blob/File/FormData, almacenamiento y demás APIs de plataforma | Parcial | Web Storage usa áreas Rust/IndexMap; Blob/File incorporan metadatos, texto, rangos y concatenación ordinaria nativos. FileReader agrega estado y decodificación Rust; orígenes, eventos, tareas y otros drivers conservan su host. Ver reports/validation/web-storage.md, reports/validation/blob-file.md y reports/validation/file-reader.md. | Alta |
 
 Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
-`src/environments/`, con pruebas de runners y 18 controles de paquete por cada
+`src/environments/`, con pruebas de runners y 20 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 238 tests Rust, 1.697 contratos Node, 1.784 casos HTML5 comparables y el corpus
-WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
+Los 249 tests Rust, 2.169 contratos Node, 1.784 casos HTML5 comparables y el corpus
+WPT ejecutable de la base 65ab aprobados son evidencia del alcance probado (ver reports/validation/pr67-final-protocol.md). No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.

@@ -15,6 +15,8 @@ const symbolToString = Object.getOwnPropertyDescriptor(Symbol.prototype, 'toStri
 const globalSymbol = Object.getOwnPropertyDescriptor(globalThis, 'Symbol');
 const globalString = Object.getOwnPropertyDescriptor(globalThis, 'String');
 const globalArray = Object.getOwnPropertyDescriptor(globalThis, 'Array');
+const globalFunction = Object.getOwnPropertyDescriptor(globalThis, 'Function');
+const arrayValues = Object.getOwnPropertyDescriptor(arrayPrototype, 'values');
 const builtinLoader = Object.getOwnPropertyDescriptor(process, 'getBuiltinModule');
 const inheritedSymbol = Object.getOwnPropertyDescriptor(Object.prototype, 'Symbol');
 const decoy = Symbol('Symbol.iterator');
@@ -55,20 +57,21 @@ function exercise(serialize, cycle) {
 try {
   const mutation = workerData.mutation;
   const keepArray = ['iterator-deleted', 'generator-chain-null', 'builtin-loader-getter'].includes(mutation);
-  const removeIterator = ['iterator-deleted', 'both-iterators-deleted', 'both-deleted-globals', 'both-deleted-poisoned-host-prototype'].includes(mutation);
-  const severGenerator = ['generator-chain-null', 'array-deleted-generator-chain-null', 'chain-null-globals'].includes(mutation);
-  const removeGlobals = ['combined-globals', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype'].includes(mutation);
+  const removeIterator = ['iterator-deleted', 'both-iterators-deleted', 'both-deleted-globals', 'both-deleted-poisoned-host-prototype', 'both-deleted-builtin-loader-getter', 'all-sources-removed'].includes(mutation);
+  const severGenerator = ['generator-chain-null', 'array-deleted-generator-chain-null', 'chain-null-globals', 'chain-null-builtin-loader-getter', 'all-sources-removed'].includes(mutation);
+  const removeGlobals = ['combined-globals', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype', 'both-deleted-builtin-loader-getter', 'all-sources-removed'].includes(mutation);
   if (mutation === 'array-getter') Object.defineProperty(arrayPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
   else if (!keepArray) delete arrayPrototype[iteratorKey];
   if (removeIterator) delete iteratorPrototype[iteratorKey];
   if (severGenerator) Object.setPrototypeOf(generatorPrototype, null);
+  if (mutation === 'all-sources-removed') { delete arrayPrototype.values; globalThis.Function = undefined; }
   if (removeGlobals) {
     Object.defineProperty(intrinsicSymbol.prototype, 'constructor', { configurable: true, get: forbiddenRead });
     Object.defineProperty(intrinsicSymbol.prototype, 'toString', { configurable: true, get: forbiddenRead });
     globalThis.Symbol = undefined; globalThis.String = undefined; globalThis.Array = undefined;
   }
   if (mutation === 'both-deleted-poisoned-host-prototype') Object.defineProperty(Object.prototype, 'Symbol', { configurable: true, get: forbiddenRead });
-  if (mutation === 'builtin-loader-getter' || mutation === 'array-deleted-builtin-loader-getter') {
+  if (mutation === 'builtin-loader-getter' || mutation === 'array-deleted-builtin-loader-getter' || mutation === 'both-deleted-builtin-loader-getter' || mutation === 'chain-null-builtin-loader-getter' || mutation === 'all-sources-removed') {
     Object.defineProperty(process, 'getBuiltinModule', { configurable: true, get: forbiddenRead });
   }
   if (mutation === 'iterator-getter') Object.defineProperty(iteratorPrototype, iteratorKey, { configurable: true, get: forbiddenRead });
@@ -99,6 +102,8 @@ try {
   Object.defineProperty(globalThis, 'Symbol', globalSymbol);
   Object.defineProperty(globalThis, 'String', globalString);
   Object.defineProperty(globalThis, 'Array', globalArray);
+  Object.defineProperty(globalThis, 'Function', globalFunction);
+  Object.defineProperty(arrayPrototype, 'values', arrayValues);
   Object.defineProperty(process, 'getBuiltinModule', builtinLoader);
   if (inheritedSymbol) Object.defineProperty(Object.prototype, 'Symbol', inheritedSymbol);
   else delete Object.prototype.Symbol;

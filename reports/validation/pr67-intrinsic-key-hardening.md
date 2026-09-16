@@ -6,6 +6,8 @@ Base verificada: `7d3c5b38c7b21aacf3a0a1169c56210136368247`, `feature/native-for
 
 Binario de referencia: `69e8d98086fcd873dfcb08785999edd2fe595686c63ffcf3f14d8b4705d28b95`. Binario corregido: `31ee9ce18d6aba25bc563215c6b3e2a623d8c5f0d62c921d0327a07752f34411`.
 
+La captura de realm documentada en este hito se retiró posteriormente: la implementación usa ahora el símbolo propio de arguments estricto, sin prototipos ni loader mutable. Ver [pr67-loader-hardening.md](pr67-loader-hardening.md).
+
 ## Decisión de implementación
 
 La captura conserva Array y el generador como rutas previas. Si la cadena del generador termina en null, esa fuente se considera no disponible. Cuando ninguna ofrece la clave, el addon usa las APIs públicas [process.getBuiltinModule](https://nodejs.org/api/process.html#processgetbuiltinmoduleid) y [vm.runInNewContext](https://nodejs.org/api/vm.html#vmruninnewcontextcode-contextobject-options) para ejecutar únicamente `Symbol.iterator`. `getBuiltinModule` existe desde Node 22.3.0, anterior al mínimo 22.12.0 del proyecto; ambos runtimes soportados se ejercieron realmente.

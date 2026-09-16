@@ -19,7 +19,7 @@ function run(workerData) {
   });
 }
 
-for (const mutation of ['array-deleted', 'array-getter', 'combined-globals', 'iterator-getter', 'iterator-decoy', 'iterator-deleted', 'generator-chain-null', 'both-iterators-deleted', 'array-deleted-generator-chain-null', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype', 'builtin-loader-getter', 'array-deleted-builtin-loader-getter']) {
+for (const mutation of ['array-deleted', 'array-getter', 'combined-globals', 'iterator-getter', 'iterator-decoy', 'iterator-deleted', 'generator-chain-null', 'both-iterators-deleted', 'array-deleted-generator-chain-null', 'both-deleted-globals', 'chain-null-globals', 'both-deleted-poisoned-host-prototype', 'builtin-loader-getter', 'array-deleted-builtin-loader-getter', 'both-deleted-builtin-loader-getter', 'chain-null-builtin-loader-getter', 'all-sources-removed']) {
   test(`should initialize and serialize own iterables when ${mutation} is applied before load`, async () => {
     const addonPath = process.env.RUSTDOM_ITERATOR_KEY_ADDON ? resolve(process.env.RUSTDOM_ITERATOR_KEY_ADDON) : require.resolve('../dist/rustdom.node');
     const expected = await run({ engine: 'jsdom', mutation, addonPath });

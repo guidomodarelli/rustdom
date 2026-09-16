@@ -1,4 +1,4 @@
-/** @file GC-visible File ownership and realm adapters around the native ordered FormData list. */
+/** @file GC-visible host ownership and realm adapters around the native ordered FormData list. */
 'use strict';
 const { NativeFormDataEntries, prepareFormDataValue, constructFormData } = require('../../dist/native.cjs');
 
@@ -13,6 +13,14 @@ function createFormDataImplementation(context) {
   const RemovedIdSet = Set;
   /** Project native identities using the captured Array factory and constructor. */
   const arrayFrom = Array.from.bind(Array);
+  /** Read typed-array length without consulting replaced length/iterator properties. */
+  const typedArrayLength = Function.prototype.call.bind(Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Float64Array.prototype), 'length').get);
+  /** Observe private active-name storage without public prototype hooks. */
+  const mapSize = Function.prototype.call.bind(Object.getOwnPropertyDescriptor(EntryMap.prototype, 'size').get);
+  /** @param {Float64Array} identities - Native ID snapshot. @param {Function} project - Host projection. @returns {Array} Own indexed data properties, without a typed iterator or inherited setters. */
+  function projectIds(identities, project) {
+    return arrayFrom({ __proto__: null, length: typedArrayLength(identities) }, (_, index) => project(identities[index]));
+  }
   /** Read private entries without consulting mutable host prototypes. */
   const getEntry = Function.prototype.call.bind(EntryMap.prototype.get);
   /** Store visible File owners through the captured intrinsic. */
@@ -41,7 +49,7 @@ function createFormDataImplementation(context) {
     /** @param {object} globalObject - FormData realm. @param {string} message - Native diagnostic. @returns {never} Realm DOMException. */
     throwNotFound(globalObject, message) { throw DOMException.create(globalObject, [message, 'NotFoundError']); },
   };
-  /** @param {string} name - Converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {object} GC-visible prepared entry. */
+  /** @param {unknown} name - Exact converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {object} GC-visible prepared entry. */
   function createAnEntry(name, value, filename) {
     // WebIDL has already selected the string overload; only Blob/File values need a realm factory.
     if (typeof value === 'string') return { name, value };
@@ -50,6 +58,29 @@ function createFormDataImplementation(context) {
     return { name, value: prepared };
   }
   return class FormDataImpl {
+    /** Active non-string names only; the entry list already requires their strong ownership. */
+    _hostNames = null;
+    /** @param {unknown} name - Exact converted name. @returns {object|undefined} Strict-equality identity; NaN never matches itself. */
+    _hostName(name) { return this._hostNames === null || name !== name ? undefined : getEntry(this._hostNames, name); }
+    /** @param {unknown} name - Exact active name. @param {number} id - First entry's native identity. @returns {void} Retain only names with live entries. */
+    _retainName(name, id) {
+      if (typeof name === 'string' || name !== name) return;
+      const existing = this._hostName(name);
+      if (existing) existing.count++;
+      else { this._hostNames ??= new EntryMap(); setEntry(this._hostNames, name, { id, count: 1 }); }
+    }
+    /** @param {number} id - Removed native entry. @returns {void} Release the host name and value together, including cached identities. */
+    _forget(id) {
+      const entry = this._entry(id);
+      if (typeof entry.name !== 'string') {
+        const record = this._hostName(entry.name);
+        if (record && --record.count === 0) {
+          deleteEntry(this._hostNames, entry.name);
+          if (mapSize(this._hostNames) === 0) this._hostNames = null;
+        }
+      }
+      deleteEntry(this._entryValues, id);
+    }
     /** @param {object} globalObject - Actual realm. @param {unknown[]} args - Converted constructor arguments. */
     constructor(globalObject, args) {
       this._globalObject = globalObject; this._nativeEntries = new NativeFormDataEntries();
@@ -59,7 +90,7 @@ function createFormDataImplementation(context) {
         constructFormData(form, submitter, globalObject, helpers, (name, value) => { this._appendEntry({ name, value }); });
       }
     }
-    /** @param {number} id - Native slot identity. @returns {object} Immutable JS projection, including GC-visible File ownership. */
+    /** @param {number} id - Native slot identity. @returns {object} Immutable JS projection, including GC-visible host ownership. */
     _entry(id) {
       const entry = getEntry(this._entryValues, id);
       if (!entry) throw new Error(`FormData: value projection missing for entry ${id}`);
@@ -67,16 +98,18 @@ function createFormDataImplementation(context) {
     }
     /** @param {object} entry - Existing entry factory result. @returns {number} Native entry identity. */
     _appendEntry(entry) {
-      const file = typeof entry.value !== 'string';
-      const id = this._nativeEntries.append(entry.name, file ? null : entry.value);
+      const opaque = typeof entry.value !== 'string';
+      const id = typeof entry.name === 'string' ? this._nativeEntries.append(entry.name, opaque ? null : entry.value)
+        : this._nativeEntries.appendHost(this._hostName(entry.name)?.id ?? null, opaque ? null : entry.value);
       if (id === null) throw new RangeError('FormData append: entry identities exhausted');
+      this._retainName(entry.name, id);
       setEntry(this._entryValues, id, entry);
       if (this._view !== null) { this._view.push(entry); setViewId(this._viewIds, entry, id); }
       return id;
     }
     /** @returns {object[]} Materialize the current serializer view while retaining original array mutation behavior. */
     get _entries() {
-      if (this._view === null) this._view = arrayFrom(this._nativeEntries.allIds(), (id) => {
+      if (this._view === null) this._view = projectIds(this._nativeEntries.allIds(), (id) => {
         const entry = this._entry(id); setViewId(this._viewIds, entry, id); return entry;
       });
       return this._view;
@@ -87,26 +120,41 @@ function createFormDataImplementation(context) {
       if (id === null) return null;
       const entry = this._entry(id); return [entry.name, idlUtils.tryWrapperForImpl(entry.value)];
     }
-    /** @param {string} name - Converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {void} */
+    /** @param {unknown} name - Exact converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {void} */
     append(name, value, filename) { this._appendEntry(createAnEntry(name, value, filename)); }
-    /** @param {string} name - Converted name. @returns {void} Remove native matches and release their visible File owners. */
+    /** @param {unknown} name - Exact converted name. @returns {void} Remove native matches and release their visible File owners. */
     delete(name) {
-      const removed = this._nativeEntries.delete(name);
-      for (const id of removed) deleteEntry(this._entryValues, id);
+      const host = typeof name === 'string' ? null : this._hostName(name);
+      if (typeof name !== 'string' && !host) return;
+      const removed = host ? this._nativeEntries.deleteHost(host.id) : this._nativeEntries.delete(name);
+      for (const id of removed) this._forget(id);
       if (this._view !== null) { const ids = createRemovedIds(removed); this._view = this._view.filter((entry) => !hasRemovedId(ids, getViewId(this._viewIds, entry))); }
     }
-    /** @param {string} name - Converted name. @returns {*} First public value or null. */
-    get(name) { const id = this._nativeEntries.firstId(name); return id === null ? null : idlUtils.tryWrapperForImpl(this._entry(id).value); }
-    /** @param {string} name - Converted name. @returns {Array} Public values in insertion order. */
-    getAll(name) { return arrayFrom(this._nativeEntries.ids(name), (id) => idlUtils.tryWrapperForImpl(this._entry(id).value)); }
-    /** @param {string} name - Converted name. @returns {boolean} Native membership. */
-    has(name) { return this._nativeEntries.has(name); }
-    /** @param {string} name - Converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {void} Native replacement position and duplicate removal. */
+    /** @param {unknown} name - Exact converted name. @returns {*} First public value or null. */
+    get(name) {
+      const host = typeof name === 'string' ? null : this._hostName(name);
+      const id = typeof name === 'string' ? this._nativeEntries.firstId(name) : host ? this._nativeEntries.firstHostId(host.id) : null;
+      return id === null ? null : idlUtils.tryWrapperForImpl(this._entry(id).value);
+    }
+    /** @param {unknown} name - Exact converted name. @returns {Array} Public values in insertion order. */
+    getAll(name) {
+      const host = typeof name === 'string' ? null : this._hostName(name);
+      if (typeof name !== 'string' && !host) return [];
+      const identities = host ? this._nativeEntries.hostIds(host.id) : this._nativeEntries.ids(name);
+      // Keep the entry snapshot alive before user wrapper getters can mutate the original list.
+      const entries = projectIds(identities, (id) => this._entry(id));
+      return arrayFrom({ __proto__: null, length: entries.length }, (_, index) => idlUtils.tryWrapperForImpl(entries[index].value));
+    }
+    /** @param {unknown} name - Exact converted name. @returns {boolean} Native membership. */
+    has(name) { const host = typeof name === 'string' ? null : this._hostName(name); return typeof name === 'string' ? this._nativeEntries.has(name) : host ? this._nativeEntries.hasHost(host.id) : false; }
+    /** @param {unknown} name - Exact converted name. @param {*} value - Converted value. @param {string} [filename] - Converted filename. @returns {void} Native replacement position and duplicate removal. */
     set(name, value, filename) {
-      const entry = createAnEntry(name, value, filename); const file = typeof entry.value !== 'string';
-      const result = this._nativeEntries.set(name, file ? null : entry.value);
+      const entry = createAnEntry(name, value, filename); const opaque = typeof entry.value !== 'string';
+      const result = typeof name === 'string' ? this._nativeEntries.set(name, opaque ? null : entry.value)
+        : this._nativeEntries.setHost(this._hostName(name)?.id ?? null, opaque ? null : entry.value);
       if (result === null) throw new RangeError('FormData set: entry identities exhausted');
-      for (const id of result.removed) deleteEntry(this._entryValues, id);
+      for (const id of result.removed) this._forget(id);
+      if (!result.existed) this._retainName(name, result.id);
       setEntry(this._entryValues, result.id, entry);
       if (this._view !== null) {
         setViewId(this._viewIds, entry, result.id);

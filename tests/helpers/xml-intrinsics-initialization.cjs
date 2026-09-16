@@ -47,7 +47,7 @@ async function main() {
     packageLockSha256: createHash('sha256').update(readFileSync('package-lock.json')).digest('hex'),
     command: 'node --expose-gc tests/helpers/xml-intrinsics-initialization.cjs BASELINE.node CANDIDATE.node' + (includeHardened ? ' --include-hardened' : ''),
     warmupRounds, measuredRounds, includeHardened,
-    methodology: 'Fresh Worker for every sample; time require(addon) only. Rotate artifact order each round. Optional candidateHardened removes both host iterator keys before timing, restores them afterward and measures the clean-realm fallback separately; baseline cannot load in that scenario. Validate XML success and Symbol errors outside timing, then await Worker exit. Excludes Worker startup, validation, teardown and GC; not full package import or DOM construction. Warm file cache; no cold-start claim.',
+    methodology: 'Fresh Worker for every sample; time require(addon) only. Rotate artifact order each round. Optional candidateHardened removes both host iterator keys and blocks the builtin-loader hook before timing, restores them afterward and measures hardened intrinsic capture separately; baseline cannot load in that scenario. Validate XML success and Symbol errors outside timing, then await Worker exit. Excludes Worker startup, validation, teardown and GC; not full package import or DOM construction. Warm file cache; no cold-start claim.',
     artifacts: Object.fromEntries(Object.entries(artifacts).map(([name, path]) => [name, {
       path, sha256: createHash('sha256').update(readFileSync(path)).digest('hex'),
     }])),
@@ -90,8 +90,11 @@ if (isMainThread) {
     const iteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf(Object.getPrototypeOf((function* () {})())));
     const arrayDescriptor = Object.getOwnPropertyDescriptor(arrayPrototype, key);
     const iteratorDescriptor = Object.getOwnPropertyDescriptor(iteratorPrototype, key);
+    const builtinLoader = Object.getOwnPropertyDescriptor(process, 'getBuiltinModule');
     delete arrayPrototype[key]; delete iteratorPrototype[key];
+    Object.defineProperty(process, 'getBuiltinModule', { configurable: true, get() { throw new Error('Builtin loader must not be read'); } });
     restore = () => {
+      Object.defineProperty(process, 'getBuiltinModule', builtinLoader);
       Object.defineProperty(arrayPrototype, key, arrayDescriptor);
       Object.defineProperty(iteratorPrototype, key, iteratorDescriptor);
     };

@@ -1,9 +1,8 @@
 //! Immutable iterator intrinsics captured once per addon Env, never retaining a caller's DOM.
 use napi::{
-    Env, Error, JsValue, Property, Result, ValueType,
+    Env, Error, Property, Result, ValueType,
     bindgen_prelude::{
-        FnArgs, Function, JsObjectValue, KeyCollectionMode, KeyConversion, KeyFilter, Object,
-        ObjectRef, Unknown,
+        JsObjectValue, KeyCollectionMode, KeyConversion, KeyFilter, Object, ObjectRef, Unknown,
     },
 };
 use napi_derive::napi;
@@ -13,102 +12,30 @@ struct XmlIntrinsics {
     values: ObjectRef,
 }
 
-/// Let the engine select its well-known key without consulting replaceable Symbol constructors.
+/// Obtain the own @@iterator that CreateUnmappedArgumentsObject installs intrinsically.
 fn capture_iterator_key<'env>(env: &'env Env) -> Result<Unknown<'env>> {
-    // Node-API has no well-known-symbol accessor. Probe only fresh objects and enumerated keys,
-    // never caller methods. An absent key produces an intrinsic TypeError returned for fallback.
-    let select: Function<Unknown, Unknown> = env.run_script(
-        r#"(keys => {
-            const probe = { __proto__: null };
-            for (let index = 0; index < keys.length; index++) {
-                const key = keys[index];
-                probe[key] = () => ({
-                    next: () => ({ done: false, value: key }),
-                    return: () => ({ done: true })
-                });
-            }
-            try {
-                for (const key of probe) return key;
-            } catch (error) {
-                return error;
-            }
-        })"#,
-    )?;
-    // Preserve the existing route without requiring generator prototypes when Array exposes
-    // the key. Node-API enumerates own symbol names without invoking property getters.
-    let array_prototype = env
-        .create_array(0)?
-        .to_unknown()
-        .coerce_to_object()?
-        .get_prototype()?
-        .coerce_to_object()?;
-    let array_keys = array_prototype.get_all_property_names(
+    // Strict arguments are fresh ordinary objects with one own symbol: @@iterator.
+    // Creating it consults neither Array/Iterator prototypes nor global constructors/loaders.
+    // Node-API reads only names, so the intrinsic throwing callee accessor is never invoked.
+    let arguments: Object =
+        env.run_script("(function () { 'use strict'; return arguments; })()")?;
+    let keys = arguments.get_all_property_names(
         KeyCollectionMode::OwnOnly,
         KeyFilter::SkipStrings,
         KeyConversion::KeepNumbers,
     )?;
-    let array_candidate = select.call(array_keys.to_unknown())?;
-    if array_candidate.get_type()? == ValueType::Symbol {
-        return Ok(array_candidate);
-    }
-    // Syntax creates an unexposed generator without reading a global constructor. Only if
-    // Array lacks the key, follow its fresh prototype via %GeneratorPrototype% to %IteratorPrototype%.
-    let generator: Object = env.run_script("(function* () {})()")?;
-    let fresh_generator_prototype = generator.get_prototype()?.coerce_to_object()?;
-    let generator_prototype = fresh_generator_prototype
-        .get_prototype()?
-        .coerce_to_object()?;
-    let iterator_prototype = generator_prototype.get_prototype()?;
-    if matches!(
-        iterator_prototype.get_type()?,
-        ValueType::Object | ValueType::Function
-    ) {
-        let iterator_keys = iterator_prototype
-            .coerce_to_object()?
-            .get_all_property_names(
-                KeyCollectionMode::OwnOnly,
-                KeyFilter::SkipStrings,
-                KeyConversion::KeepNumbers,
-            )?;
-        let candidate = select.call(iterator_keys.to_unknown())?;
-        if candidate.get_type()? == ValueType::Symbol {
-            return Ok(candidate);
-        }
-    }
-    // Both host prototype routes are unavailable. A fresh Node VM realm has its own intact
-    // intrinsics, while well-known symbols are shared across realms in this isolate.
-    let isolated_key = capture_clean_realm_key(env)?;
-    if isolated_key.get_type()? != ValueType::Symbol {
+    if keys.get_named_property::<u32>("length")? != 1 {
         return Err(Error::from_reason(
-            "XML iterator intrinsics: clean realm did not return a Symbol",
+            "XML iterator intrinsics: strict arguments must expose one own symbol",
         ));
     }
-    // Define the own element directly rather than invoking an inherited Array index setter.
-    let mut isolated_keys = env.create_array(1)?.to_unknown().coerce_to_object()?;
-    isolated_keys.define_properties(&[Property::new()
-        .with_utf8_name("0")?
-        .with_value(&isolated_key)])?;
-    let candidate = select.call(isolated_keys.to_unknown())?;
-    if candidate.get_type()? == ValueType::Symbol {
-        Ok(candidate)
-    } else {
-        Err(Error::from_unknown_without_coercion(candidate))
+    let key: Unknown = keys.get_element(0)?;
+    if key.get_type()? != ValueType::Symbol {
+        return Err(Error::from_reason(
+            "XML iterator intrinsics: strict arguments key is not a Symbol",
+        ));
     }
-}
-
-/// Use public Node APIs only, and return a primitive key without retaining the sandbox or realm.
-fn capture_clean_realm_key<'env>(env: &'env Env) -> Result<Unknown<'env>> {
-    let process: Object = env.get_global()?.get_named_property("process")?;
-    let get_builtin: Function<String, Object> = process.get_named_property("getBuiltinModule")?;
-    let vm = get_builtin.apply(process.to_unknown(), "node:vm".to_owned())?;
-    let evaluate: Function<FnArgs<(String, Object)>, Unknown> =
-        vm.get_named_property("runInNewContext")?;
-    // A null prototype prevents host Object.prototype properties from shadowing realm globals.
-    let sandbox: Object = env.run_script("({ __proto__: null })")?;
-    evaluate.apply(
-        vm.to_unknown(),
-        ("Symbol.iterator".to_owned(), sandbox).into(),
-    )
+    Ok(key)
 }
 /// Capture before consumers replace host globals. Each Env owns and finalizes its own reference.
 #[napi(module_exports)]

@@ -1,6 +1,8 @@
 //! N-API entry-list operations; file objects remain in the host's GC-visible owner map.
-use super::form_data::{Entry, EntryList, Value};
+use super::constants::JS_MAX_SAFE_INTEGER;
+use super::form_data::{Entry, EntryList, Name, Value};
 use napi::bindgen_prelude::{Either, Float64Array, Utf16String};
+use napi::{Error, Result, Status};
 use napi_derive::napi;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -25,7 +27,7 @@ pub struct NativeFormDataStatistics {
 #[napi(object)]
 pub struct FormDataEntry {
     pub id: f64,
-    pub name: Utf16String,
+    pub name: Either<Utf16String, f64>,
     pub value: Either<Utf16String, f64>,
 }
 #[napi(object)]
@@ -39,18 +41,35 @@ pub struct FormDataSetResult {
 fn entry_value(id: u64, entry: &Entry) -> Either<Utf16String, f64> {
     match &entry.value {
         Value::Text(text) => Either::A(Utf16String::from(text.clone())),
-        Value::File => Either::B(id as f64),
+        Value::Host => Either::B(id as f64),
     }
 }
 fn entry_snapshot(id: u64, entry: &Entry) -> FormDataEntry {
     FormDataEntry {
         id: id as f64,
-        name: Utf16String::from(entry.name.to_vec()),
+        name: match &entry.name {
+            Name::Text(name) => Either::A(Utf16String::from(name.to_vec())),
+            Name::Host(id) => Either::B(*id as f64),
+        },
         value: entry_value(id, entry),
     }
 }
 fn input_value(value: Option<Utf16String>) -> Value {
-    value.map_or(Value::File, |text| Value::Text(text.to_vec()))
+    value.map_or(Value::Host, |text| Value::Text(text.to_vec()))
+}
+
+fn host_name(value: f64) -> Result<u64> {
+    if !value.is_finite()
+        || value <= 0.0
+        || value.fract() != 0.0
+        || value > JS_MAX_SAFE_INTEGER as f64
+    {
+        return Err(Error::new(
+            Status::InvalidArg,
+            "FormData host name identity must be a positive safe integer",
+        ));
+    }
+    Ok(value as u64)
 }
 
 #[napi]
@@ -162,6 +181,76 @@ impl NativeFormDataEntries {
             .map(|id| *id as f64)
             .collect::<Vec<_>>()
             .into()
+    }
+    #[napi]
+    pub fn append_host(
+        &mut self,
+        name: Option<f64>,
+        value: Option<Utf16String>,
+    ) -> Result<Option<f64>> {
+        let name = name.map(host_name).transpose()?;
+        if name.is_some_and(|name| self.list.host_ids(name).is_empty()) {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "FormData host name identity is not active",
+            ));
+        }
+        Ok(self
+            .update(|list| list.append_host(name, input_value(value)))
+            .map(|id| id as f64))
+    }
+    #[napi]
+    pub fn set_host(
+        &mut self,
+        name: Option<f64>,
+        value: Option<Utf16String>,
+    ) -> Result<Option<FormDataSetResult>> {
+        let name = name.map(host_name).transpose()?;
+        if name.is_some_and(|name| self.list.host_ids(name).is_empty()) {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "FormData host name identity is not active",
+            ));
+        }
+        Ok(self
+            .update(|list| list.set_host(name, input_value(value)))
+            .map(|result| FormDataSetResult {
+                id: result.id as f64,
+                index: result.index as f64,
+                existed: result.existed,
+                removed: result.removed.into_iter().map(|id| id as f64).collect(),
+            }))
+    }
+    #[napi]
+    pub fn delete_host(&mut self, name: f64) -> Result<Vec<f64>> {
+        let name = host_name(name)?;
+        Ok(self
+            .update(|list| list.delete_host(name))
+            .into_iter()
+            .map(|id| id as f64)
+            .collect())
+    }
+    #[napi]
+    pub fn has_host(&self, name: f64) -> Result<bool> {
+        Ok(!self.list.host_ids(host_name(name)?).is_empty())
+    }
+    #[napi]
+    pub fn first_host_id(&self, name: f64) -> Result<Option<f64>> {
+        Ok(self
+            .list
+            .host_ids(host_name(name)?)
+            .first()
+            .map(|id| *id as f64))
+    }
+    #[napi]
+    pub fn host_ids(&self, name: f64) -> Result<Float64Array> {
+        Ok(self
+            .list
+            .host_ids(host_name(name)?)
+            .iter()
+            .map(|id| *id as f64)
+            .collect::<Vec<_>>()
+            .into())
     }
     #[napi]
     pub fn id_at(&self, index: f64) -> Option<f64> {
