@@ -1,6 +1,6 @@
 /** @file Measures equivalent end-to-end DOM workloads in one isolated runtime process. */
 'use strict';
-const { getBenchmarkPlan, RANGE_STRINGIFICATION_READS, RANGE_CONTENT_OPERATIONS } = require('./workload-plan.cjs');
+const { getBenchmarkPlan, RANGE_STRINGIFICATION_READS, RANGE_CONTENT_OPERATIONS, DOCUMENT_CREATION_OPERATIONS } = require('./workload-plan.cjs');
 const { readBenchmarkShard, selectWorkloadShard } = require('./shard.cjs');
 const assert = require('node:assert/strict');
 const { performance } = require('node:perf_hooks');
@@ -17,6 +17,7 @@ const { storageFixture, storageQuotaForSize } = require('./web-storage.cjs');
 const { blobFixture } = require('./blob-file.cjs');
 const { formDataFixture } = require('./form-data.cjs');
 const { selectionFixture } = require('./selection.cjs');
+const { documentImplementationFixture } = require('./document-implementation.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -358,6 +359,7 @@ async function measure(name, size) {
     let readerWork;
     let formWork;
     let selectionWork;
+    let documentImplementationWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -400,6 +402,7 @@ async function measure(name, size) {
       if (measuresReader) { readerWork = readerFixture(runtime, dom.window, size, name); await readerWork.prepare(); }
       if (name.startsWith('form-data-')) formWork = formDataFixture(runtime, dom.window, size, name);
       if (name.startsWith('selection-')) selectionWork = selectionFixture(runtime, dom.window, size, name);
+      if (Object.hasOwn(DOCUMENT_CREATION_OPERATIONS, name)) documentImplementationWork = documentImplementationFixture(runtime, dom.window, size, DOCUMENT_CREATION_OPERATIONS[name]);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -525,6 +528,7 @@ async function measure(name, size) {
       else if (readerWork) result = await readerWork.run();
       else if (formWork) result = formWork.run();
       else if (selectionWork) result = selectionWork.run();
+      else if (documentImplementationWork) result = documentImplementationWork.run();
       else if (blobWork) result = blobWork.run();
       else if (storageWork) result = storageWork.run();
       else if (rectWork) result = rectWork.run();
@@ -780,6 +784,7 @@ async function measure(name, size) {
       readerWork?.validate(result);
       if (formWork) await formWork.validate(result);
       if (selectionWork) selectionWork.validate(result);
+      if (documentImplementationWork) documentImplementationWork.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -954,6 +959,7 @@ async function measure(name, size) {
     if (readerWork) await readerWork.dispose(); readerWork = null;
     formWork?.dispose(); formWork = null;
     await selectionWork?.dispose(); selectionWork = null;
+    documentImplementationWork?.dispose(); documentImplementationWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;

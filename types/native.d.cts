@@ -1,6 +1,14 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
 import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics, NativeFormDataStatistics } from './index.cjs';
 
+/** Native operation codes for the DOMImplementation controller. */
+export const DocumentImplementationOperation: { readonly HasFeature: 0; readonly CreateDocumentType: 1; readonly CreateDocument: 2; readonly CreateHtmlDocument: 3; };
+export type DocumentImplementationOperation = (typeof DocumentImplementationOperation)[keyof typeof DocumentImplementationOperation];
+/** Executes synchronously and returns the original host value in its native call scope. */
+export function documentImplementationOperation(owner: object, operation: DocumentImplementationOperation, args: unknown[] | undefined, helpers: object): unknown;
+/** Reports completed/active calls without retaining document owners. */
+export function documentImplementationStatistics(): import('./index.cjs').DocumentImplementationStatistics;
+
 /** Strings are native data; numeric names and values identify separate GC-visible host owners. */
 export interface NativeFormDataEntry { id: number; name: string | number; value: string | number; }
 /** Scalar Selection direction. The host retains its associated Range and realm. */

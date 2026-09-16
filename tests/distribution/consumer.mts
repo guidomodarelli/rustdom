@@ -8,6 +8,7 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeFormDataEntries, formDataConstructionStatistics,
+  DocumentImplementationOperation, documentImplementationOperation, documentImplementationStatistics,
   NativeSelectionState, SelectionOperation, selectionOperationStatistics,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
@@ -115,6 +116,17 @@ const dom = new JSDOM('<!doctype html><p>Hello</p>', { cookieJar: new CookieJar(
 /** ESM native bindings and installed public Selection preserve live identities. */
 const selectionState = new NativeSelectionState(); selectionState.orient(true); assert.equal(selectionState.direction, -1);
 assert.equal(SelectionOperation.Anchor, 0);
+/** Installed factories preserve real document structure, identity and native activity. */
+const documentCalls = documentImplementationStatistics().calls;
+assert.equal(documentImplementationOperation({}, DocumentImplementationOperation.HasFeature, undefined, {}), true);
+const installedDoctype = dom.window.document.implementation.createDocumentType('p:root', 'public', 'system');
+const installedXml = dom.window.document.implementation.createDocument('urn:installed', 'p:root', installedDoctype);
+assert.equal(installedXml.doctype, installedDoctype); assert.equal(installedDoctype.ownerDocument, installedXml);
+assert.equal(installedXml.documentElement.namespaceURI, 'urn:installed');
+assert.equal(dom.window.document.implementation.createHTMLDocument('installed').title, 'installed');
+assert.ok(documentImplementationStatistics().calls >= documentCalls + 4);
+assert.equal(documentImplementationStatistics().active, 0);
+
 const selectionCalls = selectionOperationStatistics().calls;
 const installedSelection = dom.window.getSelection()!;
 const selectionText = dom.window.document.querySelector('p')!.firstChild!;

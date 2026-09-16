@@ -1,6 +1,6 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 16/09/2026 UTC. Main está en 3c7213f7e636fa6c389f63988bc6bdcc9fdfad1f, checkpoint-055-form-data: los PR43–67 ya están integrados. Selection tiene validación local completa y está preparada para su propio PR sobre main; todavía no se cuenta como integrada. Su evidencia final está en reports/validation/selection-final.md.
+Evaluación actualizada el 16/09/2026 UTC. Main está en 9f9970297dd28a87500b7faaac1bbe495798728e, checkpoint-056-selection: los PR43–68 ya están integrados. DOMImplementation tiene control nativo y validación local completa, pero todavía no está integrado. Las factories compartidas, DOMParser y otros algoritmos generales mantienen abierta la migración. Evidencia en reports/validation/document-implementation.md.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
