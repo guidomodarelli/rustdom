@@ -2,8 +2,8 @@
 
 Evaluación actualizada el 16/09/2026 UTC durante FormData en
 feature/native-form-data. La base que motivó las correcciones finales de este PR es
-`65abdbc1214fc2fa73ca67c50133f16d43648e63`; los fixes posteriores tienen validación conjunta aprobada en
-reports/validation/pr67-host-intrinsics.md. Main está en `ece7d46c9cdb94eea3c23e517b341771ee9719d4`,
+`30bad7e5b8f72b112a0e30795f07e8cfd98da5c0`; los fixes posteriores tienen validación conjunta aprobada en
+reports/validation/pr67-native-length.md. Main está en `ece7d46c9cdb94eea3c23e517b341771ee9719d4`,
 checkpoint-054-file-reader. Los PR43–66 ya están integrados en main.
 FormData y sus correcciones del PR67 se cuentan como implementación en curso,
 no como una versión integrada en main. Selection continúa en un checkout local
@@ -37,8 +37,8 @@ Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
 `src/environments/`, con pruebas de runners y 20 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 249 tests Rust, 2.169 contratos Node, 1.784 casos HTML5 comparables y el corpus
-WPT ejecutable de la base 65ab aprobados son evidencia del alcance probado (ver reports/validation/pr67-final-protocol.md). No se usan como
+Los 251 tests Rust, 2.286 contratos Node, 1.784 casos HTML5 comparables y el corpus
+WPT ejecutable de la unión validada aprobados son evidencia del alcance probado (ver reports/validation/pr67-native-length.md). No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.

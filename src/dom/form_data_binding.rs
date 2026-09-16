@@ -263,6 +263,11 @@ impl NativeFormDataEntries {
         }
         self.list.at(index as usize).map(|(id, _)| id as f64)
     }
+    /// Read the native typed-array metadata in constant time without any JavaScript property lookup.
+    #[napi]
+    pub fn id_array_length(identities: Float64Array) -> f64 {
+        identities.len() as f64
+    }
     #[napi]
     pub fn all_ids(&self) -> Float64Array {
         (0..self.list.len())

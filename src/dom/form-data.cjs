@@ -13,8 +13,8 @@ function createFormDataImplementation(context) {
   const RemovedIdSet = Set;
   /** Project native identities using the captured Array factory and constructor. */
   const arrayFrom = Array.from.bind(Array);
-  /** Read typed-array length without consulting replaced length/iterator properties. */
-  const typedArrayLength = Function.prototype.call.bind(Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Float64Array.prototype), 'length').get);
+  /** Read native ID length without resolving host constructors, prototypes or accessors. */
+  const typedArrayLength = NativeFormDataEntries.idArrayLength;
   /** Observe private active-name storage without public prototype hooks. */
   const mapSize = Function.prototype.call.bind(Object.getOwnPropertyDescriptor(EntryMap.prototype, 'size').get);
   /** @param {Float64Array} identities - Native ID snapshot. @param {Function} project - Host projection. @returns {Array} Own indexed data properties, without a typed iterator or inherited setters. */

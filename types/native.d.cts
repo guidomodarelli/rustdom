@@ -31,6 +31,8 @@ export class NativeFormDataEntries {
   hostIds(nameId: number): Float64Array;
   idAt(index: number): number | null;
   allIds(): Float64Array;
+  /** Constant-time intrinsic length of an ID view; ignores replaced JavaScript constructors/properties. */
+  static idArrayLength(identities: Float64Array): number;
   entryAt(index: number): NativeFormDataEntry | null;
   snapshot(): NativeFormDataEntry[];
   static statistics(): NativeFormDataStatistics;
