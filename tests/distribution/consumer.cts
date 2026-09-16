@@ -133,6 +133,17 @@ for (const action of slotAssignmentActions) {
 }
 
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
+/** Installed factories preserve real document structure, identity and native activity. */
+const documentCalls = native.documentImplementationStatistics().calls;
+assert.equal(native.documentImplementationOperation({}, native.DocumentImplementationOperation.HasFeature, undefined, {}), true);
+const installedDoctype = dom.window.document.implementation.createDocumentType('p:root', 'public', 'system');
+const installedXml = dom.window.document.implementation.createDocument('urn:installed', 'p:root', installedDoctype);
+assert.equal(installedXml.doctype, installedDoctype); assert.equal(installedDoctype.ownerDocument, installedXml);
+assert.equal(installedXml.documentElement.namespaceURI, 'urn:installed');
+assert.equal(dom.window.document.implementation.createHTMLDocument('installed').title, 'installed');
+assert.ok(native.documentImplementationStatistics().calls >= documentCalls + 4);
+assert.equal(native.documentImplementationStatistics().active, 0);
+
 /** Installed public Selection shares Range state and reports native control activation. */
 const selectionCalls = native.selectionOperationStatistics().calls;
 const installedSelection = dom.window.getSelection()!;

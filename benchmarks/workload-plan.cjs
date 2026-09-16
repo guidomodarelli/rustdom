@@ -5,6 +5,9 @@ const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-1
 /** Public Range content operations and their fixture keys. */
 const RANGE_CONTENT_OPERATIONS = { 'range-delete-contents': 'deleteContents',
   'range-clone-contents': 'cloneContents', 'range-extract-contents': 'extractContents' };
+/** Public document-creation operations and their fixture modes. */
+const DOCUMENT_CREATION_OPERATIONS = { 'document-create-html': 'html', 'document-create-xml': 'xml',
+  'document-create-doctype': 'doctype', 'document-reject-qname': 'invalid-qname' };
 /** @returns {object[]} Complete workload plan; selection does not change the measurement fixtures. */
 function getBenchmarkPlan() {
   return [
@@ -36,6 +39,7 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => ['blob-construct', 'blob-endings', 'blob-nested', 'blob-slice', 'file-construct'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['reader-text-utf8', 'reader-text-legacy', 'reader-binary', 'reader-data-url', 'reader-buffer', 'reader-abort'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['form-data-append', 'form-data-get', 'form-data-get-all', 'form-data-set', 'form-data-delete', 'form-data-iterate', 'form-data-files', 'form-data-construct'].map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => Object.keys(DOCUMENT_CREATION_OPERATIONS).map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['selection-read', 'selection-associate', 'selection-extend', 'selection-contains', 'selection-stringify'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
@@ -58,4 +62,4 @@ function getBenchmarkPlan() {
     ...[250, 1000].map((size) => ({ name: 'serialize-utf8', size })),
   ];
 }
-module.exports = { getBenchmarkPlan, RANGE_STRINGIFICATION_READS, RANGE_CONTENT_OPERATIONS };
+module.exports = { getBenchmarkPlan, RANGE_STRINGIFICATION_READS, RANGE_CONTENT_OPERATIONS, DOCUMENT_CREATION_OPERATIONS };

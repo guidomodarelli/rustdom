@@ -13,6 +13,19 @@ module.exports = function registerDomSuite({ test, expect, afterEach, createNati
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should create realm-correct documents and adopt doctypes through runner globals', () => {
+    const api = document.implementation;
+    const doctype = api.createDocumentType('p:root', 'public', 'system');
+    const xml = api.createDocument('urn:runner', 'p:root', doctype);
+    expect(xml).toBeInstanceOf(window.Document);
+    expect(xml.doctype).toBe(doctype); expect(doctype.ownerDocument).toBe(xml);
+    expect(xml.documentElement.namespaceURI).toBe('urn:runner'); expect(xml.defaultView).toBe(null);
+    const html = api.createHTMLDocument('runner title');
+    expect(html).toBeInstanceOf(window.Document);
+    expect(html.title).toBe('runner title'); expect(html.body.localName).toBe('body');
+    expect(html.doctype.name).toBe('html');
+  });
+
   test('should keep Selection direction and shared Range mutations through runner globals', () => {
     const paragraph = document.createElement('p'); paragraph.textContent = 'abcdef'; document.body.append(paragraph);
     const text = paragraph.firstChild; const selection = window.getSelection();
