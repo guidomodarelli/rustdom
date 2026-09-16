@@ -9,6 +9,8 @@ mod serialize;
 #[cfg_attr(test, allow(dead_code))]
 mod serialize_host;
 #[cfg_attr(test, allow(dead_code))]
+mod serialize_intrinsics;
+#[cfg_attr(test, allow(dead_code))]
 mod serialize_namespaces;
 #[cfg_attr(test, allow(dead_code))]
 mod serialize_text;

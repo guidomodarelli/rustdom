@@ -1,6 +1,6 @@
 //! Scoped access to observable JS properties; owned references never outlive the synchronous serializer.
 use napi::{
-    Env, Error, JsValue, Property, Result, ValueType,
+    Env, Error, JsValue, Property, Result, Status, ValueType,
     bindgen_prelude::{
         FnArgs, FromNapiValue, Function, JsObjectValue, KeyCollectionMode, KeyConversion,
         KeyFilter, Object, ObjectRef, ToNapiValue, TypeName, Unknown, Utf16String,
@@ -116,6 +116,66 @@ impl<'env> Host<'env> {
         // The owned binding conversion truncates the C terminator while preserving embedded NULs.
         Ok(Utf16String::from_unknown(value.coerce_to_string()?.to_unknown())?.to_vec())
     }
+    /// Construct an intrinsic TypeError without converting user values or losing UTF-16 code units.
+    fn type_error(&self, message: &[u16]) -> Result<Error> {
+        let message = self.units(message)?;
+        let mut exception = std::ptr::null_mut();
+        // SAFETY: message and the resulting exception belong to this active handle scope.
+        let status = unsafe {
+            napi::sys::napi_create_type_error(
+                self.env.raw(),
+                std::ptr::null_mut(),
+                message.raw(),
+                &mut exception,
+            )
+        };
+        if status != napi::sys::Status::napi_ok {
+            return Err(Error::new(
+                Status::from(status),
+                "XML serialization: TypeError creation failed",
+            ));
+        }
+        // SAFETY: the checked call initialized exception; capture preserves its intrinsic realm.
+        Ok(Error::from_unknown_without_coercion(unsafe {
+            Unknown::from_raw_unchecked(self.env.raw(), exception)
+        }))
+    }
+
+    /// Preserve the engine's primitive diagnostics without calling mutable conversion hooks.
+    fn iterator_result_error(&self, result: Unknown) -> Result<Error> {
+        crate::dom::napi_error::iterator_result_error(
+            self.env,
+            super::serialize_intrinsics::get(self.env, "iterator")?,
+            result,
+        )
+    }
+    /// Non-callable cached next values are described without invoking object conversion hooks.
+    fn iterator_next_error(&self, value: Unknown) -> Result<Error> {
+        let kind = value.get_type()?;
+        let label = match kind {
+            ValueType::Undefined => "undefined",
+            ValueType::Null => "object null",
+            ValueType::Boolean => "boolean ",
+            ValueType::Number => "number ",
+            ValueType::String => "string \"",
+            ValueType::Symbol => "symbol",
+            ValueType::BigInt => "bigint",
+            _ => "object",
+        };
+        let mut message: Vec<u16> = label.encode_utf16().collect();
+        if matches!(
+            kind,
+            ValueType::Boolean | ValueType::Number | ValueType::String
+        ) {
+            message.extend(self.string(value)?);
+            if kind == ValueType::String {
+                message.push(b'"' as u16);
+            }
+        }
+        message.extend(" is not a function".encode_utf16());
+        self.type_error(&message)
+    }
+
     pub fn is_null(&self, value: Unknown) -> Result<bool> {
         Ok(value.get_type()? == ValueType::Null)
     }
@@ -298,18 +358,26 @@ pub(super) struct IteratorRecord {
 }
 
 impl IteratorRecord {
-    pub fn new(host: &Host, iterable: Unknown) -> Result<Self> {
-        let symbol: Unknown = host.env.get_global()?.get_named_property("Symbol")?;
-        let key = host.get(symbol, "iterator")?;
+    pub fn new(host: &Host, iterable: Unknown, expression: &str) -> Result<Self> {
+        let key = super::serialize_intrinsics::get(host.env, "iterator")?;
         let method = host.key(iterable, key)?;
+        if method.get_type()? != ValueType::Function {
+            return Err(host.type_error(
+                &format!("{expression} is not iterable")
+                    .encode_utf16()
+                    .collect::<Vec<_>>(),
+            )?);
+        }
         let iterator = host.call0(iterable, method, "value is not iterable")?;
         if !matches!(
             iterator.get_type()?,
             ValueType::Object | ValueType::Function
         ) {
-            return Err(Error::from_reason(
-                "Result of the Symbol.iterator method is not an object",
-            ));
+            return Err(host.type_error(
+                &"Result of the Symbol.iterator method is not an object"
+                    .encode_utf16()
+                    .collect::<Vec<_>>(),
+            )?);
         }
         let next = host.get(iterator, "next")?;
         Ok(Self {
@@ -319,16 +387,17 @@ impl IteratorRecord {
     }
 
     pub fn next<'env>(&self, host: &Host<'env>) -> Result<Option<Unknown<'env>>> {
+        let next = self.next.value(host.env)?;
+        if next.get_type()? != ValueType::Function {
+            return Err(host.iterator_next_error(next)?);
+        }
         let result = host.call0(
             self.iterator.value(host.env)?,
-            self.next.value(host.env)?,
+            next,
             "iterator.next is not a function",
         )?;
         if !matches!(result.get_type()?, ValueType::Object | ValueType::Function) {
-            let value = String::from_utf16_lossy(&host.string(result)?);
-            return Err(Error::from_reason(format!(
-                "Iterator result {value} is not an object"
-            )));
+            return Err(host.iterator_result_error(result)?);
         }
         if host.get(result, "done")?.coerce_to_bool()? {
             Ok(None)

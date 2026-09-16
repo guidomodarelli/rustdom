@@ -93,7 +93,8 @@ async function main() {
     outerTimeoutMs: TEST_TIMEOUT_MS,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
     diagnosticNormalization: 'Only the wall-clock Date input description in the known Blob-constructor invalid-input assertion is canonicalized for comparison. Raw messages, statuses and actual/expected exception diagnostics are preserved.',
-    blockedSuites, complete: Object.keys(blockedSuites).length === 0,
+    excludedFixtures: manifest.excludedFixtures || {},
+    blockedSuites, complete: Object.keys(blockedSuites).length === 0 && Object.keys(manifest.excludedFixtures || {}).length === 0,
     results: [], pass: true };
   for (const [suite, blocker] of Object.entries(blockedSuites)) {
     process.stdout.write(`BLOQUEADO ${suite}: ${blocker.reason}; no se cuenta como cobertura aprobada.\n`);

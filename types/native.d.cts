@@ -1,5 +1,42 @@
 /** Low-level Node-API contracts; ordinary DOM consumers should use the root API. */
-import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics } from './index.cjs';
+import type { NativeListenerStatistics, NativeAbortStatistics, NativeXmlStatistics, NativeXmlSerializationStatistics, NativeTokenListStatistics, NativeDatasetStatistics, NativeRectStatistics, NativeStorageStatistics, NativeBlobStatistics, NativeClassReferenceStatistics, NativeFileReaderStatistics, NativeFormDataStatistics } from './index.cjs';
+
+/** Strings are native data; numeric names and values identify separate GC-visible host owners. */
+export interface NativeFormDataEntry { id: number; name: string | number; value: string | number; }
+export interface NativeFormDataSetResult { id: number; index: number; existed: boolean; removed: number[]; }
+/** Completed and active native construction operations; no host values are retained by these diagnostics. */
+export interface FormDataConstructionStatistics { builds: number; preparations: number; active: number; }
+export function formDataConstructionStatistics(): FormDataConstructionStatistics;
+/** Synchronous adapters around real platform helper objects; callbacks receive values in their original realms. */
+export function prepareFormDataValue(value: unknown, filename: unknown, helpers: object, receive: (value: unknown) => void): void;
+export function constructFormData(form: object, submitter: object | null, globalObject: object, helpers: object, append: (name: unknown, value: unknown) => void): void;
+/** Ordered entry storage. A null value creates a host-value marker. Host-name tokens are disjoint from text names and valid only while active. */
+export class NativeFormDataEntries {
+  constructor();
+  readonly length: number;
+  append(name: string, value: string | null): number | null;
+  set(name: string, value: string | null): NativeFormDataSetResult | null;
+  delete(name: string): number[];
+  has(name: string): boolean;
+  get(name: string): string | number | null;
+  getAll(name: string): Array<string | number>;
+  firstId(name: string): number | null;
+  ids(name: string): Float64Array;
+  /** Null creates a host name using its first entry identity; a supplied token must still be active. */
+  appendHost(nameId: number | null, value: string | null): number | null;
+  setHost(nameId: number | null, value: string | null): NativeFormDataSetResult | null;
+  deleteHost(nameId: number): number[];
+  hasHost(nameId: number): boolean;
+  firstHostId(nameId: number): number | null;
+  hostIds(nameId: number): Float64Array;
+  idAt(index: number): number | null;
+  allIds(): Float64Array;
+  /** Constant-time intrinsic length of an ID view; ignores replaced JavaScript constructors/properties. */
+  static idArrayLength(identities: Float64Array): number;
+  entryAt(index: number): NativeFormDataEntry | null;
+  snapshot(): NativeFormDataEntry[];
+  static statistics(): NativeFormDataStatistics;
+}
 
 /** Scalar reference-compatible read/abort state, without references to results or owners. */
 export class NativeFileReaderState {
@@ -105,6 +142,10 @@ export class NativeAbortState {
   dependent: boolean;
   initializeAny(inputs: number[]): NativeAbortAnyPlan;
   markDependents(): number[];
+  /** Returns root identities in native composition order for weak host ownership. */
+  sourceIds(): number[];
+  /** Removes source links after terminal abort without clearing remaining algorithms. */
+  detachSources(): void;
   /** Zero requests a new identity; an existing active identity preserves set semantics. */
   addAlgorithm(existing: number): number;
   removeAlgorithm(id: number): boolean;
@@ -133,6 +174,8 @@ export class NativeListenerRegistry {
   snapshotSelection(type: string, capturing: boolean): NativeListenerSnapshot;
   /** Returns ListenerInvocation bits and removes an invoked once registration before returning. */
   prepareInvocation(id: number, capturing: boolean): number;
+  /** Counts active registrations without allocating a callback snapshot. */
+  listenerCount(type: string): number;
   hasCallback(callback: number): boolean;
   readonly hasEventTypes: boolean;
   storageStatistics(): NativeListenerStorageStatistics;

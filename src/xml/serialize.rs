@@ -210,7 +210,7 @@ impl Serializer {
     }
 
     fn children(&mut self, host: &Host, node: Unknown, scope: Scope) -> Result<()> {
-        let iterator = IteratorRecord::new(host, host.get(node, "childNodes")?)?;
+        let iterator = IteratorRecord::new(host, host.get(node, "childNodes")?, "node.childNodes")?;
         self.frames.push(Frame::Children { iterator, scope });
         Ok(())
     }

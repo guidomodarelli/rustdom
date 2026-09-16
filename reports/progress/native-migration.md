@@ -1,11 +1,13 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 15/09/2026 UTC durante FileReader en
-feature/native-file-reader, que parte del commit publicado
-`f238ad06d838b8e8befa48aea92d79b5f3534bc7` (PR65). Main continúa en
-`b9bbf64a67a9acb42ce30524d732fd348819daba`, checkpoint-048.
-Los PR43–65 todavía no están integrados en main. Los avances de esta rama se
-cuentan como implementación, no como una versión integrada en main.
+Evaluación actualizada el 16/09/2026 UTC durante FormData en
+feature/native-form-data. La base que motivó las correcciones finales de este PR es
+`30bad7e5b8f72b112a0e30795f07e8cfd98da5c0`; los fixes posteriores tienen validación conjunta aprobada en
+reports/validation/pr67-native-length.md. Main está en `ece7d46c9cdb94eea3c23e517b341771ee9719d4`,
+checkpoint-054-file-reader. Los PR43–66 ya están integrados en main.
+FormData y sus correcciones del PR67 se cuentan como implementación en curso,
+no como una versión integrada en main. Selection continúa en un checkout local
+y no tiene un PR publicado.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
@@ -32,11 +34,11 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Blob/File/FormData, almacenamiento y demás APIs de plataforma | Parcial | Web Storage usa áreas Rust/IndexMap; Blob/File incorporan metadatos, texto, rangos y concatenación ordinaria nativos. FileReader agrega estado y decodificación Rust; orígenes, eventos, tareas y otros drivers conservan su host. Ver reports/validation/web-storage.md, reports/validation/blob-file.md y reports/validation/file-reader.md. | Alta |
 
 Jest y Vitest ya ejercen una versión híbrida funcional: sus adapters están en
-`src/environments/`, con pruebas de runners y 18 controles de paquete por cada
+`src/environments/`, con pruebas de runners y 20 controles de paquete por cada
 runtime Node22/24. Es una dimensión distinta de la migración del motor.
 
-Los 238 tests Rust, 1.697 contratos Node, 1.784 casos HTML5 comparables y el corpus
-WPT ejecutable aprobados son evidencia del alcance probado. No se usan como
+Los 251 tests Rust, 2.286 contratos Node, 1.784 casos HTML5 comparables y el corpus
+WPT ejecutable de la unión validada aprobados son evidencia del alcance probado (ver reports/validation/pr67-native-length.md). No se usan como
 denominador del porcentaje: quedan exclusiones, fallos de estándar compartidos
 y el bootstrap de Range-deleteContents bloqueado. Tampoco los checkpoints ni
 los recuentos de archivos sirven como medida del trabajo total.
@@ -163,3 +165,14 @@ de salidas conserva Unicode y reduce las medianas de DataURL/UTF8/binario
 respecto de ese baseline, con todos los resultados y la variabilidad guardados
 en reports/validation/file-reader-performance.md. No completa otra área de
 migración ni cambia el índice de 45,8%.
+
+FormData incorpora lista ordenada, índice de nombres, mutaciones, iteración,
+constructor y preparación de File bajo control Rust. El bridge conserva
+representaciones de valores, owners visibles a V8, fábricas y helpers de
+elementos. La validación general pasó 244 tests Rust, 1.848 Node, los runners
+y 48.812 resultados WPT en paridad; memoria focal final pasó 28 escenarios.
+En 1.000 entradas hay ventajas de iteración/búsqueda/set/delete, pero otras
+rutas siguen siendo más lentas que jsdom. Memcheck del addon y del ejecutable
+Rust, los 36 controles de distribución Node22/24 y el arnés de benchmarks pasaron.
+La familia de plataforma permanece parcial: el indicador
+sigue en 45,8% y no acredita integración en main ni compatibilidad universal.

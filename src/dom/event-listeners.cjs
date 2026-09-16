@@ -4,6 +4,9 @@ const { NativeListenerRegistry, ListenerInvocation } = require('../../dist/nativ
 
 /** A storage identity survives an active dispatch even when Window.close replaces the target's storage. */
 class ListenerStorage {
+  /** @type {Function|null} Own lifetime hook defined without invoking inherited setters. */
+  onChange = null;
+
   /** Allocate native state only after the first accepted listener. */
   constructor() {
     this.native = null; this.records = null; this.identities = null; this.primitiveIdentities = null; this.nextIdentity = 0;
@@ -11,6 +14,9 @@ class ListenerStorage {
 
   /** @returns {boolean} Preserves the empty-bucket history used by XHR and frames. */
   get hasEventTypes() { return this.native?.hasEventTypes ?? false; }
+
+  /** @param {string} type - Converted event type. @returns {number} Native active membership without allocating a callback snapshot. */
+  listenerCount(type) { return this.native?.listenerCount(type) ?? 0; }
 
   /** @param {unknown} reference - WebIDL object or the undefined identity of a raw internal callback. @returns {WeakMap|Map} Identity owner. */
   identityMap(reference) {
@@ -33,6 +39,7 @@ class ListenerStorage {
     const id = this.native.add(type, identity, Boolean(capture), Boolean(once), Boolean(passive));
     if (!id) return false;
     this.records.set(id, { id, callback, signal, reference, identity });
+    this.onChange?.();
     return true;
   }
 
@@ -43,6 +50,7 @@ class ListenerStorage {
     if (this.records.size === 0) {
       this.records = new Map(); this.identities = new WeakMap(); this.primitiveIdentities = new Map(); this.nextIdentity = 0;
     }
+    this.onChange?.();
   }
 
   /** @param {string} type - Converted event type. @param {Function} callback - Real callback adapter. @param {boolean} capture - Capture identity. @returns {void} Removes only the matching registration. */

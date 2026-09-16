@@ -21,6 +21,8 @@ export const {
   NativeBlobMetadata, normalizeBlobEndings, blobSliceRange, concatenateBlobBuffers,
   classReferenceStatistics,
   NativeFileReaderState, ReaderStringFormat, fileReaderString, fileReaderEncoding,
+  NativeFormDataEntries,
+  prepareFormDataValue, constructFormData, formDataConstructionStatistics,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,
   parseDocumentTape, parseFragmentTape,

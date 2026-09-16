@@ -179,6 +179,12 @@ impl ListenerRegistry {
         action
     }
 
+    /// Reports active membership without allocating an invocation snapshot.
+    pub fn listener_count(&self, event_type: &[u16]) -> usize {
+        self.types
+            .get(event_type)
+            .map_or(0, |bucket| bucket.order.len())
+    }
     pub fn has_callback(&self, callback: u64) -> bool {
         self.callbacks.contains_key(&callback)
     }
@@ -212,6 +218,23 @@ impl ListenerRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn should_count_active_listeners_after_removal_and_once_invocation() {
+        let mut registry = ListenerRegistry::default();
+        let event_type: Vec<u16> = "abort".encode_utf16().collect();
+        assert_eq!(registry.listener_count(&event_type), 0);
+        let once = registry
+            .add(&event_type, 1, options(false, true, false))
+            .unwrap();
+        registry
+            .add(&event_type, 2, options(true, false, false))
+            .unwrap();
+        assert_eq!(registry.listener_count(&event_type), 2);
+        registry.prepare_invocation(once, false);
+        assert_eq!(registry.listener_count(&event_type), 1);
+        registry.remove(&event_type, 2, true);
+        assert_eq!(registry.listener_count(&event_type), 0);
+    }
     fn options(capture: bool, once: bool, passive: bool) -> ListenerOptions {
         ListenerOptions {
             capture,

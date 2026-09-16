@@ -13,6 +13,30 @@ async function loaded(window) {
 }
 
 for (const [name, runtime] of Object.entries(runtimes)) {
+  for (const inheritance of ['writable', 'accessor', 'readonly']) {
+    test(`should ignore inherited ${inheritance} lifetime hooks when ordinary DOM listeners change in ${name}`, () => {
+      const dom = new runtime.JSDOM('<body></body>');
+      const previousDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, 'onChange');
+      const trace = [];
+      const callback = () => trace.push('listener');
+      const inheritedDescriptor = inheritance === 'accessor' ? {
+        get: () => () => trace.push('inherited'), set: () => trace.push('setter'),
+      } : { value: () => trace.push('inherited'), writable: inheritance === 'writable' };
+      try {
+        Object.defineProperty(Object.prototype, 'onChange', { configurable: true, ...inheritedDescriptor });
+        const target = new dom.window.EventTarget();
+        target.addEventListener('work', callback);
+        target.dispatchEvent(new dom.window.Event('work'));
+        target.removeEventListener('work', callback);
+      } finally {
+        if (previousDescriptor) Object.defineProperty(Object.prototype, 'onChange', previousDescriptor);
+        else delete Object.prototype.onChange;
+        dom.window.close();
+      }
+      assert.deepEqual(trace, ['listener']);
+    });
+  }
+
   test(`should preserve duplicate identity, capture distinction and first options in ${name}`, () => {
     const dom = new runtime.JSDOM('<button></button>'); const target = dom.window.document.querySelector('button'); const trace = [];
     try {

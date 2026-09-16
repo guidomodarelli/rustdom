@@ -4,13 +4,26 @@
 /**
  * Register the same public integration contracts in Jest and Vitest.
  * @param {object} runner - Test, expectation, and cleanup hooks supplied by the runner.
+ * @param {Function} [runner.createNativeDom] - Owned DOM factory when execution globals use host abort signals.
  * @returns {void} Registers integration tests using actual platform libraries.
  */
-module.exports = function registerDomSuite({ test, expect, afterEach }) {
+module.exports = function registerDomSuite({ test, expect, afterEach, createNativeDom }) {
   const React = require('react');
   const { render, screen, cleanup } = require('@testing-library/react/pure');
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
+
+  test('should construct FormData from controls and retain live iteration through runner globals', () => {
+    const form = document.createElement('form');
+    form.innerHTML = '<input name="text" value="first"><input name="choice" type="checkbox" checked><button name="submitter" value="go">Send</button>';
+    const data = new FormData(form, form.querySelector('button'));
+    expect(Array.from(data)).toEqual([['text', 'first'], ['choice', 'on'], ['submitter', 'go']]);
+    const iterator = data.entries(); expect(iterator.next().value).toEqual(['text', 'first']);
+    data.delete('choice'); data.append('tail', 'last');
+    expect(Array.from(iterator)).toEqual([['submitter', 'go'], ['tail', 'last']]);
+    data.append('file', new File(['contents'], 'source', { lastModified: 42 }), 'copy');
+    expect(data.get('file').name).toBe('copy'); expect(data.get('file').lastModified).toBe(42);
+  });
 
   test('should preserve FileReader decoding and abort events through runner globals', async () => {
     const reader = new FileReader(); const events = [];
@@ -86,6 +99,8 @@ module.exports = function registerDomSuite({ test, expect, afterEach }) {
     expect(Object.is(new DOMRect(-0, -0, 0, 0).left, -0)).toBe(true);
     expect(Number.isNaN(new DOMRect(Infinity, 0, -Infinity, 1).right)).toBe(true);
   });
+
+  require('./abort-suite.cjs')({ test, expect, runnerGlobal: globalThis, createNativeDom });
 
   test('should render and update React state when a user clicks a button', async () => {
     /**

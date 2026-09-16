@@ -120,7 +120,8 @@ pub(super) fn attributes(
     output: &mut Vec<u16>,
 ) -> Result<()> {
     let seen = host.null_map()?;
-    let iterator = IteratorRecord::new(host, host.get(element, "attributes")?)?;
+    let iterator =
+        IteratorRecord::new(host, host.get(element, "attributes")?, "element.attributes")?;
     while let Some(attribute) = iterator.next(host)? {
         let result = attribute_one(host, attribute, context, seen, prefix_index, output);
         if let Err(error) = result {

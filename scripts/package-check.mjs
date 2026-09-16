@@ -63,7 +63,7 @@ try {
     }, include: ['types/*'] }));
     const installArgs = manager === 'npm'
       ? [npmEntry, 'install', '--ignore-scripts', '--no-audit', '--cache', join(root, '.cache/npm-linux')]
-      : [pnpmEntry, 'install', '--ignore-scripts', '--store-dir', join(root, '.cache/pnpm-store')];
+      : [pnpmEntry, 'install', '--ignore-scripts', '--config.node-linker=isolated', '--config.hoist=false', '--store-dir', join(root, '.cache/pnpm-store')];
     run(`${manager}-install`, installArgs, directory);
     await cp(join(directory, manager === 'npm' ? 'package-lock.json' : 'pnpm-lock.yaml'), `${prefix}-${manager}-lock${manager === 'npm' ? '.json' : '.yaml'}`);
     const consumerRequire = createRequire(join(directory, 'package.json'));
@@ -75,6 +75,7 @@ try {
     };
     run(`${manager}-types`, [packageBin('typescript', 'tsc')], directory);
     run(`${manager}-commonjs`, [join(directory, 'compiled/consumer.cjs')], directory);
+    run(`${manager}-tree-traversal`, ['--test', join(directory, 'types/tree-traversal.spec.cjs')], directory);
     run(`${manager}-unicode-host`, [join(directory, 'types/unicode-host.cjs')], directory);
     run(`${manager}-esm-vm`, [join(directory, 'compiled/consumer.mjs')], directory);
     run(`${manager}-worker-assets`, [join(directory, 'compiled/worker-assets.mjs')], directory);

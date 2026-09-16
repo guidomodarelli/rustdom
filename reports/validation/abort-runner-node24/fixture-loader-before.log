@@ -1,0 +1,36 @@
+
+> @rustdom/rustdom@0.1.0-alpha.0 test:jest
+> jest --runInBand
+
+FAIL jest-dom tests/integration/dom.jest.cjs
+  ● Test suite failed to run
+
+    Must use import to load ES Module: /mnt/c/Users/guido/AppData/Local/Temp/rustdom-pr54-abort-retention-e991d78927094e13876cb3cd1a13dacf/node_modules/@exodus/bytes/encoding-lite.js
+
+    The file contains ESM syntax (import/export) that could not be executed as CommonJS. Either:
+      - Configure a transform (e.g. babel-jest) that compiles this file to CommonJS (see https://jestjs.io/docs/code-transformation)
+      - If the file is in "node_modules", allow it to be transformed by adjusting "transformIgnorePatterns" (see https://jestjs.io/docs/configuration#transformignorepatterns-arraystring)
+      - Use Node v24.9+ where Jest supports require(esm) natively (see https://jestjs.io/docs/ecmascript-modules#require-of-esm)
+
+      15 |   const resolver = (specifier) => specifier.startsWith('.') || isAbsolute(specifier) ? localRequire : upstreamRequire;
+      16 |   /** @param {string} specifier - Module to load. @returns {*} The module's actual exports. */
+    > 17 |   function privateRequire(specifier) { return resolver(specifier)(specifier); }
+         |                                                                  ^
+      18 |   Object.assign(privateRequire, localRequire);
+      19 |   privateRequire.resolve = (specifier, options) => resolver(specifier).resolve(specifier, options);
+      20 |   privateRequire.resolve.paths = (specifier) => resolver(specifier).resolve.paths(specifier);
+
+      at createRequireEsmError (node_modules/jest-runtime/build/index.js:452:17)
+      at Object.<anonymous> (node_modules/html-encoding-sniffer/lib/html-encoding-sniffer.js:2:41)
+      at privateRequire (dist/private-require.cjs:17:66)
+      at Object.require (dist/vendor-jsdom/lib/api.js:8:27)
+      at Object.<anonymous> (dist/index.cjs:5:15)
+      at registerAbortSuite (tests/integration/abort-suite.cjs:14:19)
+      at registerDomSuite (tests/integration/dom-suite.cjs:102:31)
+      at Object.<anonymous> (tests/integration/dom.jest.cjs:2:27)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        97.497 s
+Ran all test suites.

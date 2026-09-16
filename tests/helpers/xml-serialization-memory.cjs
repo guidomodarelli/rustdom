@@ -28,11 +28,22 @@ function fixture(mode) {
     observed.iterators.push(new WeakRef(iterator));
     Object.defineProperty(root, 'childNodes', { get: () => ({ length: 1, [Symbol.iterator]: () => iterator }) });
     assert.throws(() => new window.XMLSerializer().serializeToString(root), /serialization memory failure/);
-  } else {
+  } else if (mode === 2) {
     const replacement = independentReplacement();
     const read = () => replacement; observed.callbacks.push(new WeakRef(read));
     Object.defineProperty(text, 'data', { get: read });
     retained = new window.XMLSerializer().serializeToString(text); assert.equal(retained, replacement);
+  } else {
+    const invalidResult = mode === 3 ? Symbol('invalid iterator result') : undefined;
+    const next = () => { global.gc(); return invalidResult; };
+    const iterator = { next, return() { assert.fail('next failure must not close its iterator'); } };
+    const iterable = { [Symbol.iterator]() { return mode === 4 ? invalidResult : iterator; } };
+    observed.callbacks.push(new WeakRef(next)); observed.iterators.push(new WeakRef(iterator));
+    Object.defineProperty(root, 'childNodes', { get: () => iterable });
+    let caught = false;
+    try { native.serializeXml(root, false); }
+    catch (error) { caught = true; assert.ok(error instanceof TypeError); observed.errors.push(new WeakRef(error)); }
+    assert.equal(caught, true);
   }
   const statistics = native.xmlSerializationStatistics();
   assert.equal(statistics.live, 0); assert.equal(statistics.references, 0); assert.equal(statistics.cleanupErrors, 0);
@@ -44,11 +55,11 @@ async function main() {
   const report = { capturedAt: new Date().toISOString(), node: process.version, pass: false, cycles: [] };
   try {
     await collectGarbage(); const baseline = runtime.getNativeTreeStatistics();
-    for (let cycle = 0; cycle < 9; cycle++) {
-      const sample = fixture(cycle % 3);
+    for (let cycle = 0; cycle < 15; cycle++) {
+      const sample = fixture(cycle % 5);
       const released = await waitForMemoryQuiescence({ label: `xml-serialization-${cycle}`, sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
       report.cycles.push(released); assert.equal(released.reached, true);
-      if (cycle % 3 === 2) assert.equal(sample.retained.replace(), sample.retained);
+      if (cycle % 5 === 2) assert.equal(sample.retained.replace(), sample.retained);
     }
     report.pass = true;
   } catch (error) { report.error = error.stack; process.exitCode = 1; }

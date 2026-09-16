@@ -23,6 +23,10 @@ test('should expose ordered native composition and reject invalid identities bef
   first.aborted = true; assert.deepEqual(first.markDependents(), [combined.id, nested.id]);
   assert.equal(combined.aborted, true); assert.equal(nested.aborted, true);
   second.aborted = true; assert.deepEqual(second.markDependents(), []);
+  assert.deepEqual(combined.sourceIds(), [first.id, second.id]);
+  combined.detachSources(); combined.detachSources();
+  assert.deepEqual(combined.sourceIds(), []);
+  assert.deepEqual(nested.sourceIds(), [first.id, second.id]);
   assert.throws(() => combined.initializeAny([]), { code: 'InvalidArg' });
   for (const foreign of [{}, new NativeTree(), Object.create(NativeAbortState.prototype)]) {
     assert.throws(() => Reflect.apply(first.markDependents, foreign, []), { name: 'TypeError' });
@@ -45,4 +49,22 @@ test('should collect strong signal graphs, reasons and callbacks while native st
   });
   assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
   const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5);
+});
+
+test('should release discarded dependents while preserving active abort work and realm teardown', () => {
+  const child = spawnSync(process.execPath, ['--expose-gc', 'tests/helpers/abort-dependent-memory.cjs'], {
+    encoding: 'utf8', timeout: 90_000, maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
+  const report = JSON.parse(child.stdout); assert.equal(report.pass, true); assert.equal(report.cycles, 5);
+});
+
+test('should release native DOMs created by runner fixtures while their parent remains alive', () => {
+  // Start an independent real runner; inherited child-v8 makes Node skip recursively requested test files.
+  const childEnvironment = { ...process.env }; delete childEnvironment.NODE_TEST_CONTEXT;
+  const child = spawnSync(process.execPath, ['--expose-gc', '--test', '--test-reporter=tap', 'tests/helpers/abort-runner-memory.cjs'], {
+    env: childEnvironment, encoding: 'utf8', timeout: 90_000, maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.ifError(child.error); assert.equal(child.status, 0, child.stderr || child.stdout);
+  assert.match(child.stdout, /^# tests 11$/m); assert.match(child.stdout, /^# pass 11$/m);
 });
