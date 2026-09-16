@@ -133,6 +133,16 @@ for (const action of slotAssignmentActions) {
 }
 
 const dom = new rustdom.JSDOM('<!doctype html><p id="target">Before</p>');
+/** Installed public Selection shares Range state and reports native control activation. */
+const selectionCalls = native.selectionOperationStatistics().calls;
+const installedSelection = dom.window.getSelection()!;
+const selectionText = dom.window.document.querySelector('p')!.firstChild!;
+installedSelection.setBaseAndExtent(selectionText, 5, selectionText, 1);
+assert.equal(String(installedSelection), 'efor');
+installedSelection.getRangeAt(0).setEnd(selectionText, 6);
+assert.equal(String(installedSelection), 'efore'); installedSelection.removeAllRanges();
+assert.ok(native.selectionOperationStatistics().calls > selectionCalls);
+assert.equal(rustdom.getNativeTreeStatistics().selectionOperations.active, 0);
 /** BeforeUnloadEvent converts returnValue to DOMString before reaching the native state. */
 const beforeUnload = dom.window.document.createEvent('BeforeUnloadEvent');
 beforeUnload.initEvent('beforeunload', false, true);

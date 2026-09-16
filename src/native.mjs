@@ -22,6 +22,8 @@ export const {
   classReferenceStatistics,
   NativeFileReaderState, ReaderStringFormat, fileReaderString, fileReaderEncoding,
   NativeFormDataEntries,
+  NativeSelectionState,
+  SelectionOperation, selectionOperation, selectionOperationResult, selectionOperationStatistics,
   prepareFormDataValue, constructFormData, formDataConstructionStatistics,
   serializeXml, serializeXmlForest, xmlSerializationStatistics,
   NativeTraversal, NativeTraversalOperation, TraversalMethod, TraversalAction, TraversalMoveResult,

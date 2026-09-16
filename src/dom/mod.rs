@@ -72,6 +72,11 @@ mod range_state_binding;
 mod range_surround;
 mod range_text;
 mod root_hosts;
+mod selection;
+#[cfg_attr(test, allow(dead_code))]
+mod selection_binding;
+#[cfg_attr(test, allow(dead_code))]
+mod selection_operations;
 mod selector_element;
 mod selector_syntax;
 mod serialization;

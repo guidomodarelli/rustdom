@@ -1,0 +1,1327 @@
+{
+  "capturedAt": "2026-09-15T08:43:50.385Z",
+  "reference": "27.4.0",
+  "scope": "Native Selection control with GC-visible Range ownership and host realm/event factories",
+  "cases": [
+    {
+      "name": "preserve empty state, aliases and empty-selection errors",
+      "mode": "default",
+      "expected": {
+        "before": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "errors": [
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          }
+        ],
+        "after": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "identity": true
+      },
+      "actual": {
+        "before": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "errors": [
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          }
+        ],
+        "after": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "identity": true
+      }
+    },
+    {
+      "name": "share the added Range and observe later boundary and text mutations",
+      "mode": "default",
+      "expected": {
+        "same": true,
+        "initial": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdef"
+        },
+        "updated": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "afterSecondAdd": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "sameAfter": true
+      },
+      "actual": {
+        "same": true,
+        "initial": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdef"
+        },
+        "updated": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "afterSecondAdd": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "sameAfter": true
+      }
+    },
+    {
+      "name": "preserve forward and backward extension across UTF16 boundaries",
+      "mode": "default",
+      "expected": [
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 3,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "🦀cdefg"
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 5,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "hi"
+        },
+        {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      ],
+      "actual": [
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 3,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "🦀cdefg"
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 5,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "hi"
+        },
+        {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "replace rather than mutate Range identity when collapsing to an endpoint",
+      "mode": "default",
+      "expected": {
+        "before": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdefgh"
+        },
+        "start": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "end": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:efghi",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "changed": true,
+        "changedEnd": true,
+        "oldStart": 1,
+        "oldEnd": 4
+      },
+      "actual": {
+        "before": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdefgh"
+        },
+        "start": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "end": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:efghi",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "changed": true,
+        "changedEnd": true,
+        "oldStart": 1,
+        "oldEnd": 4
+      }
+    },
+    {
+      "name": "preserve node containment and document deletion effects",
+      "mode": "default",
+      "expected": {
+        "contains": [
+          [
+            false,
+            false
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ]
+        ],
+        "selection": {
+          "anchor": "MAIN:aghi",
+          "anchorOffset": 1,
+          "focus": "MAIN:aghi",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "html": "<p id=\"a\">a</p><p id=\"b\">ghi</p>"
+      },
+      "actual": {
+        "contains": [
+          [
+            false,
+            false
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ]
+        ],
+        "selection": {
+          "anchor": "MAIN:aghi",
+          "anchorOffset": 1,
+          "focus": "MAIN:aghi",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "html": "<p id=\"a\">a</p><p id=\"b\">ghi</p>"
+      }
+    },
+    {
+      "name": "ignore foreign and disconnected roots while preserving error precedence",
+      "mode": "default",
+      "expected": {
+        "errors": [
+          null,
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid anchor or focus offset.",
+            "realm": true
+          }
+        ],
+        "before": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "after": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      },
+      "actual": {
+        "errors": [
+          null,
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid anchor or focus offset.",
+            "realm": true
+          }
+        ],
+        "before": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "after": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      }
+    },
+    {
+      "name": "reject DocumentType and incorrect Range removals without losing state",
+      "mode": "default",
+      "expected": {
+        "errors": [
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "NotFoundError",
+            "message": "Invalid range.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          }
+        ],
+        "kept": true,
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      },
+      "actual": {
+        "errors": [
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "NotFoundError",
+            "message": "Invalid range.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          }
+        ],
+        "kept": true,
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      }
+    },
+    {
+      "name": "preserve selectionchange scheduling and no-op range association",
+      "mode": "default",
+      "expected": {
+        "immediate": 0,
+        "events": [
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          }
+        ],
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      },
+      "actual": {
+        "immediate": 0,
+        "events": [
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          }
+        ],
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      }
+    },
+    {
+      "name": "preserve empty state, aliases and empty-selection errors",
+      "mode": "vm",
+      "expected": {
+        "before": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "errors": [
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          }
+        ],
+        "after": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "identity": true
+      },
+      "actual": {
+        "before": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "errors": [
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          },
+          {
+            "name": "InvalidStateError",
+            "message": "There is no selection to collapse.",
+            "realm": true
+          }
+        ],
+        "after": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        },
+        "identity": true
+      }
+    },
+    {
+      "name": "share the added Range and observe later boundary and text mutations",
+      "mode": "vm",
+      "expected": {
+        "same": true,
+        "initial": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdef"
+        },
+        "updated": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "afterSecondAdd": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "sameAfter": true
+      },
+      "actual": {
+        "same": true,
+        "initial": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdef"
+        },
+        "updated": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "afterSecondAdd": {
+          "anchor": "#text:Xab🦀cd",
+          "anchorOffset": 5,
+          "focus": "#text:efghi",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "cdef"
+        },
+        "sameAfter": true
+      }
+    },
+    {
+      "name": "preserve forward and backward extension across UTF16 boundaries",
+      "mode": "vm",
+      "expected": [
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 3,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "🦀cdefg"
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 5,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "hi"
+        },
+        {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      ],
+      "actual": [
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 3,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 2,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "🦀cdefg"
+        },
+        {
+          "anchor": "#text:efghi",
+          "anchorOffset": 3,
+          "focus": "#text:efghi",
+          "focusOffset": 5,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "hi"
+        },
+        {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "replace rather than mutate Range identity when collapsing to an endpoint",
+      "mode": "vm",
+      "expected": {
+        "before": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdefgh"
+        },
+        "start": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "end": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:efghi",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "changed": true,
+        "changedEnd": true,
+        "oldStart": 1,
+        "oldEnd": 4
+      },
+      "actual": {
+        "before": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": false,
+          "type": "Range",
+          "text": "b🦀cdefgh"
+        },
+        "start": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "end": {
+          "anchor": "#text:efghi",
+          "anchorOffset": 4,
+          "focus": "#text:efghi",
+          "focusOffset": 4,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "changed": true,
+        "changedEnd": true,
+        "oldStart": 1,
+        "oldEnd": 4
+      }
+    },
+    {
+      "name": "preserve node containment and document deletion effects",
+      "mode": "vm",
+      "expected": {
+        "contains": [
+          [
+            false,
+            false
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ]
+        ],
+        "selection": {
+          "anchor": "MAIN:aghi",
+          "anchorOffset": 1,
+          "focus": "MAIN:aghi",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "html": "<p id=\"a\">a</p><p id=\"b\">ghi</p>"
+      },
+      "actual": {
+        "contains": [
+          [
+            false,
+            false
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ],
+          [
+            false,
+            true
+          ]
+        ],
+        "selection": {
+          "anchor": "MAIN:aghi",
+          "anchorOffset": 1,
+          "focus": "MAIN:aghi",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "html": "<p id=\"a\">a</p><p id=\"b\">ghi</p>"
+      }
+    },
+    {
+      "name": "ignore foreign and disconnected roots while preserving error precedence",
+      "mode": "vm",
+      "expected": {
+        "errors": [
+          null,
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid anchor or focus offset.",
+            "realm": true
+          }
+        ],
+        "before": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "after": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      },
+      "actual": {
+        "errors": [
+          null,
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid anchor or focus offset.",
+            "realm": true
+          }
+        ],
+        "before": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        },
+        "after": {
+          "anchor": "#text:ab🦀cd",
+          "anchorOffset": 1,
+          "focus": "#text:ab🦀cd",
+          "focusOffset": 1,
+          "count": 1,
+          "collapsed": true,
+          "type": "Caret",
+          "text": ""
+        }
+      }
+    },
+    {
+      "name": "reject DocumentType and incorrect Range removals without losing state",
+      "mode": "vm",
+      "expected": {
+        "errors": [
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "NotFoundError",
+            "message": "Invalid range.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          }
+        ],
+        "kept": true,
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      },
+      "actual": {
+        "errors": [
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "InvalidNodeTypeError",
+            "message": "DocumentType Node can't be used as boundary point.",
+            "realm": true
+          },
+          {
+            "name": "NotFoundError",
+            "message": "Invalid range.",
+            "realm": true
+          },
+          {
+            "name": "IndexSizeError",
+            "message": "Invalid range index.",
+            "realm": true
+          }
+        ],
+        "kept": true,
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      }
+    },
+    {
+      "name": "preserve selectionchange scheduling and no-op range association",
+      "mode": "vm",
+      "expected": {
+        "immediate": 0,
+        "events": [
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          }
+        ],
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      },
+      "actual": {
+        "immediate": 0,
+        "events": [
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          },
+          {
+            "target": true,
+            "bubbles": false,
+            "state": {
+              "anchor": null,
+              "anchorOffset": 0,
+              "focus": null,
+              "focusOffset": 0,
+              "count": 0,
+              "collapsed": true,
+              "type": "None",
+              "text": ""
+            }
+          }
+        ],
+        "final": {
+          "anchor": null,
+          "anchorOffset": 0,
+          "focus": null,
+          "focusOffset": 0,
+          "count": 0,
+          "collapsed": true,
+          "type": "None",
+          "text": ""
+        }
+      }
+    }
+  ]
+}

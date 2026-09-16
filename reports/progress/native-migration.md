@@ -1,13 +1,6 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 16/09/2026 UTC durante FormData en
-feature/native-form-data. La base que motivó las correcciones finales de este PR es
-`30bad7e5b8f72b112a0e30795f07e8cfd98da5c0`; los fixes posteriores tienen validación conjunta aprobada en
-reports/validation/pr67-native-length.md. Main está en `ece7d46c9cdb94eea3c23e517b341771ee9719d4`,
-checkpoint-054-file-reader. Los PR43–66 ya están integrados en main.
-FormData y sus correcciones del PR67 se cuentan como implementación en curso,
-no como una versión integrada en main. Selection continúa en un checkout local
-y no tiene un PR publicado.
+Evaluación actualizada el 16/09/2026 UTC. Main está en 3c7213f7e636fa6c389f63988bc6bdcc9fdfad1f, checkpoint-055-form-data: los PR43–67 ya están integrados. Selection tiene validación local completa y está preparada para su propio PR sobre main; todavía no se cuenta como integrada. Su evidencia final está en reports/validation/selection-final.md.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
@@ -26,7 +19,7 @@ completa. Un porcentaje por API requeriría inventariar contratos y ponderarlos.
 | Parsing XML/XHTML | Parcial | `src/xml/` tokeniza, valida estructura/namespaces, interpreta doctype/entidades y emite eventos incrementales nativos; `src/parser/xml.cjs` conecta documentos y fragmentos reales. Persisten construcción y efectos del host; evidencia en `reports/validation/xml-parser.md` y `reports/validation/xml-doctype.md`. | Alta |
 | Algoritmos de serialización HTML/XML y concatenación de fragmentos | Implementada | HTML usa `src/dom/serialization.rs`; XML usa `src/xml/serialize*.rs` y `serializeXmlForest`. Las rutas públicas XMLSerializer, innerHTML/outerHTML XML y JSDOM.serialize ejecutan estos algoritmos. El bridge conserva opciones, wrappers y DOMException; los valores e iteradores V8 se acceden desde Rust. Ver `reports/validation/xml-serialization.md`. | Alta |
 | Selectores CSS completos y XPath | Parcial | `src/dom/tree.rs:1343` expone la consulta nativa; README declara selectores que vuelven al motor original. XPath pendiente. | Alta |
-| Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; ROADMAP enumera efectos, creación y Selection pendientes. | Alta |
+| Range y Selection completos | Parcial | Módulos range_* y controles reales publicados; Selection tiene control nativo local validado. ROADMAP conserva efectos, creación y wrappers compartidos pendientes. | Alta |
 | Shadow DOM, slots y eventos completos | Parcial | Hosts, retargeting, selección, aplanado, caches, backlinks, cola de señales y driver de asignación usan Rust; ver `reports/validation/slot-assignment-driver.md`. Continúan pendientes microtasks, callbacks y algoritmos generales de eventos. | Alta |
 | APIs específicas de elementos HTML, formularios y custom elements | Delegada | El runtime privado conserva sus implementaciones de elementos; los datos/atributos nativos compartidos ya se cuentan arriba. | Media |
 | CSSOM, estilos y layout | Delegada | `dist/vendor-jsdom/lib/jsdom/living/helpers/style-rules.js:4` y `:7` usan cssom/cssstyle; no se considera nativo por utilizar selectores nativos debajo. | Media |

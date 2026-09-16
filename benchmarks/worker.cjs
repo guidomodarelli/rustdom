@@ -16,6 +16,7 @@ const { rectFixture } = require('./dom-rect.cjs');
 const { storageFixture, storageQuotaForSize } = require('./web-storage.cjs');
 const { blobFixture } = require('./blob-file.cjs');
 const { formDataFixture } = require('./form-data.cjs');
+const { selectionFixture } = require('./selection.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -356,6 +357,7 @@ async function measure(name, size) {
     let blobWork;
     let readerWork;
     let formWork;
+    let selectionWork;
     let simpleEventTarget; let simpleEventListener; let simpleEventCalls = 0; let simpleEventPhases = 0;
     let observedSlotEvents = 0; let invalidSlotEvents = 0;
     let cleanup;
@@ -397,6 +399,7 @@ async function measure(name, size) {
       if (measuresBlob) blobWork = blobFixture(runtime, dom.window, size, name);
       if (measuresReader) { readerWork = readerFixture(runtime, dom.window, size, name); await readerWork.prepare(); }
       if (name.startsWith('form-data-')) formWork = formDataFixture(runtime, dom.window, size, name);
+      if (name.startsWith('selection-')) selectionWork = selectionFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -521,6 +524,7 @@ async function measure(name, size) {
       if (xmlWork) result = xmlWork.run();
       else if (readerWork) result = await readerWork.run();
       else if (formWork) result = formWork.run();
+      else if (selectionWork) result = selectionWork.run();
       else if (blobWork) result = blobWork.run();
       else if (storageWork) result = storageWork.run();
       else if (rectWork) result = rectWork.run();
@@ -775,6 +779,7 @@ async function measure(name, size) {
       if (blobWork) await blobWork.validate(result);
       readerWork?.validate(result);
       if (formWork) await formWork.validate(result);
+      if (selectionWork) selectionWork.validate(result);
       if (mutationRecordWork) {
         mutationRecordWork.validate(readsMutationRecords ? result : captureMutationRecords(result));
         if (engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().mutationRecords.live >= mutationRecordWork.expectedNativePayloads);
@@ -948,6 +953,7 @@ async function measure(name, size) {
     blobWork = null;
     if (readerWork) await readerWork.dispose(); readerWork = null;
     formWork?.dispose(); formWork = null;
+    await selectionWork?.dispose(); selectionWork = null;
     simpleEventTarget?.removeEventListener('benchmark-event', simpleEventListener); simpleEventTarget = null; simpleEventListener = null;
     slotEventReceiver = null; slotEventListener = null;
     eventHost = null; relatedHost = null; relatedTarget = null; eventListener = null;

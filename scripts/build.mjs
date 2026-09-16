@@ -93,6 +93,16 @@ generatedFormData = substituteOnce(generatedFormData, '        pairs = Array.fro
 generatedFormData = substituteOnce(generatedFormData, '      const values = Array.from(target[implSymbol]);\n      const len = values.length;\n      if (index >= len) {', '      const pair = target[implSymbol]._entryAt(index);\n      if (pair === null) {');
 generatedFormData = substituteOnce(generatedFormData, '      const pair = values[index];\n', '');
 await writeFile(generatedFormDataPath, generatedFormData);
+const selectionPath = resolve(destination, 'lib/jsdom/living/selection/Selection-impl.js');
+const selectionAdapter = await readFile('src/dom/selection.cjs', 'utf8');
+await writeFile('dist/selection.cjs', substituteOnce(selectionAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(selectionPath, '"use strict";\nconst { domSymbolTree } = require("../helpers/internal-constants");\n' +
+  'const { setBoundaryPointStart, setBoundaryPointEnd } = require("../range/Range-impl");\n' +
+  'exports.implementation = require("../../../../../selection.cjs").createSelectionImplementation({\n' +
+  ' DOMException: require("../generated/DOMException"), Range: require("../generated/Range"),\n' +
+  ' ...require("../helpers/node"), implForWrapper: require("../generated/utils").implForWrapper,\n' +
+  ' fireAnEvent: require("../helpers/events").fireAnEvent, compare: require("../range/boundary-point").compareBoundaryPointsPosition,\n' +
+  ' setStart: setBoundaryPointStart, setEnd: setBoundaryPointEnd, childrenCount: node => domSymbolTree.childrenCount(node)\n});\n');
 const readerSource = await readFile('src/dom/file-reader.cjs', 'utf8');
 await writeFile('dist/file-reader.cjs', substituteOnce(readerSource, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await writeFile(resolve(destination, 'lib/jsdom/living/file-api/FileReader-impl.js'),

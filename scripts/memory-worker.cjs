@@ -54,6 +54,7 @@ function exerciseWindow(runtime, identity) {
   document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
   exerciseHostRoots(document);
   exerciseTraversals(document);
+  exerciseSelection(document);
   exerciseXmlSerialization(dom.window);
   exerciseStorage(dom.window);
   const blob = new dom.window.Blob(['a'.repeat(2048)], { type: 'TEXT/PLAIN' });
@@ -133,6 +134,7 @@ function exerciseXmlSerialization(target) {
 
 /** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
 function exerciseEnvironmentRanges(target) {
+  exerciseSelection(target.document);
   exerciseHostRoots(target.document);
   exerciseTraversals(target.document);
   exerciseXmlSerialization(target);
@@ -172,6 +174,17 @@ function exerciseEnvironmentRanges(target) {
   rangeReferences.push(new WeakRef(contents));
   comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted), new WeakRef(surrounding),
     new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild));
+}
+
+/** @param {Document} document - Actual realm owner. @returns {void} Leave Selection/Range cycles visible to the collector. */
+function exerciseSelection(document) {
+  const paragraph = document.createElement('p'); paragraph.textContent = 'abcdef'; document.body.append(paragraph);
+  const selection = document.defaultView.getSelection(); const text = paragraph.firstChild;
+  selection.setBaseAndExtent(text, 5, text, 1); assert.equal(String(selection), 'bcde');
+  const range = selection.getRangeAt(0); range.setEnd(text, 6); assert.equal(String(selection), 'bcdef');
+  selection.collapseToStart(); selection.extend(text, 4);
+  comparisonReferences.push(new WeakRef(selection)); rangeReferences.push(new WeakRef(range), new WeakRef(selection.getRangeAt(0)));
+  paragraph.remove();
 }
 
 /**

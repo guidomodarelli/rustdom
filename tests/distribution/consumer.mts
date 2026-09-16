@@ -8,6 +8,7 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeFormDataEntries, formDataConstructionStatistics,
+  NativeSelectionState, SelectionOperation, selectionOperationStatistics,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
   NativeMutationRecord, ObservationStatus,
   NativeObserverDelivery, ObserverDeliveryAction,
@@ -111,6 +112,18 @@ for (const action of slotAssignmentActions) {
 
 assert.equal(runtime.JSDOM, JSDOM);
 const dom = new JSDOM('<!doctype html><p>Hello</p>', { cookieJar: new CookieJar() });
+/** ESM native bindings and installed public Selection preserve live identities. */
+const selectionState = new NativeSelectionState(); selectionState.orient(true); assert.equal(selectionState.direction, -1);
+assert.equal(SelectionOperation.Anchor, 0);
+const selectionCalls = selectionOperationStatistics().calls;
+const installedSelection = dom.window.getSelection()!;
+const selectionText = dom.window.document.querySelector('p')!.firstChild!;
+installedSelection.setBaseAndExtent(selectionText, 4, selectionText, 1);
+assert.equal(String(installedSelection), 'ell');
+installedSelection.getRangeAt(0).setEnd(selectionText, 5);
+assert.equal(String(installedSelection), 'ello'); installedSelection.removeAllRanges();
+assert.ok(selectionOperationStatistics().calls > selectionCalls);
+assert.equal(getNativeTreeStatistics().selectionOperations.active, 0);
 dom.window.document.body.insertAdjacentHTML('beforeend', '<span>Installed</span>');
 assert.equal(dom.window.document.querySelector('span')?.textContent, 'Installed');
 assert.ok(getNativeTreeStatistics().dataNodes > 0);
