@@ -47,6 +47,7 @@ const report = {
   machine: { platform: platform(), arch: arch(), release: release(), cpu: cpus()[0].model,
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
   methodology: {
+    selection: 'Size is 100/1000 public operations on one prepared six-character Text. Read all endpoints/type/count, associate new Ranges, alternate focus via extend, test containment or stringify. Consume and retain every result during timing; validate all boundary identities/offsets, values and native activation outside timing. Includes WebIDL, native crossings, Range allocation and actual selectionchange scheduling. Drain tasks outside timing before releasing owners. Retained and peak memory are separate from these timing comparisons.',
     formData: 'At 100/1000 entries, time public append/get/getAll/set/delete/iteration, File filename copies, or construction from a real prepared form. Setup is excluded. getAll performs 100 complete reads; set starts with duplicate names. Validate every value, order, file identity/bytes and native activation outside timing, then release auxiliary references. Full runner/bridge cost is included.',
     build: 'cargo release, thin LTO', processOrders: ORDERS,
     timing: 'Public operation only; excludes module startup, setup, validation, window.close and explicit GC.',

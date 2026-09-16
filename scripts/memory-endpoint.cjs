@@ -84,6 +84,8 @@ function isReleased(state, expected) {
     native.formData?.textUnits === expected.formData?.textUnits &&
     native.formData?.capacity === expected.formData?.capacity &&
     native.formData?.nameCapacity === expected.formData?.nameCapacity &&
+    native.selectionStates?.live === expected.selectionStates?.live &&
+    native.selectionOperations?.active === expected.selectionOperations?.active &&
     native.blobs?.live === expected.blobs?.live &&
     native.blobs?.mimeUnits === expected.blobs?.mimeUnits &&
     native.blobs?.fileNameUnits === expected.blobs?.fileNameUnits &&

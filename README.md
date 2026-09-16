@@ -75,7 +75,16 @@ observar su ownership; las lecturas internas conservan snapshots independientes.
 Las consultas nativas reciben ese estado directamente. Los contadores
 `getNativeTreeStatistics().rangeStates` permiten observar creación y destrucción
 de las instancias nativas sin mantener un registro de objetos vivos. Quedan
-algoritmos de mutación, Selection y otros métodos de Range por migrar.
+factories, hooks de mutación y otras rutas generales del DOM por migrar.
+
+`Selection` ejecuta sus lecturas, asociación de Range, dirección, collapse,
+extend, setBaseAndExtent, containsNode y control de borrado en Rust. Conserva
+el Range compartido como referencia visible a V8; el host conecta factories,
+excepciones del realm y tareas de `selectionchange`. Los contadores
+`selectionStates` y `selectionOperations` registran vida útil y llamadas sin
+mantener referencias al DOM. La validación del hito se registra en
+[Selection](reports/validation/selection.md); esto no completa la migración
+de factories, WebIDL y algoritmos generales del host.
 
 Los rangos recolectados también eliminan sus entradas débiles de los nodos
 que siguen vivos. El registro de limpieza contiene solo IDs y un WeakRef,

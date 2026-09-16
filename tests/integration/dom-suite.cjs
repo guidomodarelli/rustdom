@@ -13,6 +13,21 @@ module.exports = function registerDomSuite({ test, expect, afterEach, createNati
   const userEvent = require('@testing-library/user-event').default;
   afterEach(() => { cleanup(); document.body.innerHTML = ''; });
 
+  test('should keep Selection direction and shared Range mutations through runner globals', () => {
+    const paragraph = document.createElement('p'); paragraph.textContent = 'abcdef'; document.body.append(paragraph);
+    const text = paragraph.firstChild; const selection = window.getSelection();
+    try {
+      expect(selection).toBe(document.getSelection());
+      selection.setBaseAndExtent(text, 5, text, 1);
+      expect(selection.anchorOffset).toBe(5); expect(selection.focusOffset).toBe(1);
+      expect(String(selection)).toBe('bcde');
+      const range = selection.getRangeAt(0); range.setEnd(text, 6);
+      expect(String(selection)).toBe('bcdef');
+      selection.deleteFromDocument(); expect(paragraph.textContent).toBe('a'); expect(selection.isCollapsed).toBe(true);
+      selection.removeAllRanges(); expect(selection.type).toBe('None'); expect(selection.rangeCount).toBe(0);
+    } finally { selection.removeAllRanges(); }
+  });
+
   test('should construct FormData from controls and retain live iteration through runner globals', () => {
     const form = document.createElement('form');
     form.innerHTML = '<input name="text" value="first"><input name="choice" type="checkbox" checked><button name="submitter" value="go">Send</button>';
