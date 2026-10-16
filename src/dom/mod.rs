@@ -19,6 +19,8 @@ mod data;
 mod document_implementation;
 #[cfg_attr(test, allow(dead_code))]
 mod document_implementation_binding;
+#[cfg_attr(test, allow(dead_code))]
+mod dom_parser;
 mod dom_rect;
 mod dom_rect_binding;
 mod error;

@@ -9,6 +9,13 @@ export function documentImplementationOperation(owner: object, operation: Docume
 /** Reports completed/active calls without retaining document owners. */
 export function documentImplementationStatistics(): import('./index.cjs').DocumentImplementationStatistics;
 
+/** Native DOMParser dispatch and scripting-disabled document creation. */
+export const DomParserOperation: { readonly ParseFromString: 0; readonly CreateScriptingDisabledDocument: 1; };
+export type DomParserOperation = (typeof DomParserOperation)[keyof typeof DomParserOperation];
+export function domParserOperation(owner: object, operation: DomParserOperation, args: unknown[], helpers: object): unknown;
+/** Synchronous activity and XML recovery attempts, without retained DOM owners. */
+export function domParserStatistics(): import('./index.cjs').DomParserStatistics;
+
 /** Strings are native data; numeric names and values identify separate GC-visible host owners. */
 export interface NativeFormDataEntry { id: number; name: string | number; value: string | number; }
 /** Scalar Selection direction. The host retains its associated Range and realm. */
