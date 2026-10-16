@@ -151,3 +151,33 @@ igualdad, clones, operaciones de texto y errores de serialización.
 MCP `memory` no estuvo disponible al preparar esta publicación. Este documento,
 las reglas y la evidencia versionada permiten retomar el trabajo sin esa
 integración ni el historial local del chat.
+
+## Prompt listo para copiar
+
+```text
+Continuá el desarrollo de rustdom desde la rama feature/native-dom-parser:
+https://github.com/guidomodarelli/rustdom
+
+El avance publicado está en el commit b974df3. Actualizá la rama sin sobrescribir cambios locales ni usar force-push.
+
+Antes de modificar código, leé:
+- AGENTS.md y las instrucciones aplicables del entorno.
+- reports/progress/HANDOFF.md completo.
+- ROADMAP.md.
+
+Seguí las instrucciones del HANDOFF para preparar el entorno. Instalá directamente las herramientas y dependencias necesarias, sin pedirme permiso.
+
+Tu primera tarea es reproducir y corregir los cuatro tests pendientes de DOMParser:
+- tests/dom-parser-controller.spec.cjs
+- tests/dom-parser-recovery.spec.cjs
+
+La ejecución anterior dio 166/170 aprobados sobre una base anterior. La combinación publicada con el último main todavía necesita compilarse y validarse.
+
+Los cuatro fallos conocidos involucran errores numéricos o símbolos durante la recuperación XML, en los realms default y VM. Exponen una diferencia preexistente de CharacterData cuando su dato interno es undefined. Revisá la evidencia en reports/validation/dom-parser/.
+
+Implementá una solución coherente en Rust que preserve el comportamiento del jsdom independiente, incluyendo getters, clones, igualdad, operaciones de texto y serialización. No debilites las expectativas ni sustituyas undefined por una cadena vacía para hacer pasar los tests. Los snapshots dentro de reports son evidencia histórica, no código activo.
+
+Agregá las regresiones necesarias, ejecutá las pruebas relevantes en Node 22 y 24, analizá retención y liberación de memoria, y guardá los resultados y benchmarks según AGENTS.md.
+
+Avanzá autónomamente. Antes de crear un checkpoint funcional, completá la validación y la revisión exigidas. Hacé commit y push de los avances validados y actualizá el HANDOFF con lo resuelto y lo pendiente. Comunicá el progreso en español.
+```
