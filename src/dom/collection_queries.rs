@@ -7,27 +7,23 @@ use super::{
     token_list::{TokenSet, html_space},
 };
 
-pub(super) enum CollectionFilter<'a> {
+pub(super) enum CollectionFilter {
     Classes {
         tokens: TokenSet,
         quirks: bool,
     },
     QualifiedName {
-        name: &'a [u16],
-        html_name: Option<Vec<u16>>,
+        name: DomString,
+        html_name: Option<DomString>,
     },
     Namespace {
-        namespace: Option<&'a [u16]>,
-        local_name: &'a [u16],
+        namespace: Option<DomString>,
+        local_name: DomString,
     },
 }
 
 fn ascii_lowercase(unit: u16) -> u16 {
     u8::try_from(unit).map_or(unit, |byte| u16::from(byte.to_ascii_lowercase()))
-}
-
-fn equals(value: &DomString, expected: &[u16]) -> bool {
-    value.units().eq(expected.iter().copied())
 }
 
 /// Match a single token without copying each element's class value or allocating a token set.
@@ -55,7 +51,7 @@ fn contains_class(value: &DomString, expected: &[u16], quirks: bool) -> bool {
     false
 }
 
-impl<'a> CollectionFilter<'a> {
+impl CollectionFilter {
     pub fn classes(value: &[u16], quirks: bool) -> Self {
         Self::Classes {
             tokens: TokenSet::parse(value),
@@ -63,17 +59,27 @@ impl<'a> CollectionFilter<'a> {
         }
     }
 
-    pub fn qualified_name(name: &'a [u16], html_document: bool) -> Self {
+    pub fn qualified_name(name: &[u16], html_document: bool) -> Self {
         Self::QualifiedName {
-            name,
-            html_name: html_document.then(|| name.iter().copied().map(ascii_lowercase).collect()),
+            name: DomString::from_units(name),
+            html_name: html_document.then(|| {
+                DomString::from_units(
+                    &name
+                        .iter()
+                        .copied()
+                        .map(ascii_lowercase)
+                        .collect::<Vec<_>>(),
+                )
+            }),
         }
     }
 
-    pub fn namespace(namespace: Option<&'a [u16]>, local_name: &'a [u16]) -> Self {
+    pub fn namespace(namespace: Option<&[u16]>, local_name: &[u16]) -> Self {
         Self::Namespace {
-            namespace: namespace.filter(|value| !value.is_empty()),
-            local_name,
+            namespace: namespace
+                .filter(|value| !value.is_empty())
+                .map(DomString::from_units),
+            local_name: DomString::from_units(local_name),
         }
     }
 
@@ -83,10 +89,7 @@ impl<'a> CollectionFilter<'a> {
                 for attribute in store.attribute_views_for_data(node, data) {
                     let attribute = attribute?;
                     if attribute.namespace.is_none()
-                        && attribute
-                            .name
-                            .units()
-                            .eq(CLASS_ATTRIBUTE_NAME.encode_utf16())
+                        && attribute.name.code_units_equal_str(CLASS_ATTRIBUTE_NAME)
                     {
                         return Ok(tokens
                             .iter()
@@ -96,7 +99,7 @@ impl<'a> CollectionFilter<'a> {
                 Ok(false)
             }
             Self::QualifiedName { name, html_name } => {
-                if *name == [u16::from(b'*')] {
+                if name.code_units_equal_str("*") {
                     return Ok(true);
                 }
                 let Some(local_name) = &data.name else {
@@ -105,37 +108,40 @@ impl<'a> CollectionFilter<'a> {
                 let html_namespace = data
                     .namespace
                     .as_ref()
-                    .is_some_and(|namespace| namespace.units().eq(HTML_NAMESPACE.encode_utf16()));
+                    .is_some_and(|namespace| namespace.code_units_equal_str(HTML_NAMESPACE));
                 let expected = html_name
-                    .as_deref()
+                    .as_ref()
                     .filter(|_| html_namespace)
                     .unwrap_or(name);
                 let prefix = data.prefix.as_ref();
+                if prefix.is_none() {
+                    return Ok(local_name.code_units_equal(expected));
+                }
                 let qualified_name = prefix
                     .into_iter()
                     .flat_map(DomString::units)
                     .chain(prefix.map(|_| u16::from(b':')))
                     .chain(local_name.units());
-                Ok(qualified_name.eq(expected.iter().copied()))
+                Ok(qualified_name.eq(expected.units()))
             }
             Self::Namespace {
                 namespace,
                 local_name,
             } => {
                 let namespace_matches = match namespace {
-                    Some(expected) if *expected == [u16::from(b'*')] => true,
+                    Some(expected) if expected.code_units_equal_str("*") => true,
                     Some(expected) => data
                         .namespace
                         .as_ref()
-                        .is_some_and(|actual| equals(actual, expected)),
+                        .is_some_and(|actual| actual.code_units_equal(expected)),
                     None => data.namespace.is_none(),
                 };
                 Ok(namespace_matches
-                    && (*local_name == [u16::from(b'*')]
+                    && (local_name.code_units_equal_str("*")
                         || data
                             .name
                             .as_ref()
-                            .is_some_and(|actual| equals(actual, local_name))))
+                            .is_some_and(|actual| actual.code_units_equal(local_name))))
             }
         }
     }
@@ -146,7 +152,7 @@ impl TreeStore {
     pub(super) fn query_collection(
         &self,
         handle: f64,
-        filter: CollectionFilter<'_>,
+        filter: CollectionFilter,
     ) -> Result<Vec<f64>> {
         let root = node_id(handle)?;
         let mut current = self.links(root)?.first;

@@ -23,6 +23,13 @@ const OBSERVATION_ERROR_MESSAGES = {
 };
 /** Empty input lists are immutable binding data and need not be reallocated for every unobserved mutation. */
 const EMPTY_NODE_HANDLES = Object.freeze([]);
+/** Private metadata of freshly returned query arrays; owners remain in the ordinary JS list. */
+const COLLECTION_QUERY_HANDLES = Symbol('rustdom.collection-query-handles');
+const hasOwn = Object.hasOwn;
+const defineProperty = Object.defineProperty;
+/** Preserve typed transport even when host constructors were changed before importing the runtime. */
+const float64ArrayFrom = require('node:vm').runInNewContext(
+  'Float64Array.from.bind(Float64Array)', Object.create(null));
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -814,16 +821,32 @@ class NativeSymbolTree extends SymbolTree {
 
   /** @param {object} root - Collection owner. @param {string} classes - Converted class query. @param {boolean} quirks - Current owner-document mode. @returns {object[]} Original matching implementations in tree order. */
   collectionByClass(root, classes, quirks) {
-    return Array.from(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks), (id) => this._object(id));
+    return this._collectionResult(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks));
   }
   /** @param {object} root - Collection owner. @param {string} name - Qualified-name query. @param {boolean} htmlDocument - Mode captured at collection creation. @returns {object[]} Original matching implementations. */
   collectionByTagName(root, name, htmlDocument) {
-    return Array.from(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument), (id) => this._object(id));
+    return this._collectionResult(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument));
   }
   /** @param {object} root - Collection owner. @param {string|null} namespace - Converted namespace query. @param {string} name - Local-name query. @returns {object[]} Original matching implementations. */
   collectionByNamespace(root, namespace, name) {
-    return Array.from(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name), (id) => this._object(id));
+    return this._collectionResult(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name));
   }
+
+  /** @param {Float64Array} handles - Native query result. @returns {object[]} Implementations with private reusable numeric transport metadata. */
+  _collectionResult(handles) {
+    const nodes = Array.from(handles, (id) => this._object(id));
+    defineProperty(nodes, COLLECTION_QUERY_HANDLES, { value: handles });
+    return nodes;
+  }
+  /** @param {object[]} nodes - Current query snapshot. @returns {Float64Array} Numeric member identities without additional strong DOM owners. */
+  collectionHandles(nodes) {
+    return hasOwn(nodes, COLLECTION_QUERY_HANDLES) ? nodes[COLLECTION_QUERY_HANDLES]
+      : float64ArrayFrom(nodes, (node) => this._ensure(node));
+  }
+  /** @param {Float64Array} handles - Current owned snapshot. @param {string} key - Converted name. @returns {object|null} Original first matching implementation. */
+  collectionNamedItem(handles, key) { return this._object(this._arena.collectionNamedItem(handles, key)); }
+  /** @param {Float64Array} handles - Current owned snapshot. @returns {string[]} Ordered unique public property names. */
+  collectionPropertyNames(handles) { return this._arena.collectionPropertyNames(handles); }
 
   /** @param {number} id - Native handle or zero. @returns {object|null} The original JS node. */
   _object(id) {

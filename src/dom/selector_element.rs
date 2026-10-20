@@ -1,7 +1,7 @@
 //! Servo's element view over immutable native data during a query.
 use super::{
     attribute_view::AttributeView,
-    constants::{CLASS_ATTRIBUTE_NAME, ELEMENT_NODE, HTML_NAMESPACE, TEXT_NODE},
+    constants::{CLASS_ATTRIBUTE_NAME, ELEMENT_NODE, HTML_NAMESPACE, ID_ATTRIBUTE_NAME, TEXT_NODE},
     data::{DomString, NodeData},
     selector_syntax::{DomSelectors, Name, UnsupportedPseudo, Value},
     store::{NodeId, TreeStore},
@@ -224,7 +224,7 @@ impl Element for SelectorElement<'_> {
         self.is_html_element_in_html_document() && self.has_local_name("slot")
     }
     fn has_id(&self, id: &Name, case: CaseSensitivity) -> bool {
-        self.attribute("id")
+        self.attribute(ID_ATTRIBUTE_NAME)
             .is_some_and(|value| self.case_matches(value, &id.value, case))
     }
     fn has_class(&self, name: &Name, case: CaseSensitivity) -> bool {

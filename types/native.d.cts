@@ -641,6 +641,9 @@ export class NativeTree {
   queryCollectionByClass(root: number, classes: string, quirks: boolean): Float64Array;
   queryCollectionByTagName(root: number, name: string, htmlDocument: boolean): Float64Array;
   queryCollectionByNamespace(root: number, namespace: string | null, name: string): Float64Array;
+  /** Snapshot members stay owned by the calling JS collection; native storage keeps no collection cache. */
+  collectionNamedItem(handles: Float64Array, key: string): number;
+  collectionPropertyNames(handles: Float64Array): string[];
   getLinks(handle: number): TreeLinks;
   append(parent: number, child: number): number;
   prepend(parent: number, child: number): number;

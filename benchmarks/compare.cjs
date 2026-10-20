@@ -10,6 +10,7 @@ const { readBenchmarkShard } = require('./shard.cjs');
 const { captureSourceIdentity } = require('./sources.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 const { COLLECTION_QUERY_ITERATIONS, MANY_CLASS_QUERY_TOKEN_COUNT } = require('./constants/collection-queries.cjs');
+const { COLLECTION_MEMBER_LOOKUP_ITERATIONS, COLLECTION_MEMBER_ENUMERATION_ITERATIONS } = require('./constants/collection-members.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -26,6 +27,7 @@ assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  collectionMemberMethodology: `Prepare a stable public HTMLCollection with 100/1000 members and mixed namespaces outside timing. Time ${COLLECTION_MEMBER_LOOKUP_ITERATIONS} public namedItem hits at the final member or misses, or ${COLLECTION_MEMBER_ENUMERATION_ITERATIONS} Object.getOwnPropertyNames calls consuming full result length and final name. Validate every member identity, exact supported-name order, ignored foreign names, unchanged tree and native counters afterward; cleanup and GC remain outside timing.`,
   shard, completionScope: 'Selected workload partition only; all partitions together cover the eligible plan.',
   readerMethodology: 'Size is input KiB. Prepare Blob/reader and drain document readiness before timing. Measure handler setup, the public read request and loadend completion; abort requests an ArrayBuffer read and cancels immediately. Validate every output byte/string, realm and final state after timing. Drain pending callbacks and clear handlers outside timing before window cleanup/GC.',
   blobMethodology: 'Size denotes 100/1000 parts for blob-construct/blob-nested (256 bytes each), repetitions for blob-endings, or KiB for blob-slice/file-construct. Prepare inputs before timing; slice creates 100 public 64-byte views. Measure construction/slicing and size consumption, then read all result bytes with real FileReader outside timing. Validate metadata and native concatenation activity; release fixture references before cleanup/GC. Node Buffer views preserve sharing; shared/detached backing uses the host primitive outside these ordinary-input workloads.',
