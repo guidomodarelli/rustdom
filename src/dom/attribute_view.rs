@@ -1,7 +1,7 @@
 //! Borrow current attribute metadata without cloning payloads or crossing Node-API.
 use super::{
     constants::ELEMENT_NODE,
-    data::{AttributeData, DomString},
+    data::{AttributeData, DomString, NodeData},
     error::{Result, TreeError},
     store::{NodeId, TreeStore},
 };
@@ -71,7 +71,7 @@ impl TreeStore {
     pub(crate) fn attribute_views_for_data<'a>(
         &'a self,
         element: NodeId,
-        data: &'a super::data::NodeData,
+        data: &'a NodeData,
     ) -> AttributeViews<'a> {
         match self.attribute_collections.elements.get(&element) {
             Some(collection) => AttributeViews::Canonical {
@@ -80,5 +80,21 @@ impl TreeStore {
             },
             None => AttributeViews::Snapshot(data.attributes.iter()),
         }
+    }
+
+    /// Borrow the first exact null-namespace attribute from already validated element metadata.
+    pub(crate) fn attribute_value_for_data<'a>(
+        &'a self,
+        id: NodeId,
+        data: &'a NodeData,
+        name: &str,
+    ) -> Result<Option<&'a DomString>> {
+        for attribute in self.attribute_views_for_data(id, data) {
+            let attribute = attribute?;
+            if attribute.namespace.is_none() && attribute.name.code_units_equal_str(name) {
+                return Ok(Some(attribute.value));
+            }
+        }
+        Ok(None)
     }
 }

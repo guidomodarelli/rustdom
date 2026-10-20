@@ -20,6 +20,19 @@ function createFixture(runtime, mode, formControls = false) {
   return { window, root };
 }
 
+/** @param {object} runtime - Actual engine. @param {string} mode - Default/VM realm. @returns {object} Mixed-namespace name fixture that survives Window.close's body cleanup. */
+function createNameFixture(runtime, mode) {
+  const fixture = createFixture(runtime, mode);
+  // Retention after close requires document members outside the body that close clears.
+  fixture.window.document.head.append(fixture.root);
+  let index = 0;
+  for (const element of fixture.root.children) {
+    element.setAttributeNS(null, 'name', index % 4 < 2 ? 'selected' : 'other');
+    index++;
+  }
+  return fixture;
+}
+
 /** @param {object} runtime - Actual engine. @param {object} before - Optional native baseline. @returns {void} Assert each temporary class filter has already released its token allocations. */
 function verifyTemporaryTokens(runtime, before) {
   if (!before) return;
@@ -55,16 +68,18 @@ function batch(runtime, mode) {
 
 /** @param {object} runtime - Actual engine. @param {string} mode - Default/VM realm. @param {string} kind - Sole collection retained across GC. @returns {object} Explicit strong collection and separate weak observations. */
 function retainedFixture(runtime, mode, kind) {
-  const { window, root } = createFixture(runtime, mode);
+  const { window, root } = kind === 'document-name' ? createNameFixture(runtime, mode) : createFixture(runtime, mode);
   try {
     const beforeTokens = runtime.getNativeTreeStatistics?.().tokenLists;
     for (let cycle = 0; cycle < RETAINED_QUERY_CYCLES; cycle++) {
       root.setAttribute('data-query-cycle', String(cycle));
-      assert.equal(root.getElementsByClassName(`missing-${cycle}`).length, 0);
+      assert.equal((kind === 'document-name' ? window.document.getElementsByName(`missing-${cycle}`)
+        : root.getElementsByClassName(`missing-${cycle}`)).length, 0);
     }
     const held = kind === 'class' ? root.getElementsByClassName('selected')
       : kind === 'tag' ? root.getElementsByTagName('DIV')
-        : kind === 'children' ? root.children : root.getElementsByTagNameNS(TEST_NAMESPACE, 'entry');
+        : kind === 'children' ? root.children
+          : kind === 'document-name' ? window.document.getElementsByName('selected') : root.getElementsByTagNameNS(TEST_NAMESPACE, 'entry');
     const expectedCount = kind === 'children' ? ELEMENTS_PER_WINDOW : ELEMENTS_PER_WINDOW / 2;
     assert.equal(held.length, expectedCount);
     verifyTemporaryTokens(runtime, beforeTokens);
@@ -77,19 +92,20 @@ function retainedFixture(runtime, mode, kind) {
 /** @param {object} sample - Explicit live collection owner. @returns {void} Read held state without leaving strong loop bindings across an async GC. */
 function verifyHeld(sample) { assert.equal(sample.held.length, sample.expectedCount); assert.equal(sample.held.item(0).ownerDocument, sample.observed.documents[0].deref()); }
 
-/** @param {object} runtime - Actual engine. @param {string} mode - Default/VM realm. @returns {object} A live children owner and only weak references to the removed member. */
-function removedChildFixture(runtime, mode) {
-  const { window, root } = createFixture(runtime, mode);
+/** @param {object} runtime - Actual engine. @param {string} mode - Default/VM realm. @param {string} kind - Children or live document-name query. @returns {object} A live collection owner and only weak references to the removed member. */
+function removedChildFixture(runtime, mode, kind) {
+  const { window, root } = kind === 'document-name' ? createNameFixture(runtime, mode) : createFixture(runtime, mode);
   try {
-    const held = root.children;
+    const held = kind === 'document-name' ? window.document.getElementsByName('selected') : root.children;
+    const expectedCount = (kind === 'document-name' ? ELEMENTS_PER_WINDOW / 2 : ELEMENTS_PER_WINDOW) - 1;
     const removed = root.firstElementChild;
     const removedObservation = { elements: [new WeakRef(removed)] };
     removed.remove();
     assert.equal(root.childElementCount, ELEMENTS_PER_WINDOW - 1);
-    assert.equal(held.length, ELEMENTS_PER_WINDOW - 1);
+    assert.equal(held.length, expectedCount);
     const observed = { windows: [new WeakRef(window)], documents: [new WeakRef(window.document)],
-      roots: [new WeakRef(root)], collections: [new WeakRef(held)], elements: Array.from(held, (element) => new WeakRef(element)) };
-    return { held, observed, removedObservation, expectedCount: ELEMENTS_PER_WINDOW - 1 };
+      roots: [new WeakRef(root)], collections: [new WeakRef(held)], elements: Array.from(root.children, (element) => new WeakRef(element)) };
+    return { held, observed, removedObservation, expectedCount };
   } finally { window.close(); }
 }
 
@@ -125,7 +141,7 @@ async function main() {
   const report = { capturedAt: new Date().toISOString(), node: process.version, reference: require('jsdom/package.json').version,
     windowsPerBatch: WINDOWS_PER_BATCH, measuredCycles: MEASURED_CYCLES, mutationsPerWindow: MUTATIONS_PER_WINDOW,
     retainedQueryCycles: RETAINED_QUERY_CYCLES, pass: false, cases: [],
-    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements, three live descendant collections and repeated physical Element-relative reads, forty mutation/requery cycles per Window, then close and drop owners. Separately churn two hundred class queries and hold one class/tag/namespace/children collection after close; require owner retention then release every weak group and native liveness counter across two clear GC samples. A removed child must collect while children and its parent/document remain held; childElementCount and the live list must already reflect removal. Native-only default/VM cases retain numeric transport and property-name strings from descendant queries, ordinary children, and children/form.elements snapshots created with a throwing host Float64Array.from getter restored in finally; every DOM owner must clear. Class tokens release synchronously. Heap/external/RSS are post-GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
+    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements, live descendant collections and physical Element-relative reads, forty mutation/requery cycles per Window, then close and drop owners. Separately churn two hundred class or document-name queries and hold a class/tag/namespace/children/document-name collection after close; require owner retention then release every weak group and native liveness counter across two clear GC samples. Document-name fixtures are placed in head because Window.close clears body; members outside body intentionally remain connected. A removed matched child must collect while a children or document-name list and its parent/document remain held; read the live result first to refresh lazy NodeList state. Document names match both HTML and foreign Elements. Native-only cases retain numeric transport and names from descendant queries, ordinary children, and children/form.elements under a throwing host Float64Array.from getter restored in finally; all DOM owners must clear. Class tokens release synchronously. Heap/external/RSS are post-GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
   try {
     for (const [engine, runtime] of Object.entries(engines)) for (const mode of ['default', 'vm']) {
       for (let cycle = -1; cycle < MEASURED_CYCLES; cycle++) {
@@ -136,7 +152,7 @@ async function main() {
         report.cases.push({ engine, mode, cycle, endpoint });
         assert.equal(endpoint.reached, true, JSON.stringify(endpoint.state));
       }
-      for (const kind of ['class', 'tag', 'namespace', 'children']) {
+      for (const kind of ['class', 'tag', 'namespace', 'children', 'document-name']) {
         await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = retainedFixture(runtime, mode, kind);
         await collectGarbage(); verifyHeld(sample);
         const held = captureMemoryState(sample.observed, runtime);
@@ -147,18 +163,18 @@ async function main() {
         report.cases.push({ engine, mode, kind, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
       }
-      {
-        await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = removedChildFixture(runtime, mode);
-        const removed = await waitForMemoryQuiescence({ label: `children-${engine}-${mode}-removed-with-live-owner`,
+      for (const kind of ['children', 'document-name']) {
+        await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = removedChildFixture(runtime, mode, kind);
+        const removed = await waitForMemoryQuiescence({ label: `${kind}-${engine}-${mode}-removed-with-live-owner`,
           sample: () => captureMemoryState(sample.removedObservation) });
         assert.equal(removed.reached, true, JSON.stringify(removed.state));
         verifyHeld(sample);
         const held = captureMemoryState(sample.observed, runtime);
         assert.equal(held.survivors.collections, 1); assert.equal(held.survivors.documents, 1); assert.equal(held.survivors.roots, 1);
         sample.held = null;
-        const released = await waitForMemoryQuiescence({ label: `children-${engine}-${mode}-owner-released`,
+        const released = await waitForMemoryQuiescence({ label: `${kind}-${engine}-${mode}-owner-released`,
           sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
-        report.cases.push({ engine, mode, kind: 'removed-child-with-live-collection', removed, held, released });
+        report.cases.push({ engine, mode, kind: 'removed-child-with-live-collection', query: kind, removed, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
       }
       if (engine === 'rustdom') {

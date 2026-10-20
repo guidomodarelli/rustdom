@@ -12,6 +12,7 @@ const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs')
 const { COLLECTION_QUERY_ITERATIONS, MANY_CLASS_QUERY_TOKEN_COUNT } = require('./constants/collection-queries.cjs');
 const { COLLECTION_MEMBER_LOOKUP_ITERATIONS, COLLECTION_MEMBER_ENUMERATION_ITERATIONS } = require('./constants/collection-members.cjs');
 const { ELEMENT_RELATIVE_ITERATIONS } = require('./constants/element-relatives.cjs');
+const { NAME_QUERY_ITERATIONS } = require('./constants/name-queries.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -27,6 +28,7 @@ assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
 
 /** Capture source and dependency identities alongside machine information. */
 const report = {
+  documentNameMethodology: `Prepare an otherwise empty HTML document and 100/1000 mixed-namespace Elements with null-namespace name values, half selected, plus same-local-name foreign attributes that must not match. Size denotes prepared Elements; inputBytes records the actual bootstrap HTML, not the later DOM allocation volume. Time ${NAME_QUERY_ITERATIONS} public Document.getElementsByName creations, misses, attribute-invalidated retained NodeList reads, or stable cached reads. Consume length and final identity. Verify native counts before auxiliary reads and then every node/attribute/result identity plus the full serialized hash outside timing; setup, validation, cleanup and GC are excluded.`,
   schemaVersion: 1, capturedAt: new Date().toISOString(),
   elementRelativeMethodology: `Prepare 100/1000 physical child nodes outside timing. Collections alternate Element and Text/Comment gaps; scalar workloads place one Element at the far end or two Elements around a long non-element sibling chain. Time ${ELEMENT_RELATIVE_ITERATIONS} public getter reads, or attribute invalidations followed by retained children length/item reads. Cached mode performs no invalidation. Verify native traversal counts before auxiliary validation, then every node identity, Element result, child count and full serialized output; setup, cleanup and GC remain outside timing.`,
   collectionMemberMethodology: `Prepare a stable public HTMLCollection with 100/1000 members and mixed namespaces outside timing. Time ${COLLECTION_MEMBER_LOOKUP_ITERATIONS} public namedItem hits at the final member or misses, or ${COLLECTION_MEMBER_ENUMERATION_ITERATIONS} Object.getOwnPropertyNames calls consuming full result length and final name. Validate every member identity, exact supported-name order, ignored foreign names, unchanged tree and native counters afterward; cleanup and GC remain outside timing.`,

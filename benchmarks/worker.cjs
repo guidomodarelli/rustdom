@@ -24,6 +24,8 @@ const { collectionMemberFixture } = require('./collection-members.cjs');
 const { COLLECTION_MEMBER_WORKLOADS } = require('./constants/collection-members.cjs');
 const { elementRelativeFixture } = require('./element-relatives.cjs');
 const { ELEMENT_RELATIVE_WORKLOADS } = require('./constants/element-relatives.cjs');
+const { nameQueryFixture } = require('./name-queries.cjs');
+const { NAME_QUERY_WORKLOADS, NAME_QUERY_DOCUMENT_HTML } = require('./constants/name-queries.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -286,7 +288,8 @@ function observerDeliveryFixture(document, size, name, roots) {
  * @returns {Promise<object>} Raw milliseconds and post-cleanup memory snapshots.
  */
 async function measure(name, size) {
-  const html = fixture(size);
+  const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
+  const html = measuresDocumentNames ? NAME_QUERY_DOCUMENT_HTML : fixture(size);
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const contentOperation = RANGE_CONTENT_OPERATIONS[name];
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
@@ -413,6 +416,7 @@ async function measure(name, size) {
       if (COLLECTION_QUERY_WORKLOADS.includes(name)) collectionWork = collectionQueryFixture(runtime, dom.window, size, name);
       if (COLLECTION_MEMBER_WORKLOADS.includes(name)) collectionWork = collectionMemberFixture(runtime, dom.window, size, name);
       if (ELEMENT_RELATIVE_WORKLOADS.includes(name)) collectionWork = elementRelativeFixture(runtime, dom.window, size, name);
+      if (NAME_QUERY_WORKLOADS.includes(name)) collectionWork = nameQueryFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -812,7 +816,8 @@ async function measure(name, size) {
         }
         if (engine === 'rustdom') assert.equal(runtime.getNativeTreeStatistics().slotSignals.pendingSlots, 0);
       }
-      assert.equal(document.querySelectorAll('tr').length, removesContent ? 2 : size + (insertsNodes ? RANGE_INSERTION_ITERATIONS : 0));
+      assert.equal(document.querySelectorAll('tr').length, measuresDocumentNames ? 0
+        : removesContent ? 2 : size + (insertsNodes ? RANGE_INSERTION_ITERATIONS : 0));
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
       if (name === 'character-data-100') assert.equal(result, 'Row ');
@@ -947,7 +952,7 @@ async function measure(name, size) {
         assert.equal(consumedTextUnits, expectedText.length * stringifyReads);
       }
     }
-    assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
+    if (!measuresDocumentNames) assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
     const fragmentOutput = createsContextFragment || contentOperation === 'cloneContents' || contentOperation === 'extractContents'
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
     const insertionOutput = insertionDocument ? new dom.window.XMLSerializer().serializeToString(insertionDocument) : '';
