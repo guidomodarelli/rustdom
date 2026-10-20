@@ -10,7 +10,7 @@
 
 - El usuario autoriza instalar las herramientas, librerías y dependencias necesarias. **No preguntarle si se pueden instalar**; instalarlas directamente.
 - Preferir herramientas locales al proyecto y registrar versiones reproducibles en lockfiles. Evitar cambios globales innecesarios.
-- Consultar MCP `memory` al inicio cuando esté disponible; verificar en el repositorio los hechos recuperados. Guardar hechos duraderos según el alcance del proyecto. Si no está disponible, informarlo sin inventar recuerdos.
+- Consultar Engram (`mem_context` y, si hace falta, `mem_search`) al inicio; es el único sistema de memoria persistente autorizado. Verificar en el repositorio los hechos recuperados. Guardar hechos duraderos con `mem_save`, scope `project`, reutilizando el `topic_key`; las preferencias globales usan scope `global`. Si Engram no está disponible, informarlo explícitamente sin usar otro mecanismo de memoria.
 - Antes de analizar o modificar código, aplicar `~/.agents/rules/payload-validation-boundaries.md`. En esta máquina también existe la fuente en `~/system-config/configs/.agents/rules/payload-validation-boundaries.md`. Esa regla es la fuente canónica; no duplicar ni contradecir su contrato aquí.
 
 ## Objetivo y diseño
@@ -51,6 +51,7 @@
 
 ## Checkpoints Git
 
+- Commitear únicamente archivos modificados por el agente en la sesión actual. Registrar el `git status` inicial y preservar los cambios ajenos sin stagearlos, commitearlos ni revertirlos. Stagear por path; si un archivo mezcla cambios propios y ajenos, stagear solo los hunks propios. Al cerrar, indicar qué archivos ajenos quedaron pendientes.
 - Por cada hito de cambios bien probado y validado, **hacer commit y push** para guardar el avance.
 - Crear y subir un **tag de checkpoint** que identifique ese estado funcional; utilizar nombres incrementales y no mover tags ya publicados.
 - No crear checkpoints de trabajo que se sabe que falla. Incluir resultados de validación y benchmarks correspondientes cuando formen parte del hito.

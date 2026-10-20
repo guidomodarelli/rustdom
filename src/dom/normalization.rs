@@ -13,6 +13,26 @@ pub(crate) struct NormalizationGroup {
 }
 
 impl TreeStore {
+    /// Observe following Text lengths after replaceData hooks, even without live ranges.
+    /// This keeps the no-range path in one native call and preserves late undefined errors.
+    pub fn check_normalized_following_text(&self, handle: f64) -> Result<()> {
+        let mut current = self.links(node_id(handle)?)?.next;
+        while current != 0 {
+            if self
+                .data
+                .get(&current)
+                .ok_or(TreeError::MissingData(current))?
+                .kind
+                != TEXT_NODE
+            {
+                break;
+            }
+            self.character_length(current as f64)?;
+            current = self.links(current)?.next;
+        }
+        Ok(())
+    }
+
     /// Snapshot eligible Text identities, preserving the pinned implementation's inclusive traversal.
     pub fn normalization_candidates(&self, handle: f64) -> Result<Vec<f64>> {
         let mut pending = vec![node_id(handle)?];
@@ -76,9 +96,13 @@ impl TreeStore {
         }
         // jsdom appends preceding/succeeding data after the candidate's own value, even for a Text context.
         for &sibling in &group.siblings {
-            group
-                .appended_data
-                .extend_from_slice(self.character_data(sibling as f64)?);
+            let value = self.character_data_value(sibling as f64)?;
+            if let super::data::DomString::Utf16(units) = value {
+                group.appended_data.extend_from_slice(units);
+            } else {
+                // JS reduce begins with "": undefined is concatenated before later length reads.
+                group.appended_data.extend(value.units());
+            }
         }
         Ok(Some(group))
     }
@@ -87,6 +111,49 @@ impl TreeStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_concatenate_undefined_siblings_before_the_driver_reads_their_lengths() {
+        let mut tree = TreeStore::new();
+        let parent = node(&mut tree, r#"{"kind":1,"name":"root"}"#);
+        let first = node(&mut tree, r#"{"kind":3,"value":"a"}"#);
+        let middle = tree.allocate().unwrap();
+        tree.set_character_value(middle, TEXT_NODE, super::super::data::DomString::Undefined)
+            .unwrap();
+        let last = node(&mut tree, r#"{"kind":3,"value":"b"}"#);
+        for child in [first, middle, last] {
+            tree.append(parent, child).unwrap();
+        }
+        let before = tree.statistics().data_updates;
+        assert_eq!(
+            tree.normalization_group(first)
+                .unwrap()
+                .unwrap()
+                .appended_data,
+            "undefinedb".encode_utf16().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            tree.normalization_group(last)
+                .unwrap()
+                .unwrap()
+                .appended_data,
+            "aundefined".encode_utf16().collect::<Vec<_>>()
+        );
+        assert!(matches!(
+            tree.normalization_group(middle),
+            Err(TreeError::UndefinedCharacterDataProperty("length"))
+        ));
+        assert_eq!(tree.statistics().data_updates, before);
+        assert!(matches!(
+            tree.check_normalized_following_text(first),
+            Err(TreeError::UndefinedCharacterDataProperty("length"))
+        ));
+        assert!(tree.check_normalized_following_text(last).is_ok());
+        for child in [first, middle, last, parent] {
+            tree.release(child).unwrap();
+        }
+        assert_eq!(tree.statistics().data_nodes, 0.0);
+    }
 
     fn node(tree: &mut TreeStore, metadata: &str) -> f64 {
         let handle = tree.allocate().unwrap();

@@ -21,6 +21,7 @@ fn same_text(value: Option<&DomString>, expected: &str) -> bool {
     value.is_some_and(|value| match value {
         DomString::Text(value) => value == expected,
         DomString::Utf16(value) => value.iter().copied().eq(expected.encode_utf16()),
+        DomString::Undefined => false,
     })
 }
 

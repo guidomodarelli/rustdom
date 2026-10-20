@@ -83,6 +83,11 @@ await writeFile(resolve(destination, 'lib/jsdom/living/nodes/DOMImplementation-i
   '"use strict";\nexports.implementation = require("../../../../../document-implementation.cjs").createDocumentImplementation({\n' +
   ' DocumentType: require("../generated/DocumentType"), DOMException: require("../generated/DOMException"),\n' +
   ' documents: require("../documents.js"), ...require("../helpers/create-element"), ...require("../helpers/namespaces")\n});\n');
+const domParserAdapter = await readFile('src/dom/dom-parser.cjs', 'utf8');
+await writeFile('dist/dom-parser.cjs', substituteOnce(domParserAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/domparsing/DOMParser-impl.js'),
+  '"use strict";\nexports.implementation = require("../../../../../dom-parser.cjs").createDomParserImplementation({\n' +
+  ' Document: require("../generated/Document"), idlUtils: require("../generated/utils"), parseIntoDocument: require("../../browser/parser").parseIntoDocument\n});\n');
 const formDataAdapter = await readFile('src/dom/form-data.cjs', 'utf8');
 await writeFile('dist/form-data.cjs', substituteOnce(formDataAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
 const formDataPath = resolve(destination, 'lib/jsdom/living/xhr/FormData-impl.js');
@@ -467,7 +472,8 @@ normalizationRanges = normalizationRanges.slice(0, normalizedUpdatesStart) +
 // Check after replaceData: a synchronous hook can create live ranges before this point.
 nodeSource = nodeSource.slice(0, normalizationRangesStart) +
   '      if (node._referencedRanges.size !== 0 || parentNode._referencedRanges.size !== 0) {\n' +
-  normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
+  normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') +
+  '\n      } else {\n        domSymbolTree.checkNormalizedFollowingText(node);\n      }\n\n' +
   nodeSource.slice(normalizationRangesEnd);
 /** Preserve parent/host-cycle gates before delegating the remaining insertion constraints. */
 const nodePreInsertStart = nodeSource.indexOf('  _preInsertValidity(nodeImpl, childImpl) {');

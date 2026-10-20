@@ -7,7 +7,7 @@ use super::{
     range_state_binding::{NativeRange, NativeRangeStatistics},
     store::TreeStore,
 };
-use napi::Result;
+use napi::{Env, Result};
 use napi_derive::napi;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -99,13 +99,14 @@ pub struct NativeRangeExtract {
 impl NativeRangeExtract {
     pub(super) fn step(
         &mut self,
+        env: Env,
         tree: &mut TreeStore,
         created: f64,
     ) -> Result<RangeExtractInstruction> {
         self.machine
             .step(tree, created)
             .and_then(RangeExtractInstruction::try_from)
-            .map_err(|error| to_range_operation_error(error, "NativeRangeExtract"))
+            .map_err(|error| to_range_operation_error(env, error, "NativeRangeExtract"))
     }
 }
 impl Drop for NativeRangeExtract {

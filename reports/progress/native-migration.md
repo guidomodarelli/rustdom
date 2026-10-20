@@ -1,6 +1,6 @@
 # Indicador provisional de migración a Rust
 
-Evaluación actualizada el 16/09/2026 UTC. Main está en 9f9970297dd28a87500b7faaac1bbe495798728e, checkpoint-056-selection: los PR43–68 ya están integrados. DOMImplementation tiene control nativo y validación local completa, pero todavía no está integrado. Las factories compartidas, DOMParser y otros algoritmos generales mantienen abierta la migración. Evidencia en reports/validation/document-implementation.md.
+Estado actualizado el 20/10/2026 UTC. Main parte de c3b0f18a31fcb209fb0a3e66f5a7b7e0ea9f20ca, checkpoint-057-document-implementation: DOMImplementation ya está integrado. En feature/native-dom-parser, el controlador DOMParser y CharacterData undefined pasan 279 contratos focales/GC en Node 22 y 24, además de 259 tests Rust, 2.757 contratos generales por versión, runners reales, corpus, WPT, Memcheck y paquete instalado. Los benchmarks y sus regresiones están guardados; no muestran una mejora general atribuible al fix. Comprobar el estado remoto del PR para determinar su integración. Las factories compartidas y otros algoritmos generales mantienen abierta la migración. Evidencia actual en reports/validation/dom-parser-undefined.md; la implementación continúa siendo híbrida.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 

@@ -22,6 +22,7 @@ export const {
   classReferenceStatistics,
   NativeFileReaderState, ReaderStringFormat, fileReaderString, fileReaderEncoding,
   DocumentImplementationOperation, documentImplementationOperation, documentImplementationStatistics,
+  DomParserOperation, domParserOperation, domParserStatistics,
   NativeFormDataEntries,
   NativeSelectionState,
   SelectionOperation, selectionOperation, selectionOperationResult, selectionOperationStatistics,

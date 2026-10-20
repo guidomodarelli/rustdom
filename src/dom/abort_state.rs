@@ -3,6 +3,7 @@ use super::{compact_storage::CompactMap, constants::JS_MAX_SAFE_INTEGER};
 use rustc_hash::{FxBuildHasher, FxHashSet};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Bound::{Excluded, Unbounded};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AbortStateError {
@@ -11,6 +12,22 @@ pub enum AbortStateError {
     SourceNotAborted,
     UnknownAlgorithm(u64),
     IdentifiersExhausted,
+}
+
+/// Reserve a process-wide signal identity with stable atomics and no graph ownership.
+/// Relaxed ordering is sufficient: only uniqueness is published through this counter.
+pub(super) fn reserve_signal_id(last_id: &AtomicU64) -> Result<u64, AbortStateError> {
+    let mut previous = last_id.load(Ordering::Relaxed);
+    loop {
+        if previous >= JS_MAX_SAFE_INTEGER {
+            return Err(AbortStateError::IdentifiersExhausted);
+        }
+        let next = previous + 1;
+        match last_id.compare_exchange_weak(previous, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return Ok(next),
+            Err(actual) => previous = actual,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -247,6 +264,83 @@ impl AbortGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_reserve_unique_signal_ids_when_threads_compete() {
+        let counter = AtomicU64::new(0);
+        let barrier = std::sync::Barrier::new(8);
+        let mut ids = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    let counter = &counter;
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        barrier.wait();
+                        (0..1_000)
+                            .map(|_| reserve_signal_id(counter).unwrap())
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .flat_map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        ids.sort_unstable();
+        assert_eq!(ids, (1..=8_000).collect::<Vec<_>>());
+        assert_eq!(counter.load(Ordering::Relaxed), 8_000);
+    }
+
+    #[test]
+    fn should_leave_the_signal_counter_unchanged_when_identifiers_are_exhausted() {
+        let counter = AtomicU64::new(JS_MAX_SAFE_INTEGER - 1);
+        assert_eq!(reserve_signal_id(&counter), Ok(9_007_199_254_740_991));
+        for _ in 0..8 {
+            assert_eq!(
+                reserve_signal_id(&counter),
+                Err(AbortStateError::IdentifiersExhausted)
+            );
+        }
+        assert_eq!(counter.load(Ordering::Relaxed), 9_007_199_254_740_991);
+    }
+
+    #[test]
+    fn should_reserve_the_last_safe_signal_identity_only_once_under_contention() {
+        let counter = AtomicU64::new(JS_MAX_SAFE_INTEGER - 1);
+        let barrier = std::sync::Barrier::new(8);
+        let results = std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|_| {
+                    let counter = &counter;
+                    let barrier = &barrier;
+                    scope.spawn(move || {
+                        barrier.wait();
+                        reserve_signal_id(counter)
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Ok(9_007_199_254_740_991))
+                .count(),
+            1
+        );
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Err(AbortStateError::IdentifiersExhausted))
+                .count(),
+            7
+        );
+        assert_eq!(counter.load(Ordering::Relaxed), 9_007_199_254_740_991);
+    }
     fn graph() -> AbortGraph {
         let mut graph = AbortGraph::default();
         for id in 1..=8 {

@@ -12,6 +12,7 @@ fn equals_text(value: &DomString, expected: &str) -> bool {
     match value {
         DomString::Text(value) => value == expected,
         DomString::Utf16(value) => value.iter().copied().eq(expected.encode_utf16()),
+        DomString::Undefined => false,
     }
 }
 

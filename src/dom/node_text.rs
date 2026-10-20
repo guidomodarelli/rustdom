@@ -66,6 +66,7 @@ impl TreeStore {
                 match &data.value {
                     DomString::Utf16(units) => output.extend_from_slice(units),
                     DomString::Text(text) => output.extend(text.encode_utf16()),
+                    DomString::Undefined => output.extend("undefined".encode_utf16()),
                 }
             }
             let mut links = self.links(current)?;
