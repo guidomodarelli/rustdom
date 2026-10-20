@@ -1,20 +1,20 @@
 # Indicador provisional de migración a Rust
 
-Estado actualizado el 20/10/2026 UTC. Main contiene `55e2cb85664b8621749336fcc21ded1288882a17`,
-checkpoint-061-element-relatives (PR 73), con hijos y hermanos Element nativos.
-El siguiente hito, feature/native-name-queries, migra el recorrido y filtro de
-Document.getElementsByName; comprobar el PR remoto antes de asumir integración.
-WebIDL, factories, invalidación y otras APIs conservan trabajo pendiente;
-el runtime continúa siendo híbrido.
+Estado actualizado el 20/10/2026 UTC. Main contiene `e5a2daa5798c50c1fd8fa2f159d6a3f8ed38cde4`,
+checkpoint-062-name-queries (PR 74), con Document.getElementsByName nativo.
+El siguiente hito, feature/native-fragment-id, migra getElementById de fragmentos,
+template.content y ShadowRoot; comprobar su PR antes de asumir integración.
+El índice de Document, la búsqueda SVG, WebIDL, factories y otras APIs siguen
+pendientes; el runtime continúa siendo híbrido.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
-El hito de nombres pasó 285 tests Rust en 1.98.1/1.99.1, 3.419 contratos Node
-por versión, runners, corpus, 52 escenarios GC por Node, Memcheck y 40 controles
-instalados. WPT combina 221 fixtures de release y 15 suplementarios con paridad,
-manteniendo exclusiones y fallos de estándar compartidos. Sus ocho reportes de
-rendimiento conservan 36 muestras por fila/motor/etapa/runtime y todas las
-regresiones. Ver reports/validation/name-queries.md.
+El hito de fragmentos pasó 291 tests Rust en 1.98.1/1.99.1, 3.506 contratos Node
+por versión, runners, corpus, 78 escenarios nuevos de GC por Node, los 52 previos
+de colecciones, Memcheck y 40 controles instalados. WPT ejecutó los 240 fixtures
+en un comando por Node, con paridad, exclusiones y fallos de estándar compartidos.
+Los ocho reportes de rendimiento conservan 36 muestras por
+fila/motor/etapa/runtime y todas las regresiones. Ver reports/validation/fragment-id.md.
 Profundizar un área parcial no incrementa automáticamente el índice global.
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,

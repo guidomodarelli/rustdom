@@ -83,3 +83,10 @@ bytes y aserciones intactos. Cubre parámetros, null/undefined, case, id frente
 a name, namespaces, interfaces, identidad y listas vivas. Se ejecuta con
 `npm run test:wpt -- document-name-queries`. Los fallos de estándar compartidos
 con jsdom permanecen visibles; paridad no equivale a conformidad completa.
+
+La suite `fragment-id-queries` incorpora cuatro fixtures upstream intactos:
+Document/DocumentFragment.getElementById y los dos casos dinámicos de ShadowRoot.
+Cubre duplicados, ID vacío, cambios de atributos y hosts desconectados, con el
+mismo revision fijado y sin nuevas exclusiones. Se ejecuta con
+`npm run test:wpt -- fragment-id-queries`. La paridad con jsdom no certifica
+conformidad completa con el estándar.

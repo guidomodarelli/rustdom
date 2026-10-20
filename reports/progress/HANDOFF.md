@@ -1,52 +1,60 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: Document.getElementsByName
+## Estado actual: getElementById de fragmentos
 
-La base estable es main, commit `55e2cb85664b8621749336fcc21ded1288882a17`, tag
-`checkpoint-061-element-relatives`. El PR 73 está mergeado: ocho checks
-aprobados y revisión limpia de `0921ab0`; la rama integrada fue eliminada.
-Incluye el recorrido físico de hijos y hermanos Element en Rust. children y
-childElementCount conservan la invalidación y liberación de miembros obsoletos.
-Los cuatro fallos originales de DOMParser están resueltos desde el PR 70 y
-checkpoint 58; el registro antiguo de abajo es histórico.
+La base estable es main, commit `e5a2daa5798c50c1fd8fa2f159d6a3f8ed38cde4`, tag
+`checkpoint-062-name-queries`. El PR 74 está mergeado: ocho checks
+aprobados y revisión limpia de `645f2ec`; su rama integrada fue eliminada.
+Incluye el recorrido y filtro de Document.getElementsByName en Rust, junto con
+los hitos anteriores de colecciones e hijos/hermanos Element. Los cuatro fallos
+originales de DOMParser están resueltos desde PR 70/checkpoint 58; el registro
+antiguo de abajo es histórico.
 
-El siguiente hito es `feature/native-name-queries`: Document.getElementsByName
-recorre y filtra atributos canónicos en Rust, preservando valores UTF-16,
-namespaces, orden e identidades. WebIDL, factories, NodeList viva y su
-invalidación conservan el host actual. El runtime continúa siendo híbrido.
-Verificar el PR y sus checks antes de asumir que este hito está integrado.
+El siguiente hito es `feature/native-fragment-id`: DocumentFragment.getElementById,
+incluidos template.content y ShadowRoot, busca el primer ID no vacío en Rust.
+Conserva orden físico, atributos sin namespace, UTF-16, identidades y adopción.
+Para en el primer match y no crea caches ni listas intermedias. WebIDL, factories
+y owners conservan el host; el runtime continúa siendo híbrido. Verificar el PR
+y sus checks antes de asumir que este hito está integrado.
 
-La validación local pasó 285 tests Rust en 1.98.1/1.99.1, 3.419 contratos Node
-por versión 22.12.0/24.14.1, Jest 21, Vitest 32 y VM 32. Pasaron 61 contratos
-de nombres, 72 del harness y 52 escenarios de GC por Node, HTML5, nueve lotes
-de Memcheck y 40 controles del mismo paquete instalado. WPT conserva paridad:
-221 fixtures de release más 15 suplementarios de nombres, con 82.982 resultados
-y 1.202 fallos de estándar compartidos por Node; no certifica conformidad total.
+La validación local pasó 291 tests Rust en 1.98.1/1.99.1, 3.506 contratos Node
+por versión 22.12.0/24.14.1, Jest 21, Vitest 32 y VM 32. Pasaron 87 focales
+finales, 80 contratos del harness y 78 escenarios nuevos de GC por Node, además
+de los 52 previos de colecciones. Aprobaron HTML5, Memcheck y 40 controles del
+mismo paquete instalado. Cada Node ejecutó un comando WPT completo de
+240 fixtures, 83007 resultados y 1203 fallos de estándar compartidos;
+la paridad no certifica conformidad completa.
 
-Los ocho reportes de benchmark guardan ambos órdenes y 36 muestras por
-fila/motor/etapa/runtime, con todas las regresiones. Consultar resultados y límites:
+Los ocho reportes de benchmark conservan ambos órdenes y 36 muestras por
+fila/motor/etapa/runtime. El hash incluye el contenido del scope separado,
+además del documento. Se publican todas las filas, controles y regresiones:
 
-- [Validación y fuentes](../validation/name-queries.md).
-- [Benchmarks](../benchmarks/name-queries/README.md).
-- [Memoria](../memory/name-queries/README.md).
+- [Validación y fuentes](../validation/fragment-id.md).
+- [Benchmarks](../benchmarks/fragment-id/README.md).
+- [Memoria](../memory/fragment-id/README.md).
 
 El índice global sigue en 45,8% por áreas: no mide compatibilidad completa ni
-APIs terminadas. Quedan implementaciones en JavaScript/jsdom. Después de cerrar
-este PR, identificar el siguiente algoritmo delegado en Document/Element o Node,
-manteniendo los contratos existentes y pruebas diferenciales reales.
+APIs terminadas. Los siguientes bloques identificados son el índice y selección
+de Document.getElementById, que siguen en JavaScript, y SVGSVGElement.getElementById.
+SVG tiene reglas distintas: incluye el propio root y puede encontrar un atributo
+ID vacío. Las factories, WebIDL y otras familias siguen pendientes.
+La [observación diferencial](../validation/fragment-id/pending-id-contracts.json)
+conserva también el cambio de orden de candidatos de Document al reasignar un ID.
 
 Prompt para retomar:
 
 ```text
-Retomá rustdom desde feature/native-name-queries; si fue mergeada, partí de main.
+Retomá rustdom desde feature/native-fragment-id; si fue mergeada, partí de main.
 Leé AGENTS.md, reports/progress/HANDOFF.md, ROADMAP.md y
-reports/validation/name-queries.md. Verificá el estado remoto y el SHA revisado
+reports/validation/fragment-id.md. Verificá el estado remoto y el SHA revisado
 de cada PR antes de dar por integrada una rama.
 
 Los cuatro fallos originales de DOMParser están resueltos. Terminá los checks
 o reviews pendientes de este hito y continuá con las APIs aún delegadas.
-Preservá listas vivas, identidades, namespaces, UTF-16, orden, errores,
-mutaciones y liberación de Document y Window observados por separado.
+Los siguientes bloques son el índice de IDs de Document y la búsqueda de SVG;
+preservá el orden de registro de candidatos de jsdom y las reglas propias de
+SVG para root inclusivo e ID vacío. Conservá namespaces, UTF-16, identidades,
+mutaciones, errores y liberación de Document/Window observados por separado.
 
 El objetivo sigue siendo 100% de implementación Rust y compatibilidad
 verificable con jsdom; la versión híbrida es intermedia. Instalá lo necesario
