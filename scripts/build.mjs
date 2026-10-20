@@ -472,7 +472,8 @@ normalizationRanges = normalizationRanges.slice(0, normalizedUpdatesStart) +
 // Check after replaceData: a synchronous hook can create live ranges before this point.
 nodeSource = nodeSource.slice(0, normalizationRangesStart) +
   '      if (node._referencedRanges.size !== 0 || parentNode._referencedRanges.size !== 0) {\n' +
-  normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') + '\n      }\n\n' +
+  normalizationRanges.split('\n').map((line) => `  ${line}`).join('\n') +
+  '\n      } else {\n        domSymbolTree.checkNormalizedFollowingText(node);\n      }\n\n' +
   nodeSource.slice(normalizationRangesEnd);
 /** Preserve parent/host-cycle gates before delegating the remaining insertion constraints. */
 const nodePreInsertStart = nodeSource.indexOf('  _preInsertValidity(nodeImpl, childImpl) {');

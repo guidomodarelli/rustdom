@@ -19,6 +19,7 @@ pub enum TreeError {
     InvalidMetadata(serde_json::Error),
     MissingData(u64),
     NotCharacterData(u64),
+    UndefinedCharacterDataProperty(&'static str),
     NotAttribute(u64),
     NotElement(u64),
     NotDocumentType(u64),
@@ -41,6 +42,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UndefinedCharacterDataProperty(property) => write!(
+                formatter,
+                "Cannot read properties of undefined (reading '{property}')"
+            ),
             Self::ObserverDeliveryProtocol(reason) => {
                 write!(formatter, "NativeObserverDelivery: {reason}")
             }

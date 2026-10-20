@@ -175,6 +175,8 @@ impl TreeStore {
                         RAW_TEXT_NAMES.contains(&name) || (scripting && name == "noscript")
                     }) {
                         raw(&mut output, &data.value);
+                    } else if matches!(data.value, DomString::Undefined) {
+                        return Err(TreeError::UndefinedCharacterDataProperty("substring"));
                     } else {
                         escaped(&mut output, &data.value, false);
                     }

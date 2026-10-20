@@ -6,7 +6,7 @@ use super::{
     range_state_binding::{NativeRange, NativeRangeStatistics},
     store::TreeStore,
 };
-use napi::Result;
+use napi::{Env, Result};
 use napi_derive::napi;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -99,13 +99,14 @@ pub struct NativeRangeClone {
 impl NativeRangeClone {
     pub(super) fn step(
         &mut self,
+        env: Env,
         tree: &mut TreeStore,
         created: f64,
     ) -> Result<RangeCloneInstruction> {
         self.machine
             .step(tree, created)
             .and_then(RangeCloneInstruction::try_from)
-            .map_err(|error| to_range_operation_error(error, "NativeRangeClone"))
+            .map_err(|error| to_range_operation_error(env, error, "NativeRangeClone"))
     }
 }
 impl Drop for NativeRangeClone {

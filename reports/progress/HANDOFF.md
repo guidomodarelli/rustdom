@@ -1,5 +1,42 @@
 # Continuar rustdom en otra máquina
 
+## Actualización del 20 de octubre de 2026
+
+Los cuatro fallos originales de DOMParser están corregidos en el código de esta
+rama. CharacterData conserva `undefined` en Rust, separado de texto vacío y de
+`null`. También se corrigieron los errores de Range y el orden de mutaciones
+parciales de `normalize()` que la revisión detectó al ampliar las regresiones.
+
+- Clippy y los **259 tests Rust** pasan.
+- Los **279 casos focales**, incluido el control de GC de Window, Document,
+  textos, rangos, grupos y errores, pasan en **Node 22.12.0 y 24.14.1**.
+- La revisión independiente confirmó **76 casos adicionales por versión**,
+  incluidos rangos vivos durante normalización; terminó sin hallazgos accionables.
+- La validación general final pasó: **2.757 contratos Node, Jest 20, Vitest 31 y
+  VM 30**, en ambas versiones; corpus HTML5 1.784/1.784, paridad WPT en 221
+  fixtures, Memcheck sobre los 259 tests Rust y 40 controles del paquete instalado.
+- Los [benchmarks antes/después](../benchmarks/dom-parser/README.md) conservan
+  ocho procesos y todas sus muestras. Las variaciones frente al baseline son
+  pequeñas en estas entradas; el parsing pequeño y normalize siguen teniendo
+  costos frente a jsdom que requieren optimización. No se afirma una mejora general.
+- Evidencia e identidades de fuentes/binario/paquete en
+  [DOMParser y CharacterData](../validation/dom-parser-undefined.md). Comprobar
+  el estado remoto del PR antes de continuar: después del merge, usar `main`.
+- Para las pruebas de instalación en Node 22 usar **npm 11.19.0**, como en CI.
+  npm 10.9.0 falla en su instalador con `Cannot read properties of null
+  (reading 'edgesOut')`; no es un fallo del addon.
+
+El objetivo integral sigue abierto: el runtime conserva factories, WebIDL,
+drivers y otras APIs de jsdom. Estos resultados no equivalen a una reescritura
+completa en Rust ni a conformidad completa con los estándares. Continuar con
+los pendientes de [ROADMAP.md](../../ROADMAP.md) después de cerrar este hito.
+
+Engram no está disponible en este entorno. No se usó otro sistema de memoria
+persistente. Este archivo es el entregable de continuación solicitado por el
+usuario; verificar siempre el código, los resultados y el estado remoto actual.
+
+## Registro del traspaso anterior
+
 Estado publicado el 16 de octubre de 2026. La evidencia de ejecución indicada abajo
 es del 16 de septiembre de 2026; esta publicación conserva trabajo en curso y no
 declara un nuevo checkpoint funcional.
@@ -152,7 +189,10 @@ MCP `memory` no estuvo disponible al preparar esta publicación. Este documento,
 las reglas y la evidencia versionada permiten retomar el trabajo sin esa
 integración ni el historial local del chat.
 
-## Prompt listo para copiar
+## Prompt original guardado antes de corregir los cuatro fallos
+
+Este prompt se conserva como registro del pedido. Para retomar, leer primero la
+actualización del 20 de octubre y la evidencia actual, sin repetir trabajo ya validado.
 
 ```text
 Continuá el desarrollo de rustdom desde la rama feature/native-dom-parser:

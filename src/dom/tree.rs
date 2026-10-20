@@ -1,6 +1,7 @@
 //! Node-API adapter for the platform-independent tree store.
 use super::{
     attributes,
+    character_data::WholeText,
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
@@ -9,8 +10,8 @@ use super::{
     },
     mutation_record::{MutationKind, MutationRecordDraft, MutationRecordState},
     mutation_record_binding::NativeMutationRecord,
-    napi_error::to_napi_error,
-    napi_string::string_result,
+    napi_error::{to_character_data_error, to_napi_error},
+    napi_string::{node_string_result, string_result},
     node_constraints::ConstraintStatus,
     node_metadata,
     node_text::{NodeText, TextWriteAction},
@@ -39,8 +40,10 @@ use super::{
     tree_cursor_binding::{NativeTraversal, NativeTraversalOperation, TraversalInstruction},
 };
 use napi::{
-    Error, JsValue, Result, Status,
-    bindgen_prelude::{ArrayBuffer, Either, Float64Array, Unknown, Utf16String},
+    Env, Error, JsValue, Result, Status,
+    bindgen_prelude::{
+        ArrayBuffer, Either, Either3, Float64Array, Undefined, Unknown, Utf16String,
+    },
 };
 use napi_derive::napi;
 
@@ -1021,10 +1024,10 @@ impl NativeTree {
     }
 
     #[napi]
-    pub fn node_value(&self, handle: f64) -> Result<Option<Either<&str, Utf16String>>> {
+    pub fn node_value(&self, handle: f64) -> Result<Option<Either3<&str, Utf16String, Undefined>>> {
         self.store
             .node_value(handle)
-            .map(string_result)
+            .map(node_string_result)
             .map_err(to_napi_error)
     }
 
@@ -1053,9 +1056,12 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    // Preserve the primitive JS wire signature; Env only supplies intrinsic error creation.
+    #[allow(clippy::too_many_arguments)]
     #[napi]
     pub fn range_point_relation(
         &mut self,
+        env: Env,
         node: f64,
         offset: u32,
         start: f64,
@@ -1074,7 +1080,7 @@ impl NativeTree {
                 PointRelation::InvalidOffset => RangePointRelation::InvalidOffset,
                 PointRelation::InconsistentRoots => RangePointRelation::InconsistentRoots,
             })
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
@@ -1178,8 +1184,10 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
     #[napi]
-    pub fn node_length(&self, handle: f64) -> Result<f64> {
-        self.store.node_length(handle).map_err(to_napi_error)
+    pub fn node_length(&self, env: Env, handle: f64) -> Result<f64> {
+        self.store
+            .node_length(handle)
+            .map_err(|error| to_character_data_error(env, error))
     }
     #[napi]
     pub fn is_following(&mut self, node: f64, reference: f64) -> Result<bool> {
@@ -1190,19 +1198,21 @@ impl NativeTree {
     #[napi]
     pub fn range_extract_step(
         &mut self,
+        env: Env,
         operation: &mut NativeRangeExtract,
         created: f64,
     ) -> Result<RangeExtractInstruction> {
-        operation.step(&mut self.store, created)
+        operation.step(env, &mut self.store, created)
     }
 
     #[napi]
     pub fn range_clone_step(
         &mut self,
+        env: Env,
         operation: &mut NativeRangeClone,
         created: f64,
     ) -> Result<RangeCloneInstruction> {
-        operation.step(&mut self.store, created)
+        operation.step(env, &mut self.store, created)
     }
 
     #[napi]
@@ -1264,22 +1274,27 @@ impl NativeTree {
     #[napi]
     pub fn range_content_selection(
         &mut self,
+        env: Env,
         state: &NativeRange,
     ) -> Result<Option<RangeContentSelection>> {
         let (start, end) = state.raw_points()?;
         self.store
             .range_content_selection(start, end)
             .map(|selection| selection.map(Into::into))
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
-    pub fn range_deletion_plan(&mut self, state: &NativeRange) -> Result<RangeDeletionPlan> {
+    pub fn range_deletion_plan(
+        &mut self,
+        env: Env,
+        state: &NativeRange,
+    ) -> Result<RangeDeletionPlan> {
         let (start, end) = state.raw_points()?;
         self.store
             .range_deletion_plan(start, end)
             .map(Into::into)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
@@ -1305,12 +1320,13 @@ impl NativeTree {
     #[napi]
     pub fn range_point_relation_from_state(
         &mut self,
+        env: Env,
         state: &NativeRange,
         node: f64,
         offset: u32,
     ) -> Result<RangePointRelation> {
         let (start, end) = state.inputs()?;
-        self.range_point_relation(node, offset, start.0, start.1, end.0, end.1)
+        self.range_point_relation(env, node, offset, start.0, start.1, end.0, end.1)
     }
 
     #[napi]
@@ -1324,21 +1340,26 @@ impl NativeTree {
     }
 
     #[napi]
-    pub fn range_text_from_state(&mut self, state: &NativeRange) -> Result<Option<Utf16String>> {
+    pub fn range_text_from_state(
+        &mut self,
+        env: Env,
+        state: &NativeRange,
+    ) -> Result<Option<Utf16String>> {
         let (start, end) = state.inputs()?;
-        self.range_text(start.0, start.1, end.0, end.1)
+        self.range_text(env, start.0, start.1, end.0, end.1)
     }
 
     #[napi]
     pub fn range_boundary_plan_from_state(
         &mut self,
+        env: Env,
         state: &NativeRange,
         mode: RangeBoundaryMode,
         node: f64,
         offset: u32,
     ) -> Result<RangeBoundaryPlan> {
         let (start, end) = state.inputs()?;
-        self.range_boundary_plan(mode, node, offset, start.0, start.1, end.0, end.1)
+        self.range_boundary_plan(env, mode, node, offset, start.0, start.1, end.0, end.1)
     }
 
     #[napi]
@@ -1353,6 +1374,7 @@ impl NativeTree {
     #[napi]
     pub fn range_boundary_plan(
         &mut self,
+        env: Env,
         mode: RangeBoundaryMode,
         node: f64,
         offset: u32,
@@ -1380,7 +1402,7 @@ impl NativeTree {
                 (end, u64::from(end_offset)),
             )
             .map(Into::into)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
@@ -1394,6 +1416,7 @@ impl NativeTree {
     #[napi]
     pub fn range_text(
         &mut self,
+        env: Env,
         start: f64,
         start_offset: u32,
         end: f64,
@@ -1402,11 +1425,18 @@ impl NativeTree {
         self.store
             .range_text(start, start_offset, end, end_offset)
             .map(|value| value.map(Into::into))
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
-    pub fn normalization_group(&self, handle: f64) -> Result<Option<NormalizationGroup>> {
+    pub fn check_normalized_following_text(&self, env: Env, handle: f64) -> Result<()> {
+        self.store
+            .check_normalized_following_text(handle)
+            .map_err(|error| to_character_data_error(env, error))
+    }
+
+    #[napi]
+    pub fn normalization_group(&self, env: Env, handle: f64) -> Result<Option<NormalizationGroup>> {
         self.store
             .normalization_group(handle)
             .map(|group| {
@@ -1417,16 +1447,19 @@ impl NativeTree {
                     siblings: group.siblings.into_iter().map(|id| id as f64).collect(),
                 })
             })
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
-    pub fn text_content(&self, handle: f64) -> Result<Option<Either<&str, Utf16String>>> {
+    pub fn text_content(
+        &self,
+        handle: f64,
+    ) -> Result<Option<Either3<&str, Utf16String, Undefined>>> {
         self.store
             .text_content(handle)
             .map(|value| match value {
-                Some(NodeText::Value(value)) => string_result(Some(value)),
-                Some(NodeText::Descendants(value)) => Some(Either::B(value.into())),
+                Some(NodeText::Value(value)) => node_string_result(Some(value)),
+                Some(NodeText::Descendants(value)) => Some(Either3::B(value.into())),
                 None => None,
             })
             .map_err(to_napi_error)
@@ -1705,39 +1738,55 @@ impl NativeTree {
 
     /// Initialize canonical CharacterData without retaining a JavaScript copy.
     #[napi]
-    pub fn set_character_data(&mut self, handle: f64, kind: u16, value: Utf16String) -> Result<()> {
+    pub fn set_character_data(
+        &mut self,
+        handle: f64,
+        kind: u16,
+        value: Either<Utf16String, Undefined>,
+    ) -> Result<()> {
+        match value {
+            Either::A(value) => self.store.set_character_data(handle, kind, value.to_vec()),
+            Either::B(()) => self
+                .store
+                .set_character_value(handle, kind, DomString::Undefined),
+        }
+        .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn get_character_data(&self, handle: f64) -> Result<Either3<&str, Utf16String, Undefined>> {
         self.store
-            .set_character_data(handle, kind, value.to_vec())
+            .character_data_value(handle)
+            .map(|value| node_string_result(Some(value)).expect("CharacterData has a value"))
             .map_err(to_napi_error)
     }
 
     #[napi]
-    pub fn get_character_data(&self, handle: f64) -> Result<Utf16String> {
-        self.store
-            .character_data(handle)
-            .map(|units| units.to_vec().into())
-            .map_err(to_napi_error)
-    }
-
-    #[napi]
-    pub fn character_length(&self, handle: f64) -> Result<f64> {
+    pub fn character_length(&self, env: Env, handle: f64) -> Result<f64> {
         self.store
             .character_length(handle)
             .map(|length| length as f64)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
-    pub fn substring_data(&self, handle: f64, offset: u32, count: u32) -> Result<Utf16String> {
+    pub fn substring_data(
+        &self,
+        env: Env,
+        handle: f64,
+        offset: u32,
+        count: u32,
+    ) -> Result<Utf16String> {
         self.store
             .substring_data(handle, offset, count)
             .map(Into::into)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
     pub fn replace_character_data(
         &mut self,
+        env: Env,
         handle: f64,
         offset: u32,
         count: u32,
@@ -1746,14 +1795,18 @@ impl NativeTree {
         self.store
             .replace_character_data(handle, offset, count, &value)
             .map(Into::into)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     #[napi]
-    pub fn whole_text(&self, handle: f64) -> Result<Utf16String> {
+    pub fn whole_text(&self, handle: f64) -> Result<Either3<Utf16String, Undefined, f64>> {
         self.store
             .whole_text(handle)
-            .map(Into::into)
+            .map(|value| match value {
+                WholeText::Units(value) => Either3::A(value.into()),
+                WholeText::Undefined => Either3::B(()),
+                WholeText::Nan => Either3::C(f64::NAN),
+            })
             .map_err(to_napi_error)
     }
 
@@ -1761,6 +1814,7 @@ impl NativeTree {
     #[napi]
     pub fn serialize_html(
         &mut self,
+        env: Env,
         handle: f64,
         outer: bool,
         scripting: bool,
@@ -1768,7 +1822,7 @@ impl NativeTree {
         self.store
             .serialize_html(handle, outer, scripting)
             .map(Into::into)
-            .map_err(to_napi_error)
+            .map_err(|error| to_character_data_error(env, error))
     }
 
     /// Match supported selectors against live data; None requests compatibility handling.

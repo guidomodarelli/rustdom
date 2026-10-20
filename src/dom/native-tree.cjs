@@ -114,7 +114,7 @@ class NativeSymbolTree extends SymbolTree {
     }
   }
 
-  /** @param {object} node - CharacterData implementation. @param {number} kind - Final subclass kind. @param {string} value - Initial UTF-16 value. @returns {void} */
+  /** @param {object} node - CharacterData implementation. @param {number} kind - Final subclass kind. @param {string|undefined} value - Initial UTF-16 value or the reference's internal undefined. @returns {void} */
   initializeCharacterData(node, kind, value) {
     const id = this._identify(node);
     this._arena.setCharacterData(id, kind, value);
@@ -123,9 +123,9 @@ class NativeSymbolTree extends SymbolTree {
     record.nativeDataReady = true;
   }
 
-  /** @param {object} node - CharacterData implementation. @returns {string} Its current native value. */
+  /** @param {object} node - CharacterData implementation. @returns {string|undefined} Its current native value. */
   characterData(node) { return this._arena.getCharacterData(this._identify(node)); }
-  /** @param {object} node - CharacterData implementation. @param {string} value - Replacement value. @returns {void} */
+  /** @param {object} node - CharacterData implementation. @param {string|undefined} value - Replacement internal value. @returns {void} */
   setCharacterData(node, value) { this._arena.setCharacterData(this._identify(node), this._node(node).nativeCharacterKind, value); }
   /** @param {object} node - CharacterData implementation. @returns {number} UTF-16 length without transferring text. */
   characterLength(node) { return this._arena.characterLength(this._identify(node)); }
@@ -133,7 +133,7 @@ class NativeSymbolTree extends SymbolTree {
   substringData(node, offset, count) { return this._arena.substringData(this._identify(node), offset, count); }
   /** @param {object} node - CharacterData implementation. @param {number} offset - UTF-16 offset. @param {number} count - Units to replace. @param {string} value - New units. @returns {string} Previous value for observers. */
   replaceCharacterData(node, offset, count, value) { return this._arena.replaceCharacterData(this._identify(node), offset, count, value); }
-  /** @param {object} node - Text or CDATA implementation. @returns {string} Adjacent text from the native tree. */
+  /** @param {object} node - Text or CDATA implementation. @returns {string|undefined|number} Adjacent text, preserving undefined and NaN from internal JS addition. */
   wholeText(node) { return this._arena.wholeText(this._identify(node)); }
 
   /** @param {object} node - DocumentType implementation. @param {object} data - Initial identifiers. @returns {void} */
@@ -165,9 +165,9 @@ class NativeSymbolTree extends SymbolTree {
   lookupPrefix(node, namespace) { return this._arena.lookupPrefix(this._ensure(node), namespace); }
   /** @param {object} node - Context node. @param {string|null} namespace - Requested URI. @returns {boolean} Native default namespace comparison. */
   isDefaultNamespace(node, namespace) { return this._arena.isDefaultNamespace(this._ensure(node), namespace); }
-  /** @param {object} node - Context node. @returns {string|null} Current native node value. */
+  /** @param {object} node - Context node. @returns {string|null|undefined} Current native node value. */
   nodeValue(node) { return this._arena.nodeValue(this._ensure(node)); }
-  /** @param {object} node - Context node. @returns {string|null} Native value or aggregated descendant text. */
+  /** @param {object} node - Context node. @returns {string|null|undefined} Native value or aggregated descendant text. */
   textContent(node) { return this._arena.textContent(this._ensure(node)); }
 
   /** @param {object} node - DOM implementation. @param {string|null} value - Converted public value. @param {boolean} contents - Select textContent semantics. @param {Function} setAttributeValue - Existing attribute mutation hook. @returns {void} Delivers the native decision with original mutation and reaction ordering. */
@@ -698,6 +698,8 @@ class NativeSymbolTree extends SymbolTree {
     group.siblings = group.siblings.map((id) => this._object(id));
     return group;
   }
+  /** @param {object} node - Text retained after replaceData hooks. @returns {void} Preserve late sibling length errors in one native call when no Range needs updates. */
+  checkNormalizedFollowingText(node) { this._arena.checkNormalizedFollowingText(this._ensure(node)); }
 
   /** @param {object} node - Attr implementation. @param {number} kind - Attr type. @param {object} data - Initial metadata. @returns {void} */
   initializeAttribute(node, kind, data) {

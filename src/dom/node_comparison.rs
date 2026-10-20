@@ -22,6 +22,8 @@ const IMPLEMENTATION_SPECIFIC: u16 = 32;
 
 fn same_string(left: &DomString, right: &DomString) -> bool {
     match (left, right) {
+        (DomString::Undefined, DomString::Undefined) => true,
+        (DomString::Undefined, _) | (_, DomString::Undefined) => false,
         (DomString::Text(left), DomString::Text(right)) => left == right,
         _ => left.units().eq(right.units()),
     }

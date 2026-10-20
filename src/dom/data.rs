@@ -7,6 +7,9 @@ use serde::Deserialize;
 pub enum DomString {
     Text(String),
     Utf16(Vec<u16>),
+    /// Only internal CharacterData construction can produce undefined; JSON input cannot.
+    #[serde(skip)]
+    Undefined,
 }
 
 impl Default for DomString {
@@ -41,19 +44,21 @@ impl DomString {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Text(value) => Some(value),
-            Self::Utf16(_) => None,
+            Self::Utf16(_) | Self::Undefined => None,
         }
     }
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Text(value) => value.is_empty(),
             Self::Utf16(value) => value.is_empty(),
+            Self::Undefined => false,
         }
     }
     pub fn units(&self) -> Units<'_> {
         match self {
             Self::Text(value) => Units::Text(value.encode_utf16()),
             Self::Utf16(value) => Units::Utf16(value.iter().copied()),
+            Self::Undefined => Units::Text("undefined".encode_utf16()),
         }
     }
 }

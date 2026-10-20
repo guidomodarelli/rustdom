@@ -541,8 +541,10 @@ export class NativeTree {
   lookupNamespaceUri(handle: number, prefix: string | null): string | null;
   lookupPrefix(handle: number, namespace: string | null): string | null;
   isDefaultNamespace(handle: number, namespace: string | null): boolean;
-  nodeValue(handle: number): string | null;
-  textContent(handle: number): string | null;
+  nodeValue(handle: number): string | null | undefined;
+  textContent(handle: number): string | null | undefined;
+  /** Checks following Text lengths after normalization mutation hooks, preserving late TypeErrors. */
+  checkNormalizedFollowingText(handle: number): void;
   normalizationCandidates(handle: number): number[];
   normalizationGroup(handle: number): NormalizationGroup | null;
   /** Returns null for distinct tree roots; offsets remain subject to public Range validation. */
@@ -624,13 +626,14 @@ export class NativeTree {
   removeAttribute(element: number, attribute: number): AttributeDelta;
   replaceAttribute(element: number, oldAttribute: number, newAttribute: number): AttributeDelta;
   setAttribute(element: number, attribute: number): AttributeDelta;
-  /** Initializes canonical UTF-16 CharacterData; supported kinds are 3, 4, 7 and 8. */
-  setCharacterData(handle: number, kind: number, value: string): void;
-  getCharacterData(handle: number): string;
+  /** Initializes canonical UTF-16 or internal undefined CharacterData; supported kinds are 3, 4, 7 and 8. */
+  setCharacterData(handle: number, kind: number, value: string | undefined): void;
+  getCharacterData(handle: number): string | undefined;
   characterLength(handle: number): number;
   substringData(handle: number, offset: number, count: number): string;
   replaceCharacterData(handle: number, offset: number, count: number, value: string): string;
-  wholeText(handle: number): string;
+  /** Preserves the reference's string addition, including undefined and NaN for internal data. */
+  wholeText(handle: number): string | undefined | number;
   serializeHtml(handle: number, outer: boolean, scripting: boolean): string;
   query(selector: string, root: number, document: number,
     mode: typeof QueryMode[keyof typeof QueryMode], quirks: boolean): Float64Array | null;
