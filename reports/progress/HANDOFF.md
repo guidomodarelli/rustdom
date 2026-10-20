@@ -7,7 +7,7 @@ rama. CharacterData conserva `undefined` en Rust, separado de texto vacío y de
 `null`. También se corrigieron los errores de Range y el orden de mutaciones
 parciales de `normalize()` que la revisión detectó al ampliar las regresiones.
 
-- Clippy y los **259 tests Rust** pasan.
+- Clippy y los **262 tests Rust** pasan en Rust **1.98.1 y 1.99.1**.
 - Los **279 casos focales**, incluido el control de GC de Window, Document,
   textos, rangos, grupos y errores, pasan en **Node 22.12.0 y 24.14.1**.
 - La revisión independiente confirmó **76 casos adicionales por versión**,
@@ -25,6 +25,16 @@ parciales de `normalize()` que la revisión detectó al ampliar las regresiones.
 - Para las pruebas de instalación en Node 22 usar **npm 11.19.0**, como en CI.
   npm 10.9.0 falla en su instalador con `Cannot read properties of null
   (reading 'edgesOut')`; no es un fallo del addon.
+
+El PR **70** contiene el hito. Su primera ejecución de CI detectó que Rust
+1.99.1 deprecó `AtomicU64::fetch_update`: los tres sistemas fallaron en Clippy.
+Se reemplazó por un bucle CAS con atomics estables y se agregaron tres tests de
+unicidad concurrente y agotamiento del espacio seguro de IDs JavaScript.
+La suite general y los 40 controles del paquete instalado volvieron a pasar
+en Node 22/24. Valgrind pasó los ocho tests del módulo y un control separado,
+con los mismos residuos del harness. La evidencia de esta continuación está
+en [compatibilidad con Rust 1.99](../validation/rust199-atomic.md); no reemplaza
+las mediciones históricas de DOMParser hechas con Rust 1.98.1.
 
 El objetivo integral sigue abierto: el runtime conserva factories, WebIDL,
 drivers y otras APIs de jsdom. Estos resultados no equivalen a una reescritura

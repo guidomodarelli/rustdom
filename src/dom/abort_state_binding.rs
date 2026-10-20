@@ -1,6 +1,6 @@
 //! Native abort handles share a thread-local graph; all graph locks end before returning to JavaScript.
 use super::{
-    abort_state::{AbortGraph, AbortStateError},
+    abort_state::{AbortGraph, AbortStateError, reserve_signal_id},
     constants::JS_MAX_SAFE_INTEGER,
 };
 use napi::{Error, Result, Status};
@@ -125,16 +125,7 @@ impl Drop for NativeAbortState {
 impl NativeAbortState {
     #[napi(constructor)]
     pub fn new() -> Result<Self> {
-        let previous = LAST_ID
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| {
-                if id < JS_MAX_SAFE_INTEGER {
-                    Some(id + 1)
-                } else {
-                    None
-                }
-            })
-            .map_err(|_| native_error(AbortStateError::IdentifiersExhausted))?;
-        let id = previous + 1;
+        let id = reserve_signal_id(&LAST_ID).map_err(native_error)?;
         let graph = GRAPH.with(Arc::clone);
         graph
             .lock()

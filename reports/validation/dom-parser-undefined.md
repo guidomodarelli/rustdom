@@ -83,6 +83,12 @@ Toolchain: Rust/Cargo 1.98.1, Node 22.12.0 y 24.14.1, npm 11.19.0 para
 instalación en Node 22. Build release con el perfil versionado en Cargo.toml.
 La evidencia local es Linux x64/WSL2; Windows y macOS requieren sus checks de CI.
 
+La continuación de CI reemplaza un atomic deprecado en Rust 1.99.1 y agrega
+tres regresiones de concurrencia. Sus 262 tests Rust, validación repetida de
+Node 22/24, paquete, Valgrind y benchmarks con el mismo compilador están en
+[compatibilidad con Rust 1.99](rust199-atomic.md). Sus hashes se conservan por
+separado: los hashes y mediciones anteriores corresponden al hito original.
+
 WPT conserva los límites del arnés: 81.739 assertions cumplen el estándar y
 1.200 fallan también en la referencia. Se excluye la interacción real de
 `xhr/formdata/submitter-coordinate-value.html`; el bootstrap de
