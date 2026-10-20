@@ -74,12 +74,26 @@ function retainedFixture(runtime, mode, kind) {
 /** @param {object} sample - Explicit live collection owner. @returns {void} Read held state without leaving strong loop bindings across an async GC. */
 function verifyHeld(sample) { assert.equal(sample.held.length, ELEMENTS_PER_WINDOW / 2); assert.equal(sample.held.item(0).ownerDocument, sample.observed.documents[0].deref()); }
 
+/** @param {object} runtime - Real native-backed engine. @param {string} mode - Default/VM realm. @returns {object} Retained numeric/string transport values and weak DOM observations only. */
+function transportFixture(runtime, mode) {
+  const { window, root } = createFixture(runtime, mode);
+  try {
+    const collection = root.getElementsByClassName('selected');
+    const implementation = collection[Object.getOwnPropertySymbols(collection).find((symbol) => symbol.description === 'impl')];
+    const ids = implementation._nativeIds;
+    const names = Object.getOwnPropertyNames(collection);
+    assert.equal(ArrayBuffer.isView(ids), true); assert.equal(ids.length, ELEMENTS_PER_WINDOW / 2);
+    return { ids, names, observed: { windows: [new WeakRef(window)], documents: [new WeakRef(window.document)],
+      roots: [new WeakRef(root)], collections: [new WeakRef(collection)], elements: Array.from(root.children, (element) => new WeakRef(element)) } };
+  } finally { window.close(); }
+}
+
 /** @returns {Promise<void>} Preserve finite held/released scenarios and post-GC heap/external/RSS evidence. */
 async function main() {
   const report = { capturedAt: new Date().toISOString(), node: process.version, reference: require('jsdom/package.json').version,
     windowsPerBatch: WINDOWS_PER_BATCH, measuredCycles: MEASURED_CYCLES, mutationsPerWindow: MUTATIONS_PER_WINDOW,
     retainedQueryCycles: RETAINED_QUERY_CYCLES, pass: false, cases: [],
-    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements and three live collections, forty mutation/requery cycles per Window, then close and drop all strong owners. Separately churn two hundred class queries and hold one class/tag/namespace collection after close; verify owner retention, then release it and require all weak groups and native liveness counters to return to baseline across two clear GC samples. Class token allocations must return synchronously after queries. Record heap/external/RSS after GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
+    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements and three live collections, forty mutation/requery cycles per Window, then close and drop all strong owners. Separately churn two hundred class queries and hold one class/tag/namespace collection after close; verify owner retention, then release it and require all weak groups and native liveness counters to return to baseline across two clear GC samples. Native-only default/VM scenarios retain the numeric member transport and property-name strings while requiring every DOM owner to clear. Class token allocations must return synchronously after queries. Record heap/external/RSS after GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
   try {
     for (const [engine, runtime] of Object.entries(engines)) for (const mode of ['default', 'vm']) {
       for (let cycle = -1; cycle < MEASURED_CYCLES; cycle++) {
@@ -100,6 +114,16 @@ async function main() {
           sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
         report.cases.push({ engine, mode, kind, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
+      }
+      if (engine === 'rustdom') {
+        await collectGarbage(); const baseline = runtime.getNativeTreeStatistics(); const sample = transportFixture(runtime, mode);
+        const released = await waitForMemoryQuiescence({ label: `collection-${engine}-${mode}-numeric-transport-held`,
+          sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
+        assert.equal(released.reached, true, JSON.stringify(released.state));
+        assert.equal(sample.ids.length, ELEMENTS_PER_WINDOW / 2); assert.ok(sample.ids[0] > 0);
+        assert.equal(sample.names.length, ELEMENTS_PER_WINDOW / 2);
+        report.cases.push({ engine, mode, kind: 'numeric-transport-held', released,
+          retainedIdBytes: sample.ids.byteLength, retainedNames: sample.names.length });
       }
     }
     report.pass = true;

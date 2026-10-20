@@ -13,6 +13,7 @@ mod blob_bytes;
 mod blob_data;
 mod boundary_points;
 mod character_data;
+mod collection_members;
 mod collection_queries;
 mod compact_storage;
 pub(crate) mod constants;

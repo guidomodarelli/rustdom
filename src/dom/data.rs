@@ -54,6 +54,20 @@ impl DomString {
             Self::Undefined => false,
         }
     }
+    /// Compare exposed UTF-16 units across storage representations; stored-kind equality is separate.
+    pub(super) fn code_units_equal(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Text(actual), Self::Text(expected)) => actual == expected,
+            _ => self.units().eq(other.units()),
+        }
+    }
+    /// Avoid decoding ordinary UTF-8 metadata for a known textual query or DOM literal.
+    pub(super) fn code_units_equal_str(&self, expected: &str) -> bool {
+        match self {
+            Self::Text(actual) => actual == expected,
+            _ => self.units().eq(expected.encode_utf16()),
+        }
+    }
     pub fn units(&self) -> Units<'_> {
         match self {
             Self::Text(value) => Units::Text(value.encode_utf16()),
@@ -128,5 +142,20 @@ mod tests {
             String::from_utf16(&text.units().collect::<Vec<_>>()).unwrap(),
             "🦀 & text"
         );
+    }
+
+    #[test]
+    fn should_compare_exact_code_units_without_normalizing_storage_or_unicode() {
+        for text in ["", "ordinary", "é", "e\u{301}", "🦀", "\0"] {
+            let utf8 = DomString::Text(text.into());
+            let utf16 = DomString::Utf16(text.encode_utf16().collect());
+            assert!(utf8.code_units_equal(&utf16));
+            assert!(utf16.code_units_equal(&utf8));
+            assert!(utf16.code_units_equal_str(text));
+        }
+        assert!(!DomString::Text("é".into()).code_units_equal_str("e\u{301}"));
+        assert!(DomString::Utf16(vec![0xd800]).code_units_equal(&DomString::Utf16(vec![0xd800])));
+        assert!(!DomString::Utf16(vec![0xd800]).code_units_equal_str("�"));
+        assert!(!DomString::Utf16(vec![0xd800]).code_units_equal(&DomString::Utf16(vec![0xd820])));
     }
 }

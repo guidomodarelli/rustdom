@@ -189,6 +189,8 @@ pub struct TreeStatistics {
     pub serializations: f64,
     pub native_queries: f64,
     pub native_collection_queries: f64,
+    pub native_collection_named_reads: f64,
+    pub native_collection_name_enumerations: f64,
     pub query_fallbacks: f64,
     pub selector_cache_hits: f64,
     pub selector_cache_size: u32,
@@ -476,6 +478,8 @@ pub struct NativeTree {
     store: store::TreeStore,
     queries: QueryEngine,
     collection_queries: u64,
+    collection_named_reads: u64,
+    collection_name_enumerations: u64,
 }
 
 #[napi]
@@ -614,6 +618,8 @@ impl NativeTree {
             store: store::TreeStore::new(),
             queries: QueryEngine::default(),
             collection_queries: 0,
+            collection_named_reads: 0,
+            collection_name_enumerations: 0,
         }
     }
 
@@ -1877,6 +1883,29 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    /// Resolve one public collection key against a snapshot of stable numeric member identities.
+    #[napi]
+    pub fn collection_named_item(
+        &mut self,
+        handles: Float64Array,
+        key: Utf16String,
+    ) -> Result<f64> {
+        self.collection_named_reads += 1;
+        self.store
+            .collection_named_item(&handles, &key)
+            .map_err(to_napi_error)
+    }
+
+    /// Ordered supported names, without retaining members or a name cache in native storage.
+    #[napi]
+    pub fn collection_property_names(&mut self, handles: Float64Array) -> Result<Vec<Utf16String>> {
+        self.collection_name_enumerations += 1;
+        self.store
+            .collection_property_names(&handles)
+            .map(|names| names.into_iter().map(Into::into).collect())
+            .map_err(to_napi_error)
+    }
+
     /// Match supported selectors against live data; None requests compatibility handling.
     #[napi]
     pub fn query(
@@ -1982,6 +2011,8 @@ impl NativeTree {
             serializations: stats.serializations,
             native_queries: (self.queries.calls - self.queries.fallbacks) as f64,
             native_collection_queries: self.collection_queries as f64,
+            native_collection_named_reads: self.collection_named_reads as f64,
+            native_collection_name_enumerations: self.collection_name_enumerations as f64,
             query_fallbacks: self.queries.fallbacks as f64,
             selector_cache_hits: self.queries.cache_hits as f64,
             selector_cache_size: self.queries.cache_size() as u32,

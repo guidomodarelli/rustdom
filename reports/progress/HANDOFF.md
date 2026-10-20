@@ -1,32 +1,45 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: consultas de colecciones
+## Estado actual: miembros de HTMLCollection
 
 La base estable es `main`, commit
-`36526284a644f508c37d5141f1e24acb2b5d9495`, tag
-`checkpoint-058-dom-parser`. El PR 70 está mergeado, sus ocho checks pasaron y
-la rama `feature/native-dom-parser` fue eliminada. Los cuatro fallos originales
-ya están resueltos.
+`a155685e30510cf626b03f83a6b7fc79c845baf2`, tag
+`checkpoint-059-collection-queries`. Los PR 70 y 71 están mergeados, sus ocho
+checks pasaron y sus ramas fueron eliminadas. Los cuatro fallos originales de
+DOMParser ya están resueltos.
 
-El trabajo siguiente está en `feature/native-collection-queries`: los filtros
-y el recorrido de `getElementsByClassName`, `getElementsByTagName` y
-`getElementsByTagNameNS` usan Rust. `HTMLCollection`, sus owners, invalidación
-y WebIDL conservan el host actual. Se preservan namespaces, UTF-16, el modo
-capturado por las colecciones y la equivalencia de clases quirks de jsdom.
+Los filtros y el recorrido de `getElementsByClassName`, `getElementsByTagName`
+y `getElementsByTagNameNS` ya están integrados en Rust. El trabajo siguiente
+está en `feature/native-collection-members`: `namedItem` y los nombres de
+propiedades de `HTMLCollection` usan atributos canónicos y un transporte
+numérico compartido. Se preservan orden, namespaces, UTF-16 e identidad. La
+invalidación, WebIDL, los owners y otros métodos conservan el host actual.
 
-Pasaron 269 tests Rust en 1.98.1/1.99.1, las suites completas de Node 22/24,
-Jest/Vitest/VM, corpus en ambos runtimes, GC, los nueve lotes de Valgrind y
-40 controles del paquete instalado. Tres regresiones de fuzz verifican
-29.646 comparaciones adicionales por versión. La evidencia y los límites
-están en [consultas de colecciones](../validation/collection-queries.md).
-Verificar el PR y los checks remotos antes de asumir que el hito está integrado.
+La evidencia del hito integrado está en
+[consultas de colecciones](../validation/collection-queries.md). La validación
+del siguiente cambio se registra en
+[miembros de HTMLCollection](../validation/collection-members.md), incluidos
+los escenarios que retienen IDs y nombres mientras se libera el DOM. Verificar
+sus resultados y el estado remoto antes de asumir que el nuevo hito está integrado.
+
+Pasaron 275 tests Rust en 1.98.1/1.99.1, 3.157 contratos Node por versión,
+Jest/Vitest/VM, corpus en Node 22/24, GC, nueve lotes Memcheck y 40 controles
+instalados. Ocho reportes equilibrados reúnen 32 workers y 36 muestras por fila,
+motor, etapa y runtime. La lectura desde caché de 1.000 descendientes baja cerca
+de 94% frente al baseline; varios casos todavía tienen costos frente a jsdom.
+
+El próximo bloque identificado es el recorrido físico de hijos y hermanos
+Element en ParentNode/NonDocumentTypeChildNode. Preservar la actualización de
+`children` al leer `childElementCount`: el host actual refresca esa lista y con
+ello libera miembros obsoletos. Agregar una regresión de GC que lo verifique,
+además de namespaces, adopción, fragments, templates y shadow roots.
 
 Prompt para retomar este estado:
 
 ```text
-Retomá rustdom desde feature/native-collection-queries; si esa rama ya fue
+Retomá rustdom desde feature/native-collection-members; si esa rama ya fue
 mergeada, partí de main. Leé AGENTS.md, reports/progress/HANDOFF.md,
-reports/validation/collection-queries.md y ROADMAP.md. Verificá el estado real
+reports/validation/collection-members.md y ROADMAP.md. Verificá el estado real
 del repositorio, los resultados y los PR antes de continuar. Terminá cualquier
 validación o revisión pendiente y avanzá con los algoritmos todavía delegados.
 El objetivo sigue siendo 100% de implementación Rust y compatibilidad

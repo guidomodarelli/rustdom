@@ -1,8 +1,15 @@
 # Indicador provisional de migración a Rust
 
-Estado actualizado el 20/10/2026 UTC. Main contiene `36526284a644f508c37d5141f1e24acb2b5d9495`, checkpoint-058-dom-parser: DOMImplementation y DOMParser están integrados, junto con CharacterData undefined y el ajuste de CI para Rust 1.99. En feature/native-collection-queries, los tres filtros getElementsBy* y su recorrido se ejecutan en Rust; HTMLCollection y WebIDL conservan el host. Pasan 269 tests Rust, las suites completas de Node 22/24, runners reales, corpus, GC, Memcheck y paquete instalado. El fuzz versionado agrega 29.646 comparaciones por runtime. La evidencia y los benchmarks se conservan en reports/validation/collection-queries.md. Comprobar el estado remoto del PR para determinar su integración. Las factories, HTMLCollection y otros algoritmos generales mantienen abierta la migración; la implementación continúa siendo híbrida.
+Estado actualizado el 20/10/2026 UTC. Main contiene `a155685e30510cf626b03f83a6b7fc79c845baf2`, checkpoint-059-collection-queries (PR 71): los tres filtros getElementsBy* y su recorrido se ejecutan en Rust. DOMImplementation, DOMParser y CharacterData undefined ya estaban integrados. El siguiente hito, feature/native-collection-members, traslada namedItem y supportedPropertyNames de HTMLCollection y comparte transporte numérico sin nuevos owners del DOM; la evidencia está en reports/validation/collection-members.md. Verificar sus resultados y el estado remoto antes de asumir integración. WebIDL, invalidación, otros métodos, factories y algoritmos generales conservan trabajo pendiente; la implementación continúa siendo híbrida.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
+
+El hito de miembros de HTMLCollection pasa 275 tests Rust en 1.98.1/1.99.1,
+3.157 contratos Node por versión, runners reales, corpus, GC, Memcheck y 40
+controles instalados. Sus ocho reportes de rendimiento conservan 36 muestras
+por fila/motor/etapa/runtime y reducen cerca de 94% la lectura estable de 1.000
+descendientes frente al checkpoint 59. Siguen presentes costos frente a jsdom;
+profundizar un área parcial no modifica automáticamente el índice global.
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,
 líneas o esfuerzo. Las 12 áreas reciben el mismo peso: implementada = 1,

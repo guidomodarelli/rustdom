@@ -20,6 +20,8 @@ const { selectionFixture } = require('./selection.cjs');
 const { documentImplementationFixture } = require('./document-implementation.cjs');
 const { collectionQueryFixture } = require('./collection-queries.cjs');
 const { COLLECTION_QUERY_WORKLOADS } = require('./constants/collection-queries.cjs');
+const { collectionMemberFixture } = require('./collection-members.cjs');
+const { COLLECTION_MEMBER_WORKLOADS } = require('./constants/collection-members.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -407,6 +409,7 @@ async function measure(name, size) {
       if (name.startsWith('selection-')) selectionWork = selectionFixture(runtime, dom.window, size, name);
       if (Object.hasOwn(DOCUMENT_CREATION_OPERATIONS, name)) documentImplementationWork = documentImplementationFixture(runtime, dom.window, size, DOCUMENT_CREATION_OPERATIONS[name]);
       if (COLLECTION_QUERY_WORKLOADS.includes(name)) collectionWork = collectionQueryFixture(runtime, dom.window, size, name);
+      if (COLLECTION_MEMBER_WORKLOADS.includes(name)) collectionWork = collectionMemberFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();

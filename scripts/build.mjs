@@ -295,6 +295,21 @@ elementSource = substituteOnce(elementSource, '    return domSelector.matches(se
 elementSource = substituteOnce(elementSource, '    return domSelector.closest(selectors, this);',
   '    const nodes = domSymbolTree.closestNode(selectors, this);\n    return nodes === null ? domSelector.closest(selectors, this) : (nodes[0] || null);');
 await writeFile(elementPath, elementSource);
+/** Keep collection owners in V8 while resolving names in one native operation. */
+const htmlCollectionPath = resolve(destination, 'lib/jsdom/living/nodes/HTMLCollection-impl.js');
+let htmlCollectionSource = substituteOnce(await readFile(htmlCollectionPath, 'utf8'),
+  'const { HTML_NS } = require("../helpers/namespaces");',
+  'const { domSymbolTree } = require("../helpers/internal-constants");');
+htmlCollectionSource = replaceRegion(htmlCollectionSource, '  namedItem(key) {', '  _update() {',
+  '  namedItem(key) {\n    if (key === "") return null;\n    this._update();\n' +
+  '    return domSymbolTree.collectionNamedItem(this._nativeIds, key);\n  }\n', substituteOnce);
+htmlCollectionSource = substituteOnce(htmlCollectionSource, '      this._list.length = snapshot.length;',
+  '      this._list.length = snapshot.length;\n      this._nativeIds = domSymbolTree.collectionHandles(snapshot);');
+htmlCollectionSource = replaceRegion(htmlCollectionSource, '  get [idlUtils.supportedPropertyNames]() {',
+  '  // Inherit some useful functions from Array.',
+  '  get [idlUtils.supportedPropertyNames]() {\n    this._update();\n' +
+  '    return new Set(domSymbolTree.collectionPropertyNames(this._nativeIds));\n  }\n\n', substituteOnce);
+await writeFile(htmlCollectionPath, htmlCollectionSource);
 /** NamedNodeMap remains a WebIDL wrapper over native collection operations. */
 const namedMapPath = resolve(destination, 'lib/jsdom/living/attributes/NamedNodeMap-impl.js');
 let namedMapSource = substituteOnce(await readFile(namedMapPath, 'utf8'),
