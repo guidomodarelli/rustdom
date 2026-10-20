@@ -764,6 +764,8 @@ fragmentImplementation = substituteOnce(fragmentImplementation, '  // This is im
   '  get _host() { return domSymbolTree.rootHost(this); }\n' +
   '  set _host(host) { domSymbolTree.setRootHost(this, host, "host" in this); }\n\n' +
   '  // This is implemented separately for Document');
+fragmentImplementation = replaceRegion(fragmentImplementation, '  getElementById(id) {', '\n}\n\nmixin(DocumentFragmentImpl.prototype',
+  '  getElementById(id) { return domSymbolTree.elementById(this, id); }\n', substituteOnce);
 await writeFile(fragmentImplementationPath, fragmentImplementation);
 /** Preserve helper input guards while native traversal distinguishes shadow and template hosts. */
 const shadowHelpersPath = resolve(destination, 'lib/jsdom/living/helpers/shadow-dom.js');

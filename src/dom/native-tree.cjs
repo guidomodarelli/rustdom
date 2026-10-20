@@ -835,6 +835,9 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} root - Document owner. @param {string} name - Converted exact name value. @returns {object[]} Original implementations without retaining the temporary numeric transport. */
   elementsByName(root, name) { return this._nodesFromHandles(this._arena.queryElementsByName(this._ensure(root), name)); }
 
+  /** @param {object} root - Fragment or ShadowRoot owner. @param {string} id - Converted exact ID. @returns {object|null} Original first matching descendant. */
+  elementById(root, id) { return this._object(this._arena.queryElementById(this._ensure(root), id)); }
+
   /** @param {object} root - Physical parent. @returns {object[]} Immediate Element implementations with numeric transport metadata. */
   elementChildren(root) { return this._collectionResult(this._arena.elementChildren(this._ensure(root))); }
   /** @param {object} root - Physical parent. @returns {object|null} First original Element child. */

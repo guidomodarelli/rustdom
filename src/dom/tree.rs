@@ -1897,6 +1897,15 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    /// First exact nonempty ID in the physical subtree; zero denotes absence without retaining owners.
+    #[napi]
+    pub fn query_element_by_id(&mut self, root: f64, id: Utf16String) -> Result<f64> {
+        self.collection_queries += 1;
+        self.store
+            .query_element_by_id(root, &id)
+            .map_err(to_napi_error)
+    }
+
     /// Resolve one public collection key against a snapshot of stable numeric member identities.
     #[napi]
     pub fn collection_named_item(

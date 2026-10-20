@@ -26,6 +26,8 @@ const { elementRelativeFixture } = require('./element-relatives.cjs');
 const { ELEMENT_RELATIVE_WORKLOADS } = require('./constants/element-relatives.cjs');
 const { nameQueryFixture } = require('./name-queries.cjs');
 const { NAME_QUERY_WORKLOADS, NAME_QUERY_DOCUMENT_HTML } = require('./constants/name-queries.cjs');
+const { fragmentIdFixture } = require('./fragment-id.cjs');
+const { FRAGMENT_ID_WORKLOADS, FRAGMENT_ID_DOCUMENT_HTML } = require('./constants/fragment-id.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -289,7 +291,9 @@ function observerDeliveryFixture(document, size, name, roots) {
  */
 async function measure(name, size) {
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
-  const html = measuresDocumentNames ? NAME_QUERY_DOCUMENT_HTML : fixture(size);
+  const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
+  const usesEmptyDocument = measuresDocumentNames || measuresFragmentIds;
+  const html = measuresDocumentNames ? NAME_QUERY_DOCUMENT_HTML : measuresFragmentIds ? FRAGMENT_ID_DOCUMENT_HTML : fixture(size);
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const contentOperation = RANGE_CONTENT_OPERATIONS[name];
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
@@ -417,6 +421,7 @@ async function measure(name, size) {
       if (COLLECTION_MEMBER_WORKLOADS.includes(name)) collectionWork = collectionMemberFixture(runtime, dom.window, size, name);
       if (ELEMENT_RELATIVE_WORKLOADS.includes(name)) collectionWork = elementRelativeFixture(runtime, dom.window, size, name);
       if (NAME_QUERY_WORKLOADS.includes(name)) collectionWork = nameQueryFixture(runtime, dom.window, size, name);
+      if (measuresFragmentIds) collectionWork = fragmentIdFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();
@@ -816,7 +821,7 @@ async function measure(name, size) {
         }
         if (engine === 'rustdom') assert.equal(runtime.getNativeTreeStatistics().slotSignals.pendingSlots, 0);
       }
-      assert.equal(document.querySelectorAll('tr').length, measuresDocumentNames ? 0
+      assert.equal(document.querySelectorAll('tr').length, usesEmptyDocument ? 0
         : removesContent ? 2 : size + (insertsNodes ? RANGE_INSERTION_ITERATIONS : 0));
       if (name === 'selectors-100') assert.equal(result.length, size);
       if (name === 'serialize-utf8') assert.ok(result > 0);
@@ -952,12 +957,12 @@ async function measure(name, size) {
         assert.equal(consumedTextUnits, expectedText.length * stringifyReads);
       }
     }
-    if (!measuresDocumentNames) assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
+    if (!usesEmptyDocument) assert.equal(dom.window.document.querySelector('a').textContent, removesContent ? 'Row ' : 'Row 0 & value');
     const fragmentOutput = createsContextFragment || contentOperation === 'cloneContents' || contentOperation === 'extractContents'
       ? new dom.window.XMLSerializer().serializeToString(result) : '';
     const insertionOutput = insertionDocument ? new dom.window.XMLSerializer().serializeToString(insertionDocument) : '';
     const shadowOutput = shadowRoots ? shadowRoots.map((root) => `${root.mode}:${root.innerHTML}`).join('|') : '';
-    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).update(xmlWork?.serialize() ?? '').digest('hex');
+    const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).update(xmlWork?.serialize() ?? '').update(collectionWork?.serialize?.() ?? '').digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
     result = null;
