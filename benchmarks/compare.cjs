@@ -11,6 +11,7 @@ const { captureSourceIdentity } = require('./sources.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
 const { COLLECTION_QUERY_ITERATIONS, MANY_CLASS_QUERY_TOKEN_COUNT } = require('./constants/collection-queries.cjs');
 const { COLLECTION_MEMBER_LOOKUP_ITERATIONS, COLLECTION_MEMBER_ENUMERATION_ITERATIONS } = require('./constants/collection-members.cjs');
+const { ELEMENT_RELATIVE_ITERATIONS } = require('./constants/element-relatives.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -27,6 +28,7 @@ assert.ok(Number.isSafeInteger(workerTimeoutMs) && workerTimeoutMs > 0,
 /** Capture source and dependency identities alongside machine information. */
 const report = {
   schemaVersion: 1, capturedAt: new Date().toISOString(),
+  elementRelativeMethodology: `Prepare 100/1000 physical child nodes outside timing. Collections alternate Element and Text/Comment gaps; scalar workloads place one Element at the far end or two Elements around a long non-element sibling chain. Time ${ELEMENT_RELATIVE_ITERATIONS} public getter reads, or attribute invalidations followed by retained children length/item reads. Cached mode performs no invalidation. Verify native traversal counts before auxiliary validation, then every node identity, Element result, child count and full serialized output; setup, cleanup and GC remain outside timing.`,
   collectionMemberMethodology: `Prepare a stable public HTMLCollection with 100/1000 members and mixed namespaces outside timing. Time ${COLLECTION_MEMBER_LOOKUP_ITERATIONS} public namedItem hits at the final member or misses, or ${COLLECTION_MEMBER_ENUMERATION_ITERATIONS} Object.getOwnPropertyNames calls consuming full result length and final name. Validate every member identity, exact supported-name order, ignored foreign names, unchanged tree and native counters afterward; cleanup and GC remain outside timing.`,
   shard, completionScope: 'Selected workload partition only; all partitions together cover the eligible plan.',
   readerMethodology: 'Size is input KiB. Prepare Blob/reader and drain document readiness before timing. Measure handler setup, the public read request and loadend completion; abort requests an ArrayBuffer read and cancels immediately. Validate every output byte/string, realm and final state after timing. Drain pending callbacks and clear handlers outside timing before window cleanup/GC.',

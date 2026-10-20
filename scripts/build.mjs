@@ -330,11 +330,25 @@ namedMapSource = namedMapSource.slice(0, supportedNamesStart) +
 await writeFile(namedMapPath, namedMapSource);
 const parentPath = resolve(destination, 'lib/jsdom/living/nodes/ParentNode-impl.js');
 let parentSource = await readFile(parentPath, 'utf8');
+parentSource = substituteOnce(parentSource, 'const NODE_TYPE = require("../node-type");\n', '');
+parentSource = substituteOnce(parentSource,
+  '        query: () => domSymbolTree.childrenToArray(this, {\n          filter: node => node.nodeType === NODE_TYPE.ELEMENT_NODE\n        })',
+  '        query: () => domSymbolTree.elementChildren(this)');
+parentSource = replaceRegion(parentSource, '  get firstElementChild() {', '  get childElementCount() {',
+  '  get firstElementChild() {\n    return domSymbolTree.firstElementChild(this);\n  }\n\n' +
+  '  get lastElementChild() {\n    return domSymbolTree.lastElementChild(this);\n  }\n\n', substituteOnce);
 parentSource = substituteOnce(parentSource, '    return domSelector.querySelector(selectors, this);',
   '    const nodes = domSymbolTree.queryFirst(selectors, this);\n    return nodes === null ? domSelector.querySelector(selectors, this) : (nodes[0] || null);');
 parentSource = substituteOnce(parentSource, '    const nodes = domSelector.querySelectorAll(selectors, this);',
   '    const nativeNodes = domSymbolTree.queryAll(selectors, this);\n    const nodes = nativeNodes === null ? domSelector.querySelectorAll(selectors, this) : nativeNodes;');
 await writeFile(parentPath, parentSource);
+const siblingPath = resolve(destination, 'lib/jsdom/living/nodes/NonDocumentTypeChildNode-impl.js');
+let siblingSource = substituteOnce(await readFile(siblingPath, 'utf8'),
+  'const NODE_TYPE = require("../node-type");\n', '');
+siblingSource = replaceRegion(siblingSource, '  get nextElementSibling() {', '\n}\n\nmodule.exports',
+  '  get nextElementSibling() {\n    return domSymbolTree.nextElementSibling(this);\n  }\n\n' +
+  '  get previousElementSibling() {\n    return domSymbolTree.previousElementSibling(this);\n  }', substituteOnce);
+await writeFile(siblingPath, siblingSource);
 const characterPath = resolve(destination, 'lib/jsdom/living/nodes/CharacterData-impl.js');
 let characterSource = await readFile(characterPath, 'utf8');
 characterSource = substituteOnce(characterSource, 'const DOMException = require("../generated/DOMException");',

@@ -1,0 +1,599 @@
+{
+  "capturedAt": "2026-10-20T21:05:03.328Z",
+  "pr": {
+    "headRefOid": "2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47",
+    "isDraft": false,
+    "mergeStateStatus": "CLEAN",
+    "mergeable": "MERGEABLE",
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T21:03:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316723",
+        "name": "validate (ubuntu-22.04)",
+        "startedAt": "2026-10-20T20:40:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:59:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316163",
+        "name": "validate (windows-latest)",
+        "startedAt": "2026-10-20T20:40:54Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:59:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316607",
+        "name": "validate (macos-latest)",
+        "startedAt": "2026-10-20T20:45:56Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:54:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316661",
+        "name": "Benchmark shard 0",
+        "startedAt": "2026-10-20T20:40:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:53:32Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316583",
+        "name": "Benchmark shard 1",
+        "startedAt": "2026-10-20T20:40:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:51:30Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316496",
+        "name": "Benchmark shard 2",
+        "startedAt": "2026-10-20T20:40:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:52:29Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118874316660",
+        "name": "Benchmark shard 3",
+        "startedAt": "2026-10-20T20:40:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-20T20:54:16Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/guidomodarelli/rustdom/actions/runs/39494042128/job/118880848041",
+        "name": "benchmarks",
+        "startedAt": "2026-10-20T20:54:13Z",
+        "status": "COMPLETED",
+        "workflowName": "Validate rustdom"
+      }
+    ]
+  },
+  "inlineComments": [
+    {
+      "url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4329732841",
+      "pull_request_review_id": 5591022496,
+      "id": 4329732841,
+      "node_id": "PRRC_kwDOUXCYvs8AAAABAhJ66Q",
+      "diff_hunk": "@@ -814,17 +818,33 @@ class NativeSymbolTree extends SymbolTree {\n \n   /** @param {object} root - Collection owner. @param {string} classes - Converted class query. @param {boolean} quirks - Current owner-document mode. @returns {object[]} Original matching implementations in tree order. */\n   collectionByClass(root, classes, quirks) {\n-    return Array.from(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks));\n   }\n   /** @param {object} root - Collection owner. @param {string} name - Qualified-name query. @param {boolean} htmlDocument - Mode captured at collection creation. @returns {object[]} Original matching implementations. */\n   collectionByTagName(root, name, htmlDocument) {\n-    return Array.from(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument));\n   }\n   /** @param {object} root - Collection owner. @param {string|null} namespace - Converted namespace query. @param {string} name - Local-name query. @returns {object[]} Original matching implementations. */\n   collectionByNamespace(root, namespace, name) {\n-    return Array.from(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name));\n   }\n \n+  /** @param {Float64Array} handles - Native query result. @returns {object[]} Implementations with private reusable numeric transport metadata. */\n+  _collectionResult(handles) {\n+    const nodes = Array.from(handles, (id) => this._object(id));\n+    defineProperty(nodes, COLLECTION_QUERY_HANDLES, { value: handles });\n+    return nodes;\n+  }\n+  /** @param {object[]} nodes - Current query snapshot. @returns {Float64Array} Numeric member identities without additional strong DOM owners. */\n+  collectionHandles(nodes) {\n+    return hasOwn(nodes, COLLECTION_QUERY_HANDLES) ? nodes[COLLECTION_QUERY_HANDLES]\n+      : Float64Array.from(nodes, (node) => this._ensure(node));",
+      "path": "src/dom/native-tree.cjs",
+      "commit_id": "b7b1cf226c41c9c29bc17778d61084650c4eea19",
+      "original_commit_id": "b7b1cf226c41c9c29bc17778d61084650c4eea19",
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422,
+        "node_id": "BOT_kgDOC98s_g",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1144995?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "followers_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Captura `Float64Array.from` antes de que el host pueda reemplazarlo**\n\nSi una aplicación reemplaza `globalThis.Float64Array.from` después de importar rustdom, crear o actualizar cualquier `HTMLCollection` cuya consulta no provenga de las nuevas rutas nativas —por ejemplo `element.children` o `document.forms`— ejecuta este método mutable y puede lanzar o aceptar IDs falsificados; jsdom no depende de `Float64Array.from` para esas colecciones. Captura y enlaza el intrínseco durante la inicialización, como ya se hace con otros métodos del host, para conservar la compatibilidad bajo modificaciones de globals.\n\nAGENTS.md reference: [AGENTS.md:L18-L19](https://github.com/guidomodarelli/rustdom/blob/b7b1cf226c41c9c29bc17778d61084650c4eea19/AGENTS.md#L18-L19)\n\nUseful? React with 👍 / 👎.\n\n<!-- codex-code-review-finding:v1 -->",
+      "created_at": "2026-10-20T20:07:09Z",
+      "updated_at": "2026-10-20T20:07:09Z",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#discussion_r4329732841",
+      "pull_request_url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4329732841"
+        },
+        "html": {
+          "href": "https://github.com/guidomodarelli/rustdom/pull/72#discussion_r4329732841"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4329732841/reactions",
+        "total_count": 1,
+        "+1": 1,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": null,
+      "original_start_line": null,
+      "start_side": null,
+      "line": null,
+      "original_line": 841,
+      "side": "RIGHT",
+      "author_association": "NONE",
+      "original_position": 38,
+      "position": 1,
+      "subject_type": "line"
+    },
+    {
+      "url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4330097917",
+      "pull_request_review_id": 5591482274,
+      "id": 4330097917,
+      "node_id": "PRRC_kwDOUXCYvs8AAAABAhgM_Q",
+      "diff_hunk": "@@ -814,17 +818,33 @@ class NativeSymbolTree extends SymbolTree {\n \n   /** @param {object} root - Collection owner. @param {string} classes - Converted class query. @param {boolean} quirks - Current owner-document mode. @returns {object[]} Original matching implementations in tree order. */\n   collectionByClass(root, classes, quirks) {\n-    return Array.from(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks));\n   }\n   /** @param {object} root - Collection owner. @param {string} name - Qualified-name query. @param {boolean} htmlDocument - Mode captured at collection creation. @returns {object[]} Original matching implementations. */\n   collectionByTagName(root, name, htmlDocument) {\n-    return Array.from(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument));\n   }\n   /** @param {object} root - Collection owner. @param {string|null} namespace - Converted namespace query. @param {string} name - Local-name query. @returns {object[]} Original matching implementations. */\n   collectionByNamespace(root, namespace, name) {\n-    return Array.from(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name), (id) => this._object(id));\n+    return this._collectionResult(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name));\n   }\n \n+  /** @param {Float64Array} handles - Native query result. @returns {object[]} Implementations with private reusable numeric transport metadata. */\n+  _collectionResult(handles) {\n+    const nodes = Array.from(handles, (id) => this._object(id));\n+    defineProperty(nodes, COLLECTION_QUERY_HANDLES, { value: handles });\n+    return nodes;\n+  }\n+  /** @param {object[]} nodes - Current query snapshot. @returns {Float64Array} Numeric member identities without additional strong DOM owners. */\n+  collectionHandles(nodes) {\n+    return hasOwn(nodes, COLLECTION_QUERY_HANDLES) ? nodes[COLLECTION_QUERY_HANDLES]\n+      : Float64Array.from(nodes, (node) => this._ensure(node));",
+      "path": "src/dom/native-tree.cjs",
+      "commit_id": "b7b1cf226c41c9c29bc17778d61084650c4eea19",
+      "original_commit_id": "b7b1cf226c41c9c29bc17778d61084650c4eea19",
+      "user": {
+        "login": "guidomodarelli",
+        "id": 38738725,
+        "node_id": "MDQ6VXNlcjM4NzM4NzI1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/38738725?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/guidomodarelli",
+        "html_url": "https://github.com/guidomodarelli",
+        "followers_url": "https://api.github.com/users/guidomodarelli/followers",
+        "following_url": "https://api.github.com/users/guidomodarelli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/guidomodarelli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/guidomodarelli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/guidomodarelli/subscriptions",
+        "organizations_url": "https://api.github.com/users/guidomodarelli/orgs",
+        "repos_url": "https://api.github.com/users/guidomodarelli/repos",
+        "events_url": "https://api.github.com/users/guidomodarelli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/guidomodarelli/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "✅ **Resuelto** en [`2ae5f2c`](https://github.com/guidomodarelli/rustdom/commit/2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47).\n\n**Qué cambió:** el transporte genérico captura Float64Array.from y su constructor desde un realm intrínseco limpio, incluso si el host ya fue alterado antes de importar. Se verificaron 146 tests de regresión y la suite completa (3.303 contratos Node, Jest 21, Vitest 32 y VM 32) en Node 22.12.0 y 24.14.1; los 34 escenarios de memoria finales recolectan Document, Window y nodos aun reteniendo IDs. Los benchmarks conservan todas las variaciones, entre −7,47% y +7,67%.\n\nEvidencia: [validación](https://github.com/guidomodarelli/rustdom/blob/2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47/reports/validation/collection-intrinsics/README.md).",
+      "created_at": "2026-10-20T20:43:52Z",
+      "updated_at": "2026-10-20T20:43:52Z",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#discussion_r4330097917",
+      "pull_request_url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72",
+      "_links": {
+        "self": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4330097917"
+        },
+        "html": {
+          "href": "https://github.com/guidomodarelli/rustdom/pull/72#discussion_r4330097917"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72"
+        }
+      },
+      "reactions": {
+        "url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/comments/4330097917/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "start_line": null,
+      "original_start_line": null,
+      "start_side": null,
+      "line": null,
+      "original_line": 841,
+      "side": "RIGHT",
+      "in_reply_to_id": 4329732841,
+      "author_association": "OWNER",
+      "original_position": 38,
+      "position": 1,
+      "subject_type": "line"
+    }
+  ],
+  "reviews": [
+    {
+      "id": 5591022496,
+      "node_id": "PRR_kwDOUXCYvs8AAAABTUA7oA",
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422,
+        "node_id": "BOT_kgDOC98s_g",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1144995?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "followers_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "<!-- codex-review-receipt:v1 -->\n\n\n### 💡 Codex Review\n\nHere are some automated review suggestions for this pull request.\n\n**Reviewed commit:** `b7b1cf226c`\n    \n\n<details> <summary>ℹ️ About Codex in GitHub</summary>\n<br/>\n\n[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you\n- Open a pull request for review\n- Mark a draft as ready\n- Comment \"@codex review\".\n\nIf Codex has suggestions, it will comment; otherwise it will react with 👍.\n\n\n\n\nCodex can also answer questions or update the PR. Try commenting \"@codex address that feedback\".\n            \n</details>",
+      "state": "COMMENTED",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#pullrequestreview-5591022496",
+      "pull_request_url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72",
+      "author_association": "NONE",
+      "_links": {
+        "html": {
+          "href": "https://github.com/guidomodarelli/rustdom/pull/72#pullrequestreview-5591022496"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72"
+        }
+      },
+      "submitted_at": "2026-10-20T20:07:09Z",
+      "commit_id": "b7b1cf226c41c9c29bc17778d61084650c4eea19"
+    },
+    {
+      "id": 5591482274,
+      "node_id": "PRR_kwDOUXCYvs8AAAABTUc_og",
+      "user": {
+        "login": "guidomodarelli",
+        "id": 38738725,
+        "node_id": "MDQ6VXNlcjM4NzM4NzI1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/38738725?u=c96f88cc643e2f1696c831d491c9c0167d8566f9&v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/guidomodarelli",
+        "html_url": "https://github.com/guidomodarelli",
+        "followers_url": "https://api.github.com/users/guidomodarelli/followers",
+        "following_url": "https://api.github.com/users/guidomodarelli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/guidomodarelli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/guidomodarelli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/guidomodarelli/subscriptions",
+        "organizations_url": "https://api.github.com/users/guidomodarelli/orgs",
+        "repos_url": "https://api.github.com/users/guidomodarelli/repos",
+        "events_url": "https://api.github.com/users/guidomodarelli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/guidomodarelli/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "body": "",
+      "state": "COMMENTED",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#pullrequestreview-5591482274",
+      "pull_request_url": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72",
+      "author_association": "OWNER",
+      "_links": {
+        "html": {
+          "href": "https://github.com/guidomodarelli/rustdom/pull/72#pullrequestreview-5591482274"
+        },
+        "pull_request": {
+          "href": "https://api.github.com/repos/guidomodarelli/rustdom/pulls/72"
+        }
+      },
+      "submitted_at": "2026-10-20T20:43:52Z",
+      "commit_id": "2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47"
+    }
+  ],
+  "issueComments": [
+    {
+      "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6300254220",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#issuecomment-6300254220",
+      "issue_url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/72",
+      "id": 6300254220,
+      "node_id": "IC_kwDOUXCYvs8AAAABd4ZADA",
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422,
+        "node_id": "BOT_kgDOC98s_g",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1144995?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "followers_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "created_at": "2026-10-20T20:02:01Z",
+      "updated_at": "2026-10-20T20:46:47Z",
+      "body": "<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 {\"code_review\":{\"commit_sha\":\"2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47\",\"has_any_findings\":false,\"has_unresolved_findings\":false,\"status\":\"completed\"},\"security_review\":{\"commit_sha\":null,\"has_any_findings\":null,\"has_unresolved_findings\":null,\"status\":null}} -->\n\n## Codex Review Summary\n\nThis comment shows the latest Codex review activity on this pull request.\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n| 📝 **Code Review** | ✅ **Completed** <relative-time datetime=\"2026-10-20T20:46:46.574999Z\">2026-10-20T20:46:46.574999Z</relative-time> | `2ae5f2c` | Manual request |\n\n\n\n<details> <summary>ℹ️ About Codex in GitHub</summary>\n<br/>\n\n[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you\n- Open a pull request for review\n- Mark a draft as ready\n- Comment \"@codex review\" or \"@codex security review\".\n\nCodex reacts with 👀 while any review is running, comments if it has suggestions, and reacts with 👍 once all reviews finish with no findings.\n\n</details>",
+      "author_association": "NONE",
+      "reactions": {
+        "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6300254220/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "performed_via_github_app": {
+        "id": 1144995,
+        "client_id": "Iv23liVemv8A9if9v0F2",
+        "slug": "chatgpt-codex-connector",
+        "node_id": "A_kwHOAOQ6Gs4AEXij",
+        "owner": {
+          "login": "openai",
+          "id": 14957082,
+          "node_id": "MDEyOk9yZ2FuaXphdGlvbjE0OTU3MDgy",
+          "avatar_url": "https://avatars.githubusercontent.com/u/14957082?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/openai",
+          "html_url": "https://github.com/openai",
+          "followers_url": "https://api.github.com/users/openai/followers",
+          "following_url": "https://api.github.com/users/openai/following{/other_user}",
+          "gists_url": "https://api.github.com/users/openai/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/openai/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/openai/subscriptions",
+          "organizations_url": "https://api.github.com/users/openai/orgs",
+          "repos_url": "https://api.github.com/users/openai/repos",
+          "events_url": "https://api.github.com/users/openai/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/openai/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "name": "ChatGPT Codex Connector",
+        "description": "Bring ChatGPT and Codex to your GitHub repositories.",
+        "external_url": "https://www.chatgpt.com",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "created_at": "2025-02-14T01:37:05Z",
+        "updated_at": "2026-09-23T18:52:59Z",
+        "permissions": {
+          "actions": "write",
+          "checks": "read",
+          "contents": "write",
+          "emails": "read",
+          "issues": "write",
+          "metadata": "read",
+          "pull_requests": "write",
+          "statuses": "read",
+          "workflows": "write"
+        },
+        "events": [
+          "check_run",
+          "check_suite",
+          "commit_comment",
+          "issues",
+          "issue_comment",
+          "pull_request",
+          "pull_request_review",
+          "pull_request_review_comment",
+          "pull_request_review_thread",
+          "repository",
+          "status",
+          "sub_issues"
+        ]
+      },
+      "minimized": null
+    },
+    {
+      "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6301070934",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#issuecomment-6301070934",
+      "issue_url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/72",
+      "id": 6301070934,
+      "node_id": "IC_kwDOUXCYvs8AAAABd5K2Vg",
+      "user": {
+        "login": "guidomodarelli",
+        "id": 38738725,
+        "node_id": "MDQ6VXNlcjM4NzM4NzI1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/38738725?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/guidomodarelli",
+        "html_url": "https://github.com/guidomodarelli",
+        "followers_url": "https://api.github.com/users/guidomodarelli/followers",
+        "following_url": "https://api.github.com/users/guidomodarelli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/guidomodarelli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/guidomodarelli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/guidomodarelli/subscriptions",
+        "organizations_url": "https://api.github.com/users/guidomodarelli/orgs",
+        "repos_url": "https://api.github.com/users/guidomodarelli/repos",
+        "events_url": "https://api.github.com/users/guidomodarelli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/guidomodarelli/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "created_at": "2026-10-20T20:44:20Z",
+      "updated_at": "2026-10-20T20:44:20Z",
+      "body": "@codex review\n",
+      "author_association": "OWNER",
+      "reactions": {
+        "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6301070934/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "performed_via_github_app": null,
+      "minimized": null
+    },
+    {
+      "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6301116458",
+      "html_url": "https://github.com/guidomodarelli/rustdom/pull/72#issuecomment-6301116458",
+      "issue_url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/72",
+      "id": 6301116458,
+      "node_id": "IC_kwDOUXCYvs8AAAABd5NoKg",
+      "user": {
+        "login": "chatgpt-codex-connector[bot]",
+        "id": 199175422,
+        "node_id": "BOT_kgDOC98s_g",
+        "avatar_url": "https://avatars.githubusercontent.com/in/1144995?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "followers_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/subscriptions",
+        "organizations_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/orgs",
+        "repos_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/repos",
+        "events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/chatgpt-codex-connector%5Bbot%5D/received_events",
+        "type": "Bot",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "created_at": "2026-10-20T20:46:45Z",
+      "updated_at": "2026-10-20T20:46:45Z",
+      "body": "<!-- codex-review-receipt:v1 -->\n\nCodex Review: Didn't find any major issues. Already looking forward to the next diff.\n\n**Reviewed commit:** `2ae5f2cb71`\n\n<details> <summary>ℹ️ About Codex in GitHub</summary>\n<br/>\n\n[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you\n- Open a pull request for review\n- Mark a draft as ready\n- Comment \"@codex review\".\n\nIf Codex has suggestions, it will comment; otherwise it will react with 👍.\n\n\n\n\nCodex can also answer questions or update the PR. Try commenting \"@codex address that feedback\".\n            \n</details>",
+      "author_association": "NONE",
+      "reactions": {
+        "url": "https://api.github.com/repos/guidomodarelli/rustdom/issues/comments/6301116458/reactions",
+        "total_count": 0,
+        "+1": 0,
+        "-1": 0,
+        "laugh": 0,
+        "hooray": 0,
+        "confused": 0,
+        "heart": 0,
+        "rocket": 0,
+        "eyes": 0
+      },
+      "performed_via_github_app": {
+        "id": 1144995,
+        "client_id": "Iv23liVemv8A9if9v0F2",
+        "slug": "chatgpt-codex-connector",
+        "node_id": "A_kwHOAOQ6Gs4AEXij",
+        "owner": {
+          "login": "openai",
+          "id": 14957082,
+          "node_id": "MDEyOk9yZ2FuaXphdGlvbjE0OTU3MDgy",
+          "avatar_url": "https://avatars.githubusercontent.com/u/14957082?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/openai",
+          "html_url": "https://github.com/openai",
+          "followers_url": "https://api.github.com/users/openai/followers",
+          "following_url": "https://api.github.com/users/openai/following{/other_user}",
+          "gists_url": "https://api.github.com/users/openai/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/openai/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/openai/subscriptions",
+          "organizations_url": "https://api.github.com/users/openai/orgs",
+          "repos_url": "https://api.github.com/users/openai/repos",
+          "events_url": "https://api.github.com/users/openai/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/openai/received_events",
+          "type": "Organization",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "name": "ChatGPT Codex Connector",
+        "description": "Bring ChatGPT and Codex to your GitHub repositories.",
+        "external_url": "https://www.chatgpt.com",
+        "html_url": "https://github.com/apps/chatgpt-codex-connector",
+        "created_at": "2025-02-14T01:37:05Z",
+        "updated_at": "2026-09-23T18:52:59Z",
+        "permissions": {
+          "actions": "write",
+          "checks": "read",
+          "contents": "write",
+          "emails": "read",
+          "issues": "write",
+          "metadata": "read",
+          "pull_requests": "write",
+          "statuses": "read",
+          "workflows": "write"
+        },
+        "events": [
+          "check_run",
+          "check_suite",
+          "commit_comment",
+          "issues",
+          "issue_comment",
+          "pull_request",
+          "pull_request_review",
+          "pull_request_review_comment",
+          "pull_request_review_thread",
+          "repository",
+          "status",
+          "sub_issues"
+        ]
+      },
+      "minimized": null
+    }
+  ],
+  "reviewState": {
+    "code_review": {
+      "commit_sha": "2ae5f2cb71a3d5da7ed58e3eb5b87b558b887a47",
+      "has_any_findings": false,
+      "has_unresolved_findings": false,
+      "status": "completed"
+    },
+    "security_review": {
+      "commit_sha": null,
+      "has_any_findings": null,
+      "has_unresolved_findings": null,
+      "status": null
+    }
+  },
+  "threads": {
+    "data": {
+      "repository": {
+        "pullRequest": {
+          "reviewThreads": {
+            "nodes": [
+              {
+                "id": "PRRT_kwDOUXCYvs6ugOcu",
+                "isResolved": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

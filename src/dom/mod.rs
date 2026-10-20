@@ -25,6 +25,7 @@ mod document_implementation_binding;
 mod dom_parser;
 mod dom_rect;
 mod dom_rect_binding;
+mod element_relatives;
 mod error;
 mod event_listeners;
 mod event_listeners_binding;

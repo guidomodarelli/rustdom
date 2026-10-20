@@ -1,15 +1,19 @@
 # Indicador provisional de migración a Rust
 
-Estado actualizado el 20/10/2026 UTC. Main contiene `a155685e30510cf626b03f83a6b7fc79c845baf2`, checkpoint-059-collection-queries (PR 71): los tres filtros getElementsBy* y su recorrido se ejecutan en Rust. DOMImplementation, DOMParser y CharacterData undefined ya estaban integrados. El siguiente hito, feature/native-collection-members, traslada namedItem y supportedPropertyNames de HTMLCollection y comparte transporte numérico sin nuevos owners del DOM; la evidencia está en reports/validation/collection-members.md. Verificar sus resultados y el estado remoto antes de asumir integración. WebIDL, invalidación, otros métodos, factories y algoritmos generales conservan trabajo pendiente; la implementación continúa siendo híbrida.
+Estado actualizado el 20/10/2026 UTC. Main contiene `a8886b18a2e2c51134146489e1316c67a4fa3d1c`,
+checkpoint-060-collection-members (PR 72), con namedItem y nombres soportados
+nativos y su fix de intrínsecos. El siguiente hito, feature/native-element-relatives,
+migra el recorrido físico de hijos/hermanos Element; comprobar el PR remoto antes
+de asumir integración. WebIDL, factories, invalidación y otras APIs conservan
+trabajo pendiente; el runtime continúa siendo híbrido.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
-El hito de miembros de HTMLCollection pasa 275 tests Rust en 1.98.1/1.99.1,
-3.157 contratos Node por versión, runners reales, corpus, GC, Memcheck y 40
-controles instalados. Sus ocho reportes de rendimiento conservan 36 muestras
-por fila/motor/etapa/runtime y reducen cerca de 94% la lectura estable de 1.000
-descendientes frente al checkpoint 59. Siguen presentes costos frente a jsdom;
-profundizar un área parcial no modifica automáticamente el índice global.
+El hito de Element pasó 281 tests Rust en 1.98.1/1.99.1, 3.358 contratos Node
+por versión, runners, corpus, 44 escenarios GC por Node, Memcheck y 40 controles
+instalados. Sus ocho reportes de rendimiento conservan 36 muestras por
+fila/motor/etapa/runtime y todas las regresiones. Ver reports/validation/element-relatives.md.
+Profundizar un área parcial no incrementa automáticamente el índice global.
 
 Es un indicador de planificación por áreas, no un porcentaje auditado de APIs,
 líneas o esfuerzo. Las 12 áreas reciben el mismo peso: implementada = 1,
