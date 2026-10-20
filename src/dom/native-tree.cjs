@@ -27,6 +27,9 @@ const EMPTY_NODE_HANDLES = Object.freeze([]);
 const COLLECTION_QUERY_HANDLES = Symbol('rustdom.collection-query-handles');
 const hasOwn = Object.hasOwn;
 const defineProperty = Object.defineProperty;
+/** Preserve typed transport even when host constructors were changed before importing the runtime. */
+const float64ArrayFrom = require('node:vm').runInNewContext(
+  'Float64Array.from.bind(Float64Array)', Object.create(null));
 
 /**
  * Execute topology changes in Rust, then replay them into V8-visible ownership edges.
@@ -838,7 +841,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object[]} nodes - Current query snapshot. @returns {Float64Array} Numeric member identities without additional strong DOM owners. */
   collectionHandles(nodes) {
     return hasOwn(nodes, COLLECTION_QUERY_HANDLES) ? nodes[COLLECTION_QUERY_HANDLES]
-      : Float64Array.from(nodes, (node) => this._ensure(node));
+      : float64ArrayFrom(nodes, (node) => this._ensure(node));
   }
   /** @param {Float64Array} handles - Current owned snapshot. @param {string} key - Converted name. @returns {object|null} Original first matching implementation. */
   collectionNamedItem(handles, key) { return this._object(this._arena.collectionNamedItem(handles, key)); }
