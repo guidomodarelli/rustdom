@@ -5,6 +5,7 @@ use super::{
     collection_queries::CollectionFilter,
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
+    element_relatives::ElementRelation,
     error::TreeError,
     mutation_production_binding::{
         self, NativeMutationBatch, NativeMutationProductionInput, NativePreparedMutation,
@@ -191,6 +192,7 @@ pub struct TreeStatistics {
     pub native_collection_queries: f64,
     pub native_collection_named_reads: f64,
     pub native_collection_name_enumerations: f64,
+    pub native_element_relation_reads: f64,
     pub query_fallbacks: f64,
     pub selector_cache_hits: f64,
     pub selector_cache_size: u32,
@@ -480,6 +482,7 @@ pub struct NativeTree {
     collection_queries: u64,
     collection_named_reads: u64,
     collection_name_enumerations: u64,
+    element_relation_reads: u64,
 }
 
 #[napi]
@@ -620,6 +623,7 @@ impl NativeTree {
             collection_queries: 0,
             collection_named_reads: 0,
             collection_name_enumerations: 0,
+            element_relation_reads: 0,
         }
     }
 
@@ -1906,6 +1910,45 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    /// Physical immediate Element children; the caller retains the corresponding owners.
+    #[napi]
+    pub fn element_children(&mut self, handle: f64) -> Result<Float64Array> {
+        self.element_relation_reads += 1;
+        self.store
+            .query_element_children(handle)
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn first_element_child(&mut self, handle: f64) -> Result<f64> {
+        self.element_relation_reads += 1;
+        self.store
+            .element_relative(handle, ElementRelation::FirstChild)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn last_element_child(&mut self, handle: f64) -> Result<f64> {
+        self.element_relation_reads += 1;
+        self.store
+            .element_relative(handle, ElementRelation::LastChild)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn next_element_sibling(&mut self, handle: f64) -> Result<f64> {
+        self.element_relation_reads += 1;
+        self.store
+            .element_relative(handle, ElementRelation::NextSibling)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn previous_element_sibling(&mut self, handle: f64) -> Result<f64> {
+        self.element_relation_reads += 1;
+        self.store
+            .element_relative(handle, ElementRelation::PreviousSibling)
+            .map_err(to_napi_error)
+    }
+
     /// Match supported selectors against live data; None requests compatibility handling.
     #[napi]
     pub fn query(
@@ -2013,6 +2056,7 @@ impl NativeTree {
             native_collection_queries: self.collection_queries as f64,
             native_collection_named_reads: self.collection_named_reads as f64,
             native_collection_name_enumerations: self.collection_name_enumerations as f64,
+            native_element_relation_reads: self.element_relation_reads as f64,
             query_fallbacks: self.queries.fallbacks as f64,
             selector_cache_hits: self.queries.cache_hits as f64,
             selector_cache_size: self.queries.cache_size() as u32,

@@ -1,4 +1,4 @@
-/** @file Measures live collection ownership and ephemeral native filter state with separate Document/Window observations. */
+/** @file Measures live collection/Element-relative ownership and ephemeral native state with separate Document/Window observations. */
 'use strict';
 const assert = require('node:assert/strict');
 const { mkdirSync, writeFileSync } = require('node:fs');
@@ -63,30 +63,48 @@ function retainedFixture(runtime, mode, kind) {
       assert.equal(root.getElementsByClassName(`missing-${cycle}`).length, 0);
     }
     const held = kind === 'class' ? root.getElementsByClassName('selected')
-      : kind === 'tag' ? root.getElementsByTagName('DIV') : root.getElementsByTagNameNS(TEST_NAMESPACE, 'entry');
-    assert.equal(held.length, ELEMENTS_PER_WINDOW / 2);
+      : kind === 'tag' ? root.getElementsByTagName('DIV')
+        : kind === 'children' ? root.children : root.getElementsByTagNameNS(TEST_NAMESPACE, 'entry');
+    const expectedCount = kind === 'children' ? ELEMENTS_PER_WINDOW : ELEMENTS_PER_WINDOW / 2;
+    assert.equal(held.length, expectedCount);
     verifyTemporaryTokens(runtime, beforeTokens);
     const observed = { windows: [new WeakRef(window)], documents: [new WeakRef(window.document)],
       roots: [new WeakRef(root)], collections: [new WeakRef(held)], elements: Array.from(root.children, (element) => new WeakRef(element)) };
-    return { held, observed };
+    return { held, observed, expectedCount };
   } finally { window.close(); }
 }
 
 /** @param {object} sample - Explicit live collection owner. @returns {void} Read held state without leaving strong loop bindings across an async GC. */
-function verifyHeld(sample) { assert.equal(sample.held.length, ELEMENTS_PER_WINDOW / 2); assert.equal(sample.held.item(0).ownerDocument, sample.observed.documents[0].deref()); }
+function verifyHeld(sample) { assert.equal(sample.held.length, sample.expectedCount); assert.equal(sample.held.item(0).ownerDocument, sample.observed.documents[0].deref()); }
 
-/** @param {object} runtime - Real native-backed engine. @param {string} mode - Default/VM realm. @param {string} transport - Native query, generic children, or form controls snapshot. @returns {object} Retained numeric/string transport values and weak DOM observations only. */
+/** @param {object} runtime - Actual engine. @param {string} mode - Default/VM realm. @returns {object} A live children owner and only weak references to the removed member. */
+function removedChildFixture(runtime, mode) {
+  const { window, root } = createFixture(runtime, mode);
+  try {
+    const held = root.children;
+    const removed = root.firstElementChild;
+    const removedObservation = { elements: [new WeakRef(removed)] };
+    removed.remove();
+    assert.equal(root.childElementCount, ELEMENTS_PER_WINDOW - 1);
+    assert.equal(held.length, ELEMENTS_PER_WINDOW - 1);
+    const observed = { windows: [new WeakRef(window)], documents: [new WeakRef(window.document)],
+      roots: [new WeakRef(root)], collections: [new WeakRef(held)], elements: Array.from(held, (element) => new WeakRef(element)) };
+    return { held, observed, removedObservation, expectedCount: ELEMENTS_PER_WINDOW - 1 };
+  } finally { window.close(); }
+}
+
+/** @param {object} runtime - Real native-backed engine. @param {string} mode - Default/VM realm. @param {string} transport - Descendant/children query or poisoned children/form-controls snapshot. @returns {object} Retained numeric/string transport values and weak DOM observations only. */
 function transportFixture(runtime, mode, transport) {
   const { window, root } = createFixture(runtime, mode, transport === 'generic-controls');
   const FloatConstructor = Float64Array;
   const originalFrom = Object.getOwnPropertyDescriptor(FloatConstructor, 'from');
-  const generic = transport !== 'native-query';
-  const expectedLength = generic ? ELEMENTS_PER_WINDOW : ELEMENTS_PER_WINDOW / 2;
+  const generic = transport.startsWith('generic-');
+  const expectedLength = transport === 'native-query' ? ELEMENTS_PER_WINDOW / 2 : ELEMENTS_PER_WINDOW;
   try {
     if (generic) Object.defineProperty(FloatConstructor, 'from', { configurable: true,
-      get() { throw new Error('Generic collection transport must not read the mutable host factory'); } });
+      get() { throw new Error('Collection transport must not read the mutable host factory'); } });
     const collection = transport === 'generic-controls' ? root.elements
-      : generic ? root.children : root.getElementsByClassName('selected');
+      : transport === 'native-query' ? root.getElementsByClassName('selected') : root.children;
     const implementation = collection[Object.getOwnPropertySymbols(collection).find((symbol) => symbol.description === 'impl')];
     const ids = implementation._nativeIds;
     const names = Object.getOwnPropertyNames(collection);
@@ -107,7 +125,7 @@ async function main() {
   const report = { capturedAt: new Date().toISOString(), node: process.version, reference: require('jsdom/package.json').version,
     windowsPerBatch: WINDOWS_PER_BATCH, measuredCycles: MEASURED_CYCLES, mutationsPerWindow: MUTATIONS_PER_WINDOW,
     retainedQueryCycles: RETAINED_QUERY_CYCLES, pass: false, cases: [],
-    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements and three live collections, forty mutation/requery cycles per Window, then close and drop all strong owners. Separately churn two hundred class queries and hold one class/tag/namespace collection after close; verify owner retention, then release it and require all weak groups and native liveness counters to return to baseline across two clear GC samples. Native-only default/VM scenarios retain numeric member transport and property-name strings from native queries, generic children snapshots, and form.elements snapshots while requiring every DOM owner to clear. Generic snapshots are constructed with a throwing host Float64Array.from getter, restored before cleanup. Class token allocations must return synchronously after queries. Record heap/external/RSS after GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
+    methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements, three live descendant collections and repeated physical Element-relative reads, forty mutation/requery cycles per Window, then close and drop owners. Separately churn two hundred class queries and hold one class/tag/namespace/children collection after close; require owner retention then release every weak group and native liveness counter across two clear GC samples. A removed child must collect while children and its parent/document remain held; childElementCount and the live list must already reflect removal. Native-only default/VM cases retain numeric transport and property-name strings from descendant queries, ordinary children, and children/form.elements snapshots created with a throwing host Float64Array.from getter restored in finally; every DOM owner must clear. Class tokens release synchronously. Heap/external/RSS are post-GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
   try {
     for (const [engine, runtime] of Object.entries(engines)) for (const mode of ['default', 'vm']) {
       for (let cycle = -1; cycle < MEASURED_CYCLES; cycle++) {
@@ -118,7 +136,7 @@ async function main() {
         report.cases.push({ engine, mode, cycle, endpoint });
         assert.equal(endpoint.reached, true, JSON.stringify(endpoint.state));
       }
-      for (const kind of ['class', 'tag', 'namespace']) {
+      for (const kind of ['class', 'tag', 'namespace', 'children']) {
         await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = retainedFixture(runtime, mode, kind);
         await collectGarbage(); verifyHeld(sample);
         const held = captureMemoryState(sample.observed, runtime);
@@ -129,15 +147,31 @@ async function main() {
         report.cases.push({ engine, mode, kind, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
       }
-      if (engine === 'rustdom') for (const transport of ['native-query', 'generic-children', 'generic-controls']) {
-        await collectGarbage(); const baseline = runtime.getNativeTreeStatistics(); const sample = transportFixture(runtime, mode, transport);
-        const released = await waitForMemoryQuiescence({ label: `collection-${engine}-${mode}-${transport}-numeric-transport-held`,
+      {
+        await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = removedChildFixture(runtime, mode);
+        const removed = await waitForMemoryQuiescence({ label: `children-${engine}-${mode}-removed-with-live-owner`,
+          sample: () => captureMemoryState(sample.removedObservation) });
+        assert.equal(removed.reached, true, JSON.stringify(removed.state));
+        verifyHeld(sample);
+        const held = captureMemoryState(sample.observed, runtime);
+        assert.equal(held.survivors.collections, 1); assert.equal(held.survivors.documents, 1); assert.equal(held.survivors.roots, 1);
+        sample.held = null;
+        const released = await waitForMemoryQuiescence({ label: `children-${engine}-${mode}-owner-released`,
           sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
+        report.cases.push({ engine, mode, kind: 'removed-child-with-live-collection', removed, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
-        assert.equal(sample.ids.length, sample.expectedLength); assert.ok(sample.ids[0] > 0);
-        assert.equal(sample.names.length, sample.expectedLength);
-        report.cases.push({ engine, mode, kind: 'numeric-transport-held', transport, released,
-          retainedIdBytes: sample.ids.byteLength, retainedNames: sample.names.length });
+      }
+      if (engine === 'rustdom') {
+        for (const transport of ['native-query', 'native-children', 'generic-children', 'generic-controls']) {
+          await collectGarbage(); const baseline = runtime.getNativeTreeStatistics(); const sample = transportFixture(runtime, mode, transport);
+          const released = await waitForMemoryQuiescence({ label: `collection-${engine}-${mode}-${transport}-numeric-transport-held`,
+            sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
+          assert.equal(released.reached, true, JSON.stringify(released.state));
+          assert.equal(sample.ids.length, sample.expectedLength); assert.ok(sample.ids[0] > 0);
+          assert.equal(sample.names.length, sample.expectedLength);
+          report.cases.push({ engine, mode, kind: 'numeric-transport-held', transport, released,
+            retainedIdBytes: sample.ids.byteLength, retainedNames: sample.names.length });
+        }
       }
     }
     report.pass = true;

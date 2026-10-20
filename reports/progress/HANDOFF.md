@@ -1,52 +1,55 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: miembros de HTMLCollection
+## Estado actual: hijos y hermanos Element
 
-La base estable es `main`, commit
-`a155685e30510cf626b03f83a6b7fc79c845baf2`, tag
-`checkpoint-059-collection-queries`. Los PR 70 y 71 están mergeados, sus ocho
-checks pasaron y sus ramas fueron eliminadas. Los cuatro fallos originales de
-DOMParser ya están resueltos.
+La base estable es main, commit `a8886b18a2e2c51134146489e1316c67a4fa3d1c`, tag
+`checkpoint-060-collection-members`. El PR 72 está mergeado: ocho checks
+aprobados y revisión limpia de `2ae5f2c`; la rama integrada fue eliminada.
+Incluye namedItem/nombres soportados en Rust y el fix del factory Float64Array
+desde un realm limpio. Los cuatro fallos originales de DOMParser ya están
+resueltos desde el PR 70 y checkpoint 58; el registro antiguo de abajo es histórico.
 
-Los filtros y el recorrido de `getElementsByClassName`, `getElementsByTagName`
-y `getElementsByTagNameNS` ya están integrados en Rust. El trabajo siguiente
-está en `feature/native-collection-members`: `namedItem` y los nombres de
-propiedades de `HTMLCollection` usan atributos canónicos y un transporte
-numérico compartido. Se preservan orden, namespaces, UTF-16 e identidad. La
-invalidación, WebIDL, los owners y otros métodos conservan el host actual.
+El siguiente hito es `feature/native-element-relatives`: children,
+firstElementChild, lastElementChild, nextElementSibling y previousElementSibling
+recorren y filtran enlaces en Rust. childElementCount conserva children y su
+invalidación; WebIDL, factories y owners siguen usando la integración actual.
+El runtime continúa siendo híbrido. Verificar el PR y sus checks antes de asumir
+que este hito ya está integrado en main.
 
-La evidencia del hito integrado está en
-[consultas de colecciones](../validation/collection-queries.md). La validación
-del siguiente cambio se registra en
-[miembros de HTMLCollection](../validation/collection-members.md), incluidos
-los escenarios que retienen IDs y nombres mientras se libera el DOM. Verificar
-sus resultados y el estado remoto antes de asumir que el nuevo hito está integrado.
+La validación local pasó 281 tests Rust en 1.98.1/1.99.1, 3.358 contratos Node
+por versión 22.12.0/24.14.1, Jest 21, Vitest 32 y VM 32. Pasaron también 613
+focales, 64 contratos del harness y 44 escenarios de GC por Node, HTML5,
+paridad WPT, nueve lotes de Memcheck y 40 controles del mismo paquete instalado.
+Los ocho reportes de benchmark guardan ambos órdenes y 36 muestras por
+fila/motor/etapa/runtime, con todas las regresiones. Consultar resultados y límites:
 
-Pasaron 275 tests Rust en 1.98.1/1.99.1, 3.157 contratos Node por versión,
-Jest/Vitest/VM, corpus en Node 22/24, GC, nueve lotes Memcheck y 40 controles
-instalados. Ocho reportes equilibrados reúnen 32 workers y 36 muestras por fila,
-motor, etapa y runtime. La lectura desde caché de 1.000 descendientes baja cerca
-de 94% frente al baseline; varios casos todavía tienen costos frente a jsdom.
+- [Validación y fuentes](../validation/element-relatives.md).
+- [Benchmarks](../benchmarks/element-relatives/README.md).
+- [Memoria](../memory/element-relatives/README.md).
 
-El próximo bloque identificado es el recorrido físico de hijos y hermanos
-Element en ParentNode/NonDocumentTypeChildNode. Preservar la actualización de
-`children` al leer `childElementCount`: el host actual refresca esa lista y con
-ello libera miembros obsoletos. Agregar una regresión de GC que lo verifique,
-además de namespaces, adopción, fragments, templates y shadow roots.
+El índice global sigue en 45,8% por áreas: no mide compatibilidad completa ni
+APIs terminadas. Quedan muchas implementaciones en JavaScript/jsdom. El próximo
+bloque identificado es Document.getElementsByName, cuyo filtro/recorrido aún usa
+JavaScript y debe conservar una NodeList viva, UTF-16, namespaces y sus owners.
 
-Prompt para retomar este estado:
+Prompt para retomar:
 
 ```text
-Retomá rustdom desde feature/native-collection-members; si esa rama ya fue
-mergeada, partí de main. Leé AGENTS.md, reports/progress/HANDOFF.md,
-reports/validation/collection-members.md y ROADMAP.md. Verificá el estado real
-del repositorio, los resultados y los PR antes de continuar. Terminá cualquier
-validación o revisión pendiente y avanzá con los algoritmos todavía delegados.
+Retomá rustdom desde feature/native-element-relatives; si fue mergeada, partí
+de main. Leé AGENTS.md, reports/progress/HANDOFF.md, ROADMAP.md y
+reports/validation/element-relatives.md. Verificá el estado remoto y el SHA
+revisado de cada PR antes de dar por integrada una rama.
+
+Los cuatro fallos originales de DOMParser están resueltos. Terminá los checks
+o reviews pendientes de este hito y continuá con las APIs aún delegadas,
+empezando por Document.getElementsByName si sigue pendiente. Preservá NodeList
+viva, identidad, namespaces, UTF-16, orden, mutaciones y liberación de owners.
+
 El objetivo sigue siendo 100% de implementación Rust y compatibilidad
-verificable con jsdom; el runtime híbrido es un avance intermedio.
-Validá en Node 22 y 24, guardá benchmarks y análisis de memoria, y publicá
-cada hito probado con commit, push y checkpoint, siguiendo codex-autofix-loop
-en cada PR y las reglas de AGENTS.md.
+verificable con jsdom; la versión híbrida es intermedia. Instalá lo necesario
+sin pedir permiso. Validá Node 22 y 24, guardá benchmarks y análisis de memoria,
+y publicá cada hito probado con commit, push y checkpoint. Aplicá
+codex-autofix-loop en cada PR; no publiques paquetes npm automáticamente.
 ```
 
 ## Actualización del 20 de octubre de 2026

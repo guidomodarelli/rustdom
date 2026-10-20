@@ -644,6 +644,12 @@ export class NativeTree {
   /** Snapshot members stay owned by the calling JS collection; native storage keeps no collection cache. */
   collectionNamedItem(handles: Float64Array, key: string): number;
   collectionPropertyNames(handles: Float64Array): string[];
+  /** Physical Element-only relatives; zero denotes absence and returned IDs do not own nodes. */
+  elementChildren(handle: number): Float64Array;
+  firstElementChild(handle: number): number;
+  lastElementChild(handle: number): number;
+  nextElementSibling(handle: number): number;
+  previousElementSibling(handle: number): number;
   getLinks(handle: number): TreeLinks;
   append(parent: number, child: number): number;
   prepend(parent: number, child: number): number;
