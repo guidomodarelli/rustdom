@@ -812,6 +812,19 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {string} selector - Selector. @param {object} root - Original subject. @returns {object[]|null} Closest ancestor or fallback. */
   closestNode(selector, root) { return this._query(selector, root, QueryMode.Closest); }
 
+  /** @param {object} root - Collection owner. @param {string} classes - Converted class query. @param {boolean} quirks - Current owner-document mode. @returns {object[]} Original matching implementations in tree order. */
+  collectionByClass(root, classes, quirks) {
+    return Array.from(this._arena.queryCollectionByClass(this._ensure(root), classes, quirks), (id) => this._object(id));
+  }
+  /** @param {object} root - Collection owner. @param {string} name - Qualified-name query. @param {boolean} htmlDocument - Mode captured at collection creation. @returns {object[]} Original matching implementations. */
+  collectionByTagName(root, name, htmlDocument) {
+    return Array.from(this._arena.queryCollectionByTagName(this._ensure(root), name, htmlDocument), (id) => this._object(id));
+  }
+  /** @param {object} root - Collection owner. @param {string|null} namespace - Converted namespace query. @param {string} name - Local-name query. @returns {object[]} Original matching implementations. */
+  collectionByNamespace(root, namespace, name) {
+    return Array.from(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name), (id) => this._object(id));
+  }
+
   /** @param {number} id - Native handle or zero. @returns {object|null} The original JS node. */
   _object(id) {
     if (!id) return null;

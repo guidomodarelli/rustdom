@@ -129,6 +129,7 @@ module.exports = function registerDomSuite({ test, expect, afterEach, createNati
   });
 
   require('./abort-suite.cjs')({ test, expect, runnerGlobal: globalThis, createNativeDom });
+  require('./collection-suite.cjs')({ test, expect });
 
   test('should render and update React state when a user clicks a button', async () => {
     /**

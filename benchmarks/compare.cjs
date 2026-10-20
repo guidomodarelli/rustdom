@@ -9,6 +9,7 @@ const { BenchmarkReport } = require('./report.cjs');
 const { readBenchmarkShard } = require('./shard.cjs');
 const { captureSourceIdentity } = require('./sources.cjs');
 const { runtimeRoot, runtimeEntry, nativeBinaryPath } = require('./runtime.cjs');
+const { COLLECTION_QUERY_ITERATIONS, MANY_CLASS_QUERY_TOKEN_COUNT } = require('./constants/collection-queries.cjs');
 
 /** Use fresh processes and alternate ordering to reduce shared-heap and ordering bias. */
 const ORDERS = [['jsdom', 'rustdom'], ['rustdom', 'jsdom']];
@@ -48,6 +49,7 @@ const report = {
     logicalCpus: cpus().length, totalMemoryBytes: totalmem() },
   methodology: {
     documentCreation: 'Create 100/1000 public HTML documents with title, XML documents with namespaced root, detached doctypes, or rejected QNames. Retain every result during timing, validate all fields/identities and native activation outside timing, then release owners. Includes WebIDL, native crossings, realm factories and actual node creation; excludes owner-window setup and cleanup.',
+    collections: `Prepare 100/1000 mixed-namespace descendants and a public getElementsBy* collection. Live workloads time ${COLLECTION_QUERY_ITERATIONS} attribute invalidations plus complete collection refresh and length/last-identity consumption; create also includes a fresh collection factory per invalidation. The many-class workload requires ${MANY_CLASS_QUERY_TOKEN_COUNT} tokens; ordinary class queries require two. Cached reads perform the same public reads on a stable collection without invalidation. Verify every result and exact native refresh count outside timing. Native filtering, wrapper mapping and existing HTMLCollection updates are included; construction, cleanup and GC are excluded.`,
     selection: 'Size is 100/1000 public operations on one prepared six-character Text. Read all endpoints/type/count, associate new Ranges, alternate focus via extend, test containment or stringify. Consume and retain every result during timing; validate all boundary identities/offsets, values and native activation outside timing. Includes WebIDL, native crossings, Range allocation and actual selectionchange scheduling. Drain tasks outside timing before releasing owners. Retained and peak memory are separate from these timing comparisons.',
     formData: 'At 100/1000 entries, time public append/get/getAll/set/delete/iteration, File filename copies, or construction from a real prepared form. Setup is excluded. getAll performs 100 complete reads; set starts with duplicate names. Validate every value, order, file identity/bytes and native activation outside timing, then release auxiliary references. Full runner/bridge cost is included.',
     build: 'cargo release, thin LTO', processOrders: ORDERS,

@@ -2,6 +2,7 @@
 use super::{
     attributes,
     character_data::WholeText,
+    collection_queries::CollectionFilter,
     constants::{ATTRIBUTE_NODE, ELEMENT_NODE, HTML_NAMESPACE},
     data::{AttributeData, DomString, NodeData},
     error::TreeError,
@@ -187,6 +188,7 @@ pub struct TreeStatistics {
     pub data_updates: f64,
     pub serializations: f64,
     pub native_queries: f64,
+    pub native_collection_queries: f64,
     pub query_fallbacks: f64,
     pub selector_cache_hits: f64,
     pub selector_cache_size: u32,
@@ -473,6 +475,7 @@ fn simple_data(kind: u16, value: String) -> NodeData {
 pub struct NativeTree {
     store: store::TreeStore,
     queries: QueryEngine,
+    collection_queries: u64,
 }
 
 #[napi]
@@ -610,6 +613,7 @@ impl NativeTree {
         Self {
             store: store::TreeStore::new(),
             queries: QueryEngine::default(),
+            collection_queries: 0,
         }
     }
 
@@ -1825,6 +1829,54 @@ impl NativeTree {
             .map_err(|error| to_character_data_error(env, error))
     }
 
+    /// Query live class values, preserving arbitrary UTF-16 and the pinned quirks equivalence.
+    #[napi]
+    pub fn query_collection_by_class(
+        &mut self,
+        root: f64,
+        classes: Utf16String,
+        quirks: bool,
+    ) -> Result<Float64Array> {
+        self.collection_queries += 1;
+        self.store
+            .query_collection(root, CollectionFilter::classes(&classes, quirks))
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    /// The host captures the document mode when creating the live collection.
+    #[napi]
+    pub fn query_collection_by_tag_name(
+        &mut self,
+        root: f64,
+        name: Utf16String,
+        html_document: bool,
+    ) -> Result<Float64Array> {
+        self.collection_queries += 1;
+        self.store
+            .query_collection(root, CollectionFilter::qualified_name(&name, html_document))
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
+    /// Namespace wildcards and null/empty normalization are native query decisions.
+    #[napi]
+    pub fn query_collection_by_namespace(
+        &mut self,
+        root: f64,
+        namespace: Option<Utf16String>,
+        name: Utf16String,
+    ) -> Result<Float64Array> {
+        self.collection_queries += 1;
+        self.store
+            .query_collection(
+                root,
+                CollectionFilter::namespace(namespace.as_deref(), &name),
+            )
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
     /// Match supported selectors against live data; None requests compatibility handling.
     #[napi]
     pub fn query(
@@ -1929,6 +1981,7 @@ impl NativeTree {
             data_updates: stats.data_updates,
             serializations: stats.serializations,
             native_queries: (self.queries.calls - self.queries.fallbacks) as f64,
+            native_collection_queries: self.collection_queries as f64,
             query_fallbacks: self.queries.fallbacks as f64,
             selector_cache_hits: self.queries.cache_hits as f64,
             selector_cache_size: self.queries.cache_size() as u32,

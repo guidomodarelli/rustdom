@@ -1,7 +1,7 @@
 //! Servo's element view over immutable native data during a query.
 use super::{
     attribute_view::AttributeView,
-    constants::{ELEMENT_NODE, HTML_NAMESPACE, TEXT_NODE},
+    constants::{CLASS_ATTRIBUTE_NAME, ELEMENT_NODE, HTML_NAMESPACE, TEXT_NODE},
     data::{DomString, NodeData},
     selector_syntax::{DomSelectors, Name, UnsupportedPseudo, Value},
     store::{NodeId, TreeStore},
@@ -228,7 +228,7 @@ impl Element for SelectorElement<'_> {
             .is_some_and(|value| self.case_matches(value, &id.value, case))
     }
     fn has_class(&self, name: &Name, case: CaseSensitivity) -> bool {
-        self.attribute("class").is_some_and(|value| {
+        self.attribute(CLASS_ATTRIBUTE_NAME).is_some_and(|value| {
             value
                 .split_ascii_whitespace()
                 .any(|class| self.case_matches(class, &name.value, case))

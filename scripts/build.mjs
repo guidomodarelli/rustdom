@@ -73,6 +73,7 @@ const nativeTree = await readFile('src/dom/native-tree.cjs', 'utf8');
 await writeFile('dist/native-tree.cjs', substituteOnce(nativeTree,
   "require('../../dist/native.cjs')", "require('./native.cjs')"));
 await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
+await cp('src/dom/collection-queries.cjs', 'dist/collection-queries.cjs');
 await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
 await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
 await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
@@ -872,6 +873,16 @@ if (namespaceHelpersStart < 0 || !nodeHelpers.slice(namespaceHelpersStart).inclu
 }
 nodeHelpers = substituteOnce(nodeHelpers.slice(0, namespaceHelpersStart),
   'const { HTML_NS, XMLNS_NS } = require("./helpers/namespaces");', 'const { HTML_NS } = require("./helpers/namespaces");');
+nodeHelpers = replaceRegion(nodeHelpers, 'exports.listOfElementsWithClassNames =',
+  '// https://dom.spec.whatwg.org/#converting-nodes-into-a-node',
+  'Object.assign(exports, require("../../../../collection-queries.cjs").createCollectionQueries({\n' +
+  '  HTMLCollection: require("./generated/HTMLCollection"), domSymbolTree\n}));\n\n', substituteOnce);
+for (const unusedImport of [
+  'const orderedSetParse = require("./helpers/ordered-set").parse;',
+  'const { HTML_NS } = require("./helpers/namespaces");',
+  'const { asciiCaseInsensitiveMatch, asciiLowercase } = require("./helpers/strings");',
+  'const HTMLCollection = require("./generated/HTMLCollection");',
+]) nodeHelpers = substituteOnce(nodeHelpers, unusedImport, '');
 await writeFile(nodeHelpersPath, nodeHelpers);
 const serializationPath = resolve(destination, 'lib/jsdom/living/domparsing/serialization.js');
 let serializationSource = substituteOnce(await readFile(serializationPath, 'utf8'),

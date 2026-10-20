@@ -77,6 +77,9 @@ impl TokenSet {
     pub fn len(&self) -> usize {
         self.items.len()
     }
+    pub fn iter(&self) -> impl Iterator<Item = &[u16]> {
+        self.items.iter().map(Rc::as_ref)
+    }
     pub fn contains(&self, token: &[u16]) -> bool {
         self.members.contains(token)
     }

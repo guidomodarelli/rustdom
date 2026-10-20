@@ -104,7 +104,7 @@ impl AssignmentDriver {
             let node = self.next;
             // SymbolTree captures following before returning the current value to the loop body.
             self.next = if self.subtree {
-                tree.assignment_following(node, self.root)?
+                tree.following_within(node, self.root)?
             } else {
                 0
             };
@@ -141,22 +141,6 @@ impl AssignmentDriver {
 }
 
 impl TreeStore {
-    fn assignment_following(&self, node: NodeId, root: NodeId) -> Result<NodeId> {
-        let first = self.links(node)?.first;
-        if first != 0 {
-            return Ok(first);
-        }
-        let mut current = node;
-        while current != 0 && current != root {
-            let links = self.links(current)?;
-            if links.next != 0 {
-                return Ok(links.next);
-            }
-            current = links.parent;
-        }
-        Ok(0)
-    }
-
     fn commit_assignment_action(
         &mut self,
         slot: NodeId,

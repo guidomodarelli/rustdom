@@ -637,6 +637,10 @@ export class NativeTree {
   serializeHtml(handle: number, outer: boolean, scripting: boolean): string;
   query(selector: string, root: number, document: number,
     mode: typeof QueryMode[keyof typeof QueryMode], quirks: boolean): Float64Array | null;
+  /** Complete getElementsBy* filters over native descendants, excluding the root. */
+  queryCollectionByClass(root: number, classes: string, quirks: boolean): Float64Array;
+  queryCollectionByTagName(root: number, name: string, htmlDocument: boolean): Float64Array;
+  queryCollectionByNamespace(root: number, namespace: string | null, name: string): Float64Array;
   getLinks(handle: number): TreeLinks;
   append(parent: number, child: number): number;
   prepend(parent: number, child: number): number;

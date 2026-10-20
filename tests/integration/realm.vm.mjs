@@ -9,6 +9,7 @@ const registerAbortSuite = createRequire(import.meta.url)('./abort-suite.cjs');
 /** Use Node's loader: Vitest's VM require cannot load jsdom's ESM dependencies on Node 22.12. */
 const { JSDOM } = process.getBuiltinModule('node:module').createRequire(import.meta.url)('@rustdom/rustdom');
 registerAbortSuite({ test, expect, runnerGlobal: globalThis, createNativeDom: () => new JSDOM('<!doctype html>') });
+createRequire(import.meta.url)('./collection-suite.cjs')({ test, expect });
 
 test('should run React updates inside the DOM VM realm', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
