@@ -23,6 +23,7 @@ export interface NativeTreeStatistics {
   dataUpdates: number;
   serializations: number;
   nativeQueries: number;
+  nativeCollectionQueries: number;
   queryFallbacks: number;
   selectorCacheHits: number;
   selectorCacheSize: number;

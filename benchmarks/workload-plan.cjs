@@ -1,5 +1,6 @@
 /** @file Canonical benchmark workload plan shared by execution and partition coverage checks. */
 'use strict';
+const { COLLECTION_QUERY_WORKLOADS } = require('./constants/collection-queries.cjs');
 /** Explicit repeated-reference workloads remain opt-in. */
 const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
 /** Public Range content operations and their fixture keys. */
@@ -40,6 +41,7 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => ['reader-text-utf8', 'reader-text-legacy', 'reader-binary', 'reader-data-url', 'reader-buffer', 'reader-abort'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['form-data-append', 'form-data-get', 'form-data-get-all', 'form-data-set', 'form-data-delete', 'form-data-iterate', 'form-data-files', 'form-data-construct'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => Object.keys(DOCUMENT_CREATION_OPERATIONS).map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => COLLECTION_QUERY_WORKLOADS.map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['selection-read', 'selection-associate', 'selection-extend', 'selection-contains', 'selection-stringify'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),
