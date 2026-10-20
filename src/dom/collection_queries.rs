@@ -1,6 +1,9 @@
 //! Live descendant filtering for getElementsBy* over canonical native metadata and attributes.
 use super::{
-    constants::{CLASS_ATTRIBUTE_NAME, ELEMENT_NODE, HTML_NAMESPACE, QUIRKS_CLASS_CASE_MASK},
+    constants::{
+        CLASS_ATTRIBUTE_NAME, ELEMENT_NODE, HTML_NAMESPACE, NAME_ATTRIBUTE_NAME,
+        QUIRKS_CLASS_CASE_MASK,
+    },
     data::{DomString, NodeData},
     error::{Result, TreeError},
     store::{NodeId, TreeStore, node_id},
@@ -19,6 +22,9 @@ pub(super) enum CollectionFilter {
     Namespace {
         namespace: Option<DomString>,
         local_name: DomString,
+    },
+    NameAttribute {
+        value: DomString,
     },
 }
 
@@ -52,6 +58,12 @@ fn contains_class(value: &DomString, expected: &[u16], quirks: bool) -> bool {
 }
 
 impl CollectionFilter {
+    pub fn name_attribute(value: &[u16]) -> Self {
+        Self::NameAttribute {
+            value: DomString::from_units(value),
+        }
+    }
+
     pub fn classes(value: &[u16], quirks: bool) -> Self {
         Self::Classes {
             tokens: TokenSet::parse(value),
@@ -85,19 +97,16 @@ impl CollectionFilter {
 
     fn matches(&self, store: &TreeStore, node: NodeId, data: &NodeData) -> Result<bool> {
         match self {
-            Self::Classes { tokens, quirks } => {
-                for attribute in store.attribute_views_for_data(node, data) {
-                    let attribute = attribute?;
-                    if attribute.namespace.is_none()
-                        && attribute.name.code_units_equal_str(CLASS_ATTRIBUTE_NAME)
-                    {
-                        return Ok(tokens
-                            .iter()
-                            .all(|token| contains_class(attribute.value, token, *quirks)));
-                    }
-                }
-                Ok(false)
-            }
+            Self::NameAttribute { value } => Ok(store
+                .attribute_value_for_data(node, data, NAME_ATTRIBUTE_NAME)?
+                .is_some_and(|actual| actual.code_units_equal(value))),
+            Self::Classes { tokens, quirks } => Ok(store
+                .attribute_value_for_data(node, data, CLASS_ATTRIBUTE_NAME)?
+                .is_some_and(|actual| {
+                    tokens
+                        .iter()
+                        .all(|token| contains_class(actual, token, *quirks))
+                })),
             Self::QualifiedName { name, html_name } => {
                 if name.code_units_equal_str("*") {
                     return Ok(true);
@@ -187,6 +196,155 @@ mod tests {
 
     fn units(value: &str) -> Vec<u16> {
         value.encode_utf16().collect()
+    }
+
+    #[test]
+    fn should_match_exact_name_attributes_on_all_element_namespaces() {
+        let mut store = TreeStore::new();
+        let root = node(
+            &mut store,
+            json!({"kind":1,"name":"root","attributes":[{"name":"name","value":"chosen"}]}),
+        );
+        let mut expected = Vec::new();
+        for namespace in [Some(HTML_NAMESPACE), Some("urn:xml"), None] {
+            let child = node(
+                &mut store,
+                json!({"kind":1,"name":"entry","namespace":namespace,"attributes":[{"name":"name","value":"chosen"}]}),
+            );
+            store.append(root, child).unwrap();
+            expected.push(child);
+        }
+        for attributes in [
+            json!([{"name":"name","namespace":"urn:attributes","value":"chosen"}]),
+            json!([{"name":"NAME","value":"chosen"}]),
+            json!([{"name":"name","value":"Chosen"}]),
+        ] {
+            let excluded = node(
+                &mut store,
+                json!({"kind":1,"name":"entry","attributes":attributes}),
+            );
+            store.append(root, excluded).unwrap();
+        }
+        assert_eq!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+                .unwrap(),
+            expected
+        );
+    }
+
+    #[test]
+    fn should_distinguish_empty_literal_wildcard_and_lossless_utf16_name_values() {
+        let mut store = TreeStore::new();
+        let root = node(&mut store, json!({"kind":9}));
+        let missing = node(&mut store, json!({"kind":1,"name":"entry"}));
+        store.append(root, missing).unwrap();
+        for value in [
+            vec![],
+            units("*"),
+            units(" chosen "),
+            vec![0xd800, 0, 0xdc00],
+        ] {
+            let child = node(
+                &mut store,
+                json!({"kind":1,"name":"entry","attributes":[{"name":"name","value":value}]}),
+            );
+            store.append(root, child).unwrap();
+            assert_eq!(
+                store
+                    .query_collection(root, CollectionFilter::name_attribute(&value))
+                    .unwrap(),
+                [child]
+            );
+        }
+        assert!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&[0xfffd, 0, 0xfffd]))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn should_read_live_canonical_name_attributes_and_physical_order() {
+        let mut store = TreeStore::new();
+        let root = node(&mut store, json!({"kind":9}));
+        let first = node(&mut store, json!({"kind":1,"name":"entry"}));
+        let second = node(
+            &mut store,
+            json!({"kind":1,"name":"entry","attributes":[{"name":"name","value":"chosen"}]}),
+        );
+        store.append(root, first).unwrap();
+        store.append(root, second).unwrap();
+        store.initialize_attribute_collection(first).unwrap();
+        let attribute = store.allocate().unwrap();
+        store
+            .initialize_attribute(attribute, r#"{"kind":2,"name":"name","value":"chosen"}"#)
+            .unwrap();
+        store.append_attribute(first, attribute).unwrap();
+        assert_eq!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+                .unwrap(),
+            [first, second]
+        );
+        store.remove(first).unwrap();
+        store.append(root, first).unwrap();
+        assert_eq!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+                .unwrap(),
+            [second, first]
+        );
+        store
+            .set_attribute_value(attribute, &units("changed"))
+            .unwrap();
+        assert_eq!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+                .unwrap(),
+            [second]
+        );
+        assert_eq!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("changed")))
+                .unwrap(),
+            [first]
+        );
+        store.remove_attribute(first, attribute).unwrap();
+        assert!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("changed")))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn should_release_name_query_owners_with_numeric_results_held() {
+        let mut store = TreeStore::new();
+        let root = node(&mut store, json!({"kind":9}));
+        let mut children = Vec::new();
+        for index in 0..128 {
+            let value = if index % 4 == 0 { "chosen" } else { "other" };
+            let child = node(
+                &mut store,
+                json!({"kind":1,"name":"entry","attributes":[{"name":"name","value":value}]}),
+            );
+            store.append(root, child).unwrap();
+            children.push(child);
+        }
+        let result = store
+            .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+            .unwrap();
+        assert_eq!(result.len(), 32);
+        for child in children {
+            store.release(child).unwrap();
+        }
+        store.release(root).unwrap();
+        assert_eq!(store.statistics().live_nodes, 0.0);
+        assert_eq!(store.statistics().data_nodes, 0.0);
+        assert_eq!(result.len(), 32);
     }
 
     #[test]
@@ -474,6 +632,11 @@ mod tests {
         for invalid in [0.0, -1.0, 0.5, f64::NAN, reserved] {
             assert!(
                 store
+                    .query_collection(invalid, CollectionFilter::name_attribute(&units("chosen")))
+                    .is_err()
+            );
+            assert!(
+                store
                     .query_collection(
                         invalid,
                         CollectionFilter::qualified_name(&units("*"), false)
@@ -485,6 +648,11 @@ mod tests {
         assert_eq!(store.statistics().reserved_handles, before.reserved_handles);
         let missing = store.allocate().unwrap();
         store.append(root, missing).unwrap();
+        assert!(
+            store
+                .query_collection(root, CollectionFilter::name_attribute(&units("chosen")))
+                .is_err()
+        );
         assert!(
             store
                 .query_collection(root, CollectionFilter::qualified_name(&units("*"), false))

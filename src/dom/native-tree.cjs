@@ -832,6 +832,9 @@ class NativeSymbolTree extends SymbolTree {
     return this._collectionResult(this._arena.queryCollectionByNamespace(this._ensure(root), namespace, name));
   }
 
+  /** @param {object} root - Document owner. @param {string} name - Converted exact name value. @returns {object[]} Original implementations without retaining the temporary numeric transport. */
+  elementsByName(root, name) { return this._nodesFromHandles(this._arena.queryElementsByName(this._ensure(root), name)); }
+
   /** @param {object} root - Physical parent. @returns {object[]} Immediate Element implementations with numeric transport metadata. */
   elementChildren(root) { return this._collectionResult(this._arena.elementChildren(this._ensure(root))); }
   /** @param {object} root - Physical parent. @returns {object|null} First original Element child. */
@@ -843,10 +846,15 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} node - Physical sibling-chain member. @returns {object|null} Previous original Element sibling. */
   previousElementSibling(node) { return this._object(this._arena.previousElementSibling(this._ensure(node))); }
 
-  /** @param {Float64Array} handles - Native query result. @returns {object[]} Implementations with private reusable numeric transport metadata. */
-  _collectionResult(handles) {
+  /** @param {Float64Array} handles - Native query result. @returns {object[]} Original implementations; no traversal, filtering or persistent numeric cache. */
+  _nodesFromHandles(handles) {
     const nodes = [];
     for (let index = 0; index < handles.length; index++) nodes[index] = this._object(handles[index]);
+    return nodes;
+  }
+  /** @param {Float64Array} handles - Native query result. @returns {object[]} Implementations with private reusable numeric transport metadata. */
+  _collectionResult(handles) {
+    const nodes = this._nodesFromHandles(handles);
     defineProperty(nodes, COLLECTION_QUERY_HANDLES, { value: handles });
     return nodes;
   }

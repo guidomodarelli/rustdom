@@ -76,3 +76,10 @@ iteración, formularios, submitters y archivos. La prueba
 `submitter-coordinate-value.html` requiere un click de test_driver y layout real;
 queda explícitamente excluida en el manifest y el reporte. Los `.any.js` se
 ejecutan solo en Window, sin acreditar Worker ni conformidad completa.
+
+La suite `document-name-queries` incorpora los 15 fixtures originales HTML/XHTML
+de `html/dom/documents/dom-tree-accessors/document.getElementsByName`, con sus
+bytes y aserciones intactos. Cubre parámetros, null/undefined, case, id frente
+a name, namespaces, interfaces, identidad y listas vivas. Se ejecuta con
+`npm run test:wpt -- document-name-queries`. Los fallos de estándar compartidos
+con jsdom permanecen visibles; paridad no equivale a conformidad completa.

@@ -328,6 +328,12 @@ if (supportedNamesStart < 0 || supportedNamesEnd < supportedNamesStart) throw ne
 namedMapSource = namedMapSource.slice(0, supportedNamesStart) +
   '    return domSymbolTree.attributeNames(this._element, true);' + namedMapSource.slice(supportedNamesEnd + '    return names;'.length);
 await writeFile(namedMapPath, namedMapSource);
+const documentPath = resolve(destination, 'lib/jsdom/living/nodes/Document-impl.js');
+let documentSource = await readFile(documentPath, 'utf8');
+documentSource = substituteOnce(documentSource,
+  '      query: () => domSymbolTree.treeToArray(this, {\n        filter: node => node.getAttributeNS && node.getAttributeNS(null, "name") === elementName\n      })',
+  '      query: () => domSymbolTree.elementsByName(this, elementName)');
+await writeFile(documentPath, documentSource);
 const parentPath = resolve(destination, 'lib/jsdom/living/nodes/ParentNode-impl.js');
 let parentSource = await readFile(parentPath, 'utf8');
 parentSource = substituteOnce(parentSource, 'const NODE_TYPE = require("../node-type");\n', '');

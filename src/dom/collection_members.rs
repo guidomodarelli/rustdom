@@ -18,21 +18,6 @@ impl TreeStore {
         Ok((id, data))
     }
 
-    fn collection_attribute_value<'a>(
-        &'a self,
-        id: NodeId,
-        data: &'a NodeData,
-        name: &str,
-    ) -> Result<Option<&'a DomString>> {
-        for attribute in self.attribute_views_for_data(id, data) {
-            let attribute = attribute?;
-            if attribute.namespace.is_none() && attribute.name.code_units_equal_str(name) {
-                return Ok(Some(attribute.value));
-            }
-        }
-        Ok(None)
-    }
-
     /// The first member matching id or its eligible HTML name wins; no global id priority.
     pub(super) fn collection_named_item(&self, handles: &[f64], key: &[u16]) -> Result<f64> {
         if key.is_empty() {
@@ -42,7 +27,7 @@ impl TreeStore {
         for &handle in handles {
             let (id, data) = self.collection_element(handle)?;
             if self
-                .collection_attribute_value(id, data, ID_ATTRIBUTE_NAME)?
+                .attribute_value_for_data(id, data, ID_ATTRIBUTE_NAME)?
                 .is_some_and(|value| value.code_units_equal(&expected))
             {
                 return Ok(handle);
@@ -52,7 +37,7 @@ impl TreeStore {
                 .as_ref()
                 .is_some_and(|namespace| namespace.code_units_equal_str(HTML_NAMESPACE))
                 && self
-                    .collection_attribute_value(id, data, NAME_ATTRIBUTE_NAME)?
+                    .attribute_value_for_data(id, data, NAME_ATTRIBUTE_NAME)?
                     .is_some_and(|value| value.code_units_equal(&expected))
             {
                 return Ok(handle);
@@ -67,13 +52,13 @@ impl TreeStore {
         let mut result = Vec::new();
         for &handle in handles {
             let (id, data) = self.collection_element(handle)?;
-            let id_value = self.collection_attribute_value(id, data, ID_ATTRIBUTE_NAME)?;
+            let id_value = self.attribute_value_for_data(id, data, ID_ATTRIBUTE_NAME)?;
             let name_value = if data
                 .namespace
                 .as_ref()
                 .is_some_and(|namespace| namespace.code_units_equal_str(HTML_NAMESPACE))
             {
-                self.collection_attribute_value(id, data, NAME_ATTRIBUTE_NAME)?
+                self.attribute_value_for_data(id, data, NAME_ATTRIBUTE_NAME)?
             } else {
                 None
             };

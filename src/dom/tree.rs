@@ -1887,6 +1887,16 @@ impl NativeTree {
             .map_err(to_napi_error)
     }
 
+    /// Query the exact name attribute across every Element namespace for a live Document NodeList.
+    #[napi]
+    pub fn query_elements_by_name(&mut self, root: f64, name: Utf16String) -> Result<Float64Array> {
+        self.collection_queries += 1;
+        self.store
+            .query_collection(root, CollectionFilter::name_attribute(&name))
+            .map(Into::into)
+            .map_err(to_napi_error)
+    }
+
     /// Resolve one public collection key against a snapshot of stable numeric member identities.
     #[napi]
     pub fn collection_named_item(

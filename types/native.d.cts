@@ -641,6 +641,8 @@ export class NativeTree {
   queryCollectionByClass(root: number, classes: string, quirks: boolean): Float64Array;
   queryCollectionByTagName(root: number, name: string, htmlDocument: boolean): Float64Array;
   queryCollectionByNamespace(root: number, namespace: string | null, name: string): Float64Array;
+  /** Exact null-namespace name attribute, on Elements from every namespace in physical document order. */
+  queryElementsByName(root: number, name: string): Float64Array;
   /** Snapshot members stay owned by the calling JS collection; native storage keeps no collection cache. */
   collectionNamedItem(handles: Float64Array, key: string): number;
   collectionPropertyNames(handles: Float64Array): string[];

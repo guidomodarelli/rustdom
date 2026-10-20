@@ -2,7 +2,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { writeFileSync } = require('node:fs');
+const { mkdirSync, writeFileSync } = require('node:fs');
 const { JSDOM } = require('@rustdom/rustdom');
 const { NativeAbortState } = require('@rustdom/rustdom/native');
 const registerAbortSuite = require('../integration/abort-suite.cjs');
@@ -40,6 +40,7 @@ test('should collect every owned native Window and Document while parent environ
     assert.equal(NativeAbortState.statistics().live, initialAbortStates);
   } finally {
     session.teardown();
+    mkdirSync('reports/validation/abort-runner-node24', { recursive: true });
     writeFileSync(`reports/validation/abort-runner-node24/fixture-memory-${process.version}.json`, JSON.stringify({ node: process.version, endpoint }, null, 2) + '\n');
   }
 });
