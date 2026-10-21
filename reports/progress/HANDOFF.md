@@ -1,6 +1,36 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: lecturas de atributos
+## Estado actual: catálogo inicial del inventario
+
+La base integrada al comenzar esta entrega era `main`, `271221abbfeafebebb7dd817b98fd559592696d3`,
+`checkpoint-065-attribute-reads` (PR 77). Los cuatro fallos históricos de DOMParser
+ya están resueltos desde PR 70/checkpoint 58.
+
+La entrega `feature/migration-inventory` agrega el generador real
+`npm run inventory`, sus contratos y el catálogo de jsdom 27.4.0 en
+`reports/progress/inventory/`. Incluye Location, constructores sin miembros
+propios, APIs de Window, exports del paquete y dependencias; no se limita a
+métodos escritos dentro de clases. Leer el README del catálogo para los
+denominadores, el alcance abierto y la auditoría pendiente. No interpretar los
+registros sin auditar como ausencia de implementación Rust ni publicar un
+porcentaje antes de completar esa auditoría.
+
+El WIP independiente `feature/native-attribute-copy` sigue publicado en
+`c51f9fb578e30762474152765af01bb980ad2c12`, worktree `native-clone-seeds`.
+Conserva la primitiva Rust y el fix de ownership. Su A/A pareado de Node 22
+guardó 3.840 observaciones pero no calibró: cuatro filas superaron 5% sin cambiar
+el motor. No habilita una nueva aceptación A/B ni un checkpoint de ese motor.
+Las fuentes y el diagnóstico están publicados en esa rama; leer su HANDOFF
+antes de retomar optimizaciones. El driver de clonado previo sigue preservado
+en `feature/native-node-clone`, worktree `native-collection-queries`.
+
+Después de este catálogo inicial, completar la clasificación por rutas públicas,
+agrupar anclas en algoritmos y ampliar el inventario de dependencias y contratos
+dinámicos. Conservar todas las diferencias y fallos conocidos. Priorizar después
+entregas que retiren módulos completos, sin convertir un catálogo en certificación
+de compatibilidad o de migración terminada.
+
+## Registro histórico: lecturas de atributos
 
 La base estable es main, commit baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6,
 tag checkpoint-064-id-lookups. El PR 76 está mergeado: ocho checks aprobados,

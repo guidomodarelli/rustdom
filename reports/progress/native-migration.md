@@ -1,4 +1,27 @@
-# Indicador provisional de migración a Rust
+# Migración a Rust: catálogo de referencia y auditoría pendiente
+
+El índice histórico de 45,8% por áreas queda retirado como medida de migración.
+Sus pesos no representan APIs, algoritmos ni esfuerzo. Se conserva abajo como
+historia de planificación; no es el porcentaje actual del proyecto.
+
+El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
+dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
+entrega tiene 531 archivos (528 JavaScript y tres datos), 4.331 entradas de API y
+7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Solo dos
+módulos tienen clasificación revisada como híbridos; la auditoría de los demás
+registros sigue pendiente. Eso no significa que carezcan de código Rust.
+
+`summary.json` mantiene `scopeClosed=false` y `migrationPercent=null`: faltan
+dependencias de plataforma externas, contratos dinámicos, opciones/diccionarios,
+otros perfiles de realms y agrupaciones semánticas de algoritmos. No hay todavía
+un porcentaje auditado ni se puede interpretar este catálogo como 0% de Rust.
+
+La base del motor utilizada para esta auditoría es `271221abbfeafebebb7dd817b98fd559592696d3`,
+`checkpoint-065-attribute-reads` (PR 77). El WIP de atributos y calibración está
+publicado aparte en `feature/native-attribute-copy`, commit `c51f9fb`; sus
+controles de rendimiento no están aprobados y no forman parte de este inventario.
+
+## Registro histórico
 
 Estado actualizado el 2026-10-21 UTC. Main contiene baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6,
 checkpoint-064-id-lookups (PR 76), con IDs Document/SVG nativos. El siguiente
