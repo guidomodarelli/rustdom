@@ -1,0 +1,81 @@
+/** @file Exercises process-isolated WPT with real fixtures and packages, including the macOS regression case. */
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+const { spawnSync } = require('node:child_process');
+const { gunzipSync } = require('node:zlib');
+const { executeFixture } = require('./wpt/process.cjs');
+const { assertWptParity } = require('./wpt/comparison.cjs');
+const settings = require('./wpt/constants/execution.cjs');
+
+/** Assert observable process termination, not merely a message saying teardown ran. */
+function assertExited(pid) {
+  assert.ok(Number.isSafeInteger(pid) && pid > 0);
+  assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+}
+
+for (const [file, count] of [
+  ['dom/nodes/DocumentFragment-getElementById.html', 5],
+  ['dom/ranges/Range-mutations-dataChange.html', 2808],
+]) {
+  test(`isolated real engines preserve all results and terminate after ${file}`, () => {
+    const reference = executeFixture('jsdom', file);
+    const candidate = executeFixture('rustdom', file);
+    assertWptParity(file, candidate.result, reference.result);
+    assert.equal(reference.result.tests.length, count);
+    assert.equal(candidate.result.tests.length, count);
+    assert.notEqual(reference.execution.pid, candidate.execution.pid);
+    for (const report of [reference, candidate]) {
+      assert.equal(report.result.status, 0); assert.equal(report.execution.node, process.version);
+      assert.deepEqual(report.execution.execArgv, settings.WORKER_EXEC_ARGV);
+      assert.equal(report.execution.exitCode, 0); assert.equal(report.execution.signal, null);
+      assert.equal(report.execution.processTimeoutMs, settings.PROCESS_TIMEOUT_MS);
+      assertExited(report.execution.pid);
+    }
+  });
+}
+
+test('process failures preserve diagnostics and the real worker is reaped at its parent deadline', () => {
+  let failure;
+  try { executeFixture('jsdom', 'dom/nodes/DocumentFragment-getElementById.html', { timeoutMs: 1 }); }
+  catch (error) { failure = error; }
+  assert.ok(failure); assert.equal(failure.cause.code, 'ETIMEDOUT');
+  assert.equal(failure.execution.engine, 'jsdom'); assert.equal(failure.execution.errorCode, 'ETIMEDOUT');
+  assert.equal(failure.execution.processTimeoutMs, 1);
+  assertExited(failure.pid);
+});
+
+test('unknown engines, invalid process deadlines and missing upstream fixtures fail explicitly', () => {
+  assert.throws(() => executeFixture('invalid', 'missing.html'), /unknown engine/);
+  for (const timeoutMs of [0, -1, Infinity]) assert.throws(() => executeFixture('jsdom', 'missing.html', { timeoutMs }), /deadline required/);
+  let failure;
+  try { executeFixture('jsdom', 'missing.html'); } catch (error) { failure = error; }
+  assert.ok(failure); assert.match(failure.execution.stderr, /Unknown WPT fixture/); assertExited(failure.pid);
+});
+
+test('a real fixture worker cannot overwrite an earlier result before loading the runtime', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rustdom-wpt-output-test-'));
+  try {
+    const output = path.join(directory, 'result.json'); fs.writeFileSync(output, 'previous evidence\n');
+    const child = spawnSync(process.execPath, [...settings.WORKER_EXEC_ARGV, path.join(__dirname, 'wpt/fixture.cjs'),
+      'jsdom', 'dom/nodes/DocumentFragment-getElementById.html', output], { encoding: 'utf8', timeout: settings.PROCESS_TIMEOUT_MS });
+    assert.equal(child.status, 1); assert.match(child.stderr, /EEXIST/);
+    assert.equal(fs.readFileSync(output, 'utf8'), 'previous evidence\n'); assertExited(child.pid);
+  } finally {
+    const resolved = fs.realpathSync(directory);
+    assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
+    assert.ok(path.basename(resolved).startsWith('rustdom-wpt-output-test-'));
+    fs.rmSync(resolved, { recursive: true });
+  }
+});
+
+test('the recorded macOS reference timeout remains a parity failure despite every individual test passing', () => {
+  const raw = fs.readFileSync(path.resolve(__dirname, '../reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz'));
+  const row = JSON.parse(gunzipSync(raw));
+  assert.equal(row.expected.status, 2); assert.equal(row.actual.status, 0);
+  assert.deepEqual(row.expected.tests, row.actual.tests); assert.equal(row.expected.tests.length, 2808);
+  assert.throws(() => assertWptParity(row.file, row.actual, row.expected));
+});

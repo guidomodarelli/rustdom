@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: corpus WPT aislado completado en ambos Nodes
+
+Node 22.12.0 y 24.14.1 completaron las 240 fixtures con paridad, 83.007 resultados
+y 1.203 fallos de estándares compartidos por versión. La sesión 50323 terminó
+con exit 0; no reiniciarla. Hubo 480 hijos por Node, 960 en total, con exitCode=0/signal=null.
+Los nueve tests finales también aprobaron en ambos Linux y Windows Node 24.14.1
+con addon real de CI y lockfile. Review read-only del código: cero hallazgos.
+
+La corrección mantiene loader/reporter/assertions y deadlines upstream de 10/60 s;
+aisla cada motor/fixture en un proceso nuevo con --max-old-space-size=2048 y espera su terminación.
+Ese argumento limita el espacio viejo de V8, no el heap total ni RSS.
+El failsafe original de fixture de 90 s se mantiene; el de proceso de 120 s incluye startup.
+stdout/stderr y resultados se preservan, incluso en fallos, y se limpian temporales
+propios. Los tests observan terminación real tras éxito/deadline. No se afirma
+ausencia de fugas internas por terminar procesos ni se modifica Rust.
+
+Los reportes completos de Node 22 (22:04:24.642Z) y Node 24 (22:11:38.752Z) están
+comprimidos sin modificar bytes en reports/validation/native-class-ownership/wpt-process-isolation/,
+junto con hashes, fuentes, procedencia de addons y logs. El resumen de memoria
+está en reports/memory/native-class-ownership/wpt-process-isolation.md. Son
+observaciones tras close(), sin GC, no picos ni endpoints de Window/Document.
+Las exclusiones/bloqueos y la normalización Date previa siguen visibles.
+
+XMLSerializer 39679501920 quedó conservado y verificado en el commit publicado
+931adff90a7d3fa78d8b3c486d6c3f7a5a64c20b del respaldo remoto. Ya terminó y no
+requiere seguir esperando ni reiniciar sus cargas. Su aceptación es solo XML
+Node 24/head61ed; el presupuesto de ownership continúa pendiente.
+
+Siguiente acción: publicar la corrección WPT validada en la rama original del
+PR #80, verificar SHA remoto y eliminar la rama de respaldo una vez integrada.
+Pedir review del SHA final y comprobar CI/macOS antes de declarar resuelto el
+timeout. Después, con review limpia del método pareado, ejecutar su única
+secuencia completa y resolver el presupuesto sin cambiar umbrales. No se suman
+APIs migradas por esta instrumentación; inventario014c7da y living/node.js pendientes.
+
 ## Actualización: XMLSerializer conservado y aislamiento WPT en curso
 
 XMLSerializer 39679501920/job119497967690 terminó success para 61ed417d,
