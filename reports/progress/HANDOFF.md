@@ -1,5 +1,50 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: método v1 detenido por identidad incompleta de dist
+
+La review remota de `2567e7e176d33fe97f7189b05a2b302339cf8fee` encontró el
+P2 4341492148: `captureSourceIdentity` excluye dist y el método fijaba solo el
+addon, no toda la distribución JavaScript de A/B ejecutada. El hallazgo fue
+confirmado y corregido mediante codex-autofix-loop en clone efímero separado,
+publicado como `a2149f8f274192c5396d579e291772f20e0b81c6`. Consultar GitHub
+para el cierre del comentario y la revisión remota del SHA final.
+
+Se detuvo la sesión 54959 y se verificaron sus procesos propios antes de enviar
+SIGTERM. Ya no hay cargas locales del estudio ejecutándose. Los datos originales
+de `/home/guido/rustdom-main-affinity-study-W0MOBs` quedan conservados en
+`reports/benchmarks/native-class-ownership/main-affinity-interrupted/2026-10-21/`:
+veinte procesos iniciados, diecinueve completos, 1.368 duraciones; únicamente
+A/A Node 22 con A/jsdom. No se completó ninguna fase, no se inició A/B ni se
+ejecutó B o Node 24. Sin aceptación ni inferencia de rendimiento del parche.
+El último proceso no tiene endpoint final. El índice original permanece intacto.
+
+El manifest cubre 82 archivos más su propio manifest; verify.py verifica bytes,
+hashes internos, orden, runtime, afinidad y resultados públicos de los diecinueve
+procesos completos. Pasaron cuatro pruebas: archivo real y copias privadas con
+bytes alterados, falsa finalización y afinidad incorrecta incluso refrescando
+hashes. El resumen de memoria conserva 1.368 observaciones posteriores a limpieza,
+sin picos ni WeakRefs; está también en reports/memory/native-class-ownership/.
+Esto no demuestra retroactivamente la identidad dist que faltaba al medir.
+La revisión local detectó separadores de paths incompatibles con Windows; se
+corrigieron con as_posix(). Verificador y cuatro pruebas pasaron tanto en WSL
+como en Windows Python 3.12.10; logs en la validación main-affinity-interrupted.
+
+El método v2 fija las huellas esperadas de las distribuciones A/B completas,
+conserva manifests antes/después y los verifica también offline. Los 569 paths
+por paquete coinciden con los manifests históricos publicados. Los 560 archivos
+JavaScript son byte-idénticos; difieren addon, native-build.json y package.json.
+Diez contratos nuevos y seis funcionales pasaron en cada Node 22.12.0/24.14.1;
+revisión local independiente final sin hallazgos. Se conservan fuentes,
+artefactos de rechazo y resultados en distribution-identity/. El clone ya fue
+eliminado de forma segura y no dejó procesos activos. La prueba positiva del
+archivo completo v2 todavía necesita datos reales de su corrida.
+
+La siguiente medición debe congelar los trece archivos del método v2 y esperar
+review remota limpia del SHA actualizado antes de comenzar una única secuencia.
+No relanzar v1 ni reutilizar su parcial como una comparación aceptada. Tras
+resolver el presupuesto y validar review/CI del SHA final podrá cerrarse PR 80;
+siguen pendientes inventario014c7da y migración del control completo de node.js.
+
 ## Actualización: comparación pública completa con afinidad del principal
 
 El PR 80 sigue abierto en `feature/native-class-ownership`. El head publicado
