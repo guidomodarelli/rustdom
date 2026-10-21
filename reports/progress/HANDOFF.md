@@ -153,6 +153,34 @@ no reejecutar esta carga idéntica para seleccionar resultados favorables.
 El presupuesto sigue inconcluso y exige una nueva hipótesis o mejora justificada
 del método. Merge/tag siguen pendientes de ese gate, review y CI del head final.
 
+El P2 remoto `4340088863` del positivo histórico se corrigió en
+`8bb57b775c517ee4ec0690e9ed16891139c0a3f1`: snapshots reales de A/B, sin
+depender del checkout actual ni de objetos Git antiguos. Pasaron 13/13 contratos
+por Node 22/24, el verificador histórico y la revisión local. Push verificado,
+reply `4340338267` y thread resuelto; nueva review `6323254745` cerró limpia
+para `8bb57b775c`, recibo `6323294247`. El CI general de `9c195d88` completó sus
+ocho checks con éxito; el de 8bb debe consultarse por su estado actual.
+
+La siguiente hipótesis está fijada en `PAIRED-PROTOCOL.md`: intercalar A/B en
+el mismo proceso conserva DOMs nuevos pero reduce variación entre procesos.
+Se mantienen 1.000 operaciones públicas, ambos tamaños, tres warmups, nueve
+muestras por etiqueta y los umbrales; son 32 procesos y 1.152 duraciones.
+Hay copias físicas independientes de A/A, A/B y jsdom, con contadores comprobados.
+Cinco contratos reales pasaron en ambos Node y la revisión local cerró limpia.
+Los fallos iniciales de limpieza y la corrección previa al estudio están en
+`reports/validation/native-class-ownership/paired-method/` y sus diagnósticos
+en `reports/memory/native-class-ownership/paired-method/`.
+
+La primera corrida está activa en la sesión de herramienta `77662`, comando
+`.cache/run-paired-study.sh`. Su root Linux se guarda en
+`.cache/paired-study-root.txt`; la salida cruda está en `results/` y los logs del
+driver al lado. Consultar ese handle o el proceso real antes de tratarla como
+terminal. No reiniciar por silencio/timeout de observación ni correr builds,
+tests u otras mediciones locales mientras siga viva. Después: comprobar exit,
+verificar los raw, comparar los hashes con `before-performance.json`, publicar
+todos los resultados y evaluar qué demuestra este protocolo distinto. El gate
+anterior sigue sin aprobarse; esta corrida aún no acredita aceptación ni tag.
+
 La auditoría independiente de `living/node.js` está publicada en
 `feature/inventory-node-helpers`, `014c7daeb00fe700bb7eb2b5dc86718b7ef148da`,
 worktree `migration-inventory`. Siete exports auditados; cuatro módulos híbridos
