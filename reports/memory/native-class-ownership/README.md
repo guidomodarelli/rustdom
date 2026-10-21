@@ -73,3 +73,16 @@ El presupuesto old-space de 2.048 MiB no es un límite de RSS del proceso.
 
 Los comandos, fuentes, hashes, reportes generales y compresión reversible se
 identifican en `reports/validation/native-class-ownership/manifest.json`.
+
+## Recursos del diagnóstico A/A contrabalanceado
+
+`balanced-aa-2026-10-21.json` resume las 768 observaciones del diagnóstico
+A/A de 16 procesos sobre checkpoint 67 y jsdom 27.4.0; **no ejecuta el candidato
+B**. Conserva los hashes de cada reporte, los contadores finales por etiqueta
+y los rangos observados de RSS, heap, memoria externa y ArrayBuffers después
+de la limpieza. Los máximos corresponden solo a esos endpoints, no al pico
+del proceso. Window y Document quedan claros en los dos endpoints finales
+de cada observación, y los contadores de Range de ambos módulos Rust se equilibran.
+No acredita ausencia universal de fugas ni cubre los errores de construcción
+conocidos del checkpoint 67. Los raw y tres rondas completas permanecen en
+`reports/benchmarks/native-class-ownership/balanced/2026-10-21/`.

@@ -1,5 +1,60 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: diagnóstico A/A contrabalanceado sin calibración
+
+Continuar en `feature/native-class-ownership`, PR 80 listo, sobre `main`
+`3d37f89976a48203e80cc5c435e099267f4ce346` / checkpoint 67. El código de
+producción sigue idéntico al validado; esta entrega agrega un diagnóstico,
+sus contratos y resultados, sin completar nuevas APIs Rust. Consultar Git y
+GitHub para el SHA publicado y los checks actuales antes de asumir integración.
+
+La review remota de `3bd05b895716c6dd7f04c24e534d5bf254d3a5f7` cerró limpia
+(recibo 6323838674). Su matriz general `39654694608` debe consultarse hasta
+terminal: al preparar esta actualización, macOS, Windows y los benchmarks
+habían aprobado y Linux estaba en Memcheck. El check dedicado `39654694565`
+conservó correctamente el fallo del estudio independiente archivado. No se
+omitió el gate ni se repitió esa medición.
+
+El recálculo por proceso del método emparejado mostró jsdom A/A de 250 con B
+más lento en siete de ocho procesos idénticos. Se declaró un diagnóstico A/A
+con ocho combinaciones independientes de carga, asignación física y orden de
+muestras por motor, más un probe simétrico. Conserva `sample`/`cleanup`, tamaños,
+tres warmups, nueve muestras, 1.000 operaciones y los umbrales anteriores.
+La revisión previa cerró un P2 de reserva exclusiva de directorio. Pasaron los
+seis contratos originales en Node 22.12.0/24.14.1 y el nuevo focal de reserva en
+ambos; la segunda revisión nativa terminó sin hallazgos antes de medir.
+
+La única corrida `94932` terminó con exit 1 entre 18:49:01.443Z y 18:55:21.482Z
+del 21 de octubre de 2026. Se verificaron 16 procesos, 576 duraciones, 768.000
+copias públicas y las diez fuentes congeladas. Rust A/A varió −2,1335%/−0,3293%
+y jsdom −31,7389%/−7,5229% para 250/1.000: no calibró. El contrabalanceo no
+bastó; no se ejecutó A/B ni se midió el candidato B. `accepted=false`, el
+presupuesto original pendiente y los datos anteriores permanecen intactos.
+No relanzar esta secuencia para obtener aprobación ni atribuir causa al SDK.
+
+Los 64 archivos del manifest más su manifest están en
+`reports/benchmarks/native-class-ownership/balanced/2026-10-21/`. Los contratos,
+logs y fuentes previas están en `reports/validation/native-class-ownership/balanced-method/`.
+Cinco pruebas posteriores del verificador pasaron en ambos Node sobre el archivo
+real y copias privadas con alteraciones: aceptación falsa, checksum, asignación
+y retención nativa se rechazan aun refrescando el hash interno del reporte.
+No producen nuevas muestras. El resumen de recursos está en
+`reports/memory/native-class-ownership/balanced-aa-2026-10-21.json`; las 768
+observaciones tienen dos endpoints finales claros de Window/Document y los
+contadores Rust se equilibran. Son escenarios A/A de éxito sobre checkpoint 67;
+no cubren sus fugas conocidas durante errores ni garantizan ausencia universal.
+
+Siguiente acción: publicar esta entrega, pedir review del SHA final y seguir
+su CI. Merge/tag del PR 80 continúan pendientes del presupuesto; no cambiar
+silenciosamente los criterios ni omitir checks. Antes de otra medición hace
+falta una hipótesis discriminable adicional, con protocolo acotado y evidencia
+que la motive. Carga/asignación por sí solas ya no bastan como explicación.
+La implementación siguiente sigue siendo el control completo de `living/node.js`
+(clonado y conversión), descrito en la auditoría publicada `014c7da` de
+`feature/inventory-node-helpers`; esa rama permanece separada, sin PR, hasta
+cerrar ownership. No contabilizar el diagnóstico como avance de migración ni
+cerrar el objetivo global: siguen módulos y rutas de plataforma JavaScript.
+
 ## Estado actual: corrección aislada de ownership de clases nativas
 
 La base estable es `main`, `3d37f89976a48203e80cc5c435e099267f4ce346`,

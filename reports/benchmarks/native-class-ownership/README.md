@@ -156,3 +156,21 @@ La carga e identidad de módulos son condiciones adicionales a investigar:
 esta versión usa asignación fija y carga A antes de B. No se afirma causalidad.
 El hito de ownership continúa abierto y no acredita una aceleración ni una
 migración adicional de APIs.
+
+## Diagnóstico A/A contrabalanceado
+
+El protocolo `BALANCED-PROTOCOL.md` aisló una pregunta adicional: balancear la
+carga de módulos, asignación de copias y orden de muestras, con probes simétricos.
+Sus ocho celdas se ejecutaron una vez por motor. Conservó el sample y cleanup
+originales, tamaños, warmups, muestras y umbrales. Los 16 procesos, 576 duraciones
+y 768.000 copias públicas se verificaron y están archivados en
+[`balanced/2026-10-21/`](balanced/2026-10-21/README.md).
+
+Rust A/A quedó en −2,1335%/−0,3293%, pero jsdom en −31,7389%/−7,5229% para
+250/1.000: ninguna fila calibró. El contrabalanceo no bastó para validar esta
+carga. Se conserva exit 1, no se ejecuta A/B y `accepted=false` no cambia.
+No se relanza la secuencia para obtener aprobación. El diagnóstico no mide el
+candidato B ni resuelve el presupuesto original, merge o tag. Las diez fuentes
+congeladas permanecieron idénticas y la revisión previa cerró el P2 de reserva
+exclusiva. Los contratos reales del worker y los cinco contratos posteriores
+del verificador pasaron en Node 22 y 24; ver la validación de `balanced-method`.
