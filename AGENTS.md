@@ -23,6 +23,14 @@
 - Mantener módulos cohesionados, identidades estables y nombres claros; evitar duplicación, abreviaciones ambiguas y extracciones de constantes sin utilidad.
 - Documentar decisiones relevantes y conservar contratos públicos. Tras cambios significativos, comunicar brevemente qué se validó y qué falta.
 
+## Medición verificable del avance
+
+- Mantener un inventario versionado de APIs, algoritmos y módulos de la versión fijada de jsdom. Registrar implementación, dependencias, pruebas, evidencia y pendientes; clasificar como Rust completo, híbrido o pendiente.
+- Las decisiones de los algoritmos DOM y de plataforma deben ejecutarse en Rust. JavaScript/TypeScript puede conservar bindings imprescindibles, adaptadores de Node/Jest/Vitest, tipos, herramientas y pruebas. Las delegaciones y fallbacks cuentan como pendientes.
+- Publicar cantidades verificables sobre denominadores explícitos. Documentar sus cambios y no sumar módulos, APIs y unidades de implementación como si fueran una misma dimensión. No utilizar pesos arbitrarios por áreas, líneas de código, checkpoints o cantidad de tests para calcular migración o esfuerzo restante.
+- Mientras el alcance o las clasificaciones no estén auditados, no hay un porcentaje defendible. En el catálogo inicial, `pending` con `auditComplete=false` indica trabajo de auditoría pendiente y no demuestra ausencia de implementación Rust. Los cuerpos de funciones son anclas para agrupar algoritmos, no algoritmos normativos completos por sí mismos.
+- Separar implementación, compatibilidad verificada, rendimiento y memoria. Priorizar hitos que retiren módulos completos del runtime JavaScript. Una API nativa sin integrar no completa sus consumidores públicos.
+
 ## Testing obligatorio
 
 - Cada parte y cada cambio funcional deben quedar bien probados. Agregar o actualizar pruebas de comportamiento, integración y regresión según corresponda.
