@@ -1,0 +1,120 @@
+{
+  "capturedBeforeMeasurementAt": "2026-10-21T09:51:37.022Z",
+  "purpose": "Diagnostic repeatability, never candidate acceptance",
+  "hypothesis": "Adjacent ABBA/BAAB samples in persistent independent processes, longer warmup and bounded owner release reduce stage-order noise sufficiently to resolve the existing +5% per-row budget.",
+  "reference": {
+    "checkpoint": "checkpoint-065-attribute-reads",
+    "commit": "271221abbfeafebebb7dd817b98fd559592696d3",
+    "root": "/home/guido/rustdom-node-clone-7df28j/baseline-engine",
+    "nativeSha256": "10ebf630ccc70bf2ac94fec4c4a2e8ba2aaacb90070c4f229dabcde164a96803"
+  },
+  "sampling": {
+    "warmupSamples": 16,
+    "measuredSamples": 32,
+    "workerPairs": 2,
+    "orders": [
+      [
+        "first",
+        "second",
+        "second",
+        "first"
+      ],
+      [
+        "second",
+        "first",
+        "first",
+        "second"
+      ]
+    ],
+    "rows": [
+      {
+        "name": "form-data-construct",
+        "size": 100
+      },
+      {
+        "name": "form-data-construct",
+        "size": 1000
+      },
+      {
+        "name": "attribute-get",
+        "size": 100
+      },
+      {
+        "name": "attribute-get",
+        "size": 1000
+      },
+      {
+        "name": "clone-shallow-attributes",
+        "size": 100
+      },
+      {
+        "name": "clone-deep-children",
+        "size": 100
+      },
+      {
+        "name": "clone-deep-chain",
+        "size": 100
+      },
+      {
+        "name": "clone-template-content",
+        "size": 100
+      },
+      {
+        "name": "import-deep-children",
+        "size": 100
+      },
+      {
+        "name": "import-template-content",
+        "size": 100
+      },
+      {
+        "name": "clone-shallow-template",
+        "size": 100
+      },
+      {
+        "name": "clone-shallow-attributes",
+        "size": 1000
+      },
+      {
+        "name": "clone-deep-children",
+        "size": 1000
+      },
+      {
+        "name": "clone-deep-chain",
+        "size": 1000
+      },
+      {
+        "name": "clone-template-content",
+        "size": 1000
+      },
+      {
+        "name": "import-deep-children",
+        "size": 1000
+      },
+      {
+        "name": "import-template-content",
+        "size": 1000
+      },
+      {
+        "name": "clone-shallow-template",
+        "size": 1000
+      },
+      {
+        "name": "clone-nested-templates",
+        "size": 32
+      },
+      {
+        "name": "clone-nested-templates",
+        "size": 256
+      }
+    ]
+  },
+  "precisionCriterion": {
+    "allPooledAbsoluteMedianDifferencesAtMostPercent": 2,
+    "allWorkerPairAbsoluteMedianDifferencesAtMostPercent": 5,
+    "rationale": "Require noise below the unchanged +5% regression budget before using this protocol for candidate acceptance; this is a diagnostic gate, not a relaxed product budget."
+  },
+  "decision": "Run Node22 first. Run Node24 only if Node22 passes precision. A failed precision check forbids candidate acceptance or A/B repetition under this protocol; inspect preserved observations for the next distinct hypothesis.",
+  "loadPolicy": "No builds, suites, compression, source hashing or other heavy task during the measured child. Artifact identity is captured before and after the child exits.",
+  "limits": "One virtualized WSL2 host. Finite release checks do not prove universal absence of leaks. A/A establishes no Rust candidate speedup."
+}

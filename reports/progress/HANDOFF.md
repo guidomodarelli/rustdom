@@ -54,6 +54,26 @@ worker, warmup, orden y duración; calibrar el método con A/A antes de repetir
 candidatos. Conservar casos, referencia, umbrales y todos los resultados.
 La comparación está resumida en `reports/benchmarks/attribute-copy/README.md`.
 
+Se implementó y validó después un coordinador pareado ABBA/BAAB con procesos
+persistentes, dieciséis warmups, treinta y dos muestras medidas y dos parejas,
+conservando las veinte filas históricas. Pasó 124 contratos por Node 22/24,
+equivalencia de las entradas/salidas y revisión independiente sin hallazgos tras
+corregir el cierre ante un spawn fallido. El A/A de Node 22 terminó con 3.840
+observaciones, salidas iguales, endpoints de liberación y cierres limpios, pero
+**tampoco calibró**: doce filas excedieron el criterio previo de 2% y cuatro
+incluso 5% agrupado; once filas tuvieron alguna pareja por encima de 5%.
+Doce invirtieron el signo entre parejas y 31/40 combinaciones fila/pareja
+mostraron deriva mayor a 5% en alguna etiqueta dentro de la fase medida.
+No se ejecutó otro candidato A/B ni la calibración de Node 24, según el plan
+previo; sus contratos sí pasaron. No usar el promedio ni una selección favorable
+para aprobar la primitiva. Fuentes exactas, logs, regresión de spawn y controles
+en `reports/validation/paired-calibration/`; plan, identidades antes/después,
+muestras completas y diagnóstico en `reports/benchmarks/paired-calibration/`.
+El próximo diagnóstico debe distinguir efectos entre procesos y deriva de
+compilación/GC/CPU con trazas separadas; otra variante equivalente de la API
+no resolvería la incertidumbre. El inventario auditable sigue siendo una entrega
+independiente necesaria y debe avanzar antes de repetir candidatos sin evidencia.
+
 El worktree `native-collection-queries`, rama `feature/native-node-clone`,
 conserva el driver híbrido aún sin publicar y su evidencia histórica. Su
 presupuesto de regresión de +5% contra checkpoint 65 sigue abierto. El prototipo

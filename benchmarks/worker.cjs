@@ -36,6 +36,7 @@ const { nodeCloneFixture } = require('./node-clone.cjs');
 const { NODE_CLONE_WORKLOADS, NESTED_TEMPLATE_CLONE_WORKLOAD, NODE_CLONE_DOCUMENT_HTML } = require('./constants/node-clone.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
+const { tableHtml: fixture } = require('./input-html.cjs');
 
 /** Select a real implementation, never a benchmark-specific stand-in. */
 const engine = process.argv[2];
@@ -84,18 +85,6 @@ const TEXT_WRITE_VALUES = ['first', 'second'];
 const DOCUMENT_MUTATION_ITERATIONS = 100;
 /** Public content operations sharing identical partial-boundary fixtures. */
 
-
-/**
- * Build reproducible HTML with attributes, decoded entities, and table insertion modes.
- * @param {number} size - Number of data rows.
- * @returns {string} Identical input for both implementations.
- */
-function fixture(size) {
-  return '<!doctype html><html><head><title>Benchmark</title></head><body><table>' +
-    Array.from({ length: size }, (_, index) =>
-      `<tr class="row" data-index="${index}"><td><a href="/row/${index}">Row ${index} &amp; value</a></td><td>${index}</td></tr>`).join('') +
-    '</table></body></html>';
-}
 
 /** @param {Document} document - Actual DOM document. @param {number} depth - Nested root count. @param {ShadowRoot[]} roots - Captured roots for later validation. @returns {object} Leaf target and its outer host. */
 function shadowChain(document, depth, roots) {
