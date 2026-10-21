@@ -10,6 +10,7 @@ const { prepare, fingerprint } = require('./paired-experiment.cjs');
 const settings = require('./constants/paired.cjs');
 const originalProtocol = require('./constants/hosted.cjs');
 const method = require('./constants/thread.cjs');
+const historicalMethod = require('./constants/thread-history.json');
 const readJson = (filename) => JSON.parse(fs.readFileSync(filename));
 const hash = (filename) => createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
 const median = (values) => {
@@ -19,9 +20,9 @@ const median = (values) => {
 };
 
 /** Keep every observation; CPU belongs to the enclosing bracket, not an exact subdivision of the public timer. */
-function summarize(entries) {
+function summarize(entries, configuration = method) {
   const rows = [];
-  for (const engine of ['rustdom', 'jsdom']) for (const size of settings.sizes) for (const mode of method.modesSupported) {
+  for (const engine of ['rustdom', 'jsdom']) for (const size of settings.sizes) for (const mode of configuration.modesSupported) {
     const observations = entries.filter((entry) => entry.engine === engine && entry.mode === mode)
       .flatMap((entry) => entry.samples.filter((sample) => !sample.warmup && sample.size === size));
     assert.equal(observations.length, settings.measuredRounds * 2);
@@ -45,9 +46,10 @@ function verify(directory) {
   const index = readJson(path.join(directory, 'index.json'));
   assert.equal(index.complete, true); assert.equal(index.failure, undefined);
   assert.equal(index.node, settings.nodeVersion); assert.equal(index.accepted, false);
-  assert.deepEqual(index.method, method);
+  const configuration = index.method.revision === historicalMethod.revision ? historicalMethod : method;
+  assert.deepEqual(index.method, configuration);
   for (const label of ['A', 'B']) assert.equal(index.packages.sources[label].sourceHash, originalProtocol.sourceHashes[label]);
-  const expectedRuns = method.modes.flatMap((mode, block) => (block % 2 ? ['rustdom', 'jsdom'] : ['jsdom', 'rustdom'])
+  const expectedRuns = configuration.modes.flatMap((mode, block) => (block % 2 ? ['rustdom', 'jsdom'] : ['jsdom', 'rustdom'])
     .map((engine) => ({ block, mode, engine })));
   assert.deepEqual(index.runs.map(({ block, mode, engine }) => ({ block, mode, engine })), expectedRuns);
   for (const [filename, digest] of Object.entries(index.files)) assert.equal(hash(path.join(directory, filename)), digest, `Thread diagnostic changed: ${filename}`);
@@ -60,11 +62,11 @@ function verify(directory) {
     for (const field of ['engine', 'mode', 'block', 'pid']) assert.equal(report[field], run[field]);
     assert.equal(report.root, index.packages.copies[run.engine === 'rustdom' ? 'A0' : 'J0']);
     assert.equal(report.node, index.node); assert.deepEqual(report.execArgv, ['--expose-gc']);
-    assert.equal(report.nodeOptionsPresent, false); assert.deepEqual(report.settings, settings); assert.deepEqual(report.method, method);
+    assert.equal(report.nodeOptionsPresent, false); assert.deepEqual(report.settings, settings); assert.deepEqual(report.method, configuration);
     for (const snapshot of [report.affinity.configured, report.affinity.final]) {
-      assert.equal(snapshot.find((entry) => entry.tid === report.pid).mask, String(method.cpu));
-      if (run.mode === 'process') assert.ok(snapshot.every((entry) => entry.disappeared || entry.mask === String(method.cpu)));
-      else assert.ok(snapshot.some((entry) => !entry.disappeared && entry.mask !== String(method.cpu)));
+      assert.equal(snapshot.find((entry) => entry.tid === report.pid).mask, String(configuration.cpu));
+      if (run.mode === 'process') assert.ok(snapshot.every((entry) => entry.disappeared || entry.mask === String(configuration.cpu)));
+      else assert.ok(snapshot.some((entry) => !entry.disappeared && entry.mask !== String(configuration.cpu)));
     }
     const expected = [];
     for (const size of run.block % 2 ? [...settings.sizes].reverse() : settings.sizes) {
@@ -92,7 +94,7 @@ function verify(directory) {
     }
     return report;
   });
-  const summaries = summarize(entries); assert.deepEqual(index.summaries, summaries);
+  const summaries = summarize(entries, configuration); assert.deepEqual(index.summaries, summaries);
   return { verified: true, processes: entries.length, measuredDurations, copiesIncludingWarmup, accepted: false, summaries };
 }
 
@@ -103,7 +105,7 @@ function run(candidateRoot, baselineRoot, outputArgument) {
   fs.mkdirSync(path.dirname(directory), { recursive: true });
   fs.mkdirSync(directory);
   const prepared = prepare(candidateRoot, baselineRoot);
-  const clockPath = path.resolve(__dirname, '../../../benchmarks/native-thread-clock/thread-clock.node');
+  const clockPath = path.resolve(__dirname, 'thread-clock-addon/thread-clock.node');
   const index = { complete: false, startedAt: new Date().toISOString(), method, node: process.version, v8: process.versions.v8,
     machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model,
       logicalCpus: os.cpus().length, totalMemoryBytes: os.totalmem() },

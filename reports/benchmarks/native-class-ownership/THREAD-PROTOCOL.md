@@ -15,7 +15,8 @@ Es un diagnóstico descriptivo de contexto, **no una comparación del candidato*
 No acepta rendimiento, no cambia umbrales ni gates anteriores y no acredita
 nuevas APIs Rust. Se usan únicamente checkpoint 67/A0 y jsdom 27.4.0/J0.
 
-El addon separado `benchmarks/native-thread-clock` reutiliza `napi`/`libc` y
+El addon separado `reports/benchmarks/native-class-ownership/thread-clock-addon`
+reutiliza `napi`/`libc` y
 consulta `CLOCK_THREAD_CPUTIME_ID`. No crea referencias persistentes ni estado.
 Tiene Cargo.lock propio; no modifica el lock ni el addon de producción. La
 prueba Rust ejerce dos hilos reales. Los contratos Node ejercen el addon real
@@ -72,7 +73,7 @@ Se conservan Window/Document por separado y tres rondas fijas de limpieza,
 exigiendo los últimos dos endpoints claros y contadores Range equilibrados.
 Los snapshots posteriores a limpieza no miden memoria pico ni ausencia universal
 de fugas. Paquetes, fuentes del método y binario del reloj quedan identificados
-antes/después. Las quince fuentes se congelan antes de medir. Se preservan todos
+antes/después. En la corrida v1 se congelaron quince fuentes. Se preservan todos
 los raw, errores y stdout/stderr; `accepted=false` es incondicional.
 
 ## Criterio de interpretación
@@ -83,3 +84,20 @@ Son dos procesos por celda: sirven para un diagnóstico acotado, no para una
 certificación ni para estimar efectos pequeños con confianza estadística.
 La fidelidad y las comprobaciones de recurso deben pasar; el resultado de
 rendimiento del candidato continúa sin aceptar cualquiera sea el diagnóstico.
+
+## Reubicación posterior, sin una nueva medición
+
+La revisión `thread-cpu-affinity-v2-layout` mueve el crate auxiliar fuera de
+`benchmarks/`, porque la huella canónica recorre todos los archivos de ese árbol,
+incluidos sus outputs Cargo ignorados. También evita activar un estudio XML por
+una herramienta independiente. No cambia `benchmarks/sources.cjs`, el alcance
+canónico, el algoritmo del reloj ni los parámetros del diagnóstico.
+
+La configuración v1 se conserva como JSON en `constants/thread-history.json`.
+El verificador selecciona la configuración correspondiente y sigue recalculando
+los mismos raw y snapshots v1, sin reescribirlos ni tomar nuevas muestras. La
+configuración operativa v2 tiene dieciséis fuentes porque incluye ese descriptor
+histórico. No constituye una hipótesis nueva ni autoriza repetir la corrida para
+obtener un resultado favorable. Las dependencias, build real, addon y verificadores
+se validan de nuevo en la ruta corregida, comprobando la identidad de producción
+antes/después de generar artefactos.

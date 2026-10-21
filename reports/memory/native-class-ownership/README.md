@@ -89,8 +89,9 @@ conocidos del checkpoint 67. Los raw y tres rondas completas permanecen en
 
 ## Reloj de CPU del hilo y afinidad
 
-El helper `benchmarks/native-thread-clock` no conserva estado, referencias ni
-caches. El test Rust de dos hilos pasó bajo Memcheck con cero errores y pérdidas
+El helper, ahora en `reports/benchmarks/native-class-ownership/thread-clock-addon`,
+no conserva estado, referencias ni caches. El test Rust de dos hilos pasó bajo
+Memcheck con cero errores y pérdidas
 definitivas/indirectas; `thread-clock/memcheck.log` conserva también los 48 bytes
 posiblemente perdidos del contexto de canales de std/test y los 548 alcanzables
 de inicialización de stack overflow. No instrumenta V8 ni todo el addon DOM.
@@ -102,3 +103,5 @@ equilibra en los workers Rust. `thread-clock/affinity-2026-10-21.json` registra
 hashes, contadores y rangos de memoria posteriores a limpieza. No se ejecutó B,
 no se cubren los errores conocidos del SDK de referencia y esos máximos no son
 picos ni una garantía universal de ausencia de fugas.
+La reubicación posterior conserva los bytes Rust y el binario; los contratos se
+repitieron en la ruta nueva sin generar muestras de rendimiento adicionales.

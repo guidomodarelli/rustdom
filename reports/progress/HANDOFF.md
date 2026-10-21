@@ -1,5 +1,38 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: ubicación del reloj aislada de la huella canónica
+
+El crate auxiliar ahora está en
+`reports/benchmarks/native-class-ownership/thread-clock-addon/`, no bajo
+`benchmarks/native-thread-clock`. La ubicación anterior hacía que el capturador
+canónico incluyera sus outputs Cargo ignorados y disparaba un estudio XML ajeno
+al helper. Se corrigió el layout sin modificar `benchmarks/sources.cjs`, workflows,
+el algoritmo del reloj ni producción. El path Cargo apunta al mismo SDK.
+
+Después de compilar y testear en la ruta nueva, la identidad canónica mantiene
+333 archivos y hash `8332276799c5ccc18c7a45a5136a856b039736597d5e104e22f074f8e23f1ddd`.
+El Rust y el binario del reloj también permanecen idénticos. Fmt, Clippy, test
+Rust y build pasaron; Node 22 aprobó once contratos con un skip explícito y
+Node 24 aprobó los doce. Los logs y el comprobante before/after están en
+`reports/validation/native-class-ownership/thread-clock/relocation/`.
+
+Los raw v1 y sus quince fuentes se conservan intactos. La configuración
+histórica JSON permite verificarlos aunque el layout actual sea v2 y tenga
+dieciséis fuentes. No se tomó ninguna muestra nueva ni se cambió accepted=false.
+Para reconstruir el helper usar Node en Linux:
+
+```sh
+node reports/benchmarks/native-class-ownership/thread-clock-addon/build.mjs
+```
+
+El head `4f455da4` publicó el diagnóstico; consultar el PR 80 para su revisión,
+checks y el commit posterior de esta corrección. El estudio XML `39662377152`
+se activó con el layout anterior: observar su estado real y conservar sus
+resultados si termina, sin atribuirlos al SHA posterior. No relanzarlo por un
+timeout de observación. La secuencia siguiente sigue siendo una comparación
+A/A y A/B que fije solo el principal, preservando condiciones y presupuestos;
+la reubicación no justifica repetir el diagnóstico ya terminado.
+
 ## Actualización: diagnóstico de CPU y afinidad completado
 
 La rama sigue siendo `feature/native-class-ownership`, PR 80 listo, sobre

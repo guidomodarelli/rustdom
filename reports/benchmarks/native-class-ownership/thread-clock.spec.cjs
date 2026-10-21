@@ -12,7 +12,7 @@ const { sample } = require('./thread-worker.cjs');
 const { loadRuntime, cleanup } = require('./paired-worker.cjs');
 const settings = require('./constants/paired.cjs');
 const method = require('./constants/thread.cjs');
-const clockPath = path.resolve(__dirname, '../../../benchmarks/native-thread-clock/thread-clock.node');
+const clockPath = path.resolve(__dirname, 'thread-clock-addon/thread-clock.node');
 const clock = require(clockPath);
 const manifestPath = process.env.RUSTDOM_PAIRED_MANIFEST;
 assert.ok(manifestPath, 'Set RUSTDOM_PAIRED_MANIFEST to real prepared distributions');

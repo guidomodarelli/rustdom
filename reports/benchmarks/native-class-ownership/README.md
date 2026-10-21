@@ -197,3 +197,11 @@ La evidencia justifica estudiar la afinidad del principal en una comparación
 posterior; no aprueba A/A ni A/B, conserva `accepted=false` y no cambia el gate
 anterior. El exit 0 solo confirma fidelidad. Los cinco contratos posteriores
 del verificador pasaron en Node 22 y 24 sin generar más muestras.
+
+El crate del reloj se trasladó posteriormente a `thread-clock-addon/` para
+mantener sus outputs Cargo fuera de la huella canónica de producción. No se
+modificó el capturador ni los workflows. El build y los doce contratos en la
+ruta corregida conservan 333 fuentes/hash `83322767…` y el mismo binario del
+reloj. La configuración histórica permite verificar v1 desde el layout v2;
+los raw no se reescriben y no se repite la secuencia. Ver la validación de
+`thread-clock/relocation/` para fuentes, logs y límites.

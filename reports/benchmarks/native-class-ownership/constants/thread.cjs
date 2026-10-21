@@ -1,7 +1,7 @@
 /** @file Fixed affinity diagnostic; it does not compare or accept a candidate implementation. */
 'use strict';
 module.exports = {
-  revision: 'thread-cpu-affinity-v1',
+  revision: 'thread-cpu-affinity-v2-layout',
   modes: ['process', 'main', 'main', 'process'],
   modesSupported: ['process', 'main'],
   cpu: 2,
@@ -18,10 +18,11 @@ module.exports = {
     'reports/benchmarks/native-class-ownership/constants/paired.cjs',
     'reports/benchmarks/native-class-ownership/constants/hosted.cjs',
     'scripts/memory-endpoint.cjs',
-    'benchmarks/native-thread-clock/Cargo.toml',
-    'benchmarks/native-thread-clock/Cargo.lock',
-    'benchmarks/native-thread-clock/src/lib.rs',
-    'benchmarks/native-thread-clock/build.rs',
-    'benchmarks/native-thread-clock/build.mjs',
+    'reports/benchmarks/native-class-ownership/thread-clock-addon/Cargo.toml',
+    'reports/benchmarks/native-class-ownership/thread-clock-addon/Cargo.lock',
+    'reports/benchmarks/native-class-ownership/thread-clock-addon/src/lib.rs',
+    'reports/benchmarks/native-class-ownership/thread-clock-addon/build.rs',
+    'reports/benchmarks/native-class-ownership/thread-clock-addon/build.mjs',
+    'reports/benchmarks/native-class-ownership/constants/thread-history.json',
   ],
 };

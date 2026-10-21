@@ -1,5 +1,12 @@
 # Reloj de CPU y diagnóstico de afinidad
 
+Ubicación operativa actual del helper:
+`reports/benchmarks/native-class-ownership/thread-clock-addon`. La reubicación
+posterior conserva el binario y la identidad de producción antes/después de
+compilar; ver [`relocation/README.md`](relocation/README.md). Las rutas y
+quince fuentes descritas a continuación corresponden a la corrida histórica
+v1 de `4f455da4`, cuyos raw permanecen intactos.
+
 El helper Rust separado en `benchmarks/native-thread-clock` utiliza `libc` y
 `napi-rs`, con lock propio y `publish=false`. No modifica producción. Se construyó
 con Rust 1.99.1/Linux; `build.mjs` copia su cdylib a `thread-clock.node`, que no
