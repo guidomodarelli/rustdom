@@ -130,5 +130,9 @@ Las publicaciones con fuentes A/B y bytes del driver/protocolo idénticos usan
 `history.cjs` para seleccionar esta evidencia. El workflow verifica todos los
 raw y vuelve a exigir `accepted=true`: conserva el fallo al reutilizar estos
 datos. Una verificación fiel con `accepted=false` no aprueba el presupuesto ni
-habilita merge/tag. Los contratos usan las fuentes reales y comprueban también
-rechazo de otro candidato y ausencia de evidencia, sin generar nuevas muestras.
+habilita merge/tag. Los contratos usan snapshots inmutables de las fuentes realmente medidas,
+con hashes y procedencia en `fixtures/history-sources/`. El positivo no depende
+del checkout actual ni de objetos Git antiguos; las regresiones cambian bytes
+reales de candidato, referencia y cada archivo de protocolo para comprobar
+`reuse=false`. También comprueban rechazo de otro candidato y ausencia de
+evidencia, sin generar nuevas muestras.
