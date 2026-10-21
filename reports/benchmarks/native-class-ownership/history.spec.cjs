@@ -5,42 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { tmpdir } = require('node:os');
-const { createHash } = require('node:crypto');
-const { gunzipSync } = require('node:zlib');
 const { canReuse } = require('./history.cjs');
+const { historicalSources } = require('./fixtures/history-sources/materialize.cjs');
 const manifest = require('./fixtures/history-sources/manifest.json');
 const archive = path.join(__dirname, 'hosted/39643090437');
-
-/**
- * Materialize the actual measured bytes without requiring old Git objects or the current checkout.
- * Each test owns its temporary trees; cleanup also runs when an assertion fails.
- * @param {import('node:test').TestContext} context - Test that owns these temporary trees.
- * @returns {{ baseline: string, candidate: string }} Independent historical source roots.
- */
-function historicalSources(context) {
-  const directory = fs.mkdtempSync(path.join(tmpdir(), 'rustdom-history-sources-'));
-  context.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  for (const [label, source] of Object.entries(manifest.sources)) {
-    const snapshot = fs.readFileSync(path.join(__dirname, 'fixtures/history-sources', source.snapshot));
-    assert.equal(createHash('sha256').update(snapshot).digest('hex'), source.sha256,
-      `Historical source snapshot checksum differs: ${source.snapshot}`);
-    const files = JSON.parse(gunzipSync(snapshot).toString('utf8'));
-    assert.equal(files.length, source.measuredSourceCount);
-    for (const file of files) {
-      const destination = path.join(directory, label, file.path);
-      fs.mkdirSync(path.dirname(destination), { recursive: true });
-      fs.writeFileSync(destination, Buffer.from(file.bytes, 'base64'));
-    }
-  }
-  const candidate = path.join(directory, 'B');
-  const protocolRoot = path.join(candidate, 'reports/benchmarks/native-class-ownership');
-  for (const [file, archivedName] of Object.entries(manifest.protocolFiles)) {
-    const destination = path.join(protocolRoot, file);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(path.join(archive, archivedName), destination);
-  }
-  return { baseline: path.join(directory, 'A'), candidate };
-}
 
 test('selects identical historical sources even when the verified experiment did not accept its budget', (context) => {
   const { baseline, candidate } = historicalSources(context);

@@ -34,13 +34,6 @@ const { ID_LOOKUP_WORKLOADS, ID_LOOKUP_DOCUMENT_HTML } = require('./constants/id
 const { attributeReadFixture } = require('./attribute-reads.cjs');
 const { ATTRIBUTE_READ_WORKLOADS, ATTRIBUTE_READ_DOCUMENT_HTML } = require('./constants/attribute-reads.cjs');
 const { readerFixture } = require('./file-reader.cjs');
-const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
-
-/** Select a real implementation, never a benchmark-specific stand-in. */
-const engine = process.argv[2];
-if (!['jsdom', 'rustdom'].includes(engine)) throw new Error('benchmark: engine must be jsdom or rustdom');
-/** Load dependencies before measurement; cold module startup is explicitly excluded. */
-const runtime = engine === 'jsdom' ? require('jsdom') : require(runtimeEntry);
 /** Warm both JIT and parser before collecting independent samples. */
 const WARMUP_SAMPLES = 3;
 /** Keep raw samples so noise and distributions remain inspectable. */
@@ -290,11 +283,14 @@ function observerDeliveryFixture(document, size, name, roots) {
 
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
+ * @param {object} runtime - Actual public implementation exports.
+ * @param {'jsdom'|'rustdom'} engine - Implementation whose native activation is checked.
+ * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
  * @param {string} name - Workload name, including its configuration.
  * @param {number} size - Fixture row count.
  * @returns {Promise<object>} Raw milliseconds and post-cleanup memory snapshots.
  */
-async function measure(name, size) {
+async function measure(runtime, engine, environmentEntry, name, size) {
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
@@ -1015,9 +1011,12 @@ async function measure(name, size) {
 
 /**
  * Execute public workloads and prove the native route was exercised when expected.
+ * @param {object} runtime - Actual public implementation exports.
+ * @param {'jsdom'|'rustdom'} engine - Selected implementation.
+ * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
  * @returns {Promise<void>} Writes one structured result to stdout.
  */
-async function main() {
+async function main(runtime, engine, environmentEntry) {
   const workloads = [];
   const plan = getBenchmarkPlan();
   const requested = new Set(process.argv.slice(3));
@@ -1027,7 +1026,7 @@ async function main() {
   assert.ok(selected.length > 0, 'Benchmark shard has no selected workloads');
   for (const { name, size } of selected) {
     process.stderr.write(`Benchmark ${engine}: starting ${name}/${size}\n`);
-    workloads.push(await measure(name, size));
+    workloads.push(await measure(runtime, engine, environmentEntry, name, size));
     process.stderr.write(`Benchmark ${engine}: completed ${name}/${size}\n`);
   }
   const parserStatistics = runtime.getParserStatistics?.();
@@ -1042,4 +1041,41 @@ async function main() {
     measuredSamples: MEASURED_SAMPLES, workloads, parserStatistics, nativeTreeStatistics }));
 }
 
-main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+/** Keep the CLI's invalid-engine error independent of runtime module loading. */
+function validateEngine(engine) {
+  if (!['jsdom', 'rustdom'].includes(engine)) throw new Error('benchmark: engine must be jsdom or rustdom');
+}
+
+/**
+ * Bind the original public workload implementation to one real runtime package.
+ * No fixture, timer, warmup, assertion or cleanup is replaced by this adapter.
+ * @param {object} options - Actual implementation and optional Vitest environment entry.
+ * @param {'jsdom'|'rustdom'} options.engine - Implementation whose activation is checked.
+ * @param {object} options.runtime - Real public package exports.
+ * @param {string} [options.environmentEntry] - Rustdom Vitest environment URL for environment workloads.
+ * @returns {object} Full workload measurement and the unchanged CLI plan executor.
+ */
+function createBenchmarkRunner({ engine, runtime, environmentEntry }) {
+  validateEngine(engine);
+  assert.equal(typeof runtime?.JSDOM, 'function', 'BenchmarkRunner: a runtime.JSDOM constructor is required');
+  const plan = getBenchmarkPlan();
+  return {
+    measureWorkload: (name, size) => {
+      assert.ok(plan.some((workload) => workload.name === name && workload.size === size),
+        `BenchmarkRunner: unknown workload or fixture size ${name}/${size}`);
+      return measure(runtime, engine, environmentEntry, name, size);
+    },
+    run: () => main(runtime, engine, environmentEntry),
+  };
+}
+
+/** Load the selected real package before timing, preserving the existing worker command. */
+async function runCli() {
+  const engine = process.argv[2]; validateEngine(engine);
+  const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
+  const runtime = engine === 'jsdom' ? require('jsdom') : require(runtimeEntry);
+  await createBenchmarkRunner({ engine, runtime, environmentEntry }).run();
+}
+
+if (require.main === module) runCli().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+module.exports = { createBenchmarkRunner };

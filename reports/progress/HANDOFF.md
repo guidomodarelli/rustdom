@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: worker reutilizable con runtimes reales y preflight de CI
+
+El head previo `385d901925abba7d9094b92121f6896ecf92bce7` recibió review
+remota limpia (6326732916). Consultar GitHub para los checks y el SHA posterior.
+
+benchmarks/worker.cjs ahora expone createBenchmarkRunner: recibe exports reales,
+engine y URL de entorno, y comparte measureWorkload con el CLI original. Se
+conservan fixtures, operaciones, timers, tres warmups, nueve muestras, assertions
+y limpieza. La llamada directa rechaza nombres/tamaños no declarados antes de
+crear DOMs. La interfaz puede afectar optimización de V8 y requiere un método
+nuevo; no se reutilizan los tiempos v2 como si midieran este harness.
+
+Pasaron 118 tests del harness por Node 22.12.0/24.14.1: 112 previos y seis
+nuevos. Los nuevos ejercen las ocho filas con A/B/jsdom reales, independencia
+de contadores, CLI, inputs inválidos y entornos Vitest/VM reales. Se usó una
+copia Linux propia con lockfile idéntico y el dist/addon B congelado ya
+validado, sin build Rust. Logs, diez reportes CLI y procedencia están en
+reports/validation/native-class-ownership/public-worker-runner/.
+
+La fuente del harness cambió a hash
+`6e0a5ffedad775ea2aa48dbd3d550e799bed86164f9b451b26035f605b6134e0`
+(333 archivos). Por eso el hosted antiguo no puede reutilizar su archivo ni
+debe construir paquetes para descubrir tarde que sus pins no corresponden.
+El workflow añade un preflight de fuentes antes de toolchain/build/muestreo;
+con este harness debe fallar de forma anticipada y explícita. No se omite el
+check ni se concede aceptación. Driver, protocolo y pins históricos quedan
+intactos. La nueva comparación todavía requiere su propia definición/revisión.
+
+Pasaron 33 contratos de preflight/historia/evidencia en cada Node y 17 en
+Windows Node 24; actionlint aprobó. El preflight real rechaza el harness actual
+y acepta las fuentes históricas sin construir o medir. Ambas revisiones locales
+(worker y luego preflight/CI) terminaron sin hallazgos. El presupuesto continúa
+sin aprobar; no corresponde merge/tag ni acreditar APIs DOM nuevas.
+
+Siguiente acción: publicar y verificar review/CI de este SHA; después implementar
+el método que combine comparación A/B en el mismo proceso con afinidad solo del
+principal y balance de carga/orden, reutilizando este worker público. Declarar
+fuentes, paquetes, secuencia y criterios antes de medir; validar Node 22/24 y
+recursos sin relajar umbrales ni recortar las ocho filas. No relanzar v2. Siguen
+pendientes inventario014c7da y migración completa del control de living/node.js.
+
 ## Actualización: diagnóstico descriptivo de variación, sin muestras nuevas
 
 El head `21706250c6780a25332429d9cde0e8497f1f2192` recibió review remota

@@ -12,6 +12,9 @@ on:
       - 'reports/benchmarks/native-class-ownership/constants/history.cjs'
       - 'reports/benchmarks/native-class-ownership/constants/hosted.cjs'
       - 'reports/benchmarks/native-class-ownership/HOSTED-PROTOCOL.md'
+      - 'reports/benchmarks/native-class-ownership/source-preflight.cjs'
+      - 'reports/benchmarks/native-class-ownership/source-preflight.spec.cjs'
+      - 'reports/benchmarks/native-class-ownership/fixtures/history-sources/**'
 
 permissions:
   contents: read
@@ -44,12 +47,15 @@ jobs:
         id: history
         run: node reports/benchmarks/native-class-ownership/history.cjs .baseline "$OWNERSHIP_ARCHIVE" >> "$GITHUB_OUTPUT"
       - name: Verificar los contratos con observaciones públicas reales
-        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs
       - name: Verificar la evidencia existente y conservar su resultado
         if: steps.history.outputs.reuse == 'true'
         run: |
           node reports/benchmarks/native-class-ownership/hosted-experiment.cjs --verify "$OWNERSHIP_ARCHIVE"
           node -e 'const fs = require("node:fs"); const index = JSON.parse(fs.readFileSync(process.env.OWNERSHIP_ARCHIVE + "/index.json")); if (!index.accepted) { console.error("La evidencia verificada sigue sin aprobar el presupuesto; no se repite la medición."); process.exitCode = 1; }'
+      - name: Exigir fuentes declaradas antes de construir o medir
+        if: steps.history.outputs.reuse != 'true'
+        run: node reports/benchmarks/native-class-ownership/source-preflight.cjs .baseline
       - uses: dtolnay/rust-toolchain@1.99.1
         if: steps.history.outputs.reuse != 'true'
       - uses: Swatinem/rust-cache@v2
