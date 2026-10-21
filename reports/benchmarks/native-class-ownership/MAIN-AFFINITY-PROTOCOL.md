@@ -1,6 +1,6 @@
 # Ownership: operación pública con afinidad del principal
 
-Declarado antes de medir. El diagnóstico P M M P conservó los mismos cuerpos
+Método `main-affinity-public-v2`, declarado antes de medir. El diagnóstico P M M P conservó los mismos cuerpos
 públicos y observó una separación entre pared y CPU envolvente cuando todos
 los hilos compartían una CPU; al fijar solo el principal, ambos tiempos fueron
 cercanos en sus dos procesos por celda. No identifica qué hilo interfirió ni
@@ -14,8 +14,34 @@ Referencia A: checkpoint 67, commit `3d37f89976a48203e80cc5c435e099267f4ce346`,
 sourceHash `67523bf38c8bfd32286618de24cee952b684f32fd91a322c407f7111cd73be3f`.
 Candidato B: guard de ownership, sourceHash
 `8332276799c5ccc18c7a45a5136a856b039736597d5e104e22f074f8e23f1ddd`.
-Se comprueban fuentes, binarios y distribución independiente de jsdom 27.4.0
-antes/después. El método también se congela y se preserva en cada archivo.
+Se comprueban fuentes, binarios, distribuciones completas de A/B y distribución
+independiente de jsdom 27.4.0 antes/después. El método también se congela y se
+preserva en cada archivo.
+
+La identidad de A/B usa `fingerprint(root, ['dist', 'package.json'])`: incluye
+cada archivo compilado, el addon y el descriptor del paquete, con path, tamaño
+y SHA-256. Los digests esperados proceden de `packages.distributions.A0` y `B`
+del archivo independiente `paired/2026-10-21/index.json`, y se comprobaron
+contra los paquetes originales completos antes de declarar v2 (569 archivos
+por distribución):
+
+- A: `d360853908d14614fb552c5578e300ce9b7b28dc6925f6558d14e5631e2dc248`.
+- B: `efc4f2df4eface0daeb4cd2ea045ee6ffd3ff7ccc2c3425ed0fb050fa13c012d`.
+
+El índice conserva los manifests completos iniciales (`distributions`) y
+finales (`distributionsAfter`). Rechaza un digest distinto antes de iniciar
+workers; al finalizar vuelve a capturar todos los bytes y exige identidad con
+los manifests iniciales y los digests fijados. La verificación offline
+recalcula los digests de ambas listas completas y los contrasta con los valores
+esperados. Así detecta JavaScript compilado diferente aunque fuentes y addon
+sigan idénticos. No es necesario que los paths originales sigan disponibles
+para verificar el archivo.
+
+v1 no conservaba la identidad completa de A/B. Sus índices y snapshots son
+evidencia de un método distinto e incompleto para este contrato: no se
+reutilizan, completan ni aceptan como v2. Los datos interrumpidos permanecen
+intactos. El cambio de revisión solo corrige esta comprobación de identidad;
+no cambia operaciones, temporizadores, muestras, afinidad ni presupuestos.
 
 Node 22.12.0 y 24.14.1, Linux/WSL en la misma máquina, una secuencia completa
 por versión. El host Windows no queda aislado. No se ejecutan builds, tests ni

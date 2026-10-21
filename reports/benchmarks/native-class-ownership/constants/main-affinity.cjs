@@ -1,7 +1,7 @@
 /** @file Fixed full-scope ownership comparison with affinity limited to the main thread. */
 'use strict';
 module.exports = {
-  revision: 'main-affinity-public-v1',
+  revision: 'main-affinity-public-v2',
   nodeVersions: ['v22.12.0', 'v24.14.1'],
   cpu: 2,
   phases: ['AA', 'AB'],
@@ -20,9 +20,15 @@ module.exports = {
     A: 'e178142421fa9fc4b3b30525b1fae3d7a6eac8ffb9123711d09fbc915cda1a01',
     B: '04863365060a1be4fe135880a89bdc1a289a0ae8247a0d3da922a90a9803069f',
   },
+  // Exact distributions independently preserved in paired/2026-10-21/index.json (A0 and B).
+  distributionParts: ['dist', 'package.json'],
+  distributionHashes: {
+    A: 'd360853908d14614fb552c5578e300ce9b7b28dc6925f6558d14e5631e2dc248',
+    B: 'efc4f2df4eface0daeb4cd2ea045ee6ffd3ff7ccc2c3425ed0fb050fa13c012d',
+  },
   workerTimeoutMs: 600_000,
   methodFiles: ['MAIN-AFFINITY-PROTOCOL.md', 'constants/main-affinity.cjs', 'main-affinity-worker.cjs',
     'main-affinity-experiment.cjs', 'main-affinity.spec.cjs', 'thread-worker.cjs', 'constants/thread.cjs',
     'paired-worker.cjs', 'constants/paired.cjs', '../../../scripts/memory-endpoint.cjs',
-    'paired-experiment.cjs', 'constants/hosted.cjs'],
+    'paired-experiment.cjs', 'constants/hosted.cjs', 'distribution-identity/identity.spec.cjs'],
 };

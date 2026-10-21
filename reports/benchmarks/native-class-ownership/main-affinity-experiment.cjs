@@ -12,6 +12,35 @@ const { fingerprint } = require('./paired-experiment.cjs');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const sha256 = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
+/**
+ * Read all executed package bytes, including the compiled JavaScript and native addon.
+ * @param {{ A: string, B: string }} roots - Actual frozen runtime package roots.
+ * @returns {object} Complete file manifests and their canonical digests for both runtimes.
+ */
+function captureDistributions(roots) {
+  return Object.fromEntries(Object.entries(roots).map(([label, root]) =>
+    [label, fingerprint(root, settings.distributionParts)]));
+}
+
+/**
+ * Verify a complete manifest against independent historical evidence and any earlier snapshot.
+ * @param {object} distributions - Complete A/B manifests, captured from disk or read from an archive.
+ * @param {string} stage - Diagnostic location: before, after or archive.
+ * @param {object} [previous] - Initial manifests when checking the final identity.
+ */
+function validateDistributions(distributions, stage, previous) {
+  for (const label of ['A', 'B']) {
+    const distribution = distributions?.[label];
+    assert.ok(distribution, `MainAffinity:${stage} missing distribution manifest for ${label}`);
+    assert.ok(Array.isArray(distribution.files), `MainAffinity:${stage} incomplete distribution manifest for ${label}`);
+    const digest = createHash('sha256').update(JSON.stringify(distribution.files)).digest('hex');
+    assert.equal(digest, distribution.sha256, `MainAffinity:${stage} distribution manifest differs for ${label}`);
+    assert.equal(distribution.sha256, settings.distributionHashes[label],
+      `MainAffinity:${stage} distribution identity differs for ${label}`);
+  }
+  if (previous) assert.deepEqual(distributions, previous, `MainAffinity:${stage} distributions changed after preflight`);
+}
+
 /** Keep every observation when calculating pooled and process medians. */
 function median(values) {
   assert.ok(values.length > 0 && values.every((value) => Number.isFinite(value) && value > 0));
@@ -88,6 +117,8 @@ function verify(outputRoot) {
   assert.equal(index.complete, true); assert.deepEqual(index.settings, settings);
   assert.ok(settings.nodeVersions.includes(index.node));
   assert.deepEqual(index.binaries, settings.binaryHashes);
+  validateDistributions(index.distributions, 'archive');
+  validateDistributions(index.distributionsAfter, 'archive-after', index.distributions);
   for (const label of ['A', 'B']) assert.equal(index.sources[label].sourceHash, original.sourceHashes[label]);
   const expectedFiles = [
     ...settings.methodFiles.map((file) => `method/${file.replaceAll('../', 'parent/').replaceAll('/', '-')}`),
@@ -131,10 +162,11 @@ function run(candidateArgument, baselineArgument, outputArgument) {
   for (const label of ['A', 'B']) assert.equal(sources[label].sourceHash, original.sourceHashes[label]);
   const binaries = Object.fromEntries(Object.entries(roots).map(([label, root]) => [label, sha256(path.join(root, 'dist/rustdom.node'))]));
   assert.deepEqual(binaries, settings.binaryHashes);
+  const distributions = captureDistributions(roots);
   const referenceRoot = path.dirname(require.resolve('jsdom/package.json', { paths: [roots.B] }));
   assert.equal(readJson(path.join(referenceRoot, 'package.json')).version, '27.4.0');
   const reference = fingerprint(referenceRoot, ['lib', 'package.json']);
-  const index = { complete: false, startedAt: new Date().toISOString(), settings, roots, sources, binaries,
+  const index = { complete: false, startedAt: new Date().toISOString(), settings, roots, sources, binaries, distributions,
     node: process.version, v8: process.versions.v8, executable: process.execPath, referenceRoot, reference,
     machine: { platform: os.platform(), arch: os.arch(), release: os.release(), cpu: os.cpus()[0].model,
       logicalCpus: os.cpus().length, totalMemoryBytes: os.totalmem() }, runs: [], files: {}, summaries: {} };
@@ -146,6 +178,7 @@ function run(candidateArgument, baselineArgument, outputArgument) {
   }
   save();
   try {
+    validateDistributions(distributions, 'before');
     for (const phase of settings.phases) {
       const entries = [];
       for (const [position, label] of settings.order.entries()) {
@@ -181,6 +214,8 @@ function run(candidateArgument, baselineArgument, outputArgument) {
       assert.equal(captureSourceIdentity(roots[label]).sourceHash, sources[label].sourceHash);
       assert.equal(sha256(path.join(roots[label], 'dist/rustdom.node')), binaries[label]);
     }
+    index.distributionsAfter = captureDistributions(roots); save();
+    validateDistributions(index.distributionsAfter, 'after', distributions);
     assert.deepEqual(fingerprint(referenceRoot, ['lib', 'package.json']), reference);
     assert.deepEqual(index.summaries.AA.map((row) => row.outputHash), index.summaries.AB.map((row) => row.outputHash));
     for (const file of settings.methodFiles) {
@@ -198,4 +233,4 @@ if (require.main === module) {
   if (process.argv[2] === '--verify') process.stdout.write(JSON.stringify(verify(path.resolve(process.argv[3])), null, 2) + '\n');
   else run(...process.argv.slice(2));
 }
-module.exports = { median, validateWorker, summarize, verify, run };
+module.exports = { captureDistributions, validateDistributions, median, validateWorker, summarize, verify, run };
