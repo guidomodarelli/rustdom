@@ -1,6 +1,6 @@
 # Comparación pública pareada con afinidad del principal
 
-Estado: sampler en validación. No hay un estudio ejecutado con este método ni
+Estado: sampler validado; driver y verificador en validación. No hay un estudio ejecutado con este método ni
 aceptación de presupuesto. Las ejecuciones de tests no forman parte del estudio.
 No modificar los protocolos, pins o resultados históricos para adoptar este método.
 
@@ -63,10 +63,48 @@ referencias observadoras son débiles; los reportes serializan solo datos escala
 La memoria observada es posterior a limpieza, no pico ni prueba de ausencia
 absoluta de fugas. Un fallo conserva evidencia parcial y no acepta presupuesto.
 
-## Condiciones pendientes antes de medir
+## Driver, archivo y política de parada
 
-Completar el driver y verificador del estudio, congelar todas las fuentes del
-harness y sus dependencias transitivas, declarar el orden entre workers y motores,
-validar contratos, liberación y rechazo de paquetes modificados en ambos Nodes,
-y terminar review del método. Registrar límites y política de parada antes de
-iniciar una única secuencia. El sampler aislado no reemplaza el gate de CI.
+paired-main-experiment.cjs ejecuta primero A/A y luego A/B. Dentro de cada fase,
+las posiciones van de 0 a 7; posiciones pares ejecutan jsdom/Rust, impares
+Rust/jsdom. Ningún worker se ejecuta en paralelo. El launcher completa Node 22
+y después Node 24, con los mismos paquetes, harness y recibo de review.
+
+El driver requiere manifest de copias, directorio nuevo y un JSON de procedencia
+con harnessSha256, reviewedCommit y receiptUrl. El launcher debe verificar en
+GitHub que el recibo corresponde al SHA publicado y que ese SHA reproduce la
+huella del harness. El driver comprueba esa huella antes de cargar paquetes o
+ejecutar workers, y conserva la procedencia. No verifica una review por red ni
+considera que un campo declarado sea por sí solo prueba de aprobación remota.
+
+Se congelan los bytes completos del alcance canónico de benchmarks/sources.cjs
+y de todos los módulos transitivos del método en reports/, incluyendo este
+protocolo y tests. Se guardan manifests antes/después y snapshots bajo harness/.
+Los paquetes físicos y fuentes originales A/B deben corresponder a sus pins
+históricos; se comprueban antes y después. No se reconstruyen para reutilizar
+una identidad anterior. stdout, stderr y reporte de cada worker se guardan con
+hashes y resultados de proceso, incluso si falla.
+
+Los comandos --verify y --verify-set recalculan datos sin ejecutar cargas. El
+verificador comprueba schedule, principal y background, aislamiento real,
+identidad de paquetes y snapshots, rounds de GC y recursos nativos mediante el
+predicado real, resultados públicos, duraciones, conteos y agregados. verify-set
+requiere ambas versiones en orden, con mismo harness, paquetes y procedencia.
+Su exit 0 significa integridad verificada: hay que leer accepted para aceptación.
+
+La ejecución normal termina con código 0 si acepta, 1 si completó el Node sin
+aceptar, y 2 si falla ejecución, preflight o verificación. Un resultado 1 de Node
+22 conserva los datos y permite completar Node 24. Un resultado 2 detiene la
+secuencia para corregir la causa; no habilita una repetición para elegir tiempos.
+Cada worker tiene deadline de diez minutos y no hay reintentos automáticos.
+
+Se ejecutará una única secuencia completa de este método después de tests y
+review. Si no calibra, se conserva como inconclusa y no se lanza otra corrida
+idéntica. Antes de otra intervención debe identificarse un problema concreto del
+método o runtime y una decisión que la nueva evidencia pueda resolver. No se
+cambian estimador, presupuestos, filas o posiciones después de mirar resultados.
+Un A/B calibrado fuera del presupuesto requiere corregir la implementación.
+
+Pendiente antes de medir: terminar tests y reviews del driver/verificador,
+publicar el SHA, comprobar el recibo remoto y fijar procedencia. El método no
+reemplaza por sí solo el gate de CI ni autoriza merge del PR 80.

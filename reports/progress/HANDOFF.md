@@ -1,5 +1,48 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: driver completo en validación y timeout macOS verificado
+
+El avance previo d2c238fb4fcd168acf0218ec536788b38827b09b está publicado en
+origin/feature/native-class-ownership-sampler. El PR 80 conserva 61ed417d mientras
+XMLSerializer 39679501920/job119497967690 sigue activo; verificar GitHub antes de
+actualizar la rama original, conservar su resultado y luego eliminar el respaldo.
+
+paired-main-experiment.cjs define 32 workers por Node, 64 para ambos: A/A luego
+A/B, ocho posiciones y orden jsdom/Rust alternado. Congela 350 archivos (333 del
+alcance canónico y 17 del método) y verifica fuentes, cinco paquetes físicos,
+snapshots, procesos, afinidad, aislamiento, ocho filas y endpoints de recursos.
+Recalcula el predicado nativo y no confía en clear=true. El método mantiene los
+umbrales y todos los datos; verify-set requiere ambos Nodes con mismas identidades.
+El driver exige la huella del harness revisado antes de lanzar workers. La review
+remota la verifica el launcher; un recibo declarado no demuestra aprobación.
+
+Once tests pasaron por Node 22.12.0/24.14.1 Linux y nueve en Windows Node 24,
+con dos casos Linux omitidos. Reutilizan los cuatro workers publicados y copias
+privadas alteradas; no recogen muestras nuevas. La revisión nativa read-only
+terminó sin hallazgos. La verificación positiva del archivo completo sigue
+pendiente de la corrida real, y accepted no está demostrado. Evidencia en
+reports/validation/native-class-ownership/paired-main-driver/.
+
+La huella compuesta del método preparado es
+fb2b88ed9fe44fb7c086c659d3e58385d17252401da1b3e4f38ed2a79e105d1f;
+sourceHash canónico sigue 609e73b5a7f8781ecfd0c805461ac553021be09476e762869ebd295a885e638a.
+El protocolo fija una sola secuencia y parada explícita, sin reintentos buscando
+aprobación ni cambios posteriores del estimador, presupuestos, filas o posiciones.
+
+CI general 39679501823 terminó: siete checks aprobaron y macOS falló en WPT.
+El artefacto macOS 12384632098 fue descargado con SHA de ZIP verificado. La única
+diferencia es Range-mutations-dataChange.html: 2.808 resultados individuales
+idénticos y aprobados en ambos; jsdom referencia tiene harness status=2 TIMEOUT,
+rustdom status=0. El runner usó Node 24.21.0. Registro crudo completo comprimido
+y procedencia en reports/validation/native-class-ownership/ci-macos-timeout/.
+No se ignora ni se reinterpreta el timeout como CI aprobada.
+
+Siguiente acción: corregir la ejecución WPT en macOS sin modificar assertions ni
+deadlines upstream, validar el flujo y revisar/publicar el método final. Después
+de conservar XMLSerializer, actualizar PR 80 y verificar review remota del SHA
+antes de una única corrida pareada. Inventario014c7da y living/node.js pendientes;
+este avance no migra algoritmos DOM nuevos ni autoriza merge/tag.
+
 ## Actualización: sampler pareado y observación real de Window/Document
 
 El head previo 61ed417d23cb3b62430c5c74fe1fa0f6343dd700 recibió review remota
