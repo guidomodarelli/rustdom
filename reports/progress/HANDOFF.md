@@ -1,6 +1,102 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: XMLSerializer validado, publicación final del PR 79
+## Estado actual: corrección aislada de ownership de clases nativas
+
+La base estable es `main`, `3d37f89976a48203e80cc5c435e099267f4ce346`,
+`checkpoint-067-xml-serializer-controller`. El PR 79 está mergeado y su rama
+integrada está eliminada. Nueve checks y revisión remota limpia cubrieron
+`a424bdd7be36af6c894b75c6579dbe3520348b78`; se verificó que el squash conserva
+su árbol `9175f0953aba0ad4259bce6d81042dca3783f1bf`. El artefacto del último run
+también se conserva en `reports/benchmarks/native-class-ownership/upstream-xml-controller/`.
+
+Continuar en `feature/native-class-ownership`, worktree `native-class-ownership`.
+El guard del SDK cubre tanto los class returns de `new_instance<T>` como los
+constructores directos de `CallbackInfo::_construct`. La propiedad se transfiere
+solo después de un wrap correcto; los errores anteriores destruyen el valor
+Rust y los posteriores quedan a cargo del finalizador registrado. No incorpora
+las primitivas experimentales del WIP de atributos ni completa APIs DOM.
+
+La referencia inmutable del checkpoint 67 retiene ocho rangos, ocho parsers y
+32.824 unidades UTF-16 después de ocho errores de cada constructor en Node
+22.12.0 y 24.14.1. La regresión formal falla con ese SDK en ambos Node. El
+candidato final `04863365060a1be4fe135880a89bdc1a289a0ae8247a0d3da922a90a9803069f`
+registra diferencias cero y mantiene utilizables los receivers originales.
+Los probes de ocho workers por Node terminaron balanceados: 1.051/357
+asignaciones, respectivamente, sin retención observada.
+
+Pasaron 311 tests Rust, fmt y Clippy en 1.98.1/1.99.1, seis tests del guard bajo
+Memcheck y la revisión local del código contra la nueva base sin hallazgos.
+Ambos Node completaron 3.743 tests Node, 22 Jest, 33 Vitest, 34 Vitest VM,
+16 de validación, 112 del harness, HTML5, WPT, cinco modos generales de memoria
+y veinte gates del paquete npm/pnpm. WPT conserva 240 fixtures/83.007 resultados,
+1.203 fallos de estándar compartidos, bloqueo/exclusiones y `complete=false`.
+
+La sesión de ejecución `19868`, comando
+`.cache/validate-native-class-base67.sh`, runtime Linux
+`/home/guido/rustdom-native-class-NMmiki`, terminó con exit 0. El comprobante
+terminal y las salidas finales se guardan en
+`reports/validation/native-class-ownership/base67/` y ya están archivados en el
+worktree. La fuente validada tiene digest `8332276799c5ccc18c7a45a5136a856b039736597d5e104e22f074f8e23f1ddd`.
+`manifest.json` enumera 245 reportes, sus compresiones reversibles y las fuentes;
+`distribution-lockfiles.sha256` cubre además los locks pnpm. El protocolo ya
+declarado en `reports/benchmarks/native-class-ownership/PROTOCOL.md` terminó
+con exit 0 en la sesión `3734`: ocho bloques A B B A B A A B por Node, sin
+builds/tests simultáneos. El driver conserva `index.json` y cada stdout/stderr/JSON en
+`/home/guido/rustdom-native-class-NMmiki/reports/benchmarks/native-class-ownership/local/`.
+Los 16 bloques/64 procesos y 4.608 duraciones ya están copiados al worktree en
+`reports/benchmarks/native-class-ownership/local/`, con su comprobante terminal.
+No repetir ni prolongar esa corrida según sus resultados. La referencia
+inmutable está en `/home/guido/rustdom-checkpoint67-reference-0N9EG6`.
+Rama de publicación de esta corrección: `feature/native-class-ownership`.
+Consultar `git log` y el PR de esa rama para su SHA y estado remoto. Los datos
+completos y la revisión local están archivados; merge y tag siguen pendientes
+de resolver la precisión/atribución de la fila señalada y de review/CI del
+head publicado. No se declara aceptado el presupuesto de rendimiento.
+
+El resumen Node 22 está completo: seis de ocho controles jsdom no calibran.
+`range-control-1000/1000` señala +9,4097% Rust con +0,7927% jsdom y requiere
+investigación antes del checkpoint; no está aprobado el presupuesto de esa
+fila. Node 24 completó ocho bloques: cuatro controles calibran y sus filas
+quedan dentro del presupuesto, incluida esa Range con −2,7846% Rust y +1,5285%
+jsdom; las otras cuatro filas permanecen inconclusas. Se declaró antes de nuevas
+muestras un control negativo acotado en
+`reports/benchmarks/native-class-ownership/DIAGNOSTIC-PROTOCOL.md`, sin alterar
+los datos ni los umbrales del A/B. No repetir el A/B por ruido ni atribuir al
+parche la aparente mejora grande de observers con control no calibrado.
+
+La sesión `81635`, control negativo mediante
+`reports/benchmarks/native-class-ownership/run-negative-control.cjs`, revisado
+sin hallazgos. Solo seleccionó Node 22 y `range-control-1000`, con ambos tamaños;
+ambas etiquetas cargan el mismo binario checkpoint 67. Sus archivos se guardan
+en `/home/guido/rustdom-native-class-NMmiki/reports/benchmarks/native-class-ownership/negative-control/`.
+terminó con exit 0: ocho bloques/32 procesos y 576 duraciones, archivados en
+`reports/benchmarks/native-class-ownership/negative-control/`. Rust varió
+−0,3895%/1000 y +0,7013%/250, pero jsdom −5,3452% y −20,5067%: no calibra y no
+aprueba el A/B. No quedan benchmarks locales activos. No repetir el control
+local hasta aprobar; resolver la precisión/atribución de la fila original antes
+de aceptar su presupuesto y crear el checkpoint. Se publican el código probado
+y los resultados para revisión, con merge/tag todavía pendientes.
+
+El verificador `reports/validation/native-class-ownership/verify-evidence.cjs`
+recalculó 5.184 duraciones de 96 procesos, los hashes de 245 reportes y 86
+logs/comprobantes. Con `--staged` también verificó que las 337 fuentes
+coinciden byte por byte con el índice Git. La revisión independiente de datos,
+límites y herramientas cerró con cero hallazgos; no equivale a aprobar el
+presupuesto pendiente ni sustituye la review remota del SHA final.
+
+El runner WPT cierra los realms y cede un turno entre fixtures para permitir
+liberar targets débiles. La corrida Node 24 que agotó old-space y sus controles
+posteriores se preservan; el límite explícito de 2.048 MiB no limita RSS.
+Mantener las exclusiones y los fallos de estándar compartidos visibles.
+
+El inventario global continúa abierto y el runtime es híbrido. Este fix de
+memoria no cambia los contadores de migración ni habilita un porcentaje global.
+Después de integrar el hito, continuar las fases abiertas de ROADMAP.md y
+priorizar responsabilidades completas de construcción, clonado y mutación.
+Los WIP `feature/native-attribute-copy` y `feature/native-node-clone` permanecen
+separados y no deben eliminarse como si estuvieran integrados.
+
+## Registro: XMLSerializer validado, publicación final del PR 79
 
 La base estable es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
 `checkpoint-066-reference-catalog`. Continuar en

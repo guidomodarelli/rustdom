@@ -4,6 +4,12 @@
 mod dom;
 mod xml;
 
+// Exercise the vendored SDK's actual allocation-ownership guard in the Rust
+// test binary, including Memcheck, without substituting Node-API functions.
+#[cfg(test)]
+#[path = "../third-party/napi/src/bindgen_runtime/class_ownership.rs"]
+mod native_class_ownership_tests;
+
 use html5ever::interface::QuirksMode;
 use html5ever::{ParseOpts, QualName, parse_document, parse_fragment, tendril::TendrilSink};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};

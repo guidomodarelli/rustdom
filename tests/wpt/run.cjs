@@ -4,6 +4,8 @@ const { readFileSync, writeFileSync, mkdirSync } = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
+const { setImmediate: yieldToEventLoop } = require('node:timers/promises');
+const { getHeapStatistics } = require('node:v8');
 const { assertWptParity } = require('./comparison.cjs');
 
 /** Corpus paths and digests identify the actual upstream input, not a claim of complete WPT coverage. */
@@ -89,6 +91,8 @@ async function main() {
   const suites = requested.length ? requested : Object.keys(manifest.suites).filter((suite) => !blockedSuites[suite]);
   for (const suite of suites) assert.ok(manifest.suites[suite], `Unknown WPT suite: ${suite}`);
   const report = { capturedAt: new Date().toISOString(), node: process.version, platform: process.platform,
+    execArgv: process.execArgv, heapSizeLimitBytes: getHeapStatistics().heap_size_limit,
+    fixtureLifecycle: 'Close both realms, then yield an event-loop turn between fixtures; no forced GC or upstream assertion changes.',
     wptRevision: manifest.revision, jsdom: require('jsdom/package.json').version, suites,
     outerTimeoutMs: TEST_TIMEOUT_MS,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
@@ -115,6 +119,9 @@ async function main() {
       report.pass = false; report.results.push({ file, pass: false, error: error.stack });
       process.stderr.write(`${file}: ${error.message}\n`);
     }
+    // Promise continuations can otherwise keep weak targets alive across the
+    // entire corpus. End this turn after both realms close, outside assertions.
+    await yieldToEventLoop();
   }
   mkdirSync('reports/compatibility', { recursive: true });
   const output = `reports/compatibility/${report.capturedAt.replaceAll(':', '-')}-${process.platform}-wpt.json`;
