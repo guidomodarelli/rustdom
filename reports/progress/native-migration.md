@@ -8,8 +8,9 @@ El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
 dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
 entrega tiene 531 archivos (528 JavaScript y tres datos), 4.331 entradas de API y
 7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Solo dos
-módulos tienen clasificación revisada como híbridos; la auditoría de los demás
-registros sigue pendiente. Eso no significa que carezcan de código Rust.
+módulos tenían clasificación revisada como híbridos en checkpoint 66; la
+auditoría de los demás registros sigue pendiente. Eso no significa que carezcan
+de código Rust.
 
 `summary.json` mantiene `scopeClosed=false` y `migrationPercent=null`: faltan
 dependencias de plataforma externas, contratos dinámicos, opciones/diccionarios,
@@ -20,6 +21,15 @@ La base del motor utilizada para esta auditoría es `271221abbfeafebebb7dd817b98
 `checkpoint-065-attribute-reads` (PR 77). El WIP de atributos y calibración está
 publicado aparte en `feature/native-attribute-copy`, commit `c51f9fb`; sus
 controles de rendimiento no están aprobados y no forman parte de este inventario.
+
+El PR 79 agrega la auditoría de XMLSerializer: tres módulos híbridos en total,
+una API híbrida y un ancla con control Rust completo dentro de su alcance
+declarado. WebIDL y la factory de DOMException siguen pendientes. La revisión
+de `62cf726` no encontró hallazgos y sus nueve checks pasaron, incluido el
+control dedicado de Node 24. Falta publicar los resultados y cerrar CI/review
+del SHA final. No contar esta rama como integrada ni ampliar el alcance acreditado
+por haber trasladado el control de un método. Ver
+[validación del controlador](../validation/xml-serializer-controller.md).
 
 ## Registro histórico
 

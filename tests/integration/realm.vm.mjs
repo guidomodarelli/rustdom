@@ -11,6 +11,17 @@ const { JSDOM } = process.getBuiltinModule('node:module').createRequire(import.m
 registerAbortSuite({ test, expect, runnerGlobal: globalThis, createNativeDom: () => new JSDOM('<!doctype html>') });
 createRequire(import.meta.url)('./collection-suite.cjs')({ test, expect });
 
+test('should preserve native XMLSerializer error conversion and reentry inside the VM realm', () => {
+  const xml = new DOMParser().parseFromString('<root/>', 'text/xml');
+  const serializer = new XMLSerializer(), inner = xml.createElement('inner');
+  let nestedCalls = 0, caught;
+  const failure = { get message() { nestedCalls++; return serializer.serializeToString(inner); } };
+  Object.defineProperty(xml.documentElement, 'nodeType', { get() { throw failure; } });
+  try { serializer.serializeToString(xml.documentElement); } catch (error) { caught = error; }
+  expect(caught instanceof window.DOMException).toBe(true);
+  expect(caught.name).toBe('InvalidStateError'); expect(caught.message).toBe('<inner/>'); expect(nestedCalls).toBe(1);
+});
+
 test('should run React updates inside the DOM VM realm', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const container = document.createElement('div');

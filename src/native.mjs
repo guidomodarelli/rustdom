@@ -23,6 +23,7 @@ export const {
   NativeFileReaderState, ReaderStringFormat, fileReaderString, fileReaderEncoding,
   DocumentImplementationOperation, documentImplementationOperation, documentImplementationStatistics,
   DomParserOperation, domParserOperation, domParserStatistics,
+  xmlSerializerOperation, xmlSerializerStatistics,
   NativeFormDataEntries,
   NativeSelectionState,
   SelectionOperation, selectionOperation, selectionOperationResult, selectionOperationStatistics,

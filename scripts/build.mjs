@@ -34,10 +34,15 @@ await cp(resolve(upstreamRoot, 'package.json'), resolve(destination, 'package.js
 await cp(resolve(upstreamRoot, 'LICENSE.txt'), resolve(destination, 'LICENSE.txt'));
 const xmlSerializerAdapter = await readFile('src/dom/xml-serializer.cjs', 'utf8');
 await writeFile('dist/xml-serializer.cjs', substituteOnce(xmlSerializerAdapter, "require('../../dist/native.cjs')", "require('./native.cjs')"));
-for (const file of ['serialization.js', 'XMLSerializer-impl.js']) {
+for (const file of ['serialization.js']) {
   const serializerPath = resolve(destination, 'lib/jsdom/living/domparsing', file);
   await writeFile(serializerPath, substituteOnce(await readFile(serializerPath, 'utf8'), 'require("w3c-xmlserializer")', 'require("../../../../../xml-serializer.cjs")'));
 }
+const xmlSerializerController = await readFile('src/dom/xml-serializer-controller.cjs', 'utf8');
+await writeFile('dist/xml-serializer-controller.cjs', substituteOnce(xmlSerializerController, "require('../../dist/native.cjs')", "require('./native.cjs')"));
+await writeFile(resolve(destination, 'lib/jsdom/living/domparsing/XMLSerializer-impl.js'),
+  '"use strict";\nexports.implementation = require("../../../../../xml-serializer-controller.cjs").createXmlSerializerImplementation({\n' +
+  '  DOMException: require("../generated/DOMException"), utils: require("../generated/utils")\n});\n');
 await mkdir('dist/compatibility-licenses/w3c-xmlserializer', { recursive: true });
 await cp('third-party/w3c-xmlserializer/LICENSE.md', 'dist/compatibility-licenses/w3c-xmlserializer/LICENSE.md');
 const xmlAdapter = await readFile('src/parser/xml.cjs', 'utf8');

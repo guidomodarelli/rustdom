@@ -21,6 +21,7 @@ use input::{
 };
 pub use input::{Text, XmlError};
 use rustc_hash::{FxHashMap, FxHashSet};
+pub(crate) use serialize::serialize_xml;
 use std::collections::VecDeque;
 
 const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";

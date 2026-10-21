@@ -77,7 +77,37 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 - Compatibilidad completa: corpus upstream y WPT aplicables, errores, realms, módulos, instalación y runners; resultados faltantes, excluidos o no verificados impiden cerrar el objetivo.
 - Cada PR requiere el ciclo `codex-autofix-loop`, validaciones, benchmarks pertinentes y revisión de memoria. Ningún milestone parcial marca el objetivo integral como terminado.
 
-## Estado y criterios de cierre
+## Secuencia de la migración integral
+
+El hito actual es el controlador de XMLSerializer (PR 79): Node 22 local y
+Node 24 en CI pasaron sus controles; los artefactos están verificados. Requiere
+publicar la evidencia y cerrar CI/review del SHA final antes de integrarse.
+El controlador de fragmentos, WebIDL y
+DOMException conservan responsabilidades JavaScript pendientes. Este hito no
+completa la familia de serialización ni el módulo público.
+
+Después se priorizan las siguientes fases por sus dependencias. La auditoría
+del inventario acompaña las implementaciones; no se espera a catalogar todo
+para retirar rutas de producción. Cada entrega debe identificar sus módulos,
+consumidores públicos y decisiones aún ejecutadas en JavaScript.
+
+| Fase abierta | Entregable y criterio de salida |
+| --- | --- |
+| Inventario y trazabilidad | Mapear contratos públicos a algoritmos y dependencias, cerrar las brechas dinámicas y documentar denominadores auditados. No habilitar un porcentaje global mientras el alcance siga abierto. |
+| Construcción, clonado y mutación | Completar factories, adopción, copia, drivers de Node/Document/Element y orden de efectos en Rust, con identidad estable y hooks conectados a consumidores reales. Resolver los gates de los prototipos de clonado antes de integrarlos. |
+| Parsing y serialización completos | Retirar rutas delegadas de HTML/XML, incluyendo scripts, document.write, posiciones y contextos de templates/custom elements/shadow DOM. Completar los controles y conversiones públicas de serialización. |
+| Eventos, rangos y observadores | Completar los drivers, colas, entrega y manejo de errores pendientes en Rust; el host conserva la invocación imprescindible de callbacks y tareas. Verificar orden observable y reentrancia. |
+| Elementos, consultas y estilos | Sustituir las implementaciones de elementos HTML y formularios, selectores completos, XPath y CSSOM que siguen en el runtime privado. Conservar el alcance y los comportamientos del jsdom fijado. |
+| Resto de la plataforma | Completar URL, cookies, recursos/red, navegación, archivos, almacenamiento y demás APIs inventariadas, reutilizando bibliotecas compatibles y sin fallbacks de implementación a jsdom. |
+| Integración y cierre | Verificar el inventario completo, paquete real y runners en Node 22/24, corpus y diferencias conocidas, rendimiento y memoria. Confirmar que producción no delega algoritmos a jsdom/parse5. |
+
+Por cada entrega, ejecutar pruebas relevantes, benchmarks equivalentes y
+controles de recursos; guardar evidencia y cerrar review/CI sobre el SHA final.
+Los módulos y sus dependencias no quedan completos por agregar una primitiva
+nativa. Los problemas de memoria conocidos tienen prioridad de corrección y
+deben mantenerse separados de la aceptación de prototipos de rendimiento.
+
+## Estado y criterios de las fases históricas de la versión híbrida
 
 | Fase | Estado | Criterio verificable |
 |---|---|---|

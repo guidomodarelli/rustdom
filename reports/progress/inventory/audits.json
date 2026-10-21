@@ -14,5 +14,31 @@
     "tests": ["tests/attribute-reads.spec.cjs", "tests/attribute-collections.spec.cjs"],
     "evidence": ["reports/validation/attribute-reads.md"],
     "pending": ["Las lecturas de atributos usan Rust; construcción, hooks, selectores completos y contratos WebIDL conservan lógica del host."]
+  },
+  "module:lib/jsdom/living/domparsing/XMLSerializer-impl.js": {
+    "status": "hybrid",
+    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
+    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
+    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/xml-serializer-worker.spec.cjs"],
+    "evidence": ["reports/validation/xml-serializer-controller.md"],
+    "pending": ["La factory de DOMException invocada por el controlador y el WebIDL generado siguen usando JavaScript; deben auditarse y migrarse por separado."],
+    "bindings": ["El constructor conserva su realm como arista JavaScript visible al GC; los helpers ejecutan las lecturas, llamadas y diagnósticos seleccionados por Rust."]
+  },
+  "unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3": {
+    "status": "rust-complete",
+    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
+    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
+    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/xml-serializer-worker.spec.cjs"],
+    "evidence": ["reports/validation/xml-serializer-controller.md"],
+    "pending": [],
+    "scope": "Control de serializeToString: invocación del serializador, captura y selección de excepción, orden de efectos y propagación. No acredita migración de la factory de DOMException ni del WebIDL generado."
+  },
+  "api:Window.XMLSerializer.prototype.serializeToString": {
+    "status": "hybrid",
+    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
+    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
+    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/integration/dom-suite.cjs", "tests/integration/realm.vm.mjs"],
+    "evidence": ["reports/validation/xml-serializer-controller.md"],
+    "pending": ["Conversión WebIDL de receiver/root y factory de excepciones de la realm permanecen en el host."]
   }
 }

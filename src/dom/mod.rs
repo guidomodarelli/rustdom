@@ -111,3 +111,5 @@ mod tree_cursor_binding;
 mod unicode_case;
 mod web_storage;
 mod web_storage_binding;
+#[cfg_attr(test, allow(dead_code))]
+mod xml_serializer_controller;

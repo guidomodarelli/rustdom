@@ -1,0 +1,65 @@
+name: XMLSerializer performance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/xml-controller.yml'
+      - 'benchmarks/**'
+      - 'reports/benchmarks/xml-serializer-controller/**'
+      - 'src/dom/xml_serializer_controller.rs'
+      - 'src/dom/xml-serializer-controller.cjs'
+      - 'src/xml/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xml-controller-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  node24:
+    name: XMLSerializer Node 24
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
+      RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      XML_CONTROLLER_OUTPUT: reports/benchmarks/xml-controller-hosted-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-066-reference-catalog
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Preparar la referencia independiente
+        working-directory: .baseline
+        run: |
+          test "$(git rev-parse HEAD)" = 75db9bb095db8457a6ae567f219e2224a55b9f36
+          npm ci
+          npm run build
+      - name: Preparar el candidato
+        run: npm ci && npm run build
+      - name: Ejecutar los contratos del experimento
+        run: node --test tests/benchmarks/xml-controller-cli.spec.cjs tests/benchmarks/xml-serializer-controller.spec.cjs
+      - name: Seleccionar una CPU permitida y registrar el host
+        shell: bash
+        run: |
+          cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
+          echo "RUSTDOM_BENCHMARK_CPU=$cpu" >> "$GITHUB_ENV"
+          taskset -pc $$
+          node --version
+          rustc -Vv
+      - name: Calibrar y medir todas las filas
+        run: node benchmarks/xml-controller-experiment.cjs --baseline .baseline --output "$XML_CONTROLLER_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xml-controller-node24-${{ github.event.pull_request.head.sha }}
+          path: ${{ env.XML_CONTROLLER_OUTPUT }}/

@@ -16,6 +16,11 @@ export function domParserOperation(owner: object, operation: DomParserOperation,
 /** Synchronous activity and XML recovery attempts, without retained DOM owners. */
 export function domParserStatistics(): import('./index.cjs').DomParserStatistics;
 
+/** Executes XMLSerializer control in Rust; helpers provide only scoped wrapper/property/factory bindings. */
+export function xmlSerializerOperation(owner: unknown, root: unknown, helpers: object): unknown;
+/** Reports active calls and attempted exception conversions without retaining DOM owners. */
+export function xmlSerializerStatistics(): import('./index.cjs').XmlSerializerStatistics;
+
 /** Strings are native data; numeric names and values identify separate GC-visible host owners. */
 export interface NativeFormDataEntry { id: number; name: string | number; value: string | number; }
 /** Scalar Selection direction. The host retains its associated Range and realm. */
