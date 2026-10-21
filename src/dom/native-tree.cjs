@@ -838,6 +838,17 @@ class NativeSymbolTree extends SymbolTree {
   /** @param {object} root - Fragment or ShadowRoot owner. @param {string} id - Converted exact ID. @returns {object|null} Original first matching descendant. */
   elementById(root, id) { return this._object(this._arena.queryElementById(this._ensure(root), id)); }
 
+  /** @param {object} document - Document implementation. @param {object} element - Attached implementation. @param {string} value - ID obtained by the original observable hook. @returns {void} Register the captured value in Rust. */
+  attachDocumentId(document, element, value) { this._arena.attachDocumentId(this._ensure(document), this._ensure(element), value); }
+  /** @param {object} document - Document implementation. @param {object} element - Detached implementation. @param {string} value - ID obtained by the original observable hook. @returns {void} Remove registrations for the captured value in Rust. */
+  detachDocumentId(document, element, value) { this._arena.detachDocumentId(this._ensure(document), this._ensure(element), value); }
+  /** @param {object} document - Document implementation. @param {object} element - Changed implementation. @param {string|null} previous - Old registration. @param {string|null} value - New registration. @returns {void} */
+  changeDocumentId(document, element, previous, value) { this._arena.changeDocumentId(this._ensure(document), this._ensure(element), previous, value); }
+  /** @param {object} document - Public lookup owner. @param {string} value - Converted ID. @returns {object|null} Original first eligible registered implementation. */
+  documentElementById(document, value) { return this._object(this._arena.queryDocumentElementById(this._ensure(document), value)); }
+  /** @param {object} root - SVG root implementation. @param {string} value - Converted ID, including empty. @returns {object|null} Original inclusive physical match. */
+  svgElementById(root, value) { return this._object(this._arena.querySvgElementById(this._ensure(root), value)); }
+
   /** @param {object} root - Physical parent. @returns {object[]} Immediate Element implementations with numeric transport metadata. */
   elementChildren(root) { return this._collectionResult(this._arena.elementChildren(this._ensure(root))); }
   /** @param {object} root - Physical parent. @returns {object|null} First original Element child. */
@@ -950,7 +961,7 @@ class NativeSymbolTree extends SymbolTree {
   /** @returns {object} Allocation and operation counters without strong references to nodes. */
   statistics() {
     return { ...this._arena.statistics(), indexedNodes: this._objects.size, handleBatchSize: this._handleBatchSize,
-      rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
+      documentIds: this._arena.documentIdStatistics(), rootHosts: this._arena.rootHostStatistics(), slotableNames: this._arena.slotableNameStatistics(),
       slotAssignments: this._arena.slotAssignmentStatistics(),
       slotBacklinks: this._arena.slotBacklinkStatistics(),
       slotSignals: this._arena.slotSignalStatistics(),

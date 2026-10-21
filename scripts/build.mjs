@@ -966,3 +966,27 @@ async function scopePrivateDependencies(directory) {
   }
 }
 await scopePrivateDependencies(resolve(destination, 'lib'));
+
+/** ID registrations preserve host hook ordering; state and candidate selection live in Rust. */
+const documentIdPath = resolve(destination, 'lib/jsdom/living/nodes/Document-impl.js');
+let documentIdSource = substituteOnce(await readFile(documentIdPath, 'utf8'), '    this._ids = Object.create(null);\n', '');
+documentIdSource = replaceRegion(documentIdSource, '  getElementById(id) {', '  get referrer() {',
+  '  getElementById(id) { return domSymbolTree.documentElementById(this, id); }\n\n', substituteOnce);
+documentIdSource = substituteOnce(documentIdSource, '  // This is implemented separately for Document (which has a _ids cache) and DocumentFragment (which does not).',
+  '  // Document preserves native registration order; fragments use physical tree order.');
+await writeFile(documentIdPath, documentIdSource);
+const elementIdPath = resolve(destination, 'lib/jsdom/living/nodes/Element-impl.js');
+let elementIdSource = replaceRegion(await readFile(elementIdPath, 'utf8'), 'function attachId(id, elm, doc) {', 'class ElementImpl extends NodeImpl {', '', substituteOnce);
+elementIdSource = substituteOnce(elementIdSource,
+  '    const id = this.getAttributeNS(null, "id");\n    if (id) {\n      attachId(id, this, this._ownerDocument);\n    }',
+  '    const id = this.getAttributeNS(null, "id");\n    if (id) {\n      domSymbolTree.attachDocumentId(this._ownerDocument, this, id);\n    }');
+elementIdSource = substituteOnce(elementIdSource,
+  '    const id = this.getAttributeNS(null, "id");\n    if (id) {\n      detachId(id, this, this._ownerDocument);\n    }',
+  '    const id = this.getAttributeNS(null, "id");\n    if (id) {\n      domSymbolTree.detachDocumentId(this._ownerDocument, this, id);\n    }');
+elementIdSource = substituteOnce(elementIdSource, '      detachId(oldValue, this, doc);\n      attachId(value, this, doc);',
+  '      domSymbolTree.changeDocumentId(doc, this, oldValue, value);');
+await writeFile(elementIdPath, elementIdSource);
+const svgIdPath = resolve(destination, 'lib/jsdom/living/nodes/SVGSVGElement-impl.js');
+const svgIdSource = replaceRegion(await readFile(svgIdPath, 'utf8'), '  getElementById(elementId) {', '  suspendRedraw() {',
+  '  getElementById(elementId) { return domSymbolTree.svgElementById(this, elementId); }\n\n', substituteOnce);
+await writeFile(svgIdPath, svgIdSource);

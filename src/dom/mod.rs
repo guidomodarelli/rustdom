@@ -18,6 +18,7 @@ mod collection_queries;
 mod compact_storage;
 pub(crate) mod constants;
 mod data;
+mod document_ids;
 mod document_implementation;
 #[cfg_attr(test, allow(dead_code))]
 mod document_implementation_binding;

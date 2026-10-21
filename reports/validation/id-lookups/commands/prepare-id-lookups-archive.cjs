@@ -1,0 +1,10 @@
+'use strict';
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
+const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+assert.equal(git('rev-parse', 'HEAD'), '859c11159ad00ab39a37acb46428164f8a386f77');
+assert.equal(git('status', '--porcelain'), '');
+const roots = git('ls-tree', '--name-only', 'HEAD').split('\n').filter((path) => path !== 'reports');
+git('archive', '--format=tar', '--output=.cache/id-lookups-base-859c111.tar', 'HEAD', '--', ...roots);
+console.log(JSON.stringify({ base: git('rev-parse', 'HEAD'), bytes: fs.statSync('.cache/id-lookups-base-859c111.tar').size }));

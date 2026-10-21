@@ -1,0 +1,12 @@
+'use strict';
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const path = '.cache/collect-id-lookups-evidence.mjs';
+const source = fs.readFileSync(path, 'utf8');
+const before = 'pass (' + String.fromCharCode(92, 92) + 'd+)';
+const after = 'pass (' + String.fromCharCode(92) + 'd+)';
+const updated = source.replace(before, after);
+assert.ok(updated.includes(after));
+assert.ok(!updated.includes(before));
+fs.writeFileSync(path, updated);
+console.log('Normalized generated evidence count expression');

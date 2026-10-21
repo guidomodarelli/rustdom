@@ -1,11 +1,19 @@
 # Indicador provisional de migración a Rust
 
-Estado actualizado el 20/10/2026 UTC. Main contiene `e5a2daa5798c50c1fd8fa2f159d6a3f8ed38cde4`,
-checkpoint-062-name-queries (PR 74), con Document.getElementsByName nativo.
-El siguiente hito, feature/native-fragment-id, migra getElementById de fragmentos,
-template.content y ShadowRoot; comprobar su PR antes de asumir integración.
-El índice de Document, la búsqueda SVG, WebIDL, factories y otras APIs siguen
-pendientes; el runtime continúa siendo híbrido.
+Estado actualizado el 2026-10-21 UTC. Main contiene `60f7cb6e925310fce3e16676ebae93debd2faca7`,
+checkpoint-063-fragment-id (PR 75), con DocumentFragment/template/ShadowRoot IDs
+nativos. El siguiente hito, feature/native-id-lookups, migra el índice de IDs de
+Document y el recorrido SVG. Comprobar su PR antes de asumir integración.
+WebIDL, factories y otras APIs siguen pendientes; el runtime continúa híbrido.
+
+El hito de IDs pasó 299 tests Rust en 1.98.1/1.99.1, 3615 contratos
+Node por versión, runners, corpus, 62 escenarios nuevos de GC por Node y los
+78 de fragmentos/52 de colecciones, Memcheck y cuarenta controles instalados.
+WPT ejecutó los 240 fixtures en un comando por Node, con paridad, exclusiones
+y fallos de estándar compartidos. Los ocho reportes de rendimiento conservan
+36 muestras por fila/motor/etapa/runtime, siete tareas y dos controles, junto
+con todas las regresiones. Ver reports/validation/id-lookups.md.
+Profundizar un área parcial no incrementa automáticamente el índice global.
 
 **2 áreas implementadas, 7 parciales y 3 delegadas: índice 45,8%.**
 
