@@ -5,16 +5,9 @@ on:
     paths:
       - '.github/workflows/native-class-ownership.yml'
       - 'third-party/napi/src/bindgen_runtime/**'
-      - 'reports/benchmarks/native-class-ownership/hosted-experiment.cjs'
-      - 'reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs'
-      - 'reports/benchmarks/native-class-ownership/history.cjs'
-      - 'reports/benchmarks/native-class-ownership/history.spec.cjs'
-      - 'reports/benchmarks/native-class-ownership/constants/history.cjs'
-      - 'reports/benchmarks/native-class-ownership/constants/hosted.cjs'
-      - 'reports/benchmarks/native-class-ownership/HOSTED-PROTOCOL.md'
-      - 'reports/benchmarks/native-class-ownership/source-preflight.cjs'
-      - 'reports/benchmarks/native-class-ownership/source-preflight.spec.cjs'
-      - 'reports/benchmarks/native-class-ownership/fixtures/history-sources/**'
+      - 'reports/benchmarks/native-class-ownership/**'
+      - 'benchmarks/**'
+      - 'scripts/memory-endpoint.cjs'
 
 permissions:
   contents: read
@@ -47,7 +40,7 @@ jobs:
         id: history
         run: node reports/benchmarks/native-class-ownership/history.cjs .baseline "$OWNERSHIP_ARCHIVE" >> "$GITHUB_OUTPUT"
       - name: Verificar los contratos con observaciones públicas reales
-        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs reports/benchmarks/native-class-ownership/paired-main-evidence.spec.cjs
       - name: Verificar la evidencia existente y conservar su resultado
         if: steps.history.outputs.reuse == 'true'
         run: |

@@ -11,7 +11,7 @@ const settings = require('./constants/execution.cjs');
  * Keep runtime heaps, module caches and native registries out of subsequent fixtures.
  * @param {'jsdom'|'rustdom'} engine - Actual package selected inside the child.
  * @param {string} file - Pinned upstream fixture, optionally including its URL query.
- * @param {object} [options] - Process failsafe; never changes a timeout inside upstream testharness.js.
+ * @param {object} [options] - Process failsafe, independent of the shared upstream runner multiplier.
  * @returns {object} Unmodified results and scalar process/cleanup evidence.
  */
 function executeFixture(engine, file, { timeoutMs = settings.PROCESS_TIMEOUT_MS } = {}) {

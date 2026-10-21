@@ -33,9 +33,38 @@ for (const [file, count] of [
       assert.deepEqual(report.execution.execArgv, settings.WORKER_EXEC_ARGV);
       assert.equal(report.execution.exitCode, 0); assert.equal(report.execution.signal, null);
       assert.equal(report.execution.processTimeoutMs, settings.PROCESS_TIMEOUT_MS);
+      assert.equal(report.execution.timeoutMultiplier, settings.WPT_TIMEOUT_MULTIPLIER);
       assertExited(report.execution.pid);
     }
   });
+}
+
+for (const engineName of ['jsdom', 'rustdom']) {
+  test(`the real ${engineName} WPT harness still times out with the shared runner multiplier`,
+    { timeout: settings.PROCESS_TIMEOUT_MS }, async () => {
+      const engine = engineName === 'jsdom' ? require('jsdom') : require('../dist/index.cjs');
+      const harness = fs.readFileSync(path.join(__dirname, 'fixtures/wpt/resources/testharness.js'), 'utf8');
+      let dom;
+      let timer;
+      let declaredMultiplier;
+      try {
+        const result = await new Promise((resolve, reject) => {
+          timer = setTimeout(() => reject(new Error(`WPT ${engineName}: real harness did not enforce its global deadline`)), settings.TEST_TIMEOUT_MS);
+          dom = new engine.JSDOM('<!doctype html><title>Runner deadline</title>', { runScripts: 'outside-only' });
+          dom.window.__wptDone = (json) => resolve(JSON.parse(json));
+          dom.window.__wptStarted = (properties) => { declaredMultiplier = properties.timeout_multiplier; };
+          dom.window.eval(harness);
+          // Leave the file open after one passing test, exercising a real global timeout.
+          dom.window.eval('setup({explicit_done:true});');
+          dom.window.eval(settings.REPORTER);
+          dom.window.eval('add_start_callback(__wptStarted);test(()=>assert_true(true),"passes before the harness deadline");');
+        });
+        assert.equal(declaredMultiplier, settings.WPT_TIMEOUT_MULTIPLIER);
+        assert.equal(result.status, 2);
+        assert.equal(result.tests.length, 1);
+        assert.equal(result.tests[0].status, 0);
+      } finally { clearTimeout(timer); dom?.window.close(); }
+    });
 }
 
 test('process failures preserve diagnostics and the real worker is reaped at its parent deadline', () => {
@@ -73,9 +102,11 @@ test('a real fixture worker cannot overwrite an earlier result before loading th
 });
 
 test('the recorded macOS reference timeout remains a parity failure despite every individual test passing', () => {
-  const raw = fs.readFileSync(path.resolve(__dirname, '../reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz'));
-  const row = JSON.parse(gunzipSync(raw));
-  assert.equal(row.expected.status, 2); assert.equal(row.actual.status, 0);
-  assert.deepEqual(row.expected.tests, row.actual.tests); assert.equal(row.expected.tests.length, 2808);
-  assert.throws(() => assertWptParity(row.file, row.actual, row.expected));
+  const archive = path.resolve(__dirname, '../reports/validation/native-class-ownership/ci-macos-timeout');
+  for (const relative of ['fixture.json.gz', '39686199408/fixture.json.gz']) {
+    const row = JSON.parse(gunzipSync(fs.readFileSync(path.join(archive, relative))));
+    assert.equal(row.expected.status, 2); assert.equal(row.actual.status, 0);
+    assert.deepEqual(row.expected.tests, row.actual.tests); assert.equal(row.expected.tests.length, 2808);
+    assert.throws(() => assertWptParity(row.file, row.actual, row.expected));
+  }
 });

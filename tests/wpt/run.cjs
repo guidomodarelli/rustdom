@@ -12,7 +12,7 @@ const { assertWptParity } = require('./comparison.cjs');
 const root = path.resolve(__dirname, '../fixtures/wpt');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const { executeFixture } = require('./process.cjs');
-const { TEST_TIMEOUT_MS, PROCESS_TIMEOUT_MS } = require('./constants/execution.cjs');
+const { TEST_TIMEOUT_MS, PROCESS_TIMEOUT_MS, WPT_TIMEOUT_MULTIPLIER } = require('./constants/execution.cjs');
 for (const [file, expected] of Object.entries(manifest.files)) {
   assert.equal(createHash('sha256').update(readFileSync(path.join(root, file))).digest('hex'), expected,
     `WPT fixture integrity: ${file}`);
@@ -27,10 +27,11 @@ async function main() {
   for (const suite of suites) assert.ok(manifest.suites[suite], `Unknown WPT suite: ${suite}`);
   const report = { capturedAt: new Date().toISOString(), node: process.version, platform: process.platform,
     execArgv: process.execArgv, heapSizeLimitBytes: getHeapStatistics().heap_size_limit,
-    fixtureLifecycle: 'A fresh process per engine/fixture; close the realm and wait for process termination. Original assertions and upstream timeouts; no forced GC.',
+    fixtureLifecycle: 'A fresh process per engine/fixture; close the realm and wait for process termination. Original assertions, upstream runner timeout multiplier applied equally to both engines; no forced GC.',
     wptRevision: manifest.revision, jsdom: require('jsdom/package.json').version, suites,
     outerTimeoutMs: TEST_TIMEOUT_MS,
     fixtureProcessTimeoutMs: PROCESS_TIMEOUT_MS,
+    timeoutMultiplier: WPT_TIMEOUT_MULTIPLIER,
     methodology: 'Unmodified upstream assertions; local static resource loader; status, name and failure messages compared. Matching expected failures do not imply standards conformance.',
     diagnosticNormalization: 'Only the wall-clock Date input description in the known Blob-constructor invalid-input assertion is canonicalized for comparison. Raw messages, statuses and actual/expected exception diagnostics are preserved.',
     excludedFixtures: manifest.excludedFixtures || {},

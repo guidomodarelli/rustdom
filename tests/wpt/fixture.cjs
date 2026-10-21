@@ -6,7 +6,7 @@ const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
 const { getHeapStatistics } = require('node:v8');
 const { performance } = require('node:perf_hooks');
-const { TEST_TIMEOUT_MS, FIXTURE_HOST, REPORTER } = require('./constants/execution.cjs');
+const { TEST_TIMEOUT_MS, FIXTURE_HOST, REPORTER, WPT_TIMEOUT_MULTIPLIER } = require('./constants/execution.cjs');
 const root = path.resolve(__dirname, '../fixtures/wpt');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 function mediaType(file) {
@@ -16,7 +16,7 @@ function mediaType(file) {
   return 'text/html';
 }
 
-/** Execute the unchanged real loader/reporter and always close its top-level realm. */
+/** Execute the real loader with the shared runner timeout policy and close its top-level realm. */
 async function run(engine, file) {
   let dom;
   let timer;
@@ -58,7 +58,7 @@ async function run(engine, file) {
   } finally { clearTimeout(timer); dom?.window.close(); }
 }
 
-/** Validate selected bytes and preserve the original fixture timer and cleanup. */
+/** Validate selected bytes and record the explicit bounded runner policy and cleanup. */
 async function runFixture(engineName, file) {
   assert.ok(['jsdom', 'rustdom'].includes(engineName), 'WPT fixture: unknown engine');
   const sourceFile = decodeURIComponent(new URL(file, `http://${FIXTURE_HOST}/`).pathname.slice(1));
@@ -71,6 +71,7 @@ async function runFixture(engineName, file) {
   const result = await run(engine, file);
   return { result, engine: engineName, file, pid: process.pid, node: process.version, v8: process.versions.v8,
     execArgv: process.execArgv, heapSizeLimitBytes: getHeapStatistics().heap_size_limit,
+    timeoutMultiplier: WPT_TIMEOUT_MULTIPLIER,
     durationMs: performance.now() - started, memoryBefore, memoryAfterClose: process.memoryUsage() };
 }
 

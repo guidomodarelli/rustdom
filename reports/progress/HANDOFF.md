@@ -1,5 +1,87 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: estudio pareado terminado; presupuesto sin aceptar
+
+La rama vigente es feature/native-class-ownership, PR #80. El último head publicado
+antes de esta actualización es 3d682ab477992381aba3bf1e4c98b55dbb01d826, con review
+remota limpia 6327932290. La rama temporal feature/native-class-ownership-sampler
+ya fue integrada y eliminada. No repetir las instrucciones históricas de publicarla.
+
+La sesión 88845 terminó con exit 1, no fue interrumpida: 64 workers terminaron
+con exit 0 y produjeron 9.216 duraciones. El launcher verificó ambos Nodes y se
+repitió la verificación offline con el mismo resultado. Datos completos y 350
+fuentes congeladas por Node en reports/benchmarks/native-class-ownership/paired-main/2026-10-21/.
+Node 22 calibró 5/8 A/A y 4/8 A/B, estas cuatro dentro del presupuesto. Node 24
+calibró 4/8 A/A y 5/8 A/B, solo cuatro dentro. accepted=false en ambos.
+mutation-records-collect/100 de Node 24 registró +5,776513% Rust y -1,507971%
+jsdom en A/B: excede +5% con control A/B calibrado; su A/A no calibró por jsdom
++2,737983%. Investigar el coste de implementación, sin atribuir causalidad al
+SDK ni aceptar presupuesto, cambiar estimador/umbrales o relanzar la secuencia
+idéntica. Los tests del archivo completo también rechazan aceptación falsa y
+Window retenido con clear=true/digest actualizado. No agregar APIs migradas.
+
+Una inspección estática reproducida por review independiente encontró un call
+adicional en B desde ToNapiValue de NativeMutationRecord a su new_instance tipado;
+A llama directamente a new_instance_raw vía GOT. Desensamblados, SHA, tamaños
+y relocaciones en reports/benchmarks/native-class-ownership/mutation-record-code-shape/.
+La limpieza adicional está en el camino de error. No demuestra coste temporal
+ni causalidad; investigar antes de alterar el runtime o medir una intervención.
+
+Se observaron 12.288 Window y 12.288 Document distintos en el estudio, con los
+últimos dos endpoints de cada lote liberados y baselines nativos comprobados.
+El resumen en reports/memory/native-class-ownership/paired-main-2026-10-21.json
+es posterior a GC, no pico ni garantía universal de ausencia de fugas.
+
+CI general 39686199408 terminó: Ubuntu y Windows aprobaron; macOS y shard1
+fallaron. El shard1 llegó a cero Window/Document en la tercera y última ronda,
+sin una segunda observación clara disponible. La corrección preparada aplica
+el default acotado existente de 12 rondas/10 s solo a Vitest/VM y mantiene dos
+endpoints limpios; las ocho cargas y el sampler conservan tres rondas. Seis
+tests aprobaron por Node 22/24: 56 endpoints/672 objetivos por tipo y retención
+deliberada rechazada. Evidencia en reports/validation/native-class-ownership/async-environment-release/.
+
+El artefacto macOS 12387930088 se descargó, coincidió con el SHA oficial y pasó
+los CRC. El único fallo vuelve a ser Range-mutations-dataChange.html: 2.808
+casos individuales iguales y aprobados, pero jsdom global TIMEOUT (2) tras
+78.752,944708 ms frente a rustdom OK (0) tras 17.699,825 ms; límite upstream
+long de 60 s. El aislamiento por proceso no lo resolvió. El reporte completo
+original comprimido está en reports/validation/native-class-ownership/ci-macos-timeout/39686199408/.
+
+La corrección WPT configura la extensión upstream setup({timeout_multiplier:2})
+igual para ambos motores, conservando fixtures/assertions y comparación de
+TIMEOUT. Publica multiplier y límites externos finitos 150/180 s. Once tests
+aprobaron sobre las fuentes finales en Node 22/24 Linux y Windows Node 24,
+incluidos timeouts globales reales tras un caso aprobado en ambos motores.
+La sesión 51948 terminó con exit 0: ambos corpus completos de 240 fixtures,
+83.007 resultados y 1.203 fallos de estándares compartidos por Node aprobaron
+paridad; 960 procesos terminaron con exit 0/signal null. La sesión 80033 también
+terminó con exit 0. No reiniciar estas cargas. Los reportes completos comprimidos,
+fuentes, logs finales y procedencia están en
+reports/validation/native-class-ownership/wpt-runner-timeout/; se recalculó su
+paridad con el comparador real. Reviews independientes de código y datos finales:
+cero hallazgos. macOS necesita CI.
+
+El archivo pareado completo pasó tres contratos en ambos Linux y Windows Node 24,
+incluidos rechazo de aceptación falsa y Window retenido con digest actualizado.
+CI ahora ejecuta esos contratos junto con los anteriores: el comando exacto
+aprobó 20 tests por Node 22/24 y actionlint pasó. Un P2 local de filtros incompletos
+se corrigió cubriendo el área del método y sus dependencias; review final limpia.
+Los snapshots y desensamblados conservan sus bytes mediante atributos Git;
+las fuentes reales y los tests siguen visibles. No se cambia preflight ni aceptación.
+
+XMLSerializer 39686199544 terminó sin calibrar A/A: 208 procesos/6.656 duraciones,
+xml-serialize/1 = -2,256625% frente a ±2%, accepted=null y sin A/B. ZIP original,
+datos y verificación están en xml-validation/39686199544/. El resultado anterior
+39679501920 sigue conservado, pero no reemplaza este fallo ni acepta ownership.
+
+Siguiente: publicar los cambios validados y comprobar CI/review del SHA final.
+Corregir el coste observado antes
+de merge/tag. Inventario014c7da y la migración de living/node.js siguen pendientes;
+el objetivo integral no está completo y el porcentaje global aún no está auditado.
+El catálogo vigente conserva 531 archivos, 4.331 APIs y 7.246 anclas ejecutables
+como dimensiones separadas, con tres módulos auditados. El commit014c7da aún
+no integrado añade la auditoría de living/node.js, no cambia esos denominadores.
+
 ## Actualización: corpus WPT aislado completado en ambos Nodes
 
 Node 22.12.0 y 24.14.1 completaron las 240 fixtures con paridad, 83.007 resultados
