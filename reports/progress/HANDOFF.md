@@ -1,77 +1,75 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: índice de IDs de Document y búsquedas SVG
+## Estado actual: lecturas de atributos
 
-La base estable es main, commit `60f7cb6e925310fce3e16676ebae93debd2faca7`, tag
-`checkpoint-063-fragment-id`. El PR 75 está mergeado: ocho checks aprobados,
-revisión limpia de `859c111`, árbol del squash idéntico al head revisado y
-rama integrada eliminada. Incluye DocumentFragment.getElementById, template.content
-y ShadowRoot nativos. Los cuatro fallos originales de DOMParser están resueltos
-desde PR 70/checkpoint 58; el registro antiguo de abajo es histórico.
+La base estable es main, commit baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6,
+tag checkpoint-064-id-lookups. El PR 76 está mergeado: ocho checks aprobados,
+revisión limpia de be90ba1, árbol del squash idéntico al head revisado y rama
+integrada eliminada. El índice de Document conserva orden de registro y aliases;
+SVG incluye el root y admite un atributo ID vacío explícito. Los cuatro fallos
+originales de DOMParser están resueltos desde PR 70/checkpoint 58.
 
-El siguiente hito es `feature/native-id-lookups`. El índice y selección de
-Document.getElementById conservan en Rust orden de registro, duplicados y aliases,
-filtrando por la raíz física actual. SVGSVGElement.getElementById recorre en Rust
-en orden físico, incluye el root y acepta un atributo ID vacío explícito.
-WebIDL, factories y efectos generales conservan el host; el runtime sigue híbrido.
-Verificar el PR y su SHA revisado antes de asumir que este hito está integrado.
+El siguiente hito es feature/native-attribute-reads. getAttribute/getAttributeNS
+combinan selección y valor en una llamada Rust; hasAttribute/hasAttributeNS
+resuelven presencia sin mapear wrappers Attr. Los helpers de valor reflejado
+resuelven el vacío en Rust; title y sus wrappers mantienen su propio fallback
+en el host. Se conservan aliases históricos, orden físico NS, folding ASCII,
+adopción y UTF-16. No se agregó cache ni ownership persistente.
+WebIDL, factories y efectos generales permanecen pendientes; el runtime es híbrido.
+Verificar PR, CI y SHA revisado antes de asumir integrado este hito.
 
-Una suite general detectó que quitar la lectura interna getAttributeNS durante
-alta/baja cambiaba las trazas de FormData. Se restauró la invocación observable,
-manteniendo el índice en Rust. Dieciséis regresiones nuevas cubren orden, aliases,
-excepciones y mutaciones durante el getter; se conservan el fallo y su corrección.
-No reintroducir la lectura directa del Attr como sustituto de ese hook observable.
+La validación local pasó 305 tests Rust en 1.98.1/1.99.1 y, por Node
+22.12.0/24.14.1, 3638 contratos Node, Jest 21, Vitest 32, VM 32,
+273 focales y 105 de harness. Los veinte diferenciales públicos nuevos también
+pasaron contra checkpoint 64, junto a diecisiete contratos previos. Pasaron
+32 escenarios nuevos de GC por Node, cinco modos generales, Memcheck y cuarenta
+controles del mismo paquete instalado. HTML5 pasó 1784/1784 casos comparables;
+WPT ejecutó los 240 fixtures por Node, con paridad, 83007 resultados y 1203
+fallos de estándar compartidos, complete=false y exclusiones sin reducir.
 
-La validación local final pasó 299 tests Rust en 1.98.1/1.99.1,
-3615 contratos Node por versión 22.12.0/24.14.1, Jest 21, Vitest 32
-y VM 32. Pasaron 106 diferenciales del baseline, 109 focales finales,
-994 integrados y 94 contratos de harness por Node. Cada runtime pasó
-62 escenarios nuevos de GC, además de 78 de fragmentos y 52 de colecciones.
-Aprobaron HTML5, Memcheck y cuarenta controles del mismo paquete instalado.
-Cada Node ejecutó un comando WPT completo: 240 fixtures, 83007 resultados
-y 1203 fallos de estándar compartidos; complete=false. La paridad no
-certifica conformidad completa. El corpus y sus exclusiones no se redujeron.
+Los benchmarks finales guardan ambos órdenes, ocho reportes, 32 workers y
+36 muestras por fila/motor/etapa/runtime. Incluyen once tareas públicas de
+atributos y cuatro de Document/controles; las regresiones y el ruido se publican.
+Un piloto previo de conversión inline UTF-16 se descartó por no mostrar una
+mejora consistente; sus fuentes y muestras están archivadas por separado.
+Queda optimizar attribute-get-miss: +14,95%/+8,96% en Node 22 a 100/1.000 Attrs
+y +6,88% en Node 24 a 1.000. Los hits NS siguen en 0,16–0,82× frente a jsdom.
+La tabla completa conserva también los costos de copia de valores largos.
 
-Los ocho reportes de benchmark conservan ambos órdenes y 36 muestras por
-fila/motor/etapa/runtime. Se miden siete tareas migradas y dos controles sobre
-100/1.000 Element, con hash de todo el scope. Registro mide una única inserción
-del subárbol preparado; las otras filas consumen cien consultas o setters.
-Se publican también regresiones y costos del puente:
+- [Validación e identidades](../validation/attribute-reads.md).
+- [Benchmarks](../benchmarks/attribute-reads/README.md).
+- [Memoria](../memory/attribute-reads/README.md).
+- [Piloto descartado](../benchmarks/utf16-input-pilot/README.md).
 
-- [Validación y fuentes](../validation/id-lookups.md).
-- [Benchmarks](../benchmarks/id-lookups/README.md).
-- [Memoria](../memory/id-lookups/README.md).
-
-El índice global sigue en 45,8% por áreas; no mide APIs ni compatibilidad completa.
-Queda optimizar las lecturas, ausencias, registros y cambios de IDs de Document:
-las muestras registran mayor duración frente al checkpoint 63. Reducir esos
-costos sin volver al índice JavaScript, preservando getters, aliases, orden y GC.
-El informe de benchmarks conserva ambos órdenes y los controles de ruido.
-Las factories, WebIDL y los algoritmos generales de Node/Document/Element y demás
-familias de plataforma siguen pendientes. El objetivo integral permanece abierto.
+Conservar la llamada observable getAttributeNS durante alta/baja del Element:
+quitarla rompió 86 trazas de FormData en el hito anterior. Las regresiones,
+aliases, excepciones y mutaciones durante ese getter siguen verificadas.
+El índice global permanece en 45,8% por áreas y no mide compatibilidad completa.
+Continuar con los algoritmos generales de Node/Document/Element, factories,
+WebIDL y las familias aún delegadas de ROADMAP.md; el objetivo integral está abierto.
 
 Prompt para retomar:
 
 ```text
-Retomá rustdom desde feature/native-id-lookups; si fue mergeada, partí de main.
+Retomá rustdom desde feature/native-attribute-reads; si fue mergeada, partí de main.
 Leé AGENTS.md, reports/progress/HANDOFF.md, ROADMAP.md y
-reports/validation/id-lookups.md. Verificá el estado remoto, los checks y el SHA
-revisado de cada PR antes de dar por integrada una rama.
+reports/validation/attribute-reads.md. Verificá el estado remoto, los checks y el
+SHA revisado de cada PR antes de dar por integrada una rama.
 
 Los cuatro fallos originales de DOMParser están resueltos desde checkpoint 58.
-Terminá los checks/reviews pendientes del hito de IDs y continuá con los
-algoritmos de Node/Document/Element y las APIs aún delegadas en ROADMAP.md.
-Document usa orden de registro y aliases, no orden físico; SVG incluye el root
-y admite atributo ID vacío. Conservá la llamada observable getAttributeNS en
-el lifecycle de alta/baja: quitarla rompió los contratos reales de FormData.
-Preservá namespaces, UTF-16, identidades, errores y efectos parciales.
+La base checkpoint 64 incorpora IDs Document/SVG. Terminá CI/reviews del hito de
+atributos y continuá migrando los algoritmos de Node/Document/Element y las APIs
+aún delegadas. Conservá aliases históricos, namespaces, UTF-16, errores,
+identidades y efectos parciales. No elimines el hook observable getAttributeNS
+del lifecycle. El fallback generado de title sigue en el host; no presentar
+este hito como una migración completa de reflexión o del DOM.
 
-El objetivo sigue siendo 100% de implementación Rust y compatibilidad
-verificable con jsdom; la versión híbrida es intermedia. Instalá lo necesario
-sin preguntar. Validá Node 22 y 24, guardá benchmarks y análisis de memoria,
-observando Document y Window por separado. Publicá cada hito bien probado con
-commit, push y checkpoint. Aplicá codex-autofix-loop en cada PR, verificá
-revisión del SHA actual y CI antes del merge y eliminá las ramas integradas.
+El objetivo sigue siendo 100% Rust y compatibilidad verificable con jsdom;
+la versión híbrida es intermedia. Instalá lo necesario sin preguntar.
+Validá Node 22 y 24, guardá benchmarks y análisis de memoria observando
+Document y Window por separado. Publicá cada hito bien probado con commit,
+push y checkpoint. Aplicá codex-autofix-loop en cada PR, verificá revisión
+del SHA actual y CI antes del merge y eliminá las ramas integradas.
 No publiques paquetes npm automáticamente.
 ```
 

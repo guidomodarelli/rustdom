@@ -6,6 +6,7 @@ const { ELEMENT_RELATIVE_WORKLOADS } = require('./constants/element-relatives.cj
 const { NAME_QUERY_WORKLOADS } = require('./constants/name-queries.cjs');
 const { FRAGMENT_ID_WORKLOADS } = require('./constants/fragment-id.cjs');
 const { ID_LOOKUP_WORKLOADS } = require('./constants/id-lookups.cjs');
+const { ATTRIBUTE_READ_WORKLOADS } = require('./constants/attribute-reads.cjs');
 /** Explicit repeated-reference workloads remain opt-in. */
 const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
 /** Public Range content operations and their fixture keys. */
@@ -52,6 +53,7 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => NAME_QUERY_WORKLOADS.map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => FRAGMENT_ID_WORKLOADS.map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ID_LOOKUP_WORKLOADS.map((name) => ({ name, size }))),
+    ...[100, 1000].flatMap((size) => ATTRIBUTE_READ_WORKLOADS.map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['selection-read', 'selection-associate', 'selection-extend', 'selection-contains', 'selection-stringify'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['storage-insert', 'storage-write', 'storage-get', 'storage-key', 'storage-enumerate', 'storage-remove', 'storage-clear', 'storage-quota'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['dataset-read', 'dataset-enumerate', 'dataset-write', 'dataset-delete'].map((name) => ({ name, size }))),

@@ -620,6 +620,13 @@ export class NativeTree {
   containsAttribute(element: number, attribute: number): boolean;
   attributeByName(element: number, name: string, htmlDocument: boolean): number;
   attributeByNamespace(element: number, namespace: string | null, name: string): number;
+  /** Current canonical value in one operation; absence is null. */
+  attributeValueByName(element: number, name: string, htmlDocument: boolean): string | null;
+  attributeValueByNamespace(element: number, namespace: string | null, name: string): string | null;
+  /** Content reflection returns an empty string when absent. */
+  attributeReflectionValue(element: number, namespace: string | null, name: string): string;
+  hasAttributeByName(element: number, name: string, htmlDocument: boolean): boolean;
+  hasAttributeByNamespace(element: number, namespace: string | null, name: string): boolean;
   attributeNames(element: number, supported: boolean, htmlDocument: boolean): string[];
   /** Attribute mutations initialize empty snapshots implicitly and reject nonempty snapshot-only data. */
   appendAttribute(element: number, attribute: number): AttributeDelta;

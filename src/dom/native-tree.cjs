@@ -760,6 +760,26 @@ class NativeSymbolTree extends SymbolTree {
   attributeByNamespace(element, namespace, name) {
     return this._object(this._arena.attributeByNamespace(this._ensure(element), namespace, name));
   }
+  /** @param {object} element - Current owner. @param {string} name - Qualified name. @returns {string|null} Current value, preserving legacy aliases and document mode. */
+  attributeValueByName(element, name) {
+    return this._arena.attributeValueByName(this._ensure(element), name, element._ownerDocument._parsingMode === 'html');
+  }
+  /** @param {object} element - Current owner. @param {string|null} namespace - Namespace. @param {string} name - Exact local name. @returns {string|null} Current canonical value. */
+  attributeValueByNamespace(element, namespace, name) {
+    return this._arena.attributeValueByNamespace(this._ensure(element), namespace, name);
+  }
+  /** @param {object} element - Current owner. @param {string|null} namespace - Namespace. @param {string} name - Exact local name. @returns {string} Current content value, empty when absent. */
+  attributeReflectionValue(element, namespace, name) {
+    return this._arena.attributeReflectionValue(this._ensure(element), namespace, name);
+  }
+  /** @param {object} element - Current owner. @param {string} name - Qualified name. @param {boolean} [normalize] - Whether HTML ASCII folding applies. @returns {boolean} Presence without resolving an Attr wrapper. */
+  hasAttributeByName(element, name, normalize = true) {
+    return this._arena.hasAttributeByName(this._ensure(element), name, normalize && element._ownerDocument._parsingMode === 'html');
+  }
+  /** @param {object} element - Current owner. @param {string|null} namespace - Namespace. @param {string} name - Exact local name. @returns {boolean} Physical namespace membership. */
+  hasAttributeByNamespace(element, namespace, name) {
+    return this._arena.hasAttributeByNamespace(this._ensure(element), namespace, name);
+  }
   /** @param {object} element - Element. @param {boolean} [supported] - NamedNodeMap supported-property filtering. @returns {string[]} Native ordered names. */
   attributeNames(element, supported = false) {
     return this._arena.attributeNames(this._ensure(element), supported, element._ownerDocument._parsingMode === 'html');

@@ -16,9 +16,9 @@ function notify(element, attribute, oldValue, newValue) {
 /** @param {object} element - Element. @param {object} attribute - Attr. @returns {boolean} */
 exports.hasAttribute = (element, attribute) => domSymbolTree.containsAttribute(element, attribute);
 /** @param {object} element - Element. @param {string} name - Already-normalized name. @returns {boolean} */
-exports.hasAttributeByName = (element, name) => domSymbolTree.attributeByName(element, name, false) !== null;
+exports.hasAttributeByName = (element, name) => domSymbolTree.hasAttributeByName(element, name, false);
 /** @param {object} element - Element. @param {string|null} namespace - Namespace. @param {string} name - Local name. @returns {boolean} */
-exports.hasAttributeByNameNS = (element, namespace, name) => domSymbolTree.attributeByNamespace(element, namespace, name) !== null;
+exports.hasAttributeByNameNS = (element, namespace, name) => domSymbolTree.hasAttributeByNamespace(element, namespace, name);
 
 /** @param {object} element - Element. @param {object} attribute - Attr. @param {string} value - New value. @returns {void} */
 exports.changeAttribute = (element, attribute, value) => {
@@ -59,9 +59,9 @@ exports.getAttributeByName = (element, name) => domSymbolTree.attributeByName(el
 /** @param {object} element - Element. @param {string|null} namespace - Namespace. @param {string} name - Local name. @returns {object|null} */
 exports.getAttributeByNameNS = (element, namespace, name) => domSymbolTree.attributeByNamespace(element, namespace === '' ? null : namespace, name);
 /** @param {object} element - Element. @param {string} name - Local name. @returns {string} */
-exports.getAttributeValue = (element, name) => exports.getAttributeByNameNS(element, null, name)?._value ?? '';
+exports.getAttributeValue = (element, name) => domSymbolTree.attributeReflectionValue(element, null, name);
 /** @param {object} element - Element. @param {string|null} namespace - Namespace. @param {string} name - Local name. @returns {string} */
-exports.getAttributeValueNS = (element, namespace, name) => exports.getAttributeByNameNS(element, namespace, name)?._value ?? '';
+exports.getAttributeValueNS = (element, namespace, name) => domSymbolTree.attributeReflectionValue(element, namespace, name);
 
 /** @param {object} element - Target. @param {object} attribute - Attr. @returns {object|null} Previous Attr. */
 exports.setAttribute = (element, attribute) => {
