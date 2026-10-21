@@ -7,6 +7,9 @@ on:
       - 'third-party/napi/src/bindgen_runtime/**'
       - 'reports/benchmarks/native-class-ownership/hosted-experiment.cjs'
       - 'reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs'
+      - 'reports/benchmarks/native-class-ownership/history.cjs'
+      - 'reports/benchmarks/native-class-ownership/history.spec.cjs'
+      - 'reports/benchmarks/native-class-ownership/constants/history.cjs'
       - 'reports/benchmarks/native-class-ownership/constants/hosted.cjs'
       - 'reports/benchmarks/native-class-ownership/HOSTED-PROTOCOL.md'
 
@@ -26,6 +29,7 @@ jobs:
       CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
       RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
       OWNERSHIP_OUTPUT: reports/benchmarks/ownership-hosted-${{ github.run_id }}-${{ github.run_attempt }}
+      OWNERSHIP_ARCHIVE: reports/benchmarks/native-class-ownership/hosted/39643090437
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -36,19 +40,32 @@ jobs:
         with:
           node-version: '22.12.0'
           cache: npm
+      - name: Determinar si la fuente y el protocolo ya tienen evidencia
+        id: history
+        run: node reports/benchmarks/native-class-ownership/history.cjs .baseline "$OWNERSHIP_ARCHIVE" >> "$GITHUB_OUTPUT"
+      - name: Verificar los contratos con observaciones públicas reales
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs
+      - name: Verificar la evidencia existente y conservar su resultado
+        if: steps.history.outputs.reuse == 'true'
+        run: |
+          node reports/benchmarks/native-class-ownership/hosted-experiment.cjs --verify "$OWNERSHIP_ARCHIVE"
+          node -e 'const fs = require("node:fs"); const index = JSON.parse(fs.readFileSync(process.env.OWNERSHIP_ARCHIVE + "/index.json")); if (!index.accepted) { console.error("La evidencia verificada sigue sin aprobar el presupuesto; no se repite la medición."); process.exitCode = 1; }'
       - uses: dtolnay/rust-toolchain@1.99.1
+        if: steps.history.outputs.reuse != 'true'
       - uses: Swatinem/rust-cache@v2
+        if: steps.history.outputs.reuse != 'true'
       - name: Preparar la referencia inmutable
+        if: steps.history.outputs.reuse != 'true'
         working-directory: .baseline
         run: |
           test "$(git rev-parse HEAD)" = 3d37f89976a48203e80cc5c435e099267f4ce346
           npm ci
           npm run build
       - name: Preparar el candidato
+        if: steps.history.outputs.reuse != 'true'
         run: npm ci && npm run build
-      - name: Verificar los contratos con observaciones públicas reales
-        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs
       - name: Seleccionar una CPU permitida y registrar herramientas
+        if: steps.history.outputs.reuse != 'true'
         shell: bash
         run: |
           cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
@@ -57,9 +74,10 @@ jobs:
           node --version
           rustc -Vv
       - name: Ejecutar una secuencia completa A/A y A/B
+        if: steps.history.outputs.reuse != 'true'
         run: node reports/benchmarks/native-class-ownership/hosted-experiment.cjs .baseline "$OWNERSHIP_OUTPUT" "$RUSTDOM_BENCHMARK_CPU"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.history.outputs.reuse != 'true'
         with:
           name: native-class-ownership-node22-${{ github.event.pull_request.head.sha }}
           path: ${{ env.OWNERSHIP_OUTPUT }}/

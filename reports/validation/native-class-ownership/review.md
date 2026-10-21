@@ -65,3 +65,15 @@ Los cinco contratos pasaron en Node 22.12.0/Linux y 24.14.1/Windows; `actionlint
 aprobó el workflow. El mismo reviewer nativo Codex aislado revisó el delta
 corregido: cero hallazgos accionables, P2 cerrado, sin modificaciones ni cargas.
 No acredita todavía una medición hosted ni reemplaza la review remota final.
+
+La revisión posterior del artefacto Linux verificó su digest, los 52 archivos
+del ZIP, 64 procesos y 1.152 duraciones: cuatro filas sin calibración y rechazo
+intacto. La revisión de `history.cjs`, sus contratos y el workflow confirmó
+que solo se seleccionan fuentes/protocolo coincidentes, se verifican los raw y
+se sigue exigiendo `accepted=true`. Resultado final del reviewer nativo Codex
+aislado: cero hallazgos accionables; solo lectura y cálculos, sin cargas.
+Los ocho contratos pasaron en Node 22/Linux y 24/Windows; tras ajustar el path
+de protocolo al candidato se repitieron los tres afectados en ambos Node.
+`actionlint`, el manifest de 58 archivos conservados y las 337 fuentes de la
+validación original también fueron comprobados. El gate de rendimiento sigue
+sin aprobarse y requiere una nueva hipótesis o método justificado.

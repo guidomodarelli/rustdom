@@ -104,3 +104,31 @@ contratos recalculan las observaciones históricas reales y protegen los archivo
 pasaron en Node 22.12.0/Linux y 24.14.1/Windows. Se ejerció además el generador
 real de reportes parciales: el JSON, sus observaciones y hash se conservan antes
 de propagar el fallo del CLI. El workflow pasó `actionlint`.
+
+## Resultado del runner independiente
+
+El run `39643090437` completó el protocolo y falló sus gates: ninguna fila
+calibró. Se descargó el artefacto `12366716548`, cuyo ZIP tiene SHA-256
+`3f2c2f3e6d03226a5160e77023647e6c52d464244f665abd00b6553625d8a266`,
+coincidente con el digest de GitHub. Los 64 procesos y 1.152 duraciones se
+recalcularon; fuentes, binarios, protocolos, orden y salidas coinciden.
+Los raw, ZIP, log, procedencia y verificación están en `hosted/39643090437/`.
+
+| Fase | Tamaño | Rust Δ% | Control jsdom Δ% |
+| --- | ---: | ---: | ---: |
+| A/A | 1000 | +4,3101 | +3,6005 |
+| A/A | 250 | −0,4898 | −6,4675 |
+| A/B | 1000 | +6,4527 | +213,4203 |
+| A/B | 250 | +2,4348 | −24,8075 |
+
+El presupuesto permanece inconcluso. No se atribuye al SDK una mejora ni una
+regresión a partir de estos controles y no se relanza la misma medición para
+obtener un resultado favorable. Una investigación posterior requiere una
+hipótesis o un método nuevo justificado; los resultados anteriores permanecen.
+
+Las publicaciones con fuentes A/B y bytes del driver/protocolo idénticos usan
+`history.cjs` para seleccionar esta evidencia. El workflow verifica todos los
+raw y vuelve a exigir `accepted=true`: conserva el fallo al reutilizar estos
+datos. Una verificación fiel con `accepted=false` no aprueba el presupuesto ni
+habilita merge/tag. Los contratos usan las fuentes reales y comprueban también
+rechazo de otro candidato y ausencia de evidencia, sin generar nuevas muestras.

@@ -132,8 +132,34 @@ el candidato; no cambia la fuente canónica ni reemplaza los resultados WSL.
 Consultar sus runs por rama/SHA, esperar el handle existente y descargar/verificar
 el artefacto antes de decidir aceptación. No reiniciar por falta de salida ni
 repetir una medición completa para seleccionar resultados favorables.
-El presupuesto público permanece inconcluso hasta obtener esa evidencia.
-Merge/tag siguen pendientes de rendimiento, review y CI del head final.
+El run independiente `39643090437`, job `119371473366`, terminó con failure
+de sus presupuestos después de los 64 procesos y 1.152 duraciones completos.
+Ninguna de las cuatro filas calibró. A/A: Rust +4,3101%/−0,4898%, jsdom
++3,6005%/−6,4675% para 1000/250. A/B: Rust +6,4527%/+2,4348%, jsdom
++213,4203%/−24,8075%. No es una falla de infraestructura y no resuelve la
+atribución de la fila WSL original.
+
+Los datos y la verificación están en `hosted/39643090437/`. El ZIP del artefacto
+`12366716548` coincide con SHA-256
+`3f2c2f3e6d03226a5160e77023647e6c52d464244f665abd00b6553625d8a266`.
+El merge temporal `ef680ae827b755e5d371faa677c1a1fc4b80f771` y el head
+`cdfcd58b89442f4e525dcb42e4265f661f6b613d` tienen el mismo árbol
+`264d9afa6771fdfacbf380f9ae44be59a43eb3da`. La review remota del head cdf
+cerró limpia, recibo `6322200524`; no cubre commits posteriores.
+
+El workflow selecciona la evidencia existente solo si coinciden ambas fuentes
+canónicas y el driver/protocolo. La verifica íntegra y conserva su fallo:
+no reejecutar esta carga idéntica para seleccionar resultados favorables.
+El presupuesto sigue inconcluso y exige una nueva hipótesis o mejora justificada
+del método. Merge/tag siguen pendientes de ese gate, review y CI del head final.
+
+La auditoría independiente de `living/node.js` está publicada en
+`feature/inventory-node-helpers`, `014c7daeb00fe700bb7eb2b5dc86718b7ef148da`,
+worktree `migration-inventory`. Siete exports auditados; cuatro módulos híbridos
+clasificados, mismos denominadores y porcentaje global desconocido. Pasaron
+7/7 contratos en Node 22/24 sobre una copia Linux verificada; conserva un fallo
+inicial de timeout en /mnt/c. Revisión local limpia. No tiene PR ni está
+integrada; mantenerla separada hasta cerrar la corrección principal.
 
 El runner WPT cierra los realms y cede un turno entre fixtures para permitir
 liberar targets débiles. La corrida Node 24 que agotó old-space y sus controles
