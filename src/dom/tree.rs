@@ -1,5 +1,6 @@
 //! Node-API adapter for the platform-independent tree store.
 use super::{
+    attribute_copy::AttributeCopyData,
     attributes,
     character_data::WholeText,
     collection_queries::CollectionFilter,
@@ -50,6 +51,21 @@ use napi::{
 use napi_derive::napi;
 
 impl NativeTree {
+    pub(super) fn attribute_copy_data(
+        &self,
+        source: f64,
+    ) -> super::error::Result<AttributeCopyData> {
+        self.store.prepare_attribute_copy(source)
+    }
+
+    pub(super) fn initialize_attribute_copy_data(
+        &mut self,
+        destination: f64,
+        copy: &AttributeCopyData,
+    ) -> super::error::Result<()> {
+        self.store.initialize_attribute_copy(destination, copy)
+    }
+
     pub(super) fn mutation_record_state(
         &self,
         draft: MutationRecordDraft,

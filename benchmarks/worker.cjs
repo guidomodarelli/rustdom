@@ -32,6 +32,8 @@ const { idLookupFixture } = require('./id-lookups.cjs');
 const { ID_LOOKUP_WORKLOADS, ID_LOOKUP_DOCUMENT_HTML } = require('./constants/id-lookups.cjs');
 const { attributeReadFixture } = require('./attribute-reads.cjs');
 const { ATTRIBUTE_READ_WORKLOADS, ATTRIBUTE_READ_DOCUMENT_HTML } = require('./constants/attribute-reads.cjs');
+const { nodeCloneFixture } = require('./node-clone.cjs');
+const { NODE_CLONE_WORKLOADS, NESTED_TEMPLATE_CLONE_WORKLOAD, NODE_CLONE_DOCUMENT_HTML } = require('./constants/node-clone.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -298,9 +300,11 @@ async function measure(name, size) {
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
   const measuresAttributeReads = ATTRIBUTE_READ_WORKLOADS.includes(name);
-  const usesEmptyDocument = measuresDocumentNames || measuresFragmentIds || measuresIdLookups || measuresAttributeReads;
+  const measuresCloning = NODE_CLONE_WORKLOADS.includes(name) || name === NESTED_TEMPLATE_CLONE_WORKLOAD;
+  const usesEmptyDocument = measuresDocumentNames || measuresFragmentIds || measuresIdLookups || measuresAttributeReads || measuresCloning;
   const html = measuresDocumentNames ? NAME_QUERY_DOCUMENT_HTML : measuresFragmentIds ? FRAGMENT_ID_DOCUMENT_HTML
-    : measuresIdLookups ? ID_LOOKUP_DOCUMENT_HTML : measuresAttributeReads ? ATTRIBUTE_READ_DOCUMENT_HTML : fixture(size);
+    : measuresIdLookups ? ID_LOOKUP_DOCUMENT_HTML : measuresAttributeReads ? ATTRIBUTE_READ_DOCUMENT_HTML
+      : measuresCloning ? NODE_CLONE_DOCUMENT_HTML : fixture(size);
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const contentOperation = RANGE_CONTENT_OPERATIONS[name];
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
@@ -431,6 +435,7 @@ async function measure(name, size) {
       if (measuresFragmentIds) collectionWork = fragmentIdFixture(runtime, dom.window, size, name);
       if (measuresIdLookups) collectionWork = idLookupFixture(runtime, dom.window, size, name);
       if (measuresAttributeReads) collectionWork = attributeReadFixture(runtime, dom.window, size, name);
+      if (measuresCloning) collectionWork = nodeCloneFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();

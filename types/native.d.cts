@@ -16,6 +16,25 @@ export function domParserOperation(owner: object, operation: DomParserOperation,
 /** Synchronous activity and XML recovery attempts, without retained DOM owners. */
 export function domParserStatistics(): import('./index.cjs').DomParserStatistics;
 
+/** Immutable canonical Attr fields; owns no forest, handles, owner or JS references. */
+export class NativeAttributeCopy {
+  private constructor();
+  /** Captures current fields without retaining the source forest. */
+  static prepare(source: NativeTree, handle: number): NativeAttributeCopy;
+  /** Validates a fresh allocated/reserved target before initializing its canonical data. */
+  initialize(destination: NativeTree, handle: number): void;
+  readonly localName: string;
+  readonly namespace: string | null;
+  readonly prefix: string | null;
+  readonly value: string;
+}
+/** Byte estimates cover owned Rust capacities and wrapper/state, excluding allocator metadata. */
+export interface NativeAttributeCopyStatistics {
+  live: number; created: number; released: number;
+  liveBytes: number; accountedBytes: number; accountingErrors: number;
+}
+export function attributeCopyStatistics(): NativeAttributeCopyStatistics;
+
 /** Strings are native data; numeric names and values identify separate GC-visible host owners. */
 export interface NativeFormDataEntry { id: number; name: string | number; value: string | number; }
 /** Scalar Selection direction. The host retains its associated Range and realm. */

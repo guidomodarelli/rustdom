@@ -8,6 +8,7 @@ import nativeRuntime, {
   NativeRangeClone, RangeCloneAction,
   NativeRangeExtract, RangeExtractAction, NodeTextWriteAction, NodeInsertionStatus,
   NativeFormDataEntries, formDataConstructionStatistics,
+  NativeAttributeCopy, attributeCopyStatistics,
   DocumentImplementationOperation, documentImplementationOperation, documentImplementationStatistics,
   NativeSelectionState, SelectionOperation, selectionOperationStatistics,
   NativeSlotAssignmentDriver, SlotAssignmentAction,
@@ -31,6 +32,17 @@ assert.deepEqual(nativeFormEntries.getAll('text'), ['first', 'second']);
 assert.equal(nativeFormEntries.set('text', 'changed')?.existed, true);
 assert.equal(nativeFormEntries.entryAt(0)?.value, 'changed'); assert.equal(nativeFormEntries.length, 1);
 assert.equal(formDataConstructionStatistics().active, 0);
+
+/** Installed typed ESM copies preserve owned native strings after the source is released. */
+const attributeCopySource = new NativeTree(), attributeCopySourceId = attributeCopySource.allocate();
+attributeCopySource.initializeAttribute(attributeCopySourceId, '{"kind":2,"name":"id","value":[65,0,55296]}');
+const attributeCopy: NativeAttributeCopy = NativeAttributeCopy.prepare(attributeCopySource, attributeCopySourceId);
+attributeCopySource.release(attributeCopySourceId);
+const attributeCopyTarget = new NativeTree(), attributeCopyTargetId = attributeCopyTarget.allocate();
+attributeCopy.initialize(attributeCopyTarget, attributeCopyTargetId);
+assert.ok(attributeCopy instanceof NativeAttributeCopy);
+assert.equal(attributeCopyTarget.attributeField(attributeCopyTargetId, nativeRuntime.AttributeField.Value), 'A\0\ud800');
+assert.ok(attributeCopyStatistics().live > 0);
 
 /** Installed ESM FileReader exports preserve scalar state and BOM-prioritized decoding. */
 const readerState = new NativeFileReaderState(); assert.equal(readerState.begin(), true); assert.equal(readerState.abort(), true);

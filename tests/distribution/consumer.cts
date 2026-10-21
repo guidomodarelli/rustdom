@@ -4,6 +4,19 @@ import rustdom = require('@rustdom/rustdom');
 import native = require('@rustdom/rustdom/native');
 import JestEnvironment = require('@rustdom/rustdom/jest');
 
+/** Installed typed native copies survive source release and initialize independent Rust data. */
+const attributeCopySource = new native.NativeTree();
+const attributeCopySourceId = attributeCopySource.allocate();
+attributeCopySource.initializeAttribute(attributeCopySourceId, '{"kind":2,"name":"id","value":[65,0,55296]}');
+const attributeCopy: native.NativeAttributeCopy = native.NativeAttributeCopy.prepare(attributeCopySource, attributeCopySourceId);
+attributeCopySource.release(attributeCopySourceId);
+const attributeCopyTarget = new native.NativeTree(), attributeCopyTargetId = attributeCopyTarget.allocate();
+attributeCopy.initialize(attributeCopyTarget, attributeCopyTargetId);
+assert.ok(attributeCopy instanceof native.NativeAttributeCopy);
+assert.equal(attributeCopy.value, 'A\0\ud800');
+assert.equal(attributeCopyTarget.attributeField(attributeCopyTargetId, native.AttributeField.Value), attributeCopy.value);
+assert.ok(native.attributeCopyStatistics().live > 0);
+
 /** Installed native FormData entries preserve duplicate order and File marker identity. */
 const nativeFormEntries = new native.NativeFormDataEntries();
 const nativeFormFile = nativeFormEntries.append('file', null); nativeFormEntries.append('text', 'value');

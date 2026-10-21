@@ -14,6 +14,16 @@ La migración de `CharacterData` elimina su copia de texto en JavaScript: `Text`
 
 `Attr` también conserva nombres, namespaces, prefijos y valores canónicos en Rust. Rust mantiene la colección ordenada, los índices de nombres, la relación con el elemento y las decisiones de inserción/reemplazo/eliminación. `NamedNodeMap` consulta esas estructuras. JavaScript mantiene referencias para GC, wrappers, creación de objetos y entrega a los hooks de observadores/custom elements; esas capas restantes no completan todavía el objetivo integral.
 
+La API de bajo nivel `NativeAttributeCopy.prepare(sourceTree, source)` prepara una copia
+inmutable de los cuatro campos canónicos de un Attr. El resultado
+`NativeAttributeCopy` no retiene el árbol, handles, wrappers ni su documento;
+puede inicializar destinos nuevos en otros árboles mediante
+`copy.initialize(destinationTree, destination)`. Los destinos deben estar vacíos y
+desconectados; los errores no activan ni modifican sus datos. Se preservan UTF-16,
+namespaces y la diferencia entre prefijo vacío y ausente. Esta primitiva prepara
+la migración del clonado: `cloneNode` e `importNode` todavía conservan su driver
+JavaScript en esta rama. No demuestra una mejora de rendimiento del clonado DOM.
+
 Los índices nativos conservan las peculiaridades observables de jsdom 27 al reemplazar prefijos, incluyendo aliases antiguos de lookup separados de la lista actual. Sus referencias se contabilizan y se eliminan al quedar sin uso.
 
 La visibilidad de nombres Unicode usa las tablas incluidas cuando coinciden con el perfil efectivo del host. Si el identificador es desconocido o está ausente, se obtiene una vez el conjunto de escalares que cambia a minúscula mediante las intrínsecas reales de Node/ICU y se transfiere a Rust. El filtro por atributo sigue en Rust y la cache contiene únicamente datos numéricos, sin nodos ni ventanas. Esta ruta agrega un costo inicial de recorrido Unicode; su medición reproducible es `node benchmarks/unicode-host.cjs`. Ver [alcance, límites y validación](reports/validation/unicode-host-fallback.md).

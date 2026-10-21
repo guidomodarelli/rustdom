@@ -24,6 +24,7 @@ export const {
   DocumentImplementationOperation, documentImplementationOperation, documentImplementationStatistics,
   DomParserOperation, domParserOperation, domParserStatistics,
   NativeFormDataEntries,
+  NativeAttributeCopy, attributeCopyStatistics,
   NativeSelectionState,
   SelectionOperation, selectionOperation, selectionOperationResult, selectionOperationStatistics,
   prepareFormDataValue, constructFormData, formDataConstructionStatistics,

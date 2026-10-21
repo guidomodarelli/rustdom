@@ -1,4 +1,18 @@
-# Indicador provisional de migración a Rust
+# Migración a Rust: inventario pendiente e indicador histórico retirado
+
+El índice de 45,8% por áreas se retira como medida de avance. Sus pesos
+arbitrarios no permiten calcular el porcentaje del objetivo integral. Las
+cifras siguientes se conservan como historia de planificación y no deben
+presentarse como el progreso actual. Falta publicar el inventario versionado
+de APIs, algoritmos y módulos de jsdom 27.4.0, con estados, dependencias,
+evidencia y denominador verificable; todavía no hay un porcentaje auditado.
+
+La base publicada es `271221abbfeafebebb7dd817b98fd559592696d3`,
+`checkpoint-065-attribute-reads` (PR 77). El hito de copia de atributos está
+en validación y no acredita la migración completa del clonado ni un módulo
+JavaScript retirado del runtime.
+
+## Registro histórico
 
 Estado actualizado el 2026-10-21 UTC. Main contiene baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6,
 checkpoint-064-id-lookups (PR 76), con IDs Document/SVG nativos. El siguiente

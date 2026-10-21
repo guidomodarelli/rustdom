@@ -1,6 +1,82 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: lecturas de atributos
+## Estado actual: copia canónica de atributos, en validación
+
+La base publicada comprobada es `main` en
+`271221abbfeafebebb7dd817b98fd559592696d3`, tag
+`checkpoint-065-attribute-reads` (PR 77). Los cuatro fallos originales de
+DOMParser ya están corregidos desde el PR 70/checkpoint 58.
+
+El hito activo está en `feature/native-attribute-copy`, worktree administrado
+`native-clone-seeds`. Agrega `NativeAttributeCopy.prepare(sourceTree, handle)`
+y `copy.initialize(destinationTree, handle)`: Rust conserva una copia
+inmutable de nombre local, namespace, prefijo y valor, sin retener el árbol
+origen ni handles. La inicialización de destinos nuevos valida antes de mutar.
+Esta primitiva todavía no reemplaza el driver público de clonado de esta rama.
+
+Se corrigió una fuga reproducible del SDK al terminar un worker durante la
+creación del wrapper: el binario anterior retenía 4.194.474 bytes de una copia
+de 4 MiB después de cuatro GC; el corregido libera el payload en Node 22/24.
+El SDK conserva ownership hasta el wrap, restaura el estado previo de fábrica
+y delega la destrucción al finalizador solo después de transferirlo. Los
+guards de memoria exigen explícitamente que se alcance cada endpoint de GC.
+
+El primer candidato exponía la preparación/inicialización en NativeTree. Pasó
+316 tests Rust en 1.98.1/1.99.1, 3.645 contratos Node por runtime, runners,
+corpus, WPT, GC, Memcheck y 22 controles instalados por Node. Sin embargo, tres
+de cuarenta filas públicas excedieron +5%: nested templates 256 en Node 24
+(+5,05%), shallow attributes 100 (+8,31%) y deep children 100 (+8,49%) en Node 22.
+No es un checkpoint aceptado. Fuentes extraídas/verificadas y evidencia completa
+en `reports/validation/attribute-copy/history/tree-methods`; muestras y evaluación
+en `reports/benchmarks/attribute-copy/history/tree-methods`.
+
+La variante actual concentra el API en NativeAttributeCopy para conservar el
+prototipo de NativeTree sin nuevos métodos. Pasó 316 tests Rust en 1.99.1,
+121 contratos focales por Node y sus endpoints de snapshots, incluidos workers
+terminados durante la construcción en ocho ciclos. La revisión estática volvió
+a cerrar sin hallazgos. Su comparación completa tampoco aprobó: shallow template
+100 en Node 24 (+7,39%); attribute-get 1.000 (+5,11%), shallow template 100
+(+8,79%) y nested templates 32 (+5,18%) en Node 22. Quedaron archivados fuentes,
+contratos y GC en `reports/validation/attribute-copy/class-scope` y las cuarenta
+filas/muestras en `reports/benchmarks/attribute-copy`. No adoptar ni crear un
+checkpoint. El cambio de prototipo no está demostrado como solución.
+
+Terminó el diagnóstico A/A de Node 22: ambas etiquetas de etapa
+cargan el mismo binario/distribución inmutable de checkpoint 65, con seis
+workloads, doce filas y dos órdenes de etapa. Cuatro filas difirieron más del
+5% en valor absoluto sin cambios: attribute-get 100 (+6,23%), deep children 100
+(+7,52%), shallow template 100 (−5,62%) y nested templates 256 (−9,03%). Esto
+prueba falta de repetibilidad para esas señales; no aprueba el candidato ni
+cambia el presupuesto original. Leer
+`reports/benchmarks/attribute-copy/aa-control` y sus muestras antes de atribuir
+regresiones al linker, al prototipo o a la copia Rust. Investigar muestras por
+worker, warmup, orden y duración; calibrar el método con A/A antes de repetir
+candidatos. Conservar casos, referencia, umbrales y todos los resultados.
+La comparación está resumida en `reports/benchmarks/attribute-copy/README.md`.
+
+El worktree `native-collection-queries`, rama `feature/native-node-clone`,
+conserva el driver híbrido aún sin publicar y su evidencia histórica. Su
+presupuesto de regresión de +5% contra checkpoint 65 sigue abierto. El prototipo
+posterior de step driver fue descartado por empeorar el rendimiento: no adoptarlo
+ni repetirlo sin una hipótesis nueva. Tras publicar la primitiva, integrar esa
+base en el hito de clonado y continuar reduciendo lecturas/copias a través del
+puente, sin mantener préstamos de TreeStore durante callbacks de JavaScript.
+
+El objetivo integral permanece abierto. El índice de 45,8% por áreas está
+retirado: falta el inventario versionado de APIs, algoritmos y módulos de jsdom
+27.4.0 para publicar un porcentaje auditable. No sustituirlo por líneas de código
+ni cantidad de tests. Priorizar después hitos que retiren módulos completos del
+runtime JavaScript, según sus dependencias y el ROADMAP.
+
+El sondeo inicial de la referencia detectó 528 módulos JavaScript en `lib` y
+252 módulos generados, pero el inventario no puede limitarse a métodos de
+clases: `Location` instala sus miembros mediante `utils.define(unforgeables, ...)`,
+hay interfaces con solo constructor y herencia, y faltan las APIs propias de
+Window, exports de jsdom y dependencias de plataforma. Estos recuentos son
+insumos de enumeración, no el denominador final ni un porcentaje de migración.
+
+## Registro anterior: lecturas de atributos
+
 
 La base estable es main, commit baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6,
 tag checkpoint-064-id-lookups. El PR 76 está mergeado: ocho checks aprobados,

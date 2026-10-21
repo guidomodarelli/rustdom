@@ -23,6 +23,14 @@
 - Mantener módulos cohesionados, identidades estables y nombres claros; evitar duplicación, abreviaciones ambiguas y extracciones de constantes sin utilidad.
 - Documentar decisiones relevantes y conservar contratos públicos. Tras cambios significativos, comunicar brevemente qué se validó y qué falta.
 
+## Medición verificable del avance
+
+- Mantener un inventario versionado de APIs, algoritmos y módulos de la versión fijada de jsdom. Para cada entrada, registrar implementación, dependencias, pruebas, evidencia y pendientes; clasificarla como Rust completo, híbrido o pendiente.
+- Las decisiones de los algoritmos DOM y de plataforma deben ejecutarse en Rust. JavaScript/TypeScript puede conservar bindings imprescindibles, adaptadores de Node/Jest/Vitest, tipos, herramientas y pruebas. Identificar explícitamente la lógica de plataforma que permanezca en JavaScript; las delegaciones y los fallbacks cuentan como pendientes.
+- Publicar cantidades verificables y porcentajes sobre un denominador explícito del inventario. Documentar sus cambios y evitar contar dos veces módulos y sus APIs. No usar pesos arbitrarios por áreas, líneas de código, checkpoints o cantidad de tests como porcentaje de migración ni como estimación de esfuerzo restante.
+- Separar avance de implementación, compatibilidad verificada, rendimiento y memoria. Hasta disponer de un inventario auditado, informar que no hay un porcentaje defendible.
+- Cerrar el hito activo y priorizar después entregables que retiren módulos completos del runtime JavaScript, según dependencias e impacto. Una API nativa todavía sin integrar no completa la migración de sus consumidores públicos.
+
 ## Testing obligatorio
 
 - Cada parte y cada cambio funcional deben quedar bien probados. Agregar o actualizar pruebas de comportamiento, integración y regresión según corresponda.
@@ -39,6 +47,7 @@
 - Comparar tareas equivalentes y verificar que producen resultados correctos. Medir el costo del puente Rust/JavaScript y de la operación completa cuando sea el objetivo del benchmark.
 - Identificar qué mediciones ejecutan Rust y cuáles usan el parser original. Reportar también regresiones; no seleccionar únicamente resultados favorables.
 - No afirmar mejoras sin evidencia ejecutada. Distinguir microbenchmarks, tiempo completo de suites, memoria retenida y memoria pico.
+- Fijar baselines y presupuestos antes de optimizar y conservarlos al evaluar resultados. Mantener el presupuesto de regresión de +5% del hito de clonado; no cambiar referencias, casos ni umbrales para convertir una regresión en aprobación. Investigar y publicar las filas que lo excedan, sin compensarlas con ganancias de otras filas.
 
 ## Memoria y recursos
 

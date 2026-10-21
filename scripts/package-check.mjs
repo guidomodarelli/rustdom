@@ -76,6 +76,7 @@ try {
     run(`${manager}-types`, [packageBin('typescript', 'tsc')], directory);
     run(`${manager}-commonjs`, [join(directory, 'compiled/consumer.cjs')], directory);
     run(`${manager}-tree-traversal`, ['--test', join(directory, 'types/tree-traversal.spec.cjs')], directory);
+    run(`${manager}-attribute-copy`, ['--test', join(directory, 'types/attribute-copy.spec.cjs')], directory);
     run(`${manager}-unicode-host`, [join(directory, 'types/unicode-host.cjs')], directory);
     run(`${manager}-esm-vm`, [join(directory, 'compiled/consumer.mjs')], directory);
     run(`${manager}-worker-assets`, [join(directory, 'compiled/worker-assets.mjs')], directory);

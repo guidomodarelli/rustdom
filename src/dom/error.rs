@@ -31,6 +31,7 @@ pub enum TreeError {
     SlotAssignmentProtocol(&'static str),
     NotProcessingInstruction(u64),
     AttributeInUse(u64),
+    AttributeCopyDestinationNotEmpty(u64),
     AttributeCollectionInitialized(u64),
     NonEmptyAttributeSnapshot(u64),
     UnsupportedUnicodeVersion(String),
@@ -43,6 +44,10 @@ pub type Result<T> = std::result::Result<T, TreeError>;
 impl fmt::Display for TreeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::AttributeCopyDestinationNotEmpty(id) => write!(
+                formatter,
+                "NativeAttributeCopy.initialize: destination {id} must be an uninitialized detached node"
+            ),
             Self::UndefinedCharacterDataProperty(property) => write!(
                 formatter,
                 "Cannot read properties of undefined (reading '{property}')"
