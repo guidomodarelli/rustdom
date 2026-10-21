@@ -93,6 +93,7 @@ function isReleased(state, expected) {
     native.selectionStates?.live === expected.selectionStates?.live &&
     native.selectionOperations?.active === expected.selectionOperations?.active &&
     native.domParserOperations?.active === expected.domParserOperations?.active &&
+    native.xmlSerializerOperations?.active === expected.xmlSerializerOperations?.active &&
     native.documentImplementationOperations?.active === expected.documentImplementationOperations?.active &&
     native.blobs?.live === expected.blobs?.live &&
     native.blobs?.mimeUnits === expected.blobs?.mimeUnits &&

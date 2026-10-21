@@ -119,6 +119,18 @@ module.exports = function registerDomSuite({ test, expect, afterEach, createNati
     expect(xml.documentElement.innerHTML).toBe('<p:item xmlns:p="urn:p">&lt;</p:item>');
   });
 
+  test('should preserve XMLSerializer error realms and reentry through the runner browser globals', () => {
+    const xml = new DOMParser().parseFromString('<root/>', 'text/xml');
+    const serializer = new XMLSerializer(), inner = xml.createElement('inner');
+    let nestedCalls = 0;
+    const failure = { get message() { nestedCalls++; return serializer.serializeToString(inner); } };
+    Object.defineProperty(xml.documentElement, 'nodeType', { get() { throw failure; } });
+    let caught;
+    try { serializer.serializeToString(xml.documentElement); } catch (error) { caught = error; }
+    expect(caught instanceof window.DOMException).toBe(true);
+    expect(caught.name).toBe('InvalidStateError'); expect(caught.message).toBe('<inner/>'); expect(nestedCalls).toBe(1);
+  });
+
   test('should preserve rectangle numerical edges and independent JSON through browser globals', () => {
     const rect = new DOMRect(2, 3, -4, -5); const readOnly = DOMRectReadOnly.fromRect(rect);
     expect(rect.left).toBe(-2); expect(rect.top).toBe(-2); rect.width = 10;

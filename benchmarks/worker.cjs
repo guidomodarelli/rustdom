@@ -9,6 +9,7 @@ const { listenerFixture } = require('./event-listeners.cjs');
 const { abortFixture } = require('./abort-signal.cjs');
 const { xmlFixture } = require('./xml-parser.cjs');
 const { serializationFixture } = require('./xml-serialization.cjs');
+const { XML_SERIALIZER_GETTER_ERROR_WORKLOAD } = require('./constants/xml-serializer-controller.cjs');
 const { traversalFixture } = require('./tree-traversal.cjs');
 const { tokenListFixture } = require('./dom-token-list.cjs');
 const { datasetFixture } = require('./dom-string-map.cjs');
@@ -336,7 +337,7 @@ async function measure(name, size) {
   const measuresListeners = ['listener-register', 'listener-remove', 'listener-dispatch'].includes(name);
   const measuresAbort = ['abort-lifecycle', 'abort-any', 'abort-propagation'].includes(name);
   const measuresXml = ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].includes(name);
-  const measuresXmlSerialization = ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].includes(name);
+  const measuresXmlSerialization = ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error', XML_SERIALIZER_GETTER_ERROR_WORKLOAD].includes(name);
   const measuresTraversal = ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].includes(name);
   const measuresTokens = ['token-parse', 'token-contains', 'token-add', 'token-replace'].includes(name);
   const measuresRect = ['rect-create', 'rect-read', 'rect-update', 'rect-json'].includes(name);

@@ -1,6 +1,50 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: catálogo inicial del inventario
+## Estado actual: controlador Rust de XMLSerializer en validación
+
+La base estable publicada es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
+tag `checkpoint-066-reference-catalog`, PR 78 mergeado. El catálogo inicial está
+integrado; su alcance sigue abierto y no hay un porcentaje global defendible.
+
+Continuar en `feature/native-xml-serializer-controller`, worktree administrado
+`migration-inventory`. Se trasladó a Rust el control de serializeToString, su
+captura de valores lanzados y la construcción/propagación de la excepción.
+El serializador XML central ya era Rust. WebIDL, DOMException y el controlador
+de fragmentos permanecen pendientes; no presentar el motor como íntegramente Rust.
+
+Leer `reports/validation/xml-serializer-controller.md` y el protocolo de
+`reports/benchmarks/xml-serializer-controller/README.md`. La revisión encontró y
+corrigió índices heredados de Array.prototype: hay doce regresiones que fallaban
+antes del fix y pasan después. La revisión estática final quedó sin hallazgos.
+
+Pasaron 97 contratos focales y 132 observaciones focales de memoria por Node,
+305 tests Rust en ambas toolchains y los paquetes npm/pnpm en Node 22.12.0 y
+24.14.1. La matriz final pasó 3.730 contratos, Jest 22, Vitest 33, VM 34 y los
+corpus declarados por Node. Memcheck XML pasó nueve tests, con residuos iguales
+al control de un test ajeno a XML; la corrida amplia se conserva como interrumpida.
+Los resultados de rendimiento ya están guardados, pero no aceptados: A/A mixto
+falló en 2/13 filas de Node 22 y 6/13 de Node 24. El piloto aislado por fila
+completó 104 procesos de Node 22 y falló solo en getter-error/1 (−4,891% con el
+mismo binario). No hubo A/B ni repetición de Node 24 en ese piloto.
+El avance se publica como WIP; no hay PR, merge ni tag funcional de esta rama.
+El ejecutor declara A/A ±2% antes de habilitar A/B +5% por fila: no cambiar el
+presupuesto ni aceptar un resultado si el control de ruido falla. Los controles
+XML no resuelven el gate independiente pendiente de clonado.
+
+Siguiente acción concreta: diagnosticar GC, tiering/deopt y CPU frente a wall
+time de `xml-serializer-getter-error/1`. No repetir pilotos equivalentes ni
+cambiar umbrales. Conservar todas las filas; solo habilitar una nueva aceptación
+completa cuando calibre el control. Los ejecutores archivados usan copias frescas
+de fuentes sin resultados anteriores: no correrlos sobre los directorios
+históricos versionados ni sobrescribir sus muestras. Comprobar procesos vivos
+antes de reiniciar cualquier ejecución.
+
+Los resultados grandes de compatibilidad se guardan como JSON gzip sin pérdidas;
+el manifest `reports/compatibility/xml-serializer-controller-archives.json`
+identifica los bytes originales y comprimidos. Descomprimirlos para usar los
+lectores antiguos que esperan `.json`; no sustituir ni descartar las muestras.
+
+## Registro: catálogo inicial del inventario
 
 La base integrada al comenzar esta entrega era `main`, `271221abbfeafebebb7dd817b98fd559592696d3`,
 `checkpoint-065-attribute-reads` (PR 77). Los cuatro fallos históricos de DOMParser

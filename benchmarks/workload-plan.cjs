@@ -7,6 +7,8 @@ const { NAME_QUERY_WORKLOADS } = require('./constants/name-queries.cjs');
 const { FRAGMENT_ID_WORKLOADS } = require('./constants/fragment-id.cjs');
 const { ID_LOOKUP_WORKLOADS } = require('./constants/id-lookups.cjs');
 const { ATTRIBUTE_READ_WORKLOADS } = require('./constants/attribute-reads.cjs');
+const { XML_SERIALIZER_GETTER_ERROR_WORKLOAD, XML_SERIALIZER_SMALL_SIZES,
+  XML_SERIALIZER_ERROR_SIZES } = require('./constants/xml-serializer-controller.cjs');
 /** Explicit repeated-reference workloads remain opt-in. */
 const RANGE_STRINGIFICATION_READS = { 'range-stringify-1': 1, 'range-stringify-10': 10 };
 /** Public Range content operations and their fixture keys. */
@@ -40,6 +42,8 @@ function getBenchmarkPlan() {
     ...[100, 1000].flatMap((size) => ['abort-lifecycle', 'abort-any', 'abort-propagation'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['xml-construct', 'xml-fragment', 'xml-parse-error', 'xml-doctype'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['xml-serialize', 'xml-inner-serialize', 'xml-document-serialize', 'xml-serialize-error'].map((name) => ({ name, size }))),
+    ...XML_SERIALIZER_SMALL_SIZES.map((size) => ({ name: 'xml-serialize', size })),
+    ...XML_SERIALIZER_ERROR_SIZES.map((size) => ({ name: XML_SERIALIZER_GETTER_ERROR_WORKLOAD, size })),
     ...[100, 1000].flatMap((size) => ['iterator-scan', 'iterator-filter', 'walker-scan', 'walker-filter'].map((name) => ({ name, size }))),
     ...[4, 1000].flatMap((size) => ['token-parse', 'token-contains', 'token-add', 'token-replace'].map((name) => ({ name, size }))),
     ...[100, 1000].flatMap((size) => ['rect-create', 'rect-read', 'rect-update', 'rect-json'].map((name) => ({ name, size }))),
