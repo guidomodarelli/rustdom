@@ -27,9 +27,13 @@ node reports/benchmarks/native-class-ownership/thread-clock-addon/build.mjs
 
 El head `4f455da4` publicó el diagnóstico; consultar el PR 80 para su revisión,
 checks y el commit posterior de esta corrección. El estudio XML `39662377152`
-se activó con el layout anterior: observar su estado real y conservar sus
-resultados si termina, sin atribuirlos al SHA posterior. No relanzarlo por un
-timeout de observación. La secuencia siguiente sigue siendo una comparación
+se activó con el layout anterior y terminó con exit 2: 208 procesos A/A,
+6.656 duraciones y trece filas sin calibración; A/B no se ejecutó y
+`accepted=null`. Los 417 archivos se conservan comprimidos, con digest de
+GitHub y verificador de medianas/fases en
+`reports/benchmarks/native-class-ownership/unplanned-xml/39662377152/`.
+Corresponden al SHA anterior; no relanzar la medición para obtener aprobación.
+La secuencia siguiente sigue siendo una comparación
 A/A y A/B que fije solo el principal, preservando condiciones y presupuestos;
 la reubicación no justifica repetir el diagnóstico ya terminado.
 
