@@ -1,9 +1,10 @@
 # XMLSerializer: controlador Rust en validación
 
 Base: `checkpoint-066-reference-catalog`, `75db9bb095db8457a6ae567f219e2224a55b9f36`.
-Rama: `feature/native-xml-serializer-controller`. Todavía no es un checkpoint
-aceptado: los controles A/A de rendimiento no calibraron. El avance se preserva
-como trabajo en curso, sin tag funcional ni merge de este hito.
+Rama: `feature/native-xml-serializer-controller`, PR 79. Todavía no es un
+checkpoint integrado: Node 22 local y Node 24 en CI calibraron y pasaron A/B.
+Falta publicar la evidencia y verificar CI/review sobre el SHA final. No hay
+todavía tag funcional ni merge de este hito.
 
 ## Responsabilidad trasladada
 
@@ -59,6 +60,16 @@ Node, repartidos entre npm y pnpm, sin publicación npm.
 Los logs y las identidades están en `xml-serializer-controller/`. Una prueba
 parcial no acredita por sí sola la compatibilidad completa del proyecto.
 
+La matriz de CI `39613157914`, sobre `62cf726`, confirmó además 3.742 contratos
+en Windows y macOS con Node 24.21.0, incluyendo los doce casos nuevos de proxies.
+Pasaron los runners, los 305 tests Rust y la distribución en ambos hosts.
+Los cuatro shards de benchmarks y su agregador pasaron; el arnés tiene ahora
+112 contratos. Linux completó validación, memoria, distribución en Node 24/22
+y Memcheck. La matriz terminó con sus ocho checks aprobados. El árbol del merge
+temporal de GitHub coincide con el head revisado, cuya review terminó sin
+hallazgos. La publicación posterior de resultados requiere verificar de nuevo
+CI y review sobre su SHA final antes del merge.
+
 Los informes grandes de compatibilidad se publican como `.json.gz`, conservando
 los bytes originales sin pérdidas. `reports/compatibility/xml-serializer-controller-archives.json`
 registra nombres, tamaños y SHA-256 antes y después de comprimir; se verificó la
@@ -89,6 +100,22 @@ incompletos y no se cuentan como Memcheck completo de 305 tests. Los nueve tests
 puros no ejercen por sí solos N-API: esa frontera se prueba con el addon real en
 los escenarios de GC y workers descritos arriba.
 
+El control posterior de CI sí completó Memcheck sobre los **305 tests Rust**,
+en diez lotes con 305 nombres distintos, exit code cero y ejecución completa.
+Se verificó el lockfile y el digest del artefacto descargado. Los 22 archivos
+originales y su procedencia están en
+`../memory/xml-serializer-controller/ci-39613157914/`. Esto no convierte en
+completa la corrida local interrumpida ni cubre V8 o el addon cargado.
+
+Un control independiente de construcción de clases reprodujo retención en
+`NativeRange.copy` de la referencia ya integrada: dos rangos nativos después
+de ocho interrupciones de workers en Node 24. El candidato de atributos con
+guard del SDK terminó equilibrado en Node 22/24, pero todavía contiene otros
+cambios y requiere validación aislada. Ver
+`../memory/native-class-construction/README.md`. Es un pendiente conocido del
+objetivo integral; no fue introducido por el controlador XMLSerializer ni se
+oculta detrás del resultado de Memcheck.
+
 La captura `xml-serializer-controller/sources/` conserva manifest, archivo de
 fuentes y ejecutores. Incluye fuentes, tests y tipos; los corpus estáticos siguen
 versionados en el repositorio base y sus identidades se registran en los informes
@@ -109,8 +136,8 @@ favorables. El gate de +5% del candidato continúa sin verificar.
 
 Las fuentes de ambos métodos se conservan por separado (`sources-mixed-rows/`
 y `sources/`). No hay afirmación de mejora causada por esta migración. El
-siguiente diagnóstico es GC/tiering/deopt/CPU de la fila inestable, antes de
-intentar otra aceptación completa. El gate de clonado de otras ramas sigue
+diagnóstico siguiente que se declaró fue GC/tiering/deopt/CPU de la fila
+inestable, antes de intentar otra aceptación completa. El gate de clonado sigue
 independiente y abierto.
 
 Actualización: los diagnósticos de GC/CPU/JIT completaron cuarenta procesos con
@@ -119,9 +146,16 @@ calibró y completó 208 A/B más 52 descriptivos, aceptando las trece filas con
 máximo +2,522%. Node 24 falló en dos filas de tamaño uno (+2,836%/+2,692%) y no
 ejecutó A/B. Todos los archivos crudos locales se verificaron contra el índice.
 
-El control siguiente se ejecutará en un runner limpio de CI con igual protocolo
+El control siguiente se ejecutó en un runner limpio de CI con igual protocolo
 y presupuesto, declarando su entorno y sin reemplazar los resultados locales.
-Su aceptación sigue pendiente. El CLI portable y sus protecciones de historial
+El run `39613158016` completó 208 A/A, 208 A/B y 52 descriptivos: calibración
+máxima absoluta 1,378% y máximo A/B +3,263%, dentro de ±2%/+5% en las trece filas.
+Se recalcularon sus medianas y se verificaron todos los archivos crudos,
+contadores, fuentes, árboles Git y digest del artefacto. La evidencia está en
+`../benchmarks/xml-serializer-controller/hosted/39613158016/`. Junto a Node 22
+local, completa el control declarado del hito en esos hosts; Rust conserva un
+coste 5,03–6,76× el de jsdom en la referencia descriptiva del runner.
+El CLI portable y sus protecciones de historial
 pasaron siete contratos con fixtures reales por Node; actionlint 1.7.12 aprobó
 el workflow. Ningún dato de estos pilotos acredita ausencia universal de fugas,
 compatibilidad completa del proyecto ni rendimiento universal entre máquinas.

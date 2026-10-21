@@ -26,3 +26,14 @@ El ejecutor portable exige un directorio de salida nuevo y verifica el caso de
 historial existente con el CLI real. Los artefactos del job deben descargarse,
 verificarse y guardarse en el repositorio antes del checkpoint. El PR sigue
 pendiente hasta completar este control, CI general y review del SHA final.
+
+El run `39613158016` terminó correctamente sobre `62cf726`. Se verificaron sus
+468 procesos, fuentes, contadores, salidas y digest del artefacto; las trece
+filas calibraron y pasaron A/B. Los resultados completos están en
+`hosted/39613158016/`. No se repitió el run para seleccionar muestras favorables.
+
+El job inicial tenía un límite global de 50 minutos y terminó cerca de ese
+límite. Para las validaciones siguientes se reservan 90 minutos de ejecución de
+CI; no cambia el número de procesos, warmup, muestras, timeout por worker ni
+los presupuestos de calibración/regresión. Es margen de infraestructura para
+completar el protocolo, no una extensión estadística basada en sus resultados.

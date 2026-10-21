@@ -57,3 +57,10 @@ El [warmup revisado](warmup-protocol.md), basado en
 Node 22 en las trece filas (máximo A/B +2,522%). Node 24 falló A/A en dos filas;
 ver [todos los resultados locales](warmup-256/README.md). El
 [control siguiente de CI](hosted-protocol.md) conserva los budgets y el historial.
+
+El [control de Node 24 en CI](hosted/39613158016/README.md) completó y verificó
+468 procesos. Las trece filas calibraron (máximo absoluto 1,378%) y pasaron A/B
+(máximo +3,263%). Junto con Node 22 local, completa la aceptación declarada del
+hito dentro de esos hosts y protocolos. La referencia descriptiva sigue
+mostrando costes Rust de 5,03–6,76× jsdom en el runner; no hay una mejora global
+demostrada ni se descartan los fallos locales anteriores.

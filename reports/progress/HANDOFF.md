@@ -1,65 +1,91 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: controlador Rust de XMLSerializer en validación
+## Estado actual: XMLSerializer validado, publicación final del PR 79
 
-Actualización posterior al WIP `d71c985`: los diagnósticos GC/JIT/CPU de Node
-22/24 identificaron compilaciones del runtime durante las muestras del warmup
-corto. Con 256 batches de warmup en tamaños pequeños ya no aparecen esas
-compilaciones en los pilotos trazados; queda variación entre procesos.
-El protocolo nuevo `warmup-protocol.md` conserva todas las filas y gates,
-usa dieciséis procesos por fila y 256 muestras por etiqueta. Node 22 calibró las
-trece filas y pasó A/B: máximo observado +2,522%, por debajo de +5%.
-Node 24 completó A/A pero falló en serialize/1 (+2,836%) y getter-error/1
-(+2,692%); se omitieron A/B y referencia. Los doce casos adicionales de proxies
-pasaron en ambos Node: 109 focales, y 102 públicos sobre el runtime anterior.
-No cambió la implementación Rust ni el binario candidato.
-El siguiente control está predeclarado en `hosted-protocol.md`: mismo protocolo
-completo de Node 24 en un runner limpio de CI, con resultados locales intactos.
-El ejecutor portable exige una salida nueva y falla el job si A/A o A/B fallan.
-Completar ese job, CI general y review del SHA final antes de merge/tag.
+La base estable es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
+`checkpoint-066-reference-catalog`. Continuar en
+`feature/native-xml-serializer-controller`, worktree `migration-inventory`.
+El head de implementación validado es
+`62cf726cc0ed0d1487db9dfa2100a78568638108`; los cambios posteriores de esta
+entrega publican resultados, memoria y documentación. El alcance global del
+inventario sigue abierto: no hay un porcentaje de migración defendible.
 
-La base estable publicada es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
-tag `checkpoint-066-reference-catalog`, PR 78 mergeado. El catálogo inicial está
-integrado; su alcance sigue abierto y no hay un porcentaje global defendible.
+Codex revisó `62cf726` sin hallazgos. Su matriz general `39613157914` terminó
+con ocho checks aprobados: Linux, Windows, macOS, cuatro shards y agregador.
+Windows y macOS confirmaron 3.742 contratos en Node 24.21.0, 305 tests Rust y
+los runners. El arnés de benchmarks tiene 112 contratos. Linux también aprobó
+la distribución npm/pnpm en Node 24 y 22 y Memcheck completo.
 
-Continuar en `feature/native-xml-serializer-controller`, worktree administrado
-`migration-inventory`. Se trasladó a Rust el control de serializeToString, su
-captura de valores lanzados y la construcción/propagación de la excepción.
-El serializador XML central ya era Rust. WebIDL, DOMException y el controlador
-de fragmentos permanecen pendientes; no presentar el motor como íntegramente Rust.
+El control dedicado `39613158016`, job `119267080556`, terminó correctamente:
+Node 24.14.1/Rust 1.99.1, runner Ubuntu 22.04, AMD EPYC 7763, CPU 0. Se
+verificaron 468 procesos (208 A/A, 208 A/B, 52 descriptivos), cada stdout,
+medianas, orden, contadores y fuentes. Las trece filas calibraron: máximo
+absoluto 1,378%; máximo A/B +3,263%, dentro de ±2%/+5%. El ZIP coincide con el
+digest de GitHub. Resultados, verificador, procedencia y manifest están en
+`reports/benchmarks/xml-serializer-controller/hosted/39613158016/`.
 
-Leer `reports/validation/xml-serializer-controller.md` y el protocolo de
-`reports/benchmarks/xml-serializer-controller/README.md`. La revisión encontró y
-corrigió índices heredados de Array.prototype: hay doce regresiones que fallaban
-antes del fix y pasan después. La revisión estática final quedó sin hallazgos.
+El merge temporal `e0d6021eefce8ba3a6602e9e2fc3147f29a1473f` tiene el mismo
+árbol `80c9cf8bedb2ed6e4e4dd53e070ad113a6233e6b` que el head revisado.
+La fuente medida candidata tiene hash
+`67523bf38c8bfd32286618de24cee952b684f32fd91a322c407f7111cd73be3f`.
+Node 22 local ya había calibrado y pasado A/B con máximo +2,522%. Se completa
+la aceptación declarada del hito para esos hosts y protocolos; permanecen
+publicados los fallos locales de Node 24 y todos los métodos anteriores.
+La referencia del runner conserva costes Rust de 5,03–6,76× jsdom: no hay una
+aceleración global demostrada ni un resultado universal entre máquinas.
 
-Pasaron 97 contratos focales y 132 observaciones focales de memoria por Node,
-305 tests Rust en ambas toolchains y los paquetes npm/pnpm en Node 22.12.0 y
-24.14.1. La matriz final pasó 3.730 contratos, Jest 22, Vitest 33, VM 34 y los
-corpus declarados por Node. Memcheck XML pasó nueve tests, con residuos iguales
-al control de un test ajeno a XML; la corrida amplia se conserva como interrumpida.
-Los resultados de rendimiento ya están guardados, pero no aceptados: A/A mixto
-falló en 2/13 filas de Node 22 y 6/13 de Node 24. El piloto aislado por fila
-completó 104 procesos de Node 22 y falló solo en getter-error/1 (−4,891% con el
-mismo binario). No hubo A/B ni repetición de Node 24 en ese piloto.
-El avance se publica como WIP; no hay PR, merge ni tag funcional de esta rama.
-El ejecutor declara A/A ±2% antes de habilitar A/B +5% por fila: no cambiar el
-presupuesto ni aceptar un resultado si el control de ruido falla. Los controles
-XML no resuelven el gate independiente pendiente de clonado.
+El primer job tenía límite global de 50 minutos y terminó cerca del límite.
+Los siguientes tienen 90 minutos de margen de infraestructura; no cambia el
+protocolo, sus muestras, número de procesos ni umbrales. Ver
+`reports/benchmarks/xml-serializer-controller/hosted-protocol.md`.
 
-Siguiente acción concreta: publicar y verificar el control Node 24 de CI y su
-source SHA. Los diagnósticos GC/JIT/CPU y la revisión del warmup ya están guardados;
-no repetirlos sin una hipótesis nueva ni cambiar umbrales. Conservar todas las
-filas; solo habilitar una nueva aceptación completa cuando calibre el control.
-Los ejecutores archivados anteriores usan copias frescas
-de fuentes sin resultados anteriores: no correrlos sobre los directorios
-históricos versionados ni sobrescribir sus muestras. Comprobar procesos vivos
-antes de reiniciar cualquier ejecución.
+Se trasladó a Rust el control de serializeToString, captura de valores
+lanzados, argumentos propios de Array y propagación de errores. El algoritmo
+XML ya era Rust. WebIDL, DOMException y el controlador de fragmentos conservan
+responsabilidades JavaScript. El inventario acredita tres módulos híbridos,
+una API híbrida y un ancla con control Rust completo dentro de su alcance;
+no acredita migración completa de sus dependencias.
 
-Los resultados grandes de compatibilidad se guardan como JSON gzip sin pérdidas;
-el manifest `reports/compatibility/xml-serializer-controller-archives.json`
-identifica los bytes originales y comprimidos. Descomprimirlos para usar los
-lectores antiguos que esperan `.json`; no sustituir ni descartar las muestras.
+La validación local conserva 109 focales por Node 22.12.0/24.14.1, 102
+contratos públicos también sobre el runtime anterior, 305 tests Rust en
+1.98.1/1.99.1, paquetes reales, runners y corpus. Hay 132 observaciones focales
+de memoria por Node y ocho terminaciones de workers. HTML5 conserva 1.784
+casos comparables y ocho exclusiones; WPT conserva paridad en 240 fixtures /
+83.007 resultados, 1.203 fallos compartidos, una suite bloqueada y alcance
+incompleto. Leer `reports/validation/xml-serializer-controller.md`.
+
+Memcheck local pasó nueve tests XML; su corrida amplia interrumpida sigue
+identificada como incompleta. El control posterior de CI sí completó 305
+tests distintos en diez lotes: se verificaron y guardaron los 22 archivos
+originales y su procedencia en
+`reports/memory/xml-serializer-controller/ci-39613157914/`. Este ejecutable
+Rust no sustituye las pruebas del addon real en V8.
+
+Prioridad siguiente de memoria: aislar el guard de construcción del SDK que
+estaba en el WIP de atributos. El probe de `NativeRange.copy`, ya integrado
+en main, dejó dos rangos vivos después de ocho workers en Node 24. Su fuente,
+cuatro salidas y límites están en `reports/memory/native-class-construction/`.
+No atribuir esa fuga al controlador XML ni presentar el WIP como integrado.
+La corrección aislada está en trabajo local, aún sin publicar, en
+`feature/native-class-ownership`, worktree `native-class-ownership`, base 66.
+Pasaron 311 tests Rust y Clippy en ambas toolchains, seis tests del guard en
+Memcheck y 71 focales por Node. La regresión formal falla con el SDK anterior
+y pasa aislada; la matriz amplia está en ejecución. No depende de aceptar las
+primitivas experimentales de clonado.
+
+Siguiente acción concreta: publicar esta evidencia, pedir revisión y verificar
+los checks del head final del PR 79 antes de merge/tag. Consultar el estado
+actual del PR y sus runs, sin relanzar handles todavía activos. Tras el merge,
+verificar árbol y base, crear el siguiente tag incremental libre y eliminar la
+rama integrada. Después completar la corrección de memoria aislada y continuar
+las fases abiertas de ROADMAP.md. No cerrar el goal: siguen muchos módulos y
+rutas de plataforma JavaScript pendientes.
+
+Los resultados grandes de compatibilidad se conservan como JSON gzip sin
+pérdidas, con manifest de bytes originales/comprimidos en
+`reports/compatibility/xml-serializer-controller-archives.json`. Las fuentes de
+los protocolos previos se conservan por separado. No ejecutar los archivadores
+sobre resultados históricos ni sobrescribir sus muestras.
 
 ## Registro: catálogo inicial del inventario
 
