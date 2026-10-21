@@ -1,5 +1,47 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: XMLSerializer conservado y aislamiento WPT en curso
+
+XMLSerializer 39679501920/job119497967690 terminó success para 61ed417d,
+Node 24.14.1. El artefacto 12384913614 conserva 937 entradas y su ZIP SHA
+8f0d6b1640e35652c1d52a3ea668ac488acf93d9222e37ca90e967ebf2891d4a
+coincide con GitHub. Se recalcularon 468 procesos y 14.976 duraciones: 208 A/A,
+208 A/B y 52 reference. Las trece filas calibraron ±2% A/A y aceptaron +5% A/B;
+máximo A/B +3,226057%. Datos, verificador y dos tests Python (Windows/WSL) en
+reports/benchmarks/native-class-ownership/xml-validation/39679501920/.
+Este gate corresponde a XML/checkpoint66→61ed, no acepta ownership ni Node 22,
+ni aporta retroactivamente el manifest de dist ausente en su protocolo histórico.
+
+La corrección WPT aún está sin commitear en este worktree: tests/wpt/run.cjs
+extrae el loader/reporter original a fixture.cjs y ejecuta un proceso nuevo por
+motor/fixture mediante process.cjs, con constantes en constants/execution.cjs.
+No modifica fixtures, assertions, reporter ni deadlines upstream de 10/60s.
+Conserva el failsafe de fixture de 90s y añade uno de proceso de 120s incluyendo
+startup. Se espera la terminación real antes de la siguiente ejecución, se
+preservan resultados/diagnósticos y se limpian temporales propios. No se afirma
+ausencia de fugas internas por haber terminado un proceso.
+
+Nueve tests finales pasaron por Node 22.12.0/24.14.1 Linux y Windows Node 24.14.1
+con el addon real del artifact 12383559216, ZIP verificado, y npm ci local con
+lockfile. Incluyen la fixture de 2.808 casos, procesos terminados, deadline real de 1 ms, errores,
+preservación de outputs y rechazo del timeout macOS original. Review estática
+read-only del código WPT: cero hallazgos. La resolución en macOS sigue pendiente.
+
+Sesión local 50323 sigue ejecutando secuencialmente corpus completo Node 22 y
+Node 24, en /home/guido/rustdom-worker-realms-3vfjh0d8. Logs en validation/
+node-22.wpt-full-isolated.log y node.wpt-full-isolated.log. Antes de reiniciar,
+consultar el handle y procesos; los nueve tests finales están en *.wpt-process-final.log.
+Windows real: .cache/wpt-process-windows-ecadaa81/wpt-process.tests.log (9/9).
+No mezclar estos datos con los benchmarks ni declarar resuelto CI antes de macOS.
+
+Siguiente acción: completar y conservar ambos corpus, revisar/publicar el cambio
+WPT validado en PR 80, atender review/CI del SHA final y confirmar macOS. Ya puede
+actualizarse la rama original sin cancelar XMLSerializer, cuyo resultado quedó
+conservado. El respaldo remoto feature/native-class-ownership-sampler contiene
+los avances publicados; integrar y eliminarlo después. El método pareado de 350 fuentes
+está listo para review remota antes de una única secuencia; ownership y migración
+integral siguen abiertos, sin porcentaje global defendible ni APIs nuevas en este tramo.
+
 ## Actualización: driver completo en validación y timeout macOS verificado
 
 El avance previo d2c238fb4fcd168acf0218ec536788b38827b09b está publicado en
