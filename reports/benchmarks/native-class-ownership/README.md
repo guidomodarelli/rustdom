@@ -95,3 +95,12 @@ mejora ni aprueba la fila pública original. Ver los README de cada diagnóstico
 raws, compresión reversible y conclusiones vigentes. El SDK y el arnés original
 permanecen idénticos a la validación publicada; no se cambió producción para
 obtener estas mediciones.
+
+La comprobación siguiente está predeclarada en `HOSTED-PROTOCOL.md`: una sola
+secuencia independiente Ubuntu/Node 22 A/A + A/B de ambas filas públicas Range,
+con el CLI original, tres warmups, nueve muestras y los presupuestos originales.
+No hay todavía un resultado de esa comprobación en este commit. Sus cinco
+contratos recalculan las observaciones históricas reales y protegen los archivos;
+pasaron en Node 22.12.0/Linux y 24.14.1/Windows. Se ejerció además el generador
+real de reportes parciales: el JSON, sus observaciones y hash se conservan antes
+de propagar el fallo del CLI. El workflow pasó `actionlint`.

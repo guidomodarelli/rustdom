@@ -118,11 +118,22 @@ análisis tras retirar sus cotas de CPU; los contadores 72/69 y el microdiagnós
 se recalcularon sin otros hallazgos. Los tres procesos locales terminaron con
 exit 0; sus comprobantes están en `diagnostic-terminal-results.json`.
 
+Los diagnósticos se publicaron en `df4ed9aee041157c0a53b884947f86f3f36e8463`.
 No hay mediciones locales activas ni cambios de producción posteriores al
-head inicial. Publicar los diagnósticos, pedir review del nuevo head y seguir
-CI de ese SHA; el fallo macOS anterior es terminal y de infraestructura.
-El presupuesto público permanece inconcluso. Merge/tag siguen pendientes;
-no relanzar las corridas locales para obtener un resultado favorable.
+head inicial. El run general de ese SHA es `39642115708`; verificar su estado
+actual y el del head posterior antes de acreditar CI. El fallo macOS anterior
+es terminal y de infraestructura.
+
+La siguiente comprobación está declarada en `HOSTED-PROTOCOL.md`: una sola
+secuencia A/A + A/B de la carga pública original en un runner Linux independiente,
+Node 22.12.0, ocho bloques por fase y los mismos warmups/muestras/umbrales.
+El workflow `Native class ownership performance` construye checkpoint 67 y
+el candidato; no cambia la fuente canónica ni reemplaza los resultados WSL.
+Consultar sus runs por rama/SHA, esperar el handle existente y descargar/verificar
+el artefacto antes de decidir aceptación. No reiniciar por falta de salida ni
+repetir una medición completa para seleccionar resultados favorables.
+El presupuesto público permanece inconcluso hasta obtener esa evidencia.
+Merge/tag siguen pendientes de rendimiento, review y CI del head final.
 
 El runner WPT cierra los realms y cede un turno entre fixtures para permitir
 liberar targets débiles. La corrida Node 24 que agotó old-space y sus controles

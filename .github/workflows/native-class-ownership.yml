@@ -1,0 +1,65 @@
+name: Native class ownership performance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-class-ownership.yml'
+      - 'third-party/napi/src/bindgen_runtime/**'
+      - 'reports/benchmarks/native-class-ownership/hosted-experiment.cjs'
+      - 'reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs'
+      - 'reports/benchmarks/native-class-ownership/constants/hosted.cjs'
+      - 'reports/benchmarks/native-class-ownership/HOSTED-PROTOCOL.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-class-ownership-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  node22:
+    name: Native class ownership Node 22
+    runs-on: ubuntu-22.04
+    timeout-minutes: 70
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
+      RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      OWNERSHIP_OUTPUT: reports/benchmarks/ownership-hosted-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-067-xml-serializer-controller
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Preparar la referencia inmutable
+        working-directory: .baseline
+        run: |
+          test "$(git rev-parse HEAD)" = 3d37f89976a48203e80cc5c435e099267f4ce346
+          npm ci
+          npm run build
+      - name: Preparar el candidato
+        run: npm ci && npm run build
+      - name: Verificar los contratos con observaciones públicas reales
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs
+      - name: Seleccionar una CPU permitida y registrar herramientas
+        shell: bash
+        run: |
+          cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
+          echo "RUSTDOM_BENCHMARK_CPU=$cpu" >> "$GITHUB_ENV"
+          taskset -pc $$
+          node --version
+          rustc -Vv
+      - name: Ejecutar una secuencia completa A/A y A/B
+        run: node reports/benchmarks/native-class-ownership/hosted-experiment.cjs .baseline "$OWNERSHIP_OUTPUT" "$RUSTDOM_BENCHMARK_CPU"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-class-ownership-node22-${{ github.event.pull_request.head.sha }}
+          path: ${{ env.OWNERSHIP_OUTPUT }}/

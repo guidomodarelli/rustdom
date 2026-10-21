@@ -52,3 +52,16 @@ en cero y compilación garantizada/posible en 69. Confirmó los resultados del
 microdiagnóstico y cerró el P2: cero hallazgos accionables. Solo lectura y
 cálculos en memoria; no ejecutó cargas ni modificó archivos. El chequeo real
 `verify-diagnostics.cjs` también pasó antes de publicar los datos.
+
+La revisión del experimento hosted encontró otro P2: ante un worker fallido,
+el CLI guardaba el JSON parcial fuera del directorio subido por el workflow.
+Se verificó el flujo real en `BenchmarkReport.fail` y se corrigió archivando
+los nuevos `*-failed.json`, sus hashes y el índice antes de propagar el fallo.
+Una regresión usa el generador real y observaciones históricas completas;
+comprueba preservación byte por byte, muestras, hash e historia preexistente.
+La creación final del directorio también es exclusiva para evitar carreras.
+
+Los cinco contratos pasaron en Node 22.12.0/Linux y 24.14.1/Windows; `actionlint`
+aprobó el workflow. El mismo reviewer nativo Codex aislado revisó el delta
+corregido: cero hallazgos accionables, P2 cerrado, sin modificaciones ni cargas.
+No acredita todavía una medición hosted ni reemplaza la review remota final.
