@@ -74,6 +74,31 @@ for (const mode of ['default', 'outside-only', 'dangerously']) {
     return capture(() => serializer.serializeToString(dom.window.document), dom.window, [failure]);
   });
 
+  for (const kind of ['object', 'function', 'throwing-message', 'revoked']) {
+    compare(`proxy exception reads and identity for ${kind}`, mode, (dom) => {
+      const trace = [], secondary = Symbol('message trap failure');
+      const target = kind === 'function' ? function proxiedError() {} : {};
+      let proxy;
+      const revocable = Proxy.revocable(target, { get(targetObject, property, receiver) {
+        assert.equal(receiver, proxy, 'The original thrown proxy is the getter receiver');
+        trace.push(property);
+        if (property === 'message') {
+          if (kind === 'throwing-message') throw secondary;
+          return 'proxied serialization failure';
+        }
+        return Reflect.get(targetObject, property, receiver);
+      } });
+      proxy = revocable.proxy;
+      if (kind === 'revoked') revocable.revoke();
+      const serializer = new dom.window.XMLSerializer(), owner = implementation(serializer), globalObject = owner._globalObject;
+      Object.defineProperty(owner, '_globalObject', { get() { trace.push('realm'); return globalObject; } });
+      Object.defineProperty(dom.window.document.documentElement, 'nodeType', { get() { throw proxy; } });
+      const output = capture(() => serializer.serializeToString(dom.window.document.documentElement), dom.window, [secondary]);
+      assert.deepEqual(trace, kind === 'revoked' ? ['realm'] : ['realm', 'message']);
+      return { output, trace };
+    });
+  }
+
   compare('realm lookup failure before reading the caught message', mode, (dom) => {
     const trace = [], failure = new Error('realm lookup failed'), serializer = new dom.window.XMLSerializer();
     const original = { get message() { trace.push('message'); return 'primary'; } };

@@ -31,10 +31,10 @@ su realm mediante una arista ordinaria que el GC puede observar.
 ## Evidencia funcional local
 
 - Rust 1.98.1 y 1.99.1: fmt, Clippy con warnings como errores y 305 tests aprobados.
-- Node 22.12.0 y 24.14.1: 90 diferenciales públicos nuevos contra jsdom 27.4.0,
+- Node 22.12.0 y 24.14.1: 102 diferenciales públicos nuevos contra jsdom 27.4.0,
   contador de ruta nativa y ocho terminaciones reales de workers por runtime.
-  Los cinco fixtures XML, incluidos batches repetidos, completan 97 casos focales.
-- Los mismos 90 contratos públicos pasan en el runtime anterior inmutable;
+  Los cinco fixtures XML, incluidos batches repetidos, completan 109 casos focales.
+- Los mismos 102 contratos públicos pasan en el runtime anterior inmutable;
   `reference.json` conserva el digest y la prueba de fuentes de producción
   idénticas entre checkpoints 65 y 66. El contador nuevo se excluye solo de ese
   control anterior porque antes no existía.
@@ -112,3 +112,16 @@ y `sources/`). No hay afirmación de mejora causada por esta migración. El
 siguiente diagnóstico es GC/tiering/deopt/CPU de la fila inestable, antes de
 intentar otra aceptación completa. El gate de clonado de otras ramas sigue
 independiente y abierto.
+
+Actualización: los diagnósticos de GC/CPU/JIT completaron cuarenta procesos con
+warmup corto y extendido. La calibración revisada usó 208 A/A por Node; Node 22
+calibró y completó 208 A/B más 52 descriptivos, aceptando las trece filas con
+máximo +2,522%. Node 24 falló en dos filas de tamaño uno (+2,836%/+2,692%) y no
+ejecutó A/B. Todos los archivos crudos locales se verificaron contra el índice.
+
+El control siguiente se ejecutará en un runner limpio de CI con igual protocolo
+y presupuesto, declarando su entorno y sin reemplazar los resultados locales.
+Su aceptación sigue pendiente. El CLI portable y sus protecciones de historial
+pasaron siete contratos con fixtures reales por Node; actionlint 1.7.12 aprobó
+el workflow. Ningún dato de estos pilotos acredita ausencia universal de fugas,
+compatibilidad completa del proyecto ni rendimiento universal entre máquinas.

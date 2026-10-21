@@ -51,3 +51,9 @@ El primer protocolo terminó sin calibrar en ambos Node; no hubo A/B. Ver
 El [piloto aislado por fila](row-isolated-protocol.md) también falló en una fila
 de Node 22 y se detuvo antes de A/B/Node 24. El gate de rendimiento sigue abierto;
 no se acredita una mejora del controlador ni un checkpoint funcional.
+
+El [warmup revisado](warmup-protocol.md), basado en
+[diagnósticos GC/JIT/CPU](gc-diagnostic-protocol.md), permitió calibrar y aceptar
+Node 22 en las trece filas (máximo A/B +2,522%). Node 24 falló A/A en dos filas;
+ver [todos los resultados locales](warmup-256/README.md). El
+[control siguiente de CI](hosted-protocol.md) conserva los budgets y el historial.

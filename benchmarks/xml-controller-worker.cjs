@@ -6,7 +6,7 @@ const { createHash } = require('node:crypto');
 const { serializationFixture } = require('./xml-serialization.cjs');
 const { getBenchmarkPlan } = require('./workload-plan.cjs');
 const { runtimeEntry } = require('./runtime.cjs');
-const { XML_SERIALIZER_BATCH_SIZES, XML_SERIALIZER_WARMUP_BATCHES, XML_SERIALIZER_MEASURED_BATCHES,
+const { XML_SERIALIZER_BATCH_SIZES, XML_SERIALIZER_WARMUP_BATCHES, XML_SERIALIZER_WARMUP_BATCHES_BY_SIZE, XML_SERIALIZER_MEASURED_BATCHES,
   XML_SERIALIZER_GETTER_ERROR_WORKLOAD } = require('./constants/xml-serializer-controller.cjs');
 const engine = process.argv[2];
 assert.ok(['jsdom', 'rustdom'].includes(engine), 'Expected jsdom or rustdom');
@@ -19,11 +19,12 @@ assert.ok(rows.length > 0 && process.argv.length <= 4, 'XML controller benchmark
 const results = [];
 for (const { name, size } of rows) {
   const batchSize = XML_SERIALIZER_BATCH_SIZES[size];
+  const warmupBatches = XML_SERIALIZER_WARMUP_BATCHES_BY_SIZE[size] ?? XML_SERIALIZER_WARMUP_BATCHES;
   assert.ok(batchSize > 0, `Missing batch size for ${name}/${size}`);
   const work = serializationFixture(runtime, size, name);
   const warmupBatchMs = [], measuredBatchMs = [];
   try {
-    for (let batch = 0; batch < XML_SERIALIZER_WARMUP_BATCHES + XML_SERIALIZER_MEASURED_BATCHES; batch++) {
+    for (let batch = 0; batch < warmupBatches + XML_SERIALIZER_MEASURED_BATCHES; batch++) {
       work.prepare();
       let checksum = 0, result;
       const started = performance.now();
@@ -31,9 +32,9 @@ for (const { name, size } of rows) {
       const elapsed = performance.now() - started;
       assert.equal(checksum, result * batchSize, 'Every public result must contribute to the batch checksum');
       work.validate(result, batchSize);
-      (batch < XML_SERIALIZER_WARMUP_BATCHES ? warmupBatchMs : measuredBatchMs).push(elapsed);
+      (batch < warmupBatches ? warmupBatchMs : measuredBatchMs).push(elapsed);
     }
-    results.push({ name, size, batchSize, inputBytes: work.inputBytes, warmupBatchMs, measuredBatchMs,
+    results.push({ name, size, batchSize, warmupBatches, inputBytes: work.inputBytes, warmupBatchMs, measuredBatchMs,
       outputHash: createHash('sha256').update(work.serialize()).digest('hex') });
   } finally { work.dispose(); }
 }

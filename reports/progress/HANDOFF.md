@@ -2,6 +2,22 @@
 
 ## Estado actual: controlador Rust de XMLSerializer en validación
 
+Actualización posterior al WIP `d71c985`: los diagnósticos GC/JIT/CPU de Node
+22/24 identificaron compilaciones del runtime durante las muestras del warmup
+corto. Con 256 batches de warmup en tamaños pequeños ya no aparecen esas
+compilaciones en los pilotos trazados; queda variación entre procesos.
+El protocolo nuevo `warmup-protocol.md` conserva todas las filas y gates,
+usa dieciséis procesos por fila y 256 muestras por etiqueta. Node 22 calibró las
+trece filas y pasó A/B: máximo observado +2,522%, por debajo de +5%.
+Node 24 completó A/A pero falló en serialize/1 (+2,836%) y getter-error/1
+(+2,692%); se omitieron A/B y referencia. Los doce casos adicionales de proxies
+pasaron en ambos Node: 109 focales, y 102 públicos sobre el runtime anterior.
+No cambió la implementación Rust ni el binario candidato.
+El siguiente control está predeclarado en `hosted-protocol.md`: mismo protocolo
+completo de Node 24 en un runner limpio de CI, con resultados locales intactos.
+El ejecutor portable exige una salida nueva y falla el job si A/A o A/B fallan.
+Completar ese job, CI general y review del SHA final antes de merge/tag.
+
 La base estable publicada es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
 tag `checkpoint-066-reference-catalog`, PR 78 mergeado. El catálogo inicial está
 integrado; su alcance sigue abierto y no hay un porcentaje global defendible.
@@ -31,10 +47,11 @@ El ejecutor declara A/A ±2% antes de habilitar A/B +5% por fila: no cambiar el
 presupuesto ni aceptar un resultado si el control de ruido falla. Los controles
 XML no resuelven el gate independiente pendiente de clonado.
 
-Siguiente acción concreta: diagnosticar GC, tiering/deopt y CPU frente a wall
-time de `xml-serializer-getter-error/1`. No repetir pilotos equivalentes ni
-cambiar umbrales. Conservar todas las filas; solo habilitar una nueva aceptación
-completa cuando calibre el control. Los ejecutores archivados usan copias frescas
+Siguiente acción concreta: publicar y verificar el control Node 24 de CI y su
+source SHA. Los diagnósticos GC/JIT/CPU y la revisión del warmup ya están guardados;
+no repetirlos sin una hipótesis nueva ni cambiar umbrales. Conservar todas las
+filas; solo habilitar una nueva aceptación completa cuando calibre el control.
+Los ejecutores archivados anteriores usan copias frescas
 de fuentes sin resultados anteriores: no correrlos sobre los directorios
 históricos versionados ni sobrescribir sus muestras. Comprobar procesos vivos
 antes de reiniciar cualquier ejecución.
