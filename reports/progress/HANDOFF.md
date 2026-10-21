@@ -1,5 +1,50 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: estudio v2 completo, presupuesto sin aprobar
+
+El head `2c92c82da1f9a9eee82549f7947be95f672e1ca8` recibió review remota
+limpia (6325872955) y su matriz general 39670400737 aprobó los ocho checks.
+El gate dedicado 39670400667 conserva el fallo histórico; no se omitió.
+Consultar GitHub para los SHAs/checks posteriores de esta publicación de datos.
+
+La sesión 10526 completó una única secuencia v2 entre 20:31:39Z y 20:58:08Z
+del 21 de octubre de 2026. Los 128 workers terminaron con exit 0; los drivers y
+el launcher terminaron con exit 1 por accepted=false. Son 9.216 duraciones y
+las ocho filas originales en A/A y A/B por Node 22.12.0/24.14.1. No quedan
+cargas de ese estudio activas. No relanzar esta misma secuencia para aprobar.
+
+Los datos completos están en
+`reports/benchmarks/native-class-ownership/main-affinity/2026-10-21/`:
+426 archivos más manifest, fuentes congeladas, recibo de review, manifests
+iniciales/finales completos de A/B, stdout/stderr, máscaras por TID y agregados.
+Las trece fuentes del método y los paquetes originales no cambiaron.
+
+Node 22 calibró 3/8 filas A/A y 4/8 A/B; solo 3/8 A/B quedaron dentro del
+presupuesto. Node 24 calibró 5/8 A/A y 3/8 A/B, estas tres dentro del presupuesto.
+Ambas versiones quedan sin aceptación global. La fila mutation-records-collect/100
+Node 22 A/B da +5,057644% Rust con control +0,166349%, fuera del +5%; su A/A
+no calibró y no permite atribuir la diferencia al SDK. Range/1000 Node 22 sigue
+sin control calibrado. La afinidad del principal no basta para resolver el hito.
+
+El verificador completo aprobó en ambos archivos. Dieciséis pruebas posteriores
+pasaron por Node 22 y 24 sobre los datos reales y copias privadas alteradas;
+logs/CI en reports/validation/native-class-ownership/main-affinity-v2-evidence/.
+Los mismos dieciséis también pasaron en Windows Node 24.14.1. El spec está en
+main-affinity-evidence.spec.cjs y no ejecuta benchmarks nuevos. La revisión
+independiente final cotejó archivos, fuentes, distribuciones, schedule, agregados
+y memoria: cero hallazgos accionables. Los 426 archivos coinciden también con
+los bytes Git stageados, sin alteración de line endings o muestras.
+El resumen de memoria publica 9.216 observaciones posteriores a limpieza por
+versión/fase/motor. Son mínimos/máximos, no picos ni WeakRefs separados de
+Window/Document, y no sustituyen la regresión de ownership previamente validada.
+
+Siguiente acción: verificar revisión remota y CI del SHA final publicado,
+mantener el PR 80 abierto sin merge/tag y estudiar la precisión de estas
+mediciones y la fila fuera del presupuesto a partir de los datos existentes.
+No reducir alcance, cambiar umbrales o reinterpretar el estudio como aprobado.
+El objetivo integral continúa abierto: inventario014c7da y el control completo de
+living/node.js siguen pendientes; esta entrega no suma APIs DOM migradas.
+
 ## Actualización: método v1 detenido por identidad incompleta de dist
 
 La review remota de `2567e7e176d33fe97f7189b05a2b302339cf8fee` encontró el
