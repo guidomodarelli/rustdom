@@ -1,5 +1,41 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: comparación pública completa con afinidad del principal
+
+El PR 80 sigue abierto en `feature/native-class-ownership`. El head publicado
+`e501a71be0775a4eb507f032608b9888551c3c80` recibió review limpia (6325397282).
+El check dedicado `39666548266` conservó el fallo histórico; consultar la
+matriz general `39666548317` y GitHub para sus estados actuales. No corresponde
+merge/tag mientras falte aceptación del presupuesto y checks del SHA final.
+
+Se preparó `MAIN-AFFINITY-PROTOCOL.md` y su ejecutor en
+`reports/benchmarks/native-class-ownership/`. Invoca el worker público original,
+sin cambiar timers, operaciones, fixtures, tres warmups, nueve muestras ni
+limpieza. Cubre las ocho filas originales, no solo Range/1000. El bootstrap
+inicializa libuv y fija solo el principal en CPU 2; conserva máscaras por TID.
+El reloj Rust auxiliar no se usa para medir o aceptar esta comparación.
+
+El diseño fija una secuencia A/A y A/B de 64 procesos por Node 22.12.0 y
+24.14.1: 128 procesos / 9.216 duraciones en total, presupuestos originales
+±2% jsdom y ±5% Rust en A/A, +5% Rust en A/B. Se exigen todas las filas y
+ambas versiones. Las fuentes y los dos addons están fijados por SHA.
+Los estudios previos no se repiten ni se convierten en aprobados.
+
+Los seis contratos reales pasaron en ambos Node, antes y después de fijar
+hashes y comprobar conservación de máscaras. Ejecutan A, B y jsdom sobre las
+ocho cargas, comparan resultados y rechazan metadatos/filas inválidos y
+sobrescritura de evidencia. Logs y raw están en
+`reports/validation/native-class-ownership/main-affinity-method/`. Se conserva
+la identidad canónica de producción: 333 archivos / hash8332276799c5ccc18c7a45a5136a856b039736597d5e104e22f074f8e23f1ddd.
+
+La revisión local final del método cerró sin hallazgos accionables; sus doce
+fuentes están congeladas en before-performance.json. La siguiente acción es
+ejecutar una sola secuencia por Node, preservar errores y datos, y
+verificar el archivo completo con pruebas adversariales sobre copias privadas.
+Estas validaciones no suman APIs migradas ni certifican memoria pico o ausencia
+universal de fugas; la regresión de ownership y los endpoints previos conservan
+su alcance. Continúa pendiente retirar el control JavaScript de `living/node.js`.
+
 ## Actualización: ubicación del reloj aislada de la huella canónica
 
 El crate auxiliar ahora está en
