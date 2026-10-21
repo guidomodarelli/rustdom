@@ -145,4 +145,4 @@ async function waitForMemoryQuiescence({ label, sample, expectedNative,
     state, trace };
 }
 
-module.exports = { collectGarbage, captureMemoryState, waitForMemoryQuiescence };
+module.exports = { collectGarbage, captureMemoryState, isReleased, waitForMemoryQuiescence };

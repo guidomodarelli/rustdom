@@ -288,9 +288,10 @@ function observerDeliveryFixture(document, size, name, roots) {
  * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
  * @param {string} name - Workload name, including its configuration.
  * @param {number} size - Fixture row count.
+ * @param {boolean} [trackRealms=false] - Return weak observers allocated outside timing.
  * @returns {Promise<object>} Raw milliseconds and post-cleanup memory snapshots.
  */
-async function measure(runtime, engine, environmentEntry, name, size) {
+async function measure(runtime, engine, environmentEntry, name, size, trackRealms = false) {
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
@@ -348,6 +349,7 @@ async function measure(runtime, engine, environmentEntry, name, size) {
       : (await import(environmentEntry)).default
     : null;
   const samplesMs = [];
+  const realmReferences = trackRealms ? { window: [], document: [] } : undefined;
   const memory = [];
   let measuredInputBytes = Buffer.byteLength(html);
   let outputHash;
@@ -971,6 +973,11 @@ async function measure(runtime, engine, environmentEntry, name, size) {
     const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).update(xmlWork?.serialize() ?? '').update(collectionWork?.serialize?.() ?? '').digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
+    // Observe real realms after timing and correctness checks; never keep strong targets.
+    if (realmReferences) {
+      realmReferences.window.push(new WeakRef(dom.window));
+      realmReferences.document.push(new WeakRef(dom.window.document));
+    }
     result = null;
     insertionDocument = null;
     if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
@@ -1006,7 +1013,9 @@ async function measure(runtime, engine, environmentEntry, name, size) {
       memory.push(process.memoryUsage());
     }
   }
-  return { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
+  const report = { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
+  if (realmReferences) report.realmReferences = realmReferences;
+  return report;
 }
 
 /**
@@ -1053,17 +1062,19 @@ function validateEngine(engine) {
  * @param {'jsdom'|'rustdom'} options.engine - Implementation whose activation is checked.
  * @param {object} options.runtime - Real public package exports.
  * @param {string} [options.environmentEntry] - Rustdom Vitest environment URL for environment workloads.
+ * @param {boolean} [options.trackRealms=false] - Return weak Window/Document observations from direct measurements, including warmups.
  * @returns {object} Full workload measurement and the unchanged CLI plan executor.
  */
-function createBenchmarkRunner({ engine, runtime, environmentEntry }) {
+function createBenchmarkRunner({ engine, runtime, environmentEntry, trackRealms = false }) {
   validateEngine(engine);
   assert.equal(typeof runtime?.JSDOM, 'function', 'BenchmarkRunner: a runtime.JSDOM constructor is required');
+  assert.equal(typeof trackRealms, 'boolean', 'BenchmarkRunner: trackRealms must be a boolean');
   const plan = getBenchmarkPlan();
   return {
     measureWorkload: (name, size) => {
       assert.ok(plan.some((workload) => workload.name === name && workload.size === size),
         `BenchmarkRunner: unknown workload or fixture size ${name}/${size}`);
-      return measure(runtime, engine, environmentEntry, name, size);
+      return measure(runtime, engine, environmentEntry, name, size, trackRealms);
     },
     run: () => main(runtime, engine, environmentEntry),
   };

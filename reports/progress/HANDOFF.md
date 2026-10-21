@@ -1,5 +1,55 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: sampler pareado y observación real de Window/Document
+
+El head previo 61ed417d23cb3b62430c5c74fe1fa0f6343dd700 recibió review remota
+limpia (6327110120). Consultar GitHub para el SHA y CI posteriores. El presupuesto
+de ownership sigue pendiente; no corresponde merge/tag ni acreditar APIs nuevas.
+
+El worker público admite trackRealms en mediciones directas: devuelve WeakRef de
+Window y Document reales después de timers/assertions/checksum, incluyendo los
+warmups, y conserva el resultado ordinario. memory-endpoint.cjs exporta el mismo
+predicado de liberación existente para reutilizar todos sus contadores nativos.
+CI ejecuta los tests del harness con --expose-gc.
+
+paired-main-worker.cjs carga dos paquetes reales en un mismo isolate, fija solo
+el principal a CPU 2 y ejecuta las ocho filas originales en lotes completos de
+tres warmups/nueve muestras. Balancea ocho posiciones de carga/asignación/orden;
+en Rust A/B el candidato siempre conserva la etiqueta B. Verifica distribuciones
+completas contra pins independientes antes/después, aislamiento en ambos sentidos
+y exactamente tres rondas de GC por lote. Las últimas dos requieren liberación
+de Window/Document y vuelta al baseline nativo de ambos módulos. Conserva fallos
+y observaciones escalares, sin serializar WeakRefs.
+
+Pasaron 122 tests del harness, 33 de historia/evidencia y seis del sampler por
+Node 22.12.0 y 24.14.1 Linux. Cuatro workers de validación ejercieron todas las
+filas: Rust A/B posición 7 y jsdom A/A posición 0 por Node. Se guardaron 576
+duraciones de validación; no son el estudio factorial ni aceptan rendimiento.
+Windows Node 24 aprobó dos contratos puros; cuatro casos Linux se omitieron
+explícitamente allí. actionlint aprobó; revisión local read-only: cero hallazgos.
+
+En estos escenarios se observaron 1.440 Window y 1.440 Document, liberados en los
+endpoints exigidos junto con los recursos nativos. Se guardan traces, manifests,
+procedencia y logs en reports/validation/native-class-ownership/paired-main-sampler/;
+el alcance de memoria está en reports/memory/native-class-ownership/paired-main-validation.md.
+No son picos ni una garantía universal de ausencia de fugas. La fuente del
+harness actual es 609e73b5a7f8781ecfd0c805461ac553021be09476e762869ebd295a885e638a;
+las distribuciones de producción A/B congeladas siguen sin cambios.
+
+Este avance se publica temporalmente en feature/native-class-ownership-sampler
+para conservar el commit remotamente sin actualizar el head del PR 80 ni cancelar
+XMLSerializer por concurrency. La rama local feature/native-class-ownership
+contiene el commit nuevo; origin/feature/native-class-ownership conserva 61ed417d.
+Tras el estado terminal de XMLSerializer, conservar su resultado, publicar el
+avance en la rama original, pedir review del nuevo SHA y eliminar el respaldo.
+
+Siguiente acción de implementación: completar driver y verificador offline del método definido en
+PAIRED-MAIN-PROTOCOL.md, fijar fuentes/secuencia y revisar antes de una única
+comparación completa. No relanzar v2 ni reducir las ocho filas/umbrales. Mientras
+XMLSerializer 39679501920 siga activo, conservar su ejecución antes de un push
+que lo cancelaría por concurrency. Verificar estado terminal y guardar resultado.
+Inventario014c7da y el control completo de living/node.js siguen pendientes.
+
 ## Actualización: worker reutilizable con runtimes reales y preflight de CI
 
 El head previo `385d901925abba7d9094b92121f6896ecf92bce7` recibió review
