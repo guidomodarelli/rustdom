@@ -23,6 +23,7 @@ export interface NativeTreeStatistics {
   dataUpdates: number;
   serializations: number;
   nativeQueries: number;
+  nativeAttributeReads: number;
   nativeCollectionQueries: number;
   nativeCollectionNamedReads: number;
   nativeCollectionNameEnumerations: number;

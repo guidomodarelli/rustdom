@@ -3,6 +3,7 @@ mod abort_state;
 mod abort_state_binding;
 mod attribute_index;
 mod attribute_operations;
+mod attribute_reads;
 mod attribute_view;
 mod attributes;
 // N-API registration is omitted from Rust test binaries; the addon contracts exercise these exports.

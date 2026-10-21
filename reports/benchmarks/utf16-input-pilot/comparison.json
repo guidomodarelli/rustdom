@@ -1,0 +1,334 @@
+{
+  "disposition": "rejected",
+  "reason": "No consistent improvement across both Node versions; no production source from this prototype was adopted.",
+  "capturedAt": "2026-10-21T01:10:19.224Z",
+  "baseline": {
+    "commit": "baa87fa3eb1a62ec6477013bb305b2a79a0c3bb6",
+    "reviewedHead": "be90ba1ac6b7404c585a8e1905e7808d883b512b",
+    "checkpoint": "checkpoint-064-id-lookups",
+    "sourceHash": "95f641ef6dd84ddac7bbd70119121ece19669c125d5bb3c70d9693c9770a19b1",
+    "nativeBinarySha256": "cc8852f6ba6e3755fbe8805948c8fb71bd140323b08b86d091727aacc8ed6753"
+  },
+  "prototype": {
+    "sourceHash": "59ea3fe29dd58ba5bbbd9413513d46f925318fc4f2e59329e355a100f63059f0",
+    "nativeBinarySha256": "b2c3f9e97745eff0b4b744309ce28a25ca1c95c23c57cab256a2e9f85a4a6b2e"
+  },
+  "methodology": "Diagnostic only: baseline then candidate, one report per stage/runtime, four alternating-engine workers/report and 18 samples/row/engine/stage/runtime. No reverse stage order; not final balanced evidence. The pilot overlapped Git metadata/merge operations. Initial CPU profiles include profiler overhead and are not controlled timing comparisons.",
+  "limits": "Only short inputs were timed. Long fallback cost was not benchmarked. Rust 1.99, focused Node contracts and static review passed, but full release gates, memory and package validation were not completed for the rejected prototype. V8 native frame labels do not isolate conversion from lookup or binding overhead.",
+  "rows": [
+    {
+      "node": "v24.14.1",
+      "workload": "document-name-miss",
+      "size": 100,
+      "baselineMedianMs": 0.7605645000000436,
+      "prototypeMedianMs": 0.8130749999999978,
+      "rustdomDurationChangePercent": 6.904148168886559,
+      "jsdomControlChangePercent": 1.1922113636674725
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-name-miss",
+      "size": 1000,
+      "baselineMedianMs": 6.90685649999989,
+      "prototypeMedianMs": 7.3973720000000185,
+      "rustdomDurationChangePercent": 7.101863199273595,
+      "jsdomControlChangePercent": 3.5568568779276166
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-read",
+      "size": 100,
+      "baselineMedianMs": 0.12892899999997098,
+      "prototypeMedianMs": 0.1467689999999493,
+      "rustdomDurationChangePercent": 13.837073117748776,
+      "jsdomControlChangePercent": -0.0911702586629648
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-miss",
+      "size": 100,
+      "baselineMedianMs": 0.11348350000002938,
+      "prototypeMedianMs": 0.11848349999991115,
+      "rustdomDurationChangePercent": 4.405926852697073,
+      "jsdomControlChangePercent": 3.683837034516846
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-register",
+      "size": 100,
+      "baselineMedianMs": 0.7499820000000454,
+      "prototypeMedianMs": 0.7642835000001469,
+      "rustdomDurationChangePercent": 1.9069124325784559,
+      "jsdomControlChangePercent": 9.795362827199838
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-change",
+      "size": 100,
+      "baselineMedianMs": 0.9916324999999233,
+      "prototypeMedianMs": 1.0357504999999492,
+      "rustdomDurationChangePercent": 4.449027235395087,
+      "jsdomControlChangePercent": 12.441450199518233
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-read",
+      "size": 1000,
+      "baselineMedianMs": 0.1244459999998071,
+      "prototypeMedianMs": 0.11966600000050676,
+      "rustdomDurationChangePercent": -3.8410234152224665,
+      "jsdomControlChangePercent": 0.744191555593865
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-miss",
+      "size": 1000,
+      "baselineMedianMs": 0.10944850000032602,
+      "prototypeMedianMs": 0.10436150000032285,
+      "rustdomDurationChangePercent": -4.647848074654304,
+      "jsdomControlChangePercent": 14.789245336709111
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-register",
+      "size": 1000,
+      "baselineMedianMs": 4.113745499999823,
+      "prototypeMedianMs": 4.261732499999198,
+      "rustdomDurationChangePercent": 3.5973785932888136,
+      "jsdomControlChangePercent": 3.961861292845148
+    },
+    {
+      "node": "v24.14.1",
+      "workload": "document-id-change",
+      "size": 1000,
+      "baselineMedianMs": 0.8703270000005432,
+      "prototypeMedianMs": 0.8672320000005129,
+      "rustdomDurationChangePercent": -0.35561346482739786,
+      "jsdomControlChangePercent": 7.831024439004275
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-name-miss",
+      "size": 100,
+      "baselineMedianMs": 0.826590499999952,
+      "prototypeMedianMs": 0.906844499999977,
+      "rustdomDurationChangePercent": 9.709039724026546,
+      "jsdomControlChangePercent": 9.321341455316245
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-name-miss",
+      "size": 1000,
+      "baselineMedianMs": 7.3855254999999715,
+      "prototypeMedianMs": 7.484805499999993,
+      "rustdomDurationChangePercent": 1.344250994733165,
+      "jsdomControlChangePercent": 6.572641829676784
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-read",
+      "size": 100,
+      "baselineMedianMs": 0.13467750000017986,
+      "prototypeMedianMs": 0.12918149999995876,
+      "rustdomDurationChangePercent": -4.080859831979177,
+      "jsdomControlChangePercent": 5.750925092284986
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-miss",
+      "size": 100,
+      "baselineMedianMs": 0.1010550000000876,
+      "prototypeMedianMs": 0.11553249999997206,
+      "rustdomDurationChangePercent": 14.326356934215934,
+      "jsdomControlChangePercent": 32.05292908633825
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-register",
+      "size": 100,
+      "baselineMedianMs": 0.645454499999687,
+      "prototypeMedianMs": 0.6663689999998041,
+      "rustdomDurationChangePercent": 3.240274876095417,
+      "jsdomControlChangePercent": 0.8467302677817479
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-change",
+      "size": 100,
+      "baselineMedianMs": 0.9822309999999561,
+      "prototypeMedianMs": 1.0072364999998626,
+      "rustdomDurationChangePercent": 2.5457860727168713,
+      "jsdomControlChangePercent": -5.0698332028947135
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-read",
+      "size": 1000,
+      "baselineMedianMs": 0.10530500000004395,
+      "prototypeMedianMs": 0.10293799999999464,
+      "rustdomDurationChangePercent": -2.247756516830457,
+      "jsdomControlChangePercent": -5.306151881723597
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-miss",
+      "size": 1000,
+      "baselineMedianMs": 0.0907494999996743,
+      "prototypeMedianMs": 0.09496050000007017,
+      "rustdomDurationChangePercent": 4.640245952221211,
+      "jsdomControlChangePercent": -3.478751689265014
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-register",
+      "size": 1000,
+      "baselineMedianMs": 5.077010500001052,
+      "prototypeMedianMs": 4.899947000000793,
+      "rustdomDurationChangePercent": -3.48755433931488,
+      "jsdomControlChangePercent": 0.3297418290847176
+    },
+    {
+      "node": "v22.12.0",
+      "workload": "document-id-change",
+      "size": 1000,
+      "baselineMedianMs": 0.8932130000011966,
+      "prototypeMedianMs": 0.8825660000002244,
+      "rustdomDurationChangePercent": -1.1919889210029289,
+      "jsdomControlChangePercent": 1.1782960184806734
+    }
+  ],
+  "files": [
+    {
+      "path": "raw/2026-10-21T00-58-45.242Z-linux-x64.json.gz",
+      "originalBytes": 150988,
+      "originalSha256": "595a1852854d0609ff40a44e514b93b282e0bdef8d778db773f3c79ff3c92952",
+      "gzipSha256": "d83bbada27cf7081290d9756353c42b107a2d18ba5728f8f4a1a64b26eab3459"
+    },
+    {
+      "path": "raw/2026-10-21T00-59-24.458Z-linux-x64.json.gz",
+      "originalBytes": 150955,
+      "originalSha256": "ac7c8a7df60de45d0496045a8e093bed678426584086e87c79c3f9dd0502f842",
+      "gzipSha256": "fedb0d2fcdc3ba45b74308d7eab397568e936ee0dac1f8dcaf2613b9da63ddb0"
+    },
+    {
+      "path": "raw/2026-10-21T01-00-08.388Z-linux-x64.json.gz",
+      "originalBytes": 150598,
+      "originalSha256": "7824970e77e04453689a77e98c1cf44098db8b3777a98ab6835a232f40c4f788",
+      "gzipSha256": "7c3dbc8e6ab1a5e1f2c02c6648b8f867db7238076fd76dcdce90a09b0b5fba22"
+    },
+    {
+      "path": "raw/2026-10-21T01-00-53.710Z-linux-x64.json.gz",
+      "originalBytes": 150582,
+      "originalSha256": "e2768f329d0f043f9cd751714671494fe8afc3fc928f4e71a5d8710bec6081f0",
+      "gzipSha256": "a82249647ee0510b1c51c5a8ace9f704c61b0d544e0ceb0e673cda610d967ac9"
+    },
+    {
+      "path": "rejected-source/src-dom-constants.rs.gz",
+      "originalBytes": 1383,
+      "originalSha256": "e17a2aa7b0ac226a835b131fae3301015f360e5e50a0eae989e4ba8d6f832c6d",
+      "gzipSha256": "c332afe3d90d64cae5f68dbb196b2915157b9e9e660b2bfaf8a469b21129c92d"
+    },
+    {
+      "path": "rejected-source/src-dom-napi_string.rs.gz",
+      "originalBytes": 4081,
+      "originalSha256": "f21d3eb69bbb3b297107d3a35ec4f7083a15ff2ea419015492f39388bb7f8e11",
+      "gzipSha256": "0af34835f7699aeddac6e96338eb727c061a4882d1e582c11076570865b1a7a4"
+    },
+    {
+      "path": "rejected-source/src-dom-tree.rs.gz",
+      "originalBytes": 68433,
+      "originalSha256": "4b1fa5a7fbf04129c1b40444c209da8969f7d7fd94869b49f81be2414b18f90d",
+      "gzipSha256": "98c93240061b4d09717caf864ee4a73685982e17f36c4e43284862c302f22a6a"
+    },
+    {
+      "path": "rejected-source/tests-id-inputs.spec.cjs.gz",
+      "originalBytes": 6000,
+      "originalSha256": "905daafad034d4ccf7345a3016c3e1fa7a559d8b7f834a41f26153f6bde7f78a",
+      "gzipSha256": "79384bb8dff8b36d6c861d87dab11d3229d01bb7fe5d43f936cefe7011b3ceaa"
+    },
+    {
+      "path": "validation/baseline.json.gz",
+      "originalBytes": 13958,
+      "originalSha256": "dc5931bceef33e5b94ee21c524cdbfbe3166b669adae78194993f6ac5a435b5a",
+      "gzipSha256": "52a3aea138ca5773e356f4e06a8ea7d2f56cd07c946d6b62e505a0c041d7e02e"
+    },
+    {
+      "path": "validation/prototype-source.json.gz",
+      "originalBytes": 12820,
+      "originalSha256": "1f0c98c4748139cebac8c442ce6ae766c5a7b4184e7fa14a63bf910783ecd199",
+      "gzipSha256": "4d1bb579a8e4f599fc510daebab10d5eccd61b07224b5ad205f035a1ff8f57d3"
+    },
+    {
+      "path": "validation/pilot.log.gz",
+      "originalBytes": 3646,
+      "originalSha256": "0be3a97b2db3bb00729d3861430614903be6f37d8e63e00b5b9cc84e6113a294",
+      "gzipSha256": "4b969dbb1fb2a540030c15f3306f3ee63e1b7226c1c84365e60027ec87c488e0"
+    },
+    {
+      "path": "validation/clippy.log.gz",
+      "originalBytes": 222,
+      "originalSha256": "39b9f00c27875604106d82c3e6421239d4f0119e442bd3d89c8cd5ec4304a50f",
+      "gzipSha256": "07750790260c30c69efd10700a5161bb2676ad13c35b79c507892363f7a5cd54"
+    },
+    {
+      "path": "validation/rust-tests.log.gz",
+      "originalBytes": 33334,
+      "originalSha256": "961a279e3bc2c40511aa93532378999513c3777d9cecd204d1d85f593c349330",
+      "gzipSha256": "539dd2429f0de29d2a550e58d44a95e3f420b8193446398ffe7a6287507ee723"
+    },
+    {
+      "path": "validation/focal-v22.12.0.log.gz",
+      "originalBytes": 78676,
+      "originalSha256": "30ab6abf6b94e18c1044a377ae02b9945f8fd732a50991bec150d67b21a1fc45",
+      "gzipSha256": "78258dec0ae808f6e68374512517fb77317892772b048a4d2c5f189e1e964a62"
+    },
+    {
+      "path": "validation/focal-v24.14.1.log.gz",
+      "originalBytes": 36058,
+      "originalSha256": "0508cab7b37b24194ed6248ec87c2e73514a129791c5493ba96553980d7be2ad",
+      "gzipSha256": "cbe94e433143802c9f3d9f9e91824a2ddafb1e2d3a49b781615e69e2bc22e5a9"
+    },
+    {
+      "path": "profiles/2026-10-21T00-41-01.769Z-jsdom-miss.cpuprofile.gz",
+      "originalBytes": 8262,
+      "originalSha256": "d64e4bda317f5eff544d2f8cfc34bc651e6f386de1c885a4c2b013c4e14f4ad2",
+      "gzipSha256": "8d0ea27bc906ff850e663bf352836fab7e335626f087a2197646c79aeeaa9e9c"
+    },
+    {
+      "path": "profiles/2026-10-21T00-41-01.769Z-jsdom-read.cpuprofile.gz",
+      "originalBytes": 14651,
+      "originalSha256": "56837291fbe1840243e2fc0d907aff5614d7ad5f12dab40b4e95d0263a187558",
+      "gzipSha256": "5382615bb46067b9a804c622f1e08a7c964da2d2ea773d4f6ce0e5ec3ec4b548"
+    },
+    {
+      "path": "profiles/2026-10-21T00-41-01.769Z-rustdom-miss.cpuprofile.gz",
+      "originalBytes": 32257,
+      "originalSha256": "474138292f11bb2487256fc1c903d27de5ca320c78d8f7a825a149db6fd15fe0",
+      "gzipSha256": "5e716ddcd3cc707cace579cbe94b1afb7f05266044ceffe2460164d71139e22c"
+    },
+    {
+      "path": "profiles/2026-10-21T00-41-01.769Z-rustdom-read.cpuprofile.gz",
+      "originalBytes": 41789,
+      "originalSha256": "f8fdbc73fa76dc85fac33f50c20c459147d2bfb79e15b1dc67eac0937d79f3fd",
+      "gzipSha256": "8412153a4fa9a55e6410b09473ab43a6b32cceea8056a9f4cffb5ea9fd40eb4b"
+    },
+    {
+      "path": "profiles/2026-10-21T00-41-01.769Z-summary.json.gz",
+      "originalBytes": 12682,
+      "originalSha256": "7215d18674a8be4261c186b1d1dc53d871ebf5245c4368fb1b4d1552c1e2d1c7",
+      "gzipSha256": "4097207aa9475ea84b02da29dfbd9db29a6323de5658a2118e3fa50542c7a381"
+    },
+    {
+      "path": "profiles/attribution.json.gz",
+      "originalBytes": 596,
+      "originalSha256": "73158adee81ff3d1aa37aae6053ca896639b6e10173fa983fc77a306854f64db",
+      "gzipSha256": "c50492bbf751b327c8d25b00fe0e56b75b4cd2de6314294b7b53fbb6b8d899b6"
+    },
+    {
+      "path": "profiles/profile-id-inputs.cjs.gz",
+      "originalBytes": 4703,
+      "originalSha256": "2bdebfe22149e40c2294189942e59414c9b108c6108a55a196d492127b73cae2",
+      "gzipSha256": "852bcc42181d68849de65cf1e12054fb4da677e2d0f9484710739cd0de34845d"
+    }
+  ]
+}

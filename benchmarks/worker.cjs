@@ -30,6 +30,8 @@ const { fragmentIdFixture } = require('./fragment-id.cjs');
 const { FRAGMENT_ID_WORKLOADS, FRAGMENT_ID_DOCUMENT_HTML } = require('./constants/fragment-id.cjs');
 const { idLookupFixture } = require('./id-lookups.cjs');
 const { ID_LOOKUP_WORKLOADS, ID_LOOKUP_DOCUMENT_HTML } = require('./constants/id-lookups.cjs');
+const { attributeReadFixture } = require('./attribute-reads.cjs');
+const { ATTRIBUTE_READ_WORKLOADS, ATTRIBUTE_READ_DOCUMENT_HTML } = require('./constants/attribute-reads.cjs');
 const { readerFixture } = require('./file-reader.cjs');
 const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
 
@@ -295,9 +297,10 @@ async function measure(name, size) {
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
-  const usesEmptyDocument = measuresDocumentNames || measuresFragmentIds || measuresIdLookups;
+  const measuresAttributeReads = ATTRIBUTE_READ_WORKLOADS.includes(name);
+  const usesEmptyDocument = measuresDocumentNames || measuresFragmentIds || measuresIdLookups || measuresAttributeReads;
   const html = measuresDocumentNames ? NAME_QUERY_DOCUMENT_HTML : measuresFragmentIds ? FRAGMENT_ID_DOCUMENT_HTML
-    : measuresIdLookups ? ID_LOOKUP_DOCUMENT_HTML : fixture(size);
+    : measuresIdLookups ? ID_LOOKUP_DOCUMENT_HTML : measuresAttributeReads ? ATTRIBUTE_READ_DOCUMENT_HTML : fixture(size);
   const stringifyReads = RANGE_STRINGIFICATION_READS[name];
   const contentOperation = RANGE_CONTENT_OPERATIONS[name];
   const removesContent = contentOperation === 'deleteContents' || contentOperation === 'extractContents';
@@ -427,6 +430,7 @@ async function measure(name, size) {
       if (NAME_QUERY_WORKLOADS.includes(name)) collectionWork = nameQueryFixture(runtime, dom.window, size, name);
       if (measuresFragmentIds) collectionWork = fragmentIdFixture(runtime, dom.window, size, name);
       if (measuresIdLookups) collectionWork = idLookupFixture(runtime, dom.window, size, name);
+      if (measuresAttributeReads) collectionWork = attributeReadFixture(runtime, dom.window, size, name);
       if (measuresDataset) datasetWork = datasetFixture(runtime, dom.window, size, name);
       if (dispatchesSimpleEvents) {
         simpleEventTarget = new dom.window.EventTarget();

@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve, relative, sep } from 'node:path';
 import { patchEventDispatch, replaceRegion } from './build-event-dispatch.mjs';
 import { patchEventListeners } from './build-event-listeners.mjs';
+import { patchAttributeReads } from './build-attribute-reads.mjs';
 
 /** Resolve dependencies from this project without modifying Node's module cache. */
 const require = createRequire(import.meta.url);
@@ -290,6 +291,7 @@ let elementSource = substituteOnce(await readFile(elementPath, 'utf8'),
   '    domSymbolTree.initializeAttributeCollection(this);');
 elementSource = substituteOnce(elementSource, '  _attach() {',
   '  get _attributeList() { return domSymbolTree.attributeList(this); }\n\n  _attach() {');
+elementSource = patchAttributeReads(elementSource, substituteOnce);
 elementSource = substituteOnce(elementSource, '    return domSelector.matches(selectors, this);',
   '    const nodes = domSymbolTree.matchNode(selectors, this);\n    return nodes === null ? domSelector.matches(selectors, this) : nodes.length > 0;');
 elementSource = substituteOnce(elementSource, '    return domSelector.closest(selectors, this);',

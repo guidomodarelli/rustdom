@@ -157,6 +157,16 @@ impl TreeStore {
         name: &[u16],
         html_document: bool,
     ) -> Result<f64> {
+        self.attribute_by_name_id(element, name, html_document)
+            .map(|attribute| attribute.unwrap_or(0) as f64)
+    }
+    /// Share canonical name-cache selection without converting a native ID back through the public boundary.
+    pub(super) fn attribute_by_name_id(
+        &self,
+        element: f64,
+        name: &[u16],
+        html_document: bool,
+    ) -> Result<Option<NodeId>> {
         let element = node_id(element)?;
         let data = self.element(element)?;
         let folded;
@@ -183,8 +193,7 @@ impl TreeStore {
             .get(&element)
             .and_then(|index| index.names.get(name))
             .and_then(|entry| entry.first())
-            .copied()
-            .unwrap_or(0) as f64)
+            .copied())
     }
     pub fn attribute_by_namespace(
         &self,
@@ -192,10 +201,20 @@ impl TreeStore {
         namespace: Option<&[u16]>,
         name: &[u16],
     ) -> Result<f64> {
+        self.attribute_by_namespace_id(element, namespace, name)
+            .map(|attribute| attribute.unwrap_or(0) as f64)
+    }
+    /// Namespace selection uses the physical ordered list, independently of legacy qualified-name aliases.
+    pub(super) fn attribute_by_namespace_id(
+        &self,
+        element: f64,
+        namespace: Option<&[u16]>,
+        name: &[u16],
+    ) -> Result<Option<NodeId>> {
         let element = node_id(element)?;
         self.element(element)?;
         let Some(index) = self.attribute_collections.elements.get(&element) else {
-            return Ok(0.0);
+            return Ok(None);
         };
         for &id in &index.ordered {
             let data = self.attribute(id)?;
@@ -212,10 +231,10 @@ impl TreeStore {
                     .units()
                     .eq(name.iter().copied())
             {
-                return Ok(id as f64);
+                return Ok(Some(id));
             }
         }
-        Ok(0.0)
+        Ok(None)
     }
     pub fn attribute_names(
         &self,

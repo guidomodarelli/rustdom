@@ -204,6 +204,7 @@ pub struct TreeStatistics {
     pub data_updates: f64,
     pub serializations: f64,
     pub native_queries: f64,
+    pub native_attribute_reads: f64,
     pub native_collection_queries: f64,
     pub native_collection_named_reads: f64,
     pub native_collection_name_enumerations: f64,
@@ -494,6 +495,7 @@ fn simple_data(kind: u16, value: String) -> NodeData {
 pub struct NativeTree {
     store: store::TreeStore,
     queries: QueryEngine,
+    attribute_reads: u64,
     collection_queries: u64,
     collection_named_reads: u64,
     collection_name_enumerations: u64,
@@ -635,6 +637,7 @@ impl NativeTree {
         Self {
             store: store::TreeStore::new(),
             queries: QueryEngine::default(),
+            attribute_reads: 0,
             collection_queries: 0,
             collection_named_reads: 0,
             collection_name_enumerations: 0,
@@ -1719,6 +1722,71 @@ impl NativeTree {
             .attribute_by_namespace(element, namespace.as_deref(), &name)
             .map_err(to_napi_error)
     }
+    /// Resolve and copy the selected canonical value to V8 in one native operation.
+    #[napi]
+    pub fn attribute_value_by_name(
+        &mut self,
+        element: f64,
+        name: Utf16String,
+        html_document: bool,
+    ) -> Result<Option<Either<&str, Utf16String>>> {
+        self.attribute_reads += 1;
+        self.store
+            .attribute_value_by_name(element, &name, html_document)
+            .map(string_result)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn attribute_value_by_namespace(
+        &mut self,
+        element: f64,
+        namespace: Option<Utf16String>,
+        name: Utf16String,
+    ) -> Result<Option<Either<&str, Utf16String>>> {
+        self.attribute_reads += 1;
+        self.store
+            .attribute_value_by_namespace(element, namespace.as_deref(), &name)
+            .map(string_result)
+            .map_err(to_napi_error)
+    }
+    /// Content reflection uses an empty string for an absent attribute, independently of nullable Element reads.
+    #[napi]
+    pub fn attribute_reflection_value(
+        &mut self,
+        element: f64,
+        namespace: Option<Utf16String>,
+        name: Utf16String,
+    ) -> Result<Either<&str, Utf16String>> {
+        self.attribute_reads += 1;
+        self.store
+            .attribute_value_by_namespace(element, namespace.as_deref(), &name)
+            .map(|value| string_result(value).unwrap_or(Either::A("")))
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn has_attribute_by_name(
+        &mut self,
+        element: f64,
+        name: Utf16String,
+        html_document: bool,
+    ) -> Result<bool> {
+        self.attribute_reads += 1;
+        self.store
+            .has_attribute_by_name(element, &name, html_document)
+            .map_err(to_napi_error)
+    }
+    #[napi]
+    pub fn has_attribute_by_namespace(
+        &mut self,
+        element: f64,
+        namespace: Option<Utf16String>,
+        name: Utf16String,
+    ) -> Result<bool> {
+        self.attribute_reads += 1;
+        self.store
+            .has_attribute_by_namespace(element, namespace.as_deref(), &name)
+            .map_err(to_napi_error)
+    }
     #[napi]
     pub fn attribute_names(
         &self,
@@ -2163,6 +2231,7 @@ impl NativeTree {
             data_updates: stats.data_updates,
             serializations: stats.serializations,
             native_queries: (self.queries.calls - self.queries.fallbacks) as f64,
+            native_attribute_reads: self.attribute_reads as f64,
             native_collection_queries: self.collection_queries as f64,
             native_collection_named_reads: self.collection_named_reads as f64,
             native_collection_name_enumerations: self.collection_name_enumerations as f64,
