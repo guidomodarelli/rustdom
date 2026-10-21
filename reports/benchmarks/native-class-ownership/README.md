@@ -174,3 +174,26 @@ candidato B ni resuelve el presupuesto original, merge o tag. Las diez fuentes
 congeladas permanecieron idénticas y la revisión previa cerró el P2 de reserva
 exclusiva. Los contratos reales del worker y los cinco contratos posteriores
 del verificador pasaron en Node 22 y 24; ver la validación de `balanced-method`.
+
+## CPU del hilo y afinidad del proceso
+
+La secuencia finita `THREAD-PROTOCOL.md` completó ocho procesos, 144 duraciones
+y 192.000 copias públicas, conservando quince fuentes y el binario del reloj
+antes/después. El helper Rust separado usa `CLOCK_THREAD_CPUTIME_ID`, con test
+real de hilos y Memcheck; sus contratos Node ejercen el addon y un Worker ocupado.
+El diagnóstico usa A0/checkpoint 67 y jsdom, sin ejecutar al candidato B.
+
+Con todo el proceso fijado en CPU 2, Rust registró medianas de pared pública
+16,06/16,93 ms y CPU del intervalo envolvente 4,67/4,51 ms para 250/1.000.
+Fijando solo el principal, pared y CPU envolvente quedan cerca de 5,61 ms.
+Cada celda tiene dos procesos: se observa un contexto de medición distinto,
+no una regresión/mejora atribuible al SDK. Las medianas no se restan para
+inferir medianas de pausas. El residuo porcentual del raw tampoco representa
+una división exacta del tiempo público, porque los límites difieren.
+
+Los raw, máscaras por hilo, timestamps, comprobante y verificador están en
+[`thread-affinity/2026-10-21/`](thread-affinity/2026-10-21/README.md).
+La evidencia justifica estudiar la afinidad del principal en una comparación
+posterior; no aprueba A/A ni A/B, conserva `accepted=false` y no cambia el gate
+anterior. El exit 0 solo confirma fidelidad. Los cinco contratos posteriores
+del verificador pasaron en Node 22 y 24 sin generar más muestras.

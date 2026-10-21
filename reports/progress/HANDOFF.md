@@ -1,5 +1,62 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: diagnóstico de CPU y afinidad completado
+
+La rama sigue siendo `feature/native-class-ownership`, PR 80 listo, sobre
+`main`/checkpoint 67. `e1d41f56aaac2a7bea81bde8485f37effb0860d5` cerró limpio
+en la review remota (recibo 6324232285) y los ocho checks generales del run
+`39658367391` terminaron correctamente. Su gate dedicado `39658367394` conserva
+el fallo histórico de presupuesto. Consultar Git/PR para el SHA posterior y
+sus checks; no hay merge ni tag del hito de ownership.
+
+La variación persistía en las últimas rondas del A/A, sin un calentamiento
+convergente. Se agregó un reloj Rust separado en `benchmarks/native-thread-clock`
+mediante `libc`/`napi-rs` y `CLOCK_THREAD_CPUTIME_ID`, con Cargo.lock propio,
+`publish=false` y binario fuera del paquete de producción. No modifica el SDK,
+el addon DOM ni el lock principal. Compiló con Rust 1.99.1; fmt, Clippy y un
+test real de dos hilos pasaron. Memcheck terminó sin errores ni pérdidas
+definitivas/indirectas, conservando 48 bytes posiblemente perdidos y 548
+alcanzables de std/test. Los contratos finales Node 22 aprobaron seis con un
+skip explícito de la API nativa ausente; Node 24 aprobó los siete.
+
+El protocolo `THREAD-PROTOCOL.md` fijó una sola secuencia P M M P, ocho
+procesos A0/jsdom, sin ejecutar el candidato B. P fija todo el proceso en CPU 2;
+M inicializa hilos con la máscara normal y fija solamente el principal. Se
+registran máscaras por TID y CPU dentro de un intervalo que contiene al timer
+público. No se usa `/proc/schedstat` como reloj preciso ni se cambia su flag
+global. El reloj y las quince fuentes quedaron congelados antes de medir.
+
+La sesión `12576` terminó con exit 0 de fidelidad entre 19:19:43.736Z y
+19:20:46.071Z del 21 de octubre de 2026. Se verificaron ocho procesos, 144
+duraciones y 192.000 copias públicas; `accepted=false` es incondicional. Los
+46 archivos más el manifest están en
+`reports/benchmarks/native-class-ownership/thread-affinity/2026-10-21/`.
+Rust P registró pared pública 16,06/16,93 ms y CPU envolvente 4,67/4,51 ms;
+en M ambas quedan cerca de 5,61 ms para 250/1.000. Son dos procesos por celda,
+sin atribución al SDK o a V8 ni una certificación de rendimiento. Los intervalos
+no tienen los mismos límites: no restar medianas independientes ni interpretar
+el residuo porcentual raw como división exacta del cuerpo cronometrado.
+
+Los recursos de las 192 observaciones tienen dos endpoints finales claros de
+Window/Document y Range liberados. Se guardan en
+`reports/memory/native-class-ownership/thread-clock/`; son casos de éxito sobre
+checkpoint 67/jsdom, sin memoria pico ni garantía universal. La validación,
+hashes congelados y logs están en
+`reports/validation/native-class-ownership/thread-clock/`. Los cinco contratos
+posteriores del verificador pasaron en Node 22 y 24 sobre el archivo real y
+copias privadas que rechazan CPU invertida, máscara incorrecta, retención y
+aceptación falsa. No generan nuevas muestras.
+
+Siguiente acción: publicar esta evidencia, cerrar review/CI del SHA final y
+usar este hallazgo para definir una comparación pública A/A y A/B con afinidad
+solo del principal. Debe conservar carga, resultados, Node, warmups, muestras y
+presupuestos; documentar la diferencia de contexto y revisar el método antes
+de medir. No usar CPU como sustituto de pared para aprobar, relanzar secuencias
+anteriores ni convertir datos antiguos en aceptados. Resolver atribución y
+presupuesto con evidencia válida antes de merge/tag. Después sigue la auditoría
+`014c7da` y la migración completa del control de `living/node.js`. Este diagnóstico
+no suma APIs DOM migradas y el objetivo integral continúa abierto.
+
 ## Actualización: diagnóstico A/A contrabalanceado sin calibración
 
 Continuar en `feature/native-class-ownership`, PR 80 listo, sobre `main`

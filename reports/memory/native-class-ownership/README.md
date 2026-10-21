@@ -86,3 +86,19 @@ de cada observación, y los contadores de Range de ambos módulos Rust se equili
 No acredita ausencia universal de fugas ni cubre los errores de construcción
 conocidos del checkpoint 67. Los raw y tres rondas completas permanecen en
 `reports/benchmarks/native-class-ownership/balanced/2026-10-21/`.
+
+## Reloj de CPU del hilo y afinidad
+
+El helper `benchmarks/native-thread-clock` no conserva estado, referencias ni
+caches. El test Rust de dos hilos pasó bajo Memcheck con cero errores y pérdidas
+definitivas/indirectas; `thread-clock/memcheck.log` conserva también los 48 bytes
+posiblemente perdidos del contexto de canales de std/test y los 548 alcanzables
+de inicialización de stack overflow. No instrumenta V8 ni todo el addon DOM.
+
+Los contratos reales Node 22/24 ejercen un Worker ocupado, ambos modos de
+afinidad y los owners del DOM. El diagnóstico posterior conserva 192 observaciones
+con tres rondas y dos endpoints finales claros por Window/Document. Range se
+equilibra en los workers Rust. `thread-clock/affinity-2026-10-21.json` registra
+hashes, contadores y rangos de memoria posteriores a limpieza. No se ejecutó B,
+no se cubren los errores conocidos del SDK de referencia y esos máximos no son
+picos ni una garantía universal de ausencia de fugas.
