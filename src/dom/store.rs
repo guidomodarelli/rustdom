@@ -73,6 +73,7 @@ pub struct TreeStore {
     pub(crate) root_hosts: super::root_hosts::RootHosts,
     pub(crate) unicode_case: super::unicode_case::UnicodeCaseMapping,
     pub(crate) attribute_collections: super::attribute_index::AttributeCollections,
+    pub(crate) document_ids: super::document_ids::DocumentIdRegistry,
     // Handles are assigned internally; HTML input cannot choose colliding keys.
     pub(crate) nodes: FxHashMap<NodeId, Links>,
     pub(crate) data: FxHashMap<NodeId, NodeData>,
@@ -500,6 +501,7 @@ impl TreeStore {
             return Ok(false);
         }
         self.release_attribute_references(id)?;
+        self.document_ids.release_node(id);
         self.root_hosts.release_node(id);
         self.slotable_names.release_node(id);
         self.slot_assignments.release_node(id);

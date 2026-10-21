@@ -107,6 +107,21 @@ pub struct RootHostStatistics {
     pub owner_capacity: f64,
 }
 
+/// Document ID keys and registration records contain no JavaScript owners.
+#[napi(object)]
+pub struct DocumentIdStatistics {
+    pub documents: f64,
+    pub names: f64,
+    pub entries: f64,
+    pub elements: f64,
+    pub memberships: f64,
+    pub key_units: f64,
+    pub document_capacity: f64,
+    pub element_capacity: f64,
+    pub name_capacity: f64,
+    pub entry_capacity: f64,
+}
+
 /// Sparse name state contains numeric keys and owned strings, never JavaScript references.
 #[napi(object)]
 pub struct SlotableNameStatistics {
@@ -1904,6 +1919,82 @@ impl NativeTree {
         self.store
             .query_element_by_id(root, &id)
             .map_err(to_napi_error)
+    }
+
+    /// Preserve registration order and current-root filtering for the Document ID index.
+    #[napi]
+    pub fn query_document_element_by_id(
+        &mut self,
+        document: f64,
+        value: Utf16String,
+    ) -> Result<f64> {
+        self.collection_queries += 1;
+        self.store
+            .query_document_element_by_id(document, &value)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn attach_document_id(
+        &mut self,
+        document: f64,
+        element: f64,
+        value: Option<Utf16String>,
+    ) -> Result<()> {
+        self.store
+            .attach_document_id(document, element, value.as_deref())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn detach_document_id(
+        &mut self,
+        document: f64,
+        element: f64,
+        value: Option<Utf16String>,
+    ) -> Result<()> {
+        self.store
+            .detach_document_id(document, element, value.as_deref())
+            .map_err(to_napi_error)
+    }
+
+    /// Attribute hooks commit removal and insertion in one synchronous native transaction.
+    #[napi]
+    pub fn change_document_id(
+        &mut self,
+        document: f64,
+        element: f64,
+        previous: Option<Utf16String>,
+        value: Option<Utf16String>,
+    ) -> Result<()> {
+        self.store
+            .change_document_id(document, element, previous.as_deref(), value.as_deref())
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn query_svg_element_by_id(&mut self, root: f64, value: Utf16String) -> Result<f64> {
+        self.collection_queries += 1;
+        self.store
+            .query_svg_element_by_id(root, &value)
+            .map_err(to_napi_error)
+    }
+
+    #[napi]
+    pub fn document_id_statistics(&self) -> DocumentIdStatistics {
+        let stats = self.store.document_ids.statistics();
+        DocumentIdStatistics {
+            documents: stats.documents as f64,
+            names: stats.names as f64,
+            entries: stats.entries as f64,
+            elements: stats.elements as f64,
+            memberships: stats.memberships as f64,
+            key_units: stats.key_units as f64,
+            document_capacity: stats.document_capacity as f64,
+            element_capacity: stats.element_capacity as f64,
+            name_capacity: stats.name_capacity as f64,
+            entry_capacity: stats.entry_capacity as f64,
+        }
     }
 
     /// Resolve one public collection key against a snapshot of stable numeric member identities.

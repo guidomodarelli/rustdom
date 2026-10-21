@@ -645,6 +645,13 @@ export class NativeTree {
   queryElementsByName(root: number, name: string): Float64Array;
   /** First physical descendant with an exact nonempty ID; zero denotes absence and does not own nodes. */
   queryElementById(root: number, id: string): number;
+  /** Document registration order and physical-root filtering; values may preserve namespaced mutation aliases. */
+  queryDocumentElementById(document: number, value: string): number;
+  attachDocumentId(document: number, element: number, value: string | null): void;
+  detachDocumentId(document: number, element: number, value: string | null): void;
+  changeDocumentId(document: number, element: number, previous: string | null, value: string | null): void;
+  querySvgElementById(root: number, value: string): number;
+  documentIdStatistics(): import('./index.cjs').NativeDocumentIdStatistics;
   /** Snapshot members stay owned by the calling JS collection; native storage keeps no collection cache. */
   collectionNamedItem(handles: Float64Array, key: string): number;
   collectionPropertyNames(handles: Float64Array): string[];

@@ -8,9 +8,19 @@ use super::{
 impl TreeStore {
     /// Return the first descendant Element with an exact nonempty ID, or the zero sentinel.
     pub(super) fn query_element_by_id(&self, handle: f64, id: &[u16]) -> Result<f64> {
+        self.query_id_with_scope(handle, id, false)
+    }
+
+    /// SVG lookup includes the root and accepts an explicitly empty ID attribute.
+    pub(super) fn query_svg_element_by_id(&self, handle: f64, id: &[u16]) -> Result<f64> {
+        self.query_id_with_scope(handle, id, true)
+    }
+
+    fn query_id_with_scope(&self, handle: f64, id: &[u16], inclusive: bool) -> Result<f64> {
         let root = node_id(handle)?;
-        let mut current = self.links(root)?.first;
-        if id.is_empty() {
+        let links = self.links(root)?;
+        let mut current = if inclusive { root } else { links.first };
+        if !inclusive && id.is_empty() {
             return Ok(0.0);
         }
         while current != 0 {
@@ -238,5 +248,65 @@ mod tests {
         let missing = store.allocate().unwrap();
         store.append(root, missing).unwrap();
         assert!(store.query_element_by_id(root, &units("chosen")).is_err());
+    }
+    #[test]
+    fn should_include_svg_root_and_accept_only_explicit_empty_ids() {
+        let mut store = TreeStore::new();
+        let root = node(&mut store, json!({"kind":1,"name":"svg"}));
+        assert_eq!(store.query_svg_element_by_id(root, &[]).unwrap(), 0.0);
+        let child = node(
+            &mut store,
+            json!({"kind":1,"name":"g","attributes":[{"name":"id","value":"self"}]}),
+        );
+        store.append(root, child).unwrap();
+        store
+            .set_data(
+                root,
+                &json!({"kind":1,"name":"svg","attributes":[{"name":"id","value":"self"}]})
+                    .to_string(),
+            )
+            .unwrap();
+        assert_eq!(
+            store.query_svg_element_by_id(root, &units("self")).unwrap(),
+            root
+        );
+        assert_eq!(
+            store.query_element_by_id(root, &units("self")).unwrap(),
+            child
+        );
+        store
+            .set_data(
+                root,
+                &json!({"kind":1,"name":"svg","attributes":[{"name":"id","value":""}]}).to_string(),
+            )
+            .unwrap();
+        assert_eq!(store.query_svg_element_by_id(root, &[]).unwrap(), root);
+        assert_eq!(store.query_element_by_id(root, &[]).unwrap(), 0.0);
+    }
+
+    #[test]
+    fn should_bound_inclusive_lookup_and_validate_empty_queries_without_activation() {
+        let mut store = TreeStore::new();
+        let outer = node(&mut store, json!({"kind":11}));
+        let root = node(&mut store, json!({"kind":1,"name":"svg"}));
+        let external = node(
+            &mut store,
+            json!({"kind":1,"name":"g","attributes":[{"name":"id","value":"outside"}]}),
+        );
+        store.append(outer, root).unwrap();
+        store.append(outer, external).unwrap();
+        assert_eq!(
+            store
+                .query_svg_element_by_id(root, &units("outside"))
+                .unwrap(),
+            0.0
+        );
+        let reserved = store.reserve_handles().unwrap();
+        let before = store.statistics();
+        for invalid in [0.0, -1.0, 0.5, f64::NAN, reserved] {
+            assert!(store.query_svg_element_by_id(invalid, &[]).is_err());
+        }
+        assert_eq!(store.statistics().allocations, before.allocations);
+        assert_eq!(store.statistics().reserved_handles, before.reserved_handles);
     }
 }

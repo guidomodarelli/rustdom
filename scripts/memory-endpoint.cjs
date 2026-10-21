@@ -42,6 +42,12 @@ function isReleased(state, expected) {
     native.rangeStates?.live === expected.rangeStates?.live &&
     native.rangeClones?.live === expected.rangeClones?.live &&
     native.rangeExtracts?.live === expected.rangeExtracts?.live &&
+    native.documentIds?.documents === expected.documentIds?.documents &&
+    native.documentIds?.names === expected.documentIds?.names &&
+    native.documentIds?.entries === expected.documentIds?.entries &&
+    native.documentIds?.elements === expected.documentIds?.elements &&
+    native.documentIds?.memberships === expected.documentIds?.memberships &&
+    native.documentIds?.keyUnits === expected.documentIds?.keyUnits &&
     native.rootHosts?.hostedRoots === expected.rootHosts?.hostedRoots &&
     native.rootHosts?.hostOwners === expected.rootHosts?.hostOwners &&
     native.slotableNames?.namedNodes === expected.slotableNames?.namedNodes &&

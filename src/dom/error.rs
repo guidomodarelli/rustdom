@@ -22,6 +22,7 @@ pub enum TreeError {
     UndefinedCharacterDataProperty(&'static str),
     NotAttribute(u64),
     NotElement(u64),
+    NotDocument(u64),
     NotDocumentType(u64),
     NotDocumentFragment(u64),
     NotSlotable(u64),
@@ -81,6 +82,7 @@ impl fmt::Display for TreeError {
                 formatter,
                 "NativeRange: the requested boundary is not initialized"
             ),
+            Self::NotDocument(id) => write!(formatter, "NativeTree: node {id} is not a Document"),
             Self::NotDocumentType(id) => write!(
                 formatter,
                 "NativeTree: node {id} is not an initialized DocumentType"
