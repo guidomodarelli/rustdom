@@ -1,5 +1,41 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: diagnóstico descriptivo de variación, sin muestras nuevas
+
+El head `21706250c6780a25332429d9cde0e8497f1f2192` recibió review remota
+limpia (6326592071). Consultar GitHub para los checks de ese SHA y los cambios
+posteriores; el gate dedicado sigue conservando el fallo histórico.
+
+`main-affinity-precision.cjs` verifica el archivo v2 completo y describe las
+64 combinaciones de versión/fase/fila/motor. Conserva la mediana agrupada
+original, las ocho medianas por proceso de cada etiqueta y dos particiones
+completas equilibradas: mitades cronológicas y pares de bloques adyacentes.
+Cada etiqueta contiene ocho procesos y 72 duraciones, no 72 procesos.
+
+Node 22 mutation-records-collect/100 Rust A/B conserva +5,057644%; sus mitades
+dan +6,870589%/+1,425339%, y los pares abarcan -1,425223%/+7,418784%.
+El control jsdom de Range/1000 A/B conserva +6,334907%, con mitades
++14,312749%/-1,065091%. Son cálculos posteriores sobre los mismos datos:
+no son réplicas independientes, intervalos de confianza ni un estimador
+alternativo para aceptar la mitad favorable. No identifican la causa.
+
+El reporte completo está en
+`reports/benchmarks/native-class-ownership/precision/2026-10-21/`. Seis pruebas
+pasaron por Node 22.12.0/24.14.1 con el archivo real, el CLI, rechazo de alcance
+incompleto, conteos y resultados sin estado mutable compartido. No se ejecutó
+ningún benchmark nuevo ni se modificaron los 426 archivos del estudio original.
+El presupuesto, accepted=false y el alcance integral permanecen intactos.
+Los seis tests también pasaron en Windows Node 24.14.1. La revisión independiente
+recalculó las 64 combinaciones y verificó código, manifests, conteos y tabla:
+cero hallazgos accionables. El cálculo no identifica una causa del SDK ni
+justifica tomar una partición favorable como aceptación.
+
+Siguiente decisión: definir una hipótesis que distinga variación entre procesos
+de tratamiento y un diseño capaz de comprobarla antes de otra medición. No
+volver a ejecutar v2, reducir filas o cambiar umbrales para obtener aprobación.
+Verificar review remota y CI del SHA publicado de este diagnóstico. PR 80 continúa
+abierto sin merge/tag; inventario014c7da y control completo de node.js pendientes.
+
 ## Actualización: estudio v2 completo, presupuesto sin aprobar
 
 El head `2c92c82da1f9a9eee82549f7947be95f672e1ca8` recibió review remota
