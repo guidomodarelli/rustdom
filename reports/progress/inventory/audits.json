@@ -1,4 +1,19 @@
 {
+  "module:lib/jsdom/living/node.js": {
+    "status": "hybrid",
+    "rustSources": ["src/dom/collection_queries.rs", "src/dom/namespaces.rs", "src/dom/tree.rs"],
+    "javascriptSources": ["src/dom/collection-queries.cjs", "src/dom/native-tree.cjs", "scripts/build.mjs"],
+    "tests": ["tests/collection-queries.spec.cjs", "tests/collection-query-fuzz.spec.cjs", "tests/namespaces.spec.cjs", "tests/native-tree.spec.cjs", "tests/node-text.spec.cjs"],
+    "evidence": ["reports/progress/inventory/node-helpers-audit.md", "reports/validation/collection-queries.md", "reports/validation/xml-serializer-controller.md"],
+    "pending": [
+      "El switch por tipo, selección de factory, copia de atributos, hooks y recursión del clonado siguen ejecutándose en living/node.js del runtime privado.",
+      "convertNodesIntoNode conserva en JavaScript la selección de uno/muchos elementos, conversión de strings, creación de fragmentos y orden de append.",
+      "Las colecciones conservan factories, callbacks de actualización, wrappers y WebIDL JavaScript; sus filtros y recorridos usan Rust.",
+      "Las factories de nodos y los drivers de adopción/mutación son dependencias de plataforma todavía híbridas; no quedan completos al migrar este helper."
+    ],
+    "scope": "Siete exports del helper de jsdom 27.4.0; los dos helpers recursivos de namespaces se retiran del runtime y sus consumidores públicos llegan a Rust. El estado híbrido del módulo no acredita sus anclas ni APIs individuales.",
+    "bindings": ["El runtime conserva la identidad de wrappers, los owners visibles al GC y las llamadas a factories/hooks del realm original."]
+  },
   "module:lib/jsdom/living/nodes/Node-impl.js": {
     "status": "hybrid",
     "rustSources": ["src/dom/tree.rs", "src/dom/store.rs", "src/dom/node_comparison.rs"],
