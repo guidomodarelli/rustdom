@@ -40,3 +40,15 @@ como `cause`; luego verificó correctamente bytes, hashes y muestras. El reviewe
 revisó ese delta y la preservación de JSON originales, nuevamente con cero
 hallazgos. Los atributos de archivos raw preservan también los CRLF del
 comprobante de procedencia, sin reescribir observaciones.
+
+La revisión de los nuevos diagnósticos encontró un P2 en el cálculo de cotas
+de CPU: eventos reales con `tdur > dur` podían producir cotas invertidas.
+Se aceptó el hallazgo y se retiró esa inferencia. El análisis original y el
+código rechazado permanecen identificados en el manifest; el vigente usa solo
+pared, márgenes en los extremos y valores CPU nulos/no válidos.
+
+El mismo reviewer verificó los 113 archivos y recalculó 72 muestras: GC posible
+en cero y compilación garantizada/posible en 69. Confirmó los resultados del
+microdiagnóstico y cerró el P2: cero hallazgos accionables. Solo lectura y
+cálculos en memoria; no ejecutó cargas ni modificó archivos. El chequeo real
+`verify-diagnostics.cjs` también pasó antes de publicar los datos.

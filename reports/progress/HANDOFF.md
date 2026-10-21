@@ -84,6 +84,46 @@ coinciden byte por byte con el índice Git. La revisión independiente de datos,
 límites y herramientas cerró con cero hallazgos; no equivale a aprobar el
 presupuesto pendiente ni sustituye la review remota del SHA final.
 
+## Investigación posterior al head inicial del PR 80
+
+El código y los primeros reportes se publicaron en
+`8b5431534a6c7b2dbaac6a91bc0ad22a37a740f1`, PR 80 listo para revisión.
+La review remota cerró limpia para ese SHA (recibo 6321337456). El run
+`39635961966` completó Linux, Windows y los cinco checks de benchmarks;
+macOS se canceló sin asignar runner por capacidad arm64 de GitHub. No hubo
+pasos macOS ni se acredita esa validación. Los datos de infraestructura están
+en `reports/validation/native-class-ownership/ci-39635961966/`.
+
+La investigación local no modificó el SDK ni el arnés original. Se archivaron
+los perfiles A B B A de dos versiones del método. La primera carece de marcas
+usertiming exportadas y no permite correlación. La segunda exportó 24 marcas
+por worker y seis calibraciones: 72 muestras medidas, GC en cero y superposición
+garantizada/posible con compilación de fondo en 69. El primer cálculo de cotas
+de CPU fue rechazado por review: `tdur` puede superar `dur`. Se preserva como
+inválido y se reemplaza por `profiles/v2/analysis-wall.json`, sin inferir CPU
+ejecutada a partir de intervalos de pared.
+
+El microdiagnóstico real de `NativeRange.copy` completó 16 bloques A/A y 16 A/B,
+72 muestras por etiqueta/fase y 10.000 copias por muestra. Verificó 3.840.000
+copias incluyendo warmups, endpoints, independencia y liberación completa de
+las copias. A/A +2,0921%; A/B −1,8688%, dentro de los presupuestos de esa
+microprueba. No reproduce una penalización del camino modificado del SDK, pero
+no sustituye ni aprueba la fila pública original de Range.
+
+`diagnostic-evidence.json` preserva 113 archivos, sus hashes y compresión sin
+pérdidas, incluida la invalidación explícita del análisis de CPU anterior.
+`verify-diagnostics.cjs` valida los raw, los 32 procesos nativos y vuelve a
+calcular el análisis de pared desde gzip. La revisión local cerró el P2 del
+análisis tras retirar sus cotas de CPU; los contadores 72/69 y el microdiagnóstico
+se recalcularon sin otros hallazgos. Los tres procesos locales terminaron con
+exit 0; sus comprobantes están en `diagnostic-terminal-results.json`.
+
+No hay mediciones locales activas ni cambios de producción posteriores al
+head inicial. Publicar los diagnósticos, pedir review del nuevo head y seguir
+CI de ese SHA; el fallo macOS anterior es terminal y de infraestructura.
+El presupuesto público permanece inconcluso. Merge/tag siguen pendientes;
+no relanzar las corridas locales para obtener un resultado favorable.
+
 El runner WPT cierra los realms y cede un turno entre fixtures para permitir
 liberar targets débiles. La corrida Node 24 que agotó old-space y sus controles
 posteriores se preservan; el límite explícito de 2.048 MiB no limita RSS.

@@ -75,3 +75,23 @@ de aceptar ese presupuesto. El A/B y el A/A no acreditan ausencia de regresión.
 Este hito corrige ownership y no acredita una aceleración global ni nuevas
 APIs migradas. El checkpoint sigue pendiente de resolver la fila señalada y
 completar revisión/CI de la publicación.
+
+## Diagnósticos posteriores, sin repetir la aceptación
+
+Los perfiles `profiles/` preservan los métodos y las fuentes instrumentadas.
+El análisis vigente registra cero GC dentro de las 72 muestras y superposición
+garantizada con compilación de fondo en 69, con calibración explícita del reloj.
+Las antiguas cotas de CPU fueron rechazadas durante review y quedan identificadas;
+no se utilizan para concluir costes o ahorros.
+
+El control `native-copy/` ejerció el class return real: 32 procesos, 288
+duraciones medidas y 3.840.000 copias incluyendo warmups, con verificación
+de endpoints, independencia y liberación. A/A +2,0921%; A/B −1,8688% para
+10.000 copias por muestra, dentro de los límites declarados del diagnóstico.
+No reproduce una penalización en ese camino aislado y tampoco certifica una
+mejora ni aprueba la fila pública original. Ver los README de cada diagnóstico.
+
+`diagnostic-evidence.json` y `verify-diagnostics.cjs` conservan/verifican los
+raws, compresión reversible y conclusiones vigentes. El SDK y el arnés original
+permanecen idénticos a la validación publicada; no se cambió producción para
+obtener estas mediciones.
