@@ -136,3 +136,23 @@ del checkout actual ni de objetos Git antiguos; las regresiones cambian bytes
 reales de candidato, referencia y cada archivo de protocolo para comprobar
 `reuse=false`. También comprueban rechazo de otro candidato y ausencia de
 evidencia, sin generar nuevas muestras.
+
+## Resultado del método emparejado con realms nuevos
+
+El método publicado en `ec80a0e4` completó su única secuencia fijada y mantuvo
+sus seis archivos congelados. Los 32 procesos, 1.152 duraciones y 1.536.000
+copias incluyendo warmups quedaron verificados y archivados en
+[`paired/2026-10-21/`](paired/2026-10-21/README.md). Los últimos dos endpoints
+de Window/Document son claros; se conservan las tres rondas por observación.
+
+A/A no calibra: Rust −9,39%/−6,81% y control jsdom +105,22%/−1,40% para
+250/1000. A/B registra Rust −6,59%/+2,05% y control −38,10%/−0,90%. Solo la
+fila A/B de 1.000 cumple su margen; la aceptación global sigue siendo falsa.
+No se compensa entre filas ni se cambia el presupuesto del estudio anterior.
+
+La hipótesis de emparejar dentro de procesos no alcanzó para calibrar este
+diseño. Se preserva exit 1 y no se repite la secuencia para buscar aprobación.
+La carga e identidad de módulos son condiciones adicionales a investigar:
+esta versión usa asignación fija y carga A antes de B. No se afirma causalidad.
+El hito de ownership continúa abierto y no acredita una aceleración ni una
+migración adicional de APIs.

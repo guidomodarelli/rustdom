@@ -171,15 +171,26 @@ Los fallos iniciales de limpieza y la corrección previa al estudio están en
 `reports/validation/native-class-ownership/paired-method/` y sus diagnósticos
 en `reports/memory/native-class-ownership/paired-method/`.
 
-La primera corrida está activa en la sesión de herramienta `77662`, comando
-`.cache/run-paired-study.sh`. Su root Linux se guarda en
-`.cache/paired-study-root.txt`; la salida cruda está en `results/` y los logs del
-driver al lado. Consultar ese handle o el proceso real antes de tratarla como
-terminal. No reiniciar por silencio/timeout de observación ni correr builds,
-tests u otras mediciones locales mientras siga viva. Después: comprobar exit,
-verificar los raw, comparar los hashes con `before-performance.json`, publicar
-todos los resultados y evaluar qué demuestra este protocolo distinto. El gate
-anterior sigue sin aprobarse; esta corrida aún no acredita aceptación ni tag.
+La única corrida, sesión de herramienta `77662`, comando
+`.cache/run-paired-study.sh`, terminó con exit 1. Root Linux preservado:
+`/home/guido/rustdom-paired-fresh-6RCxVA`. Se verificaron 32 procesos, 1.152
+duraciones y 1.536.000 copias incluyendo warmups; los seis archivos congelados
+permanecieron idénticos y los endpoints finales de Window/Document quedaron
+claros. Los datos están en `reports/benchmarks/native-class-ownership/paired/2026-10-21/`.
+
+`complete=true` y `accepted=false`. A/A 250: Rust −9,3877%, jsdom +105,2222%;
+A/A 1000: Rust −6,8094%, jsdom −1,3976%. A/B 250: Rust −6,5941%, jsdom
+−38,0951%; A/B 1000: Rust +2,0522%, jsdom −0,9004%. La última fila cumple su
+presupuesto, pero no compensa la calibración A/A fallida. No hay un proceso
+local de medición activo ni se reinicia este estudio según sus resultados.
+
+El método está publicado en `ec80a0e48358cac640077aa6272b5c58e670afa0`, con
+review remota solicitada en `6323437962`. Verificar el head posterior y sus
+checks/reviews antes de acreditar validación final. La siguiente investigación
+debe considerar la identidad y carga de módulos: esta versión fija A antes de B
+y la asignación de copias a etiquetas, aunque invierte orden de muestras/tamaños.
+Eso es una condición del diseño, no una causa demostrada. El gate anterior y
+el hito siguen abiertos; no hay aceptación global de rendimiento ni tag nuevo.
 
 La auditoría independiente de `living/node.js` está publicada en
 `feature/inventory-node-helpers`, `014c7daeb00fe700bb7eb2b5dc86718b7ef148da`,

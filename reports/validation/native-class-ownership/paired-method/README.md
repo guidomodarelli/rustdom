@@ -54,3 +54,16 @@ node --expose-gc --test reports/benchmarks/native-class-ownership/paired-worker.
 La medición completa se ejecuta por separado, sin builds, tests ni otras
 mediciones locales concurrentes. Su aceptación requiere datos completos y la
 verificación final; estos contratos por sí solos no aprueban el presupuesto.
+
+## Cierre de la única corrida
+
+La sesión `77662` terminó con exit 1, datos completos y aceptación falsa. El
+archivo `reports/benchmarks/native-class-ownership/paired/2026-10-21/` conserva
+los 32 procesos, 1.152 duraciones y 1.536.000 copias. El verificador recalculó
+todos los agregados y los seis archivos congelados coinciden también con sus
+blobs Git en `ec80a0e4`.
+
+El mismo reviewer nativo independiente verificó los 106 archivos conservados,
+recalculó tiempos, cantidades y endpoints, y confirmó terminal y límites:
+cero hallazgos accionables. Solo lectura y cálculos. La calibración A/A sigue
+fallando; la fila A/B de 1.000 dentro del margen no aprueba el conjunto.
