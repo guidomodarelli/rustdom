@@ -1,5 +1,9 @@
 # Baseline del CLI de inventario
 
+El [baseline del esquema 2](inherited-declarations/README.md) conserva las nuevas
+mediciones con 4.374 declaraciones. Usa otro layout de filesystem; sus resultados
+no se presentan como comparación directa con los valores históricos de abajo.
+
 Se midió el comando real `npm run inventory -- --output TEMP`, completo: startup
 de npm/Node, resolución de la referencia, AST, observación pública, clasificación,
 serialización y escritura. **No ejecuta Rust ni mide rendimiento del motor DOM.**

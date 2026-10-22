@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Estado actual de esta rama: inventario, esquema 2
+
+Continuar esta entrega en `feature/inventory-node-helpers`, worktree
+`migration-inventory`. Parte de `014c7dae` y la base de implementación auditada
+es `main` / checkpoint 67, `3d37f89976a48203e80cc5c435e099267f4ce346`.
+Las secciones anteriores al esquema 2, conservadas abajo, describen estados
+históricos y no reemplazan estas instrucciones.
+
+Se agregan 43 declaraciones heredadas: 4.374 APIs, 531 fuentes y 7.246 anclas.
+Las 4.331 APIs anteriores conservan sus registros; fuentes/anclas son idénticas.
+`reports/progress/inventory/denominator-v2.json` conserva los IDs y el cambio
+del denominador. Los contadores de Rust acreditado no cambian; el alcance
+global sigue abierto y `migrationPercent=null`.
+
+Once contratos reales por Node 22.12.0/24.14.1 pasaron en copias Linux con
+fuentes verificadas; no se amplió el timeout. Se conserva el timeout inicial
+de Node 22 sobre NTFS montado. Validación, benchmarks absolutos del CLI y
+memoria están en los subdirectorios `inherited-declarations` correspondientes.
+La revisión estática terminó con cero hallazgos.
+
+Esta rama no cambia el runtime de producción. El hito prioritario continúa
+en el PR 80 / `feature/native-class-ownership`. Su secuencia única hosted,
+run `39721610003`, sigue en ejecución según la última consulta. Consultarla
+antes de actuar; no quitar/reaplicar su etiqueta ni reiniciar muestras.
+Integrar este inventario después de cerrar ese hito, con sus checks/revisión,
+sin presentar estas declaraciones nuevas como nuevas APIs Rust terminadas.
+
 ## Estado actual: XMLSerializer validado, publicación final del PR 79
 
 La base estable es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,

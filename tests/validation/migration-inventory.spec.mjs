@@ -53,6 +53,63 @@ test('should include jsdom exports and external URL and cookie contracts without
   assert.equal(await jar.getCookieString('https://inventory.example/'), 'session=inventory');
 });
 
+test('should capture non-exported inherited EventEmitter declarations and exercise their real public contracts', async () => {
+  const { VirtualConsole } = require('jsdom');
+  const console = new VirtualConsole();
+  const inherited = inventory.surface.apis.filter((entry) => entry.inheritance?.receiver === 'jsdom.VirtualConsole');
+  const listen = inherited.find((entry) => entry.inheritance.side === 'instance' && entry.name === 'on');
+  assert.ok(listen);
+  assert.equal(listen.arity, VirtualConsole.prototype.on.length);
+  assert.equal(listen.inheritance.constructorName, 'EventEmitter');
+  const observed = [];
+  const listener = (message) => observed.push(message);
+  console.on('warn', listener); console.emit('warn', 'inventory'); console.off('warn', listener);
+  assert.deepEqual(observed, ['inventory']); assert.equal(console.listenerCount('warn'), 0);
+  const once = inherited.find((entry) => entry.inheritance.side === 'constructor' && entry.name === 'once');
+  assert.ok(once); assert.equal(once.arity, VirtualConsole.once.length);
+  const pending = VirtualConsole.once(console, 'inventory-complete');
+  console.emit('inventory-complete', 'released');
+  assert.deepEqual(await pending, ['released']);
+  assert.equal(console.listenerCount('inventory-complete'), 0);
+});
+
+test('should avoid duplicating known DOM ancestors or including ECMAScript intrinsic declarations', () => {
+  assert.equal(inventory.surface.inheritedDeclarations.some((entry) => entry.receiver === 'Window.HTMLDivElement'), false);
+  assert.equal(inventory.surface.inheritedDeclarations.some((entry) => entry.receiver === 'Window.DOMException' && entry.constructorName === 'Error'), false);
+  assert.equal(inventory.surface.apis.some((entry) => entry.inheritance?.constructorName === 'Object'), false);
+  const ids = inventory.surface.apis.map((entry) => entry.id);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+test('should record stylesheet base declarations and exercise insertion and removal through the real interface', () => {
+  const dom = new JSDOM('');
+  try {
+    const inherited = inventory.surface.apis.find((entry) => entry.inheritance?.receiver === 'Window.CSSStyleSheet' && entry.name === 'insertRule');
+    assert.ok(inherited);
+    const base = Object.getPrototypeOf(dom.window.CSSStyleSheet.prototype);
+    assert.equal(inherited.arity, Object.getOwnPropertyDescriptor(base, 'insertRule').value.length);
+    const sheet = new dom.window.CSSStyleSheet();
+    const index = sheet.insertRule('a { color: red; }', 0);
+    assert.equal(index, 0); assert.equal(sheet.cssRules[0].style.color, 'red');
+    sheet.deleteRule(0); assert.equal(sheet.cssRules.length, 0);
+  } finally { dom.window.close(); }
+});
+
+test('should record the WindowProperties tag while preserving the distinct dynamic named-property contract', () => {
+  const dom = new JSDOM('<form id="inventoryNamed"></form>');
+  try {
+    const inherited = inventory.surface.apis.find((entry) => entry.inheritance?.receiver === 'Window.Window' && entry.name === '@@toStringTag');
+    assert.ok(inherited);
+    const base = Object.getPrototypeOf(dom.window.Window.prototype);
+    const descriptor = Object.getOwnPropertyDescriptor(base, Symbol.toStringTag);
+    assert.equal(inherited.valueType, typeof descriptor.value);
+    assert.equal(inherited.configurable, descriptor.configurable);
+    assert.equal(inherited.enumerable, descriptor.enumerable);
+    assert.equal(dom.window.inventoryNamed, dom.window.document.querySelector('form'));
+    assert.equal(inventory.surface.apis.some((entry) => entry.name === 'inventoryNamed'), false);
+  } finally { dom.window.close(); }
+});
+
 test('should keep a closed reference graph for internal dependencies and explicit anchors for every discovered callable', () => {
   const ids = new Set(inventory.reference.files.map((entry) => entry.id));
   for (const file of inventory.reference.files) {

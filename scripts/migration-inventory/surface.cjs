@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { REFERENCE_GLOBALS_FILE, INSTANCE_SURFACE_PROBES, WINDOW_NAMESPACE_PROBES,
   SURFACE_DOCUMENT_URL, PUBLIC_FUNCTION_INTRINSIC_MEMBERS, SURFACE_ORIGIN,
-  SURFACE_EXCLUSION, INVENTORY_ID_PREFIX } = require('../constants/migration-inventory.cjs');
+  SURFACE_EXCLUSION, INVENTORY_ID_PREFIX, INHERITANCE_SIDE, INHERITED_OWNER_PREFIX } = require('../constants/migration-inventory.cjs');
 
 /** @param {PropertyKey} key - Actual descriptor key. @returns {string|null} Stable public key or null for an internal symbol. */
 function publicKey(key) {
@@ -40,7 +40,8 @@ function describe(descriptor) {
 
 /**
  * Enumerates exposed globals, class declarations, jsdom exports and unforgeable instance members.
- * Arbitrary dynamic names and externally inherited declarations require a separate semantic audit.
+ * Undeclared inherited bases are observed after all exposed constructors to avoid duplicating their declarations.
+ * Arbitrary dynamic names and implementation providers still require a separate semantic audit.
  * @param {string} packageRoot - Pinned independently installed reference package root.
  * @param {object} [options] - Optional owner observer used for finite release diagnostics.
  * @param {Function} [options.observeOwners] - Receives owners synchronously; it must avoid retaining them.
@@ -50,14 +51,15 @@ function capturePublicSurface(packageRoot, options = {}) {
   const reference = require(packageRoot);
   const hostGlobals = new Set(Object.keys(JSON.parse(readFileSync(join(packageRoot, REFERENCE_GLOBALS_FILE), 'utf8'))));
   const apis = new Map(), constructors = [], exclusions = [], aliases = [], evaluatedExportGetters = [];
+  const pendingInheritance = [], inheritedDeclarations = [];
   const seenObjects = new WeakMap();
   let dom = new reference.JSDOM('', { url: SURFACE_DOCUMENT_URL });
 
-  function record(owner, key, descriptor, origin) {
+  function record(owner, key, descriptor, origin, metadata = {}) {
     const name = publicKey(key);
     if (name === null) return;
     const id = `${INVENTORY_ID_PREFIX.api}${owner}.${name}`;
-    const entry = { id, owner, name, origin, ...describe(descriptor) };
+    const entry = { id, owner, name, origin, ...describe(descriptor), ...metadata };
     const previous = apis.get(id);
     if (previous) {
       if (JSON.stringify(previous) !== JSON.stringify(entry)) throw new Error(`Inventory descriptor collision for ${id}`);
@@ -66,10 +68,10 @@ function capturePublicSurface(packageRoot, options = {}) {
     apis.set(id, entry);
   }
 
-  function members(owner, value, origin, excluded = []) {
+  function members(owner, value, origin, excluded = [], metadata = {}) {
     if (seenObjects.has(value)) { aliases.push({ owner, target: seenObjects.get(value) }); return; }
     seenObjects.set(value, owner);
-    for (const key of Reflect.ownKeys(value)) if (!excluded.includes(key)) record(owner, key, Object.getOwnPropertyDescriptor(value, key), origin);
+    for (const key of Reflect.ownKeys(value)) if (!excluded.includes(key)) record(owner, key, Object.getOwnPropertyDescriptor(value, key), origin, metadata);
   }
 
   function constructor(owner, value, origin) {
@@ -85,6 +87,39 @@ function capturePublicSurface(packageRoot, options = {}) {
       prototypeAlias: prototype && seenObjects.get(prototype) || null });
     members(`${owner}.static`, value, origin, PUBLIC_FUNCTION_INTRINSIC_MEMBERS);
     if (prototype) members(`${owner}.prototype`, prototype, origin, ['constructor']);
+    pendingInheritance.push({ receiver: owner, side: INHERITANCE_SIDE.constructor, parent: Object.getPrototypeOf(value) });
+    if (prototype) pendingInheritance.push({ receiver: owner, side: INHERITANCE_SIDE.instance, parent: Object.getPrototypeOf(prototype) });
+  }
+
+  /**
+   * Capture public declarations on non-exported bases without invoking their getters or expanding known inheritance.
+   * @param {object} descriptors - The actual window's own descriptors, including excluded ECMAScript globals.
+   * @returns {void} Adds only previously unseen non-intrinsic base declarations and JSON provenance.
+   */
+  function inheritedMembers(descriptors) {
+    const intrinsics = new Set([Object.prototype, Function.prototype]);
+    for (const name of hostGlobals) {
+      const value = descriptors[name]?.value;
+      if (typeof value !== 'function') continue;
+      const prototype = Object.getOwnPropertyDescriptor(value, 'prototype')?.value;
+      if (prototype) intrinsics.add(prototype);
+      intrinsics.add(Object.getPrototypeOf(value));
+    }
+    for (const input of pendingInheritance) {
+      let parent = input.parent, depth = 1;
+      while (parent && !intrinsics.has(parent) && !seenObjects.has(parent)) {
+        const owner = `${input.receiver}.${INHERITED_OWNER_PREFIX[input.side]}:${depth}]]`;
+        const parentConstructor = input.side === INHERITANCE_SIDE.constructor
+          ? parent : Object.getOwnPropertyDescriptor(parent, 'constructor')?.value;
+        const constructorName = typeof parentConstructor === 'function'
+          ? Object.getOwnPropertyDescriptor(parentConstructor, 'name')?.value ?? null : null;
+        const inheritance = { receiver: input.receiver, side: input.side, depth, constructorName };
+        inheritedDeclarations.push({ owner, ...inheritance });
+        members(owner, parent, SURFACE_ORIGIN.inheritedDeclaration,
+          input.side === INHERITANCE_SIDE.constructor ? PUBLIC_FUNCTION_INTRINSIC_MEMBERS : ['constructor'], { inheritance });
+        parent = Object.getPrototypeOf(parent); depth++;
+      }
+    }
   }
 
   function namespace(owner, value, origin) {
@@ -132,10 +167,12 @@ function capturePublicSurface(packageRoot, options = {}) {
       if (value && typeof value === 'object') namespace(`Window.${name}`, value, SURFACE_ORIGIN.windowNamespace);
     }
     namespace('jsdom', reference, SURFACE_ORIGIN.packageExport);
+    inheritedMembers(descriptors);
     return { profile: { node: process.version, url: SURFACE_DOCUMENT_URL, runScripts: 'default',
       gettersEvaluated: 'Solo sondeos de instancias y getters de exports del paquete fijado; no se evalúan getters de prototipos DOM.', evaluatedExportGetters },
       apis: [...apis.values()].sort((left, right) => compareIdentifiers(left.id, right.id)),
-      constructors: constructors.sort((left, right) => compareIdentifiers(left.name, right.name)), aliases, exclusions };
+      constructors: constructors.sort((left, right) => compareIdentifiers(left.name, right.name)), aliases, exclusions,
+      inheritedDeclarations: inheritedDeclarations.sort((left, right) => compareIdentifiers(left.owner, right.owner)) };
   } finally { dom.window.close(); dom = null; }
 }
 

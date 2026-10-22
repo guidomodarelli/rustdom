@@ -4,13 +4,16 @@
 /** Keep implementation states and observation origins consistent across producers and consumers. */
 const IMPLEMENTATION_STATE = { rustComplete: 'rust-complete', hybrid: 'hybrid', pending: 'pending' };
 const SURFACE_ORIGIN = { packageExport: 'package-export', windowOwn: 'window-own', windowConstructor: 'window-constructor',
-  windowPrototype: 'window-prototype', instance: 'unforgeable-instance', windowNamespace: 'window-namespace' };
+  windowPrototype: 'window-prototype', instance: 'unforgeable-instance', windowNamespace: 'window-namespace',
+  inheritedDeclaration: 'inherited-declaration' };
+const INHERITANCE_SIDE = { constructor: 'constructor', instance: 'instance' };
+const INHERITED_OWNER_PREFIX = { constructor: '[[InheritedConstructorPrototype', instance: '[[InheritedInstancePrototype' };
 const SURFACE_EXCLUSION = { privateHost: 'private-host-member', ecmascriptGlobal: 'ecmascript-host-global' };
 const INVENTORY_ID_PREFIX = { module: 'module:', api: 'api:', unit: 'unit:' };
 
 module.exports = {
-  IMPLEMENTATION_STATE, SURFACE_ORIGIN, SURFACE_EXCLUSION, INVENTORY_ID_PREFIX,
-  INVENTORY_SCHEMA_VERSION: 1,
+  IMPLEMENTATION_STATE, SURFACE_ORIGIN, SURFACE_EXCLUSION, INVENTORY_ID_PREFIX, INHERITANCE_SIDE, INHERITED_OWNER_PREFIX,
+  INVENTORY_SCHEMA_VERSION: 2,
   REFERENCE_SOURCE_DIRECTORY: 'lib',
   REFERENCE_GENERATED_DIRECTORY: 'lib/jsdom/living/generated/',
   REFERENCE_GLOBALS_FILE: 'lib/jsdom/browser/js-globals.json',

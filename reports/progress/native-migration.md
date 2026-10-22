@@ -6,11 +6,15 @@ historia de planificación; no es el porcentaje actual del proyecto.
 
 El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
 dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
-entrega tiene 531 archivos (528 JavaScript y tres datos), 4.331 entradas de API y
-7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Solo dos
-módulos tenían clasificación revisada como híbridos en checkpoint 66; la
-auditoría de los demás registros sigue pendiente. Eso no significa que carezcan
-de código Rust.
+entrega tiene 531 archivos (528 JavaScript y tres datos), 4.374 entradas de API y
+7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay cuatro
+módulos con clasificación revisada como híbridos; la auditoría de los demás
+registros sigue pendiente. Eso no significa que carezcan de código Rust.
+
+El esquema 2 agrega 43 declaraciones heredadas omitidas, con el cambio del
+denominador y cada ID en [el historial](inventory/denominator-v2.json).
+Las 4.331 declaraciones anteriores permanecen idénticas. Este cambio mejora
+la cobertura del catálogo y conserva los mismos contadores de Rust acreditado.
 
 `summary.json` mantiene `scopeClosed=false` y `migrationPercent=null`: faltan
 dependencias de plataforma externas, contratos dinámicos, opciones/diccionarios,
