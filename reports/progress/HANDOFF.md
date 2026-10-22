@@ -1,5 +1,42 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: diagnóstico acotado preparado, captura aún pendiente
+
+Los resultados íntegros del ensayo independiente se publicaron en `12eaeb82`,
+sin aceptación ni merge. El CI general de ese SHA está en el run 39747428995;
+consultar su estado real. XML y preparación terminaron en success; el gate
+histórico de ownership terminó en failure por el rechazo conservado, no se
+lo saltea. No repetir ninguno de los tres ensayos oficiales rechazados.
+
+La lectura de todas las series detectó aceleración durante las muestras de
+rangos Node22 tanto en una fila rechazada como en otra calibrada. No identifica
+causa suficiente. El método nuevo, todavía sin captura con profiler, está en
+`reports/benchmarks/native-class-ownership/sampler-diagnostics/PROTOCOL.md`.
+Deriva una copia autenticada de las 387 fuentes, registra warmups e intervalos
+después de detener el reloj y observa GC externo. No modifica el arnés de
+aceptación `6904db29…` ni paquetes oficiales, presupuestos o crédito Rust.
+
+Los contratos finales pasaron en Node22/24: cuatro procesos funcionales, 32
+cargas, 384 intervalos y outputs públicos idénticos al archivo original. Hubo
+1.434 eventos GC escalares, 384 referencias por tipo Window/Document, 96
+observaciones de cleanup y las 64 finales exigidas claras; cuatro observaciones
+iniciales aún no claras siguen incluidas. No son picos ni garantía universal.
+Tres contratos negativos del preparador y tres de error por Node pasan.
+
+La revisión encontró pérdida de GC pendiente cuando el sampler rechazaba.
+Se reprodujo sin mocks mediante un segundo observer y GC real, se movió el
+drenaje a finally y el mismo probe pasa en ambos Node. Se conservan fuente y
+crudos iniciales, fallo real, fix y validación final, con identidad completa de
+la preparación oficial comprobada antes/después en ambos Node.
+
+Evidencias en `reports/validation/native-class-ownership/sampler-diagnostics-method/`,
+benchmarks y memoria equivalentes. Raíz final local:
+`/tmp/rustdom-sampler-diagnostics-final-tktpjoet`; inicial conservada:
+`/tmp/rustdom-sampler-diagnostics-method-tvzqtpz3`. Antes de capturar los diez
+procesos del protocolo, publicar y cotejar fuentes y revisión finales. La captura
+es observacional: no puede aceptar rendimiento. Continuar con CI/review del SHA
+publicado y mantener ownership abierto; inventario `4c09d1bd` sigue separado.
+
 ## Actualización: orden independiente completo, presupuesto rechazado
 
 El run `39735778846` terminó sobre `f5526bc1`: 128 procesos por Node, 256 en
