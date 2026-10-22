@@ -1,6 +1,29 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: launcher de optimización calificado, captura pendiente
+## Actualización: captura de optimización terminal, no repetir
+
+La única captura del launcher publicado en8d4dcf67 terminó con exit0. Raíz
+`/tmp/rustdom-optimization-capture-zyog41xf`, session49422/PID494010 terminal.
+El marker está consumido: no borrarlo ni relanzar --capture. Completaron
+Node22 J0/J1 y Node24 J1/J0: cuatro procesos,32 lotes,384 Windows incluyendo
+96 warmups y288 duraciones medidas conservadas. El sampler original no
+cambió; preparación, ejecutables y fuentes quedaron iguales antes/después.
+
+Los423 archivos del índice se autenticaron. El lector offline en
+`reports/benchmarks/native-class-ownership/optimization-log-results/` conserva
+138.028 encabezados completos, clasifica optimización, bailout e invalidación,
+y mantiene payloads en los logs crudos. Las lecturas anteriores y la vigente
+están separadas bajo la raíz local; no son nuevas capturas.
+
+Se ven invalidaciones para código llamado cloneRange por weak objects y
+otros motivos, y recompilaciones en generated/Range.js y Range-impl.js.
+Los registros no alinean eventos con los temporizadores del DOM. No sumar
+sus duraciones como CPU/pausas, no atribuirles el rechazo de Azure y no usar
+los tiempos instrumentados para aceptar presupuestos. Los rechazos anteriores
+siguen vigentes. El siguiente paso es cerrar lectura y publicación verificables
+y contrastar un cambio correctivo del sampler con límites y alcance intactos.
+
+## Histórico: launcher calificado antes de la captura (superado)
 
 `reports/benchmarks/native-class-ownership/optimization-log/` conserva el
 launcher, settings y contratos. Ocho tests pasaron en Linux con Node22/24
