@@ -1,6 +1,47 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: diagnóstico acotado preparado, captura aún pendiente
+## Actualización: captura CPU/GC local completa, sin aceptar rendimiento
+
+El método y fix se publicaron y cotejaron en `8c6dc74b` antes de medir.
+La revisión final terminó con cero hallazgos tras cerrar pérdida de GC al
+rechazar y una referencia documental. Las siete fuentes publicadas coinciden
+con sus pruebas y revisión. Ownership y el inventario global siguen abiertos.
+El CI general de `12eaeb82`, run 39747428995, aprobó sus ocho checks; el de
+`8c6dc74b`, run 39750126871, sigue en ejecución. No confundir ambos SHAs.
+
+La única captura prevista terminó en
+`/tmp/rustdom-sampler-diagnostics-capture-8t6vmwnn`: diez procesos exit0,
+80 lotes y 960 intervalos (240 warmups/720 medidos), 3.552 GC y 740.753 ticks
+CPU. Todos los outputs de los 80 lotes coinciden con el ensayo original y las
+cuatro verificaciones de preparación oficial antes/después coinciden. No
+repetir la captura ni ninguno de los ensayos anteriores.
+
+Hay solapamiento temporal GC en 24 intervalos, todos observer-delivery/1000
+de J0/J1 Node22; 18 son medidos. No se observó solapamiento GC durante las
+operaciones de rangos de esta captura. No prueba causas de Azure, resolución
+de regresiones ni ausencia de compilación/deoptimización. Host local WSL Intel,
+profiler e instrumentación distintos del ensayo Azure; sin decisión de aceptación.
+
+El lector inicial asumía deltas CPU no negativos y falló ante 71 entradas.
+Se conservan lector y fallo. El fix reconstruye timestamps y ordena juntos
+timestamps/IDs, preservando todos los ticks, como DevTools. Cinco casos numéricos
+y replay de los diez perfiles pasan, conservando los 960 resultados. El análisis
+registra incertidumbre de reloj y los diez intervalos sin ticks, sin excluirlos.
+
+Memoria: 960 referencias Window y Document por separado, 240 observaciones,
+160 finales exigidas claras y ocho iniciales aún no claras conservadas. No son
+picos ni garantía universal de ausencia de fugas. Crudos/fuentes/perfiles en
+`reports/validation/native-class-ownership/sampler-diagnostics-capture/`;
+análisis completo y scripts en `reports/benchmarks/native-class-ownership/sampler-diagnostics-results/2026-10-22/`.
+
+La revisión independiente de la lectura y los crudos terminó sin hallazgos.
+Siguiente paso: cotejar primeros/últimos intervalos y frames de rangos de estos
+mismos perfiles. No obtener más muestras
+ni atribuir causalidad sin evidencia. El resultado de aceptación 39735778846
+sigue verified=true, accepted=false. No merge ni checkpoint de ownership;
+inventario `4c09d1bd` sigue separado. Consultar CI del SHA publicado real.
+
+## Histórico: diagnóstico acotado preparado antes de la captura
 
 Los resultados íntegros del ensayo independiente se publicaron en `12eaeb82`,
 sin aceptación ni merge. El CI general de ese SHA está en el run 39747428995;
