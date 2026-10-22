@@ -19,3 +19,16 @@ ausencia absoluta de fugas. El runtime y los algoritmos DOM no cambiaron.
 Se conservan los intentos de desarrollo fallidos. Pasar pruebas de GC no hizo
 aceptable el archivo con un enlace absoluto: su portabilidad se rechazó y se
 validó de nuevo después de corregirla. No se produjo una medición de rendimiento.
+
+## Comprobación adicional del artefacto oficial
+
+El run `39720077911` aprobó la misma receta publicada en `2e0ae88d`.
+Sus cuatro workers funcionales originales observan 60 Window y 60 Document,
+20 endpoints y 40 estados finales claros exigidos. Sus reportes se autenticaron
+con el UUID y las huellas recalculadas del paquete oficial; la comprobación
+offline no ejecutó nuevos escenarios ni GC. Los bytes de los addons oficiales
+difieren de los locales, por lo que estas observaciones se vinculan únicamente
+a sus propios paquetes. Ver [recibo y resultados completos](../../validation/native-class-ownership/hosted-build-ci/39720077911/README.md).
+
+El alcance sigue siendo finito, con cinco módulos por proceso y realm por defecto;
+no demuestra ausencia universal de fugas, memoria pico ni memoria por motor.

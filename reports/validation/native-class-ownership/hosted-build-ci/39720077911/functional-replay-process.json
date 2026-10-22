@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node",
+    "-e",
+    "const fs=require(\"node:fs\");const path=require(\"node:path\");const [root,reports]=process.argv.slice(1);const api=require(path.join(root,\"sources/reports/benchmarks/native-class-ownership/prepare-hosted-build.cjs\"));const identity=api.verify(root);const results=fs.readdirSync(reports).filter(name=>name.endsWith(\".json\")&&!name.endsWith(\".process.json\")).map(name=>{const report=JSON.parse(fs.readFileSync(path.join(reports,name)));return {name,...api.verifyFunctionalReport(report,identity),windows:report.observedWindows,documents:report.observedDocuments,endpoints:Object.keys(report.endpoints).length};});console.log(JSON.stringify({identity,results,measurementExecuted:false},null,2));",
+    "/tmp/rustdom-hosted-official-mbd7e41q/ownership-build",
+    "/mnt/c/Users/guido/ghq/projects/rustdom/.cache/ownership-prepared-39720077911/download"
+  ],
+  "exitCode": 0
+}

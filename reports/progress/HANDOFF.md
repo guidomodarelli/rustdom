@@ -1,5 +1,43 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: preparación del contraste hosted completo
+
+Se agregó `HOSTED-MAIN-PROTOCOL.md`, bindings del arnés existente y
+`ownership-hosted-main.yml`. Mantienen ocho filas, dos Node, tres warmups,
+nueve muestras por lote, 64 procesos y los mismos presupuestos ±2%/±5%/+5%.
+Usan únicamente los paquetes oficiales del run `39720077911`, sin recompilar.
+Nueve contratos reales por Node 22/24 pasaron; logs en
+`reports/validation/native-class-ownership/hosted-main-method/`.
+Revisión estática cerrada sin hallazgos: 373 archivos y arnés `7ef509af…`.
+El paso real de preflight del workflow pasó localmente sin medir.
+
+La secuencia todavía no se ejecutó. Antes de activarla deben estar publicados
+el arnés, sus pruebas y el recibo de revisión con su huella final. Se activa una
+sola vez con la etiqueta `ownership-hosted-main-v1`; no la quitar/reaplicar ni
+reintentar para seleccionar resultados. Conservar todos los fallos y verificar
+ambos archivos Node offline. El presupuesto anterior continúa sin aceptar.
+
+## Actualización: paquetes oficiales de CI autenticados
+
+La preparación publicada en `2e0ae88d` pasó el run `39720077911`.
+Artefacto oficial `12400802735`, SHA-256
+`b25f1e98608c6abb50cb9a5c9feb00f825276941511f3ed9905c457480582610`.
+Está conservado con metadata, logs y verificaciones offline en
+`reports/validation/native-class-ownership/hosted-build-ci/39720077911/`.
+El verificador congelado y los cuatro reportes funcionales pasan; 17 contratos
+por Node 22/24. Sin nuevos benchmarks ni aceptación de rendimiento.
+
+Los paquetes oficiales A/C tienen huellas distintas de los locales solo por
+el addon y native-build.json: A `03568ce9…`, C `99c07d9b…`; jsdom conserva
+`c458b9e9…`. Usar los pins completos de receipt.json para el contraste futuro,
+sin confundirlos con las distribuciones locales del estudio C terminado.
+El tar oficial se extrajo y verificó en `/tmp/rustdom-hosted-official-mbd7e41q/ownership-build`.
+No reconstruir estos paquetes ni reiniciar estudios antiguos. Siguiente paso:
+fijar y revisar el nuevo método hosted sobre este artefacto antes de medir.
+Al registrar el recibo, el CI general de `2e0ae88d` seguía en curso; comprobar
+siempre el SHA actual después de nuevos pushes. Ownership conserva su rechazo
+del estudio anterior. No merge/tag ni APIs nuevas desde esta preparación.
+
 ## Actualización: preparación reproducible para CI, todavía sin medir
 
 El CI general de `40a4adf3`, run39714488637, aprobó los ocho checks: Windows,
