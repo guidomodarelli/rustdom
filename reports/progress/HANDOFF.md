@@ -1,19 +1,30 @@
 # Continuar rustdom en otra máquina
 
-## Estado vigente: candidato C validado; falta aceptar rendimiento
+## Estado vigente: secuencia C terminada sin aceptación
 
-Continuar en `feature/native-class-ownership`, PR #80. Esta actualización agrega
-únicamente `#[inline]` a `new_instance<T>` sobre el parent publicado `767aca43`.
+Continuar en `feature/native-class-ownership`, PR #80. El último head publicado
+es `eaeca4af3084a23b96fc0214240b552204018c22`, con revisión limpia `6329498729`.
+C agrega únicamente `#[inline]` a `new_instance<T>` sobre el parent `767aca43`.
 El guard y sus contratos de ownership permanecen iguales. No sumar APIs migradas.
 Los apartados siguientes conservan la historia y no reemplazan este estado.
 
-El CI general de `767aca43` terminó success: los ocho checks, incluidos macOS,
-Windows, Linux y cuatro shards, aprobaron. La review remota limpia `6328835318`
-corresponde a ese SHA. Datos originales en
-`reports/validation/native-class-ownership/ci-767aca43/`. Ownership se detuvo en
-preflight antes de compilar/medir. XML `39693070050` terminó A/A sin calibrar:
+El CI general de `eaeca4af`, ejecución `39697882540`, terminó success: los ocho
+checks, incluidos macOS, Windows, Linux y cuatro shards, aprobaron. Datos y recibo
+originales en `reports/validation/native-class-ownership/ci-eaeca4af/`.
+Ownership `39697882495` aprobó los 29 contratos y se detuvo en preflight antes
+de compilar/medir: conserva el pin histórico 833 frente a C 0d67. No se omite.
+La evidencia previa de CI/review de `767aca43` también permanece archivada.
+XML `39693070050` terminó A/A sin calibrar:
 208 procesos, 6.656 duraciones, una fila fuera de ±2%, `accepted=null`, sin A/B.
 El ZIP oficial y su verificación están archivados; no elegir un histórico favorable.
+El XML actual `39697882498` terminó success: artefacto `12393700893`, ZIP oficial
+verificado, 937 entradas, 468 procesos y 14.976 duraciones. Las trece filas
+calibraron y quedaron dentro del +5% de su gate en Node24. El verificador y sus
+dos tests históricos pasaron sobre este archivo en Linux/Windows. Su binario CI
+`221e6754e8e6ef461007f5d6834cb586ebbf0f0a6d8556651ab93b64e6b9c0f5`
+es distinto del addon local C; no equipararlos. El protocolo XML no fija el
+manifest completo de JavaScript y no acepta el presupuesto separado de ownership.
+Archivo: `reports/benchmarks/native-class-ownership/xml-validation/39697882498/`.
 
 C se compiló en `/home/guido/rustdom-native-class-inline-x2yg1emf`, sin Git.
 Addon `afbf5e85e85b542d6324b9a8ce2e0295181ac1896494025dc7834ae1b4c3482f`,
@@ -49,15 +60,44 @@ Document observados y 256 endpoints finales claros; no son aceptación.
 Los 23 contratos pasaron por Linux Node 22/24 y 20 por Windows Node24 con tres
 preflight Linux omitidos. El comando CI ampliado aprobó 29 por Linux Node22/24.
 
-Próximos pasos: publicar esta actualización validada, revisar el SHA publicado
-y verificar sus tres canales de comentarios. Después ejecutar una sola secuencia
-formal C, 64 procesos/9.216 duraciones, Node22 y luego24, con provenance, manifest
-y snapshots completos y sin otras cargas locales. A y jsdom conservan sus pins;
-la etiqueta B ahora representa C. Manifest preparado localmente en
-`C:/Users/guido/ghq/projects/rustdom/.cache/native-inline-runtime-manifest.json`.
-No repetir el estudio V1 terminado con `accepted=false` ni reinterpretarlo.
-Integrar la decisión C en CI conservando checks/umbrales; el gate anterior no
-se reemplaza automáticamente. Sin aceptación no hay merge ni tag de este hito.
+La secuencia C de la sesión 93464 terminó con exit 1: los 64 procesos terminaron
+con exit 0, 9.216 duraciones, `complete=true` y `accepted=false` en ambos Nodes.
+No reiniciarla. Root original: `/home/guido/rustdom-paired-inline-study-1fjgji8z`.
+Archivo completo: `reports/benchmarks/native-class-ownership/paired-inline/2026-10-22/`,
+931 archivos más manifest, con 357 fuentes congeladas por Node y procedencia del
+SHA revisado antes de medir. El CLI real reprodujo el resultado completo en Linux
+Node22/24 y Windows Node24. A y jsdom conservan sus pins; B representa C.
+
+Node22 calibró 4/8 A/A y 4/8 A/B; esas cuatro A/B quedaron dentro del presupuesto.
+Node24 calibró 5/8 A/A y 5/8 A/B; esas cinco A/B quedaron dentro. Todas las filas
+Rust A/A quedaron dentro de ±5%; los rechazos de calibración provienen de jsdom.
+mutation-records-collect/100 Node24 dio +0,704117% Rust y −1,302265% jsdom:
+A/A y A/B calibraron y esa fila quedó dentro del presupuesto. No prueba causalidad
+de inline ni una mejora universal respecto del estudio anterior separado.
+range-control-1000/1000 Node24 dio +5,189336% Rust y +3,531075% jsdom A/B:
+se conserva el exceso crudo, pero no es una regresión calibrada atribuible a C.
+range-control-1000/250 Node22 A/A dio −16,542983% jsdom sin ejecutar C.
+
+Se observaron 12.288 Window y 12.288 Document distintos, con 4.096 endpoints
+finales requeridos claros y baselines nativos verificados. Resumen de memoria en
+`reports/memory/native-class-ownership/paired-inline-2026-10-22.json`: son rangos
+posteriores a GC, no picos ni una garantía universal de ausencia de fugas.
+
+El diagnóstico offline en `paired-inline-diagnostics/2026-10-22/`, bajo el mismo
+directorio de benchmarks, cubre las 64 combinaciones Node/fase/motor/fila y cruza
+todas sus medianas con el verificador original. Linux/Windows produjeron JSON
+idéntico. En jsdom Node22 A/A range-control-1000/250, el primer lote fue más lento
+en 7/8 procesos; A y B fueron primero cuatro veces cada uno. La mediana descriptiva
+primero/segundo fue +36,250775%. No identifica causalidad de JIT/GC ni reemplaza
+el delta original o la decisión. Todas las demás filas y órdenes quedan visibles.
+
+Próximos pasos: cerrar la review de datos y publicar esta evidencia completa;
+investigar el estado compartido y aislamiento del runner con una hipótesis y un
+protocolo nuevos. No relanzar secuencias V1/C idénticas,
+elegir otro estimador, excluir filas ni cambiar umbrales para aceptar datos previos.
+Integrar la decisión en CI conservando su rechazo real. Sin presupuesto aceptado
+no hay merge ni tag de este hito. El monitor 87492 terminó con exit 0 al recibir
+la revisión limpia de eaeca4af; no reiniciarlo como si siguiera pendiente.
 
 Después del cierre de #80, integrar el inventario `014c7da` y migrar completo
 `living/node.js`. El inventario publicado todavía no permite un porcentaje
