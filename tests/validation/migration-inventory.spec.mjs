@@ -124,8 +124,8 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 4);
-  assert.equal(audited.summary.counts.files.audited, 6);
+  assert.equal(audited.summary.counts.files.states.hybrid, 5);
+  assert.equal(audited.summary.counts.files.audited, 7);
   assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
   assert.equal(audited.summary.counts.apis.states.hybrid, 1);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
@@ -159,6 +159,11 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
     assert.equal(unit.auditComplete, true); assert.equal(unit.status, 'pending');
     assert.deepEqual(unit.rustSources, []); assert.ok(unit.pending.length > 0);
   }
+  const htmlParser = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/browser/parser/html.js');
+  assert.equal(htmlParser.auditComplete, true); assert.equal(htmlParser.status, 'hybrid');
+  assert.ok(htmlParser.rustSources.includes('src/lib.rs'));
+  assert.ok(htmlParser.javascriptSources.includes('src/parser/bridge.cjs'));
+  assert.ok(htmlParser.pending.length > 0);
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot, audits: { 'module:missing': {} } }), /Unknown inventory audit ID/);
   const node = audits['module:lib/jsdom/living/nodes/Node-impl.js'];
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,

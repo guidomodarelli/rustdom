@@ -2,13 +2,15 @@
 'use strict';
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const { join } = require('node:path');
 
 /** Load both real runtimes through Node, including their native and ESM dependencies. */
 const nodeRequire = require('node:module').createRequire(__filename);
 /** Keep the reference runtime outside rustdom's private module graph. */
 const reference = nodeRequire('jsdom');
 /** Exercise the compiled native-backed product. */
-const rustdom = nodeRequire('../dist/index.cjs');
+const rustdom = nodeRequire(process.env.RUSTDOM_PUBLIC_PACKAGE_ROOT
+  ? join(process.env.RUSTDOM_PUBLIC_PACKAGE_ROOT, 'dist/index.cjs') : '../dist/index.cjs');
 
 /** Cover malformed HTML, insertion modes, namespaces, templates, and Unicode. */
 const documents = [
@@ -95,6 +97,7 @@ describe('contextual fragment compatibility', () => {
 
 describe('explicit compatibility routes', () => {
   for (const namespace of [null, 'urn:\ud800']) test(`should preserve fragment parsing in namespace ${JSON.stringify(namespace)}`, () => {
+    const before = rustdom.getParserStatistics();
     const expected = new reference.JSDOM('');
     const actual = new rustdom.JSDOM('');
     try {
@@ -104,15 +107,23 @@ describe('explicit compatibility routes', () => {
         return element.innerHTML;
       });
       assert.equal(fragments[1], fragments[0]);
+      assert.ok(rustdom.getParserStatistics().fallback['fragment-namespace'] > (before.fallback['fragment-namespace'] || 0));
     } finally { expected.window.close(); actual.window.close(); }
   });
-  for (const html of ['<table>foster<tr><td>A<td>B</table>end', '<p>\ud800</p>', '<div title="\udc00">x</div>',
-    '<select><optgroup label=a><option>one<option>two</select>', '<select><button>X</button><option>Y</select>',
-    '<body foo="first"><body foo="second">', '<html xml:lang="a"><html xml:lang="b">']) {
+  for (const [html, reason] of [['<table>foster<tr><td>A<td>B</table>end', 'table-foster-parenting'],
+    ['<p>\ud800</p>', 'unpaired-surrogate'], ['<div title="\udc00">x</div>', 'unpaired-surrogate'],
+    ['<select><optgroup label=a><option>one<option>two</select>', 'legacy-select'],
+    ['<select><button>X</button><option>Y</select>', 'legacy-select'],
+    ['<body foo="first"><body foo="second">', 'root-attribute-merge'],
+    ['<html xml:lang="a"><html xml:lang="b">', 'root-attribute-merge']]) {
     test(`should retain jsdom edge semantics when parsing ${JSON.stringify(html)}`, () => {
+      const before = rustdom.getParserStatistics();
       const expected = new reference.JSDOM(html);
       const actual = new rustdom.JSDOM(html);
-      try { assert.equal(actual.serialize(), expected.serialize()); }
+      try {
+        assert.equal(actual.serialize(), expected.serialize());
+        assert.ok(rustdom.getParserStatistics().fallback[reason] > (before.fallback[reason] || 0));
+      }
       finally { expected.window.close(); actual.window.close(); }
     });
   }
@@ -142,20 +153,64 @@ describe('explicit compatibility routes', () => {
   });
 
   test('should preserve source positions when includeNodeLocations is enabled', () => {
+    const before = rustdom.getParserStatistics();
     const dom = new rustdom.JSDOM('<!doctype html>\n<p>Hello</p>', { includeNodeLocations: true });
     try {
       assert.equal(dom.nodeLocation(dom.window.document.querySelector('p')).startLine, 2);
       assert.equal(dom.nodeLocation(dom.window.document.querySelector('p')).startOffset, 16);
+      assert.ok(rustdom.getParserStatistics().fallback['source-locations'] > (before.fallback['source-locations'] || 0));
     } finally { dom.window.close(); }
   });
 
   test('should preserve form ownership when a fragment has a form ancestor', () => {
+    const before = rustdom.getParserStatistics();
     const dom = new rustdom.JSDOM('<!doctype html><form id=f><div></div></form>');
     try {
       dom.window.document.querySelector('div').innerHTML = '<form id=nested><input name=x></form>';
       assert.equal(dom.window.document.querySelector('#nested'), null);
       assert.equal(dom.window.document.querySelector('input').form.id, 'f');
+      assert.ok(rustdom.getParserStatistics().fallback['form-context'] > (before.fallback['form-context'] || 0));
     } finally { dom.window.close(); }
+  });
+
+  test('should preserve custom element construction and connection when parsing registered definitions', () => {
+    const before = rustdom.getParserStatistics();
+    const observations = [];
+    for (const runtime of [reference, rustdom]) {
+      const dom = new runtime.JSDOM('<!doctype html><body>');
+      try {
+        const calls = [];
+        class ParserElement extends dom.window.HTMLElement {
+          constructor() { super(); calls.push(['constructor', this.localName]); }
+          connectedCallback() { calls.push(['connected', this.localName]); }
+        }
+        dom.window.customElements.define('parser-audit', ParserElement);
+        dom.window.document.body.innerHTML = '<parser-audit id="created">content</parser-audit>';
+        const element = dom.window.document.querySelector('#created');
+        observations.push({ calls, text: element.textContent, upgraded: element instanceof ParserElement });
+      } finally { dom.window.close(); }
+    }
+    assert.deepEqual(observations[1], observations[0]);
+    assert.deepEqual(observations[0], { calls: [['constructor', 'parser-audit'], ['connected', 'parser-audit']],
+      text: 'content', upgraded: true });
+    assert.ok(rustdom.getParserStatistics().fallback['custom-elements'] > (before.fallback['custom-elements'] || 0));
+  });
+
+  test('should preserve unpaired UTF-16 context attributes when parsing a fragment', () => {
+    const before = rustdom.getParserStatistics();
+    const observations = [];
+    for (const runtime of [reference, rustdom]) {
+      const dom = new runtime.JSDOM('<!doctype html><body>');
+      try {
+        const element = dom.window.document.createElement('div');
+        element.setAttribute('data-value', '\ud800');
+        element.innerHTML = '<p>preserved &amp; parsed</p>';
+        observations.push([element.getAttribute('data-value'), element.innerHTML]);
+      } finally { dom.window.close(); }
+    }
+    assert.deepEqual(observations[1], observations[0]);
+    assert.deepEqual(observations[0], ['\ud800', '<p>preserved &amp; parsed</p>']);
+    assert.ok(rustdom.getParserStatistics().fallback['unpaired-surrogate'] > (before.fallback['unpaired-surrogate'] || 0));
   });
 
   test('should retain XML parsing when the content type is XHTML', () => {

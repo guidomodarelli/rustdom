@@ -1,0 +1,22 @@
+--- lib/jsdom/browser/parser/html.js
++++ A0/dist/vendor-jsdom/lib/jsdom/browser/parser/html.js
+@@ -1,6 +1,9 @@
+ "use strict";
+-
+-const parse5 = require("parse5");
++require = require("../../../../../private-require.cjs")(require);
++
++
++const parse5 = require("../../../../../parser-bridge.cjs");
++const { domSymbolTree } = require("../../living/helpers/internal-constants");
+ 
+ const { createElement } = require("../../living/helpers/create-element");
+ const { HTML_NS } = require("../../living/helpers/namespaces");
+@@ -118,6 +121,7 @@
+     contentFragment._host = _host;
+ 
+     templateElement._templateContents = contentFragment;
++    domSymbolTree.updateNodeData(templateElement);
+   }
+ 
+   setDocumentType(document, name, publicId, systemId) {

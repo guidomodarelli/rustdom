@@ -12,7 +12,7 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.374 | Descriptores propios de objetos públicos y bases heredadas no enumeradas, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 6 | Cuatro híbridos (Node-impl, Element-impl, XMLSerializer-impl y living/node); strings.js y validate-names.js pendientes de migración |
+| Módulos con clasificación revisada | 7 | Cinco híbridos (Node-impl, Element-impl, XMLSerializer-impl, living/node y parser/html); strings.js y validate-names.js pendientes de migración |
 | APIs con clasificación revisada | 1 | XMLSerializer.serializeToString mantiene WebIDL y la factory de excepciones en el host |
 | Anclas con clasificación revisada | 17 | Una con control Rust (serializeToString), trece de strings.js y tres de validate-names.js pendientes; no acredita dependencias ni APIs completas |
 

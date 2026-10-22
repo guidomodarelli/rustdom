@@ -1,6 +1,28 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: auditoría de validación de nombres
+## Actualización: parsing HTML auditado como híbrido
+
+Esta rama `feature/inventory-node-helpers` agrega la auditoría completa del
+módulo `browser/parser/html.js`: Rust/html5ever produce tapes; selección de ruta,
+replay, factories y efectos siguen en JavaScript. Hay fallbacks parse5 incluso
+después de algunos intentos Rust. El catálogo queda con siete módulos auditados
+(cinco híbridos/dos pendientes), diecisiete anclas y una API auditadas, sin nuevo
+Rust completo ni cambio del denominador 531/4.374/7.246. Las veinte anclas del
+adaptador requieren clasificación individual; esta entrega no las acredita.
+
+Los 54 tests finales pasan en cada Node22/24, con 41 contratos del parser y trece
+anteriores. El primer fixture omitió una evidencia histórica: sus dos fallos de
+inventario están conservados junto con el conjunto final, sin cambiar tests ni
+producto. Reportes `html-parser-audit` de validación, benchmarks y memoria:
+217 fuentes finales, catálogos, logs, catorce procesos del CLI y ciclos de GC
+con Window/Document separados. Las cuatro identidades de preparación coinciden.
+
+Mantener esta rama separada hasta cerrar ownership. El run 39735778846 sobre
+f5526bc1 sigue siendo el ensayo único vigente: comprobar su estado real y no
+reiniciar ni modificar su método o límites. El HANDOFF de la rama ownership
+está publicado en afba8091. No crear otro PR o checkpoint del hito pendiente.
+
+## Histórico (superado): auditoría de validación de nombres
 
 Esta rama `feature/inventory-node-helpers` conserva ahora seis módulos y
 diecisiete anclas con clasificación revisada. `helpers/validate-names.js` y sus
