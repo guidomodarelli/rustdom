@@ -1,5 +1,21 @@
 # Continuar rustdom en otra máquina
 
+## Inicio registrado del ensayo de warmup: no reiniciar
+
+Método publicado y autenticado en4a57f334,397 fuentes Git y recibo GitHub
+coincidentes. Se inició una única secuencia sin tracing desde el arnés congelado
+en `/tmp/rustdom-realm-warmup-study-m5hpgvcr/harness`, session10086,
+Node22 PID565153. El PID del driver, momento de inicio y publicación exacta
+están en `reports/progress/realm-warmup-start.json`. El marker exclusivo local
+`.cache/realm-warmup-study.started.json` está consumido. NO relanzar.
+
+Este registro es una instantánea del inicio, no garantiza que siga activo.
+Consultar primero procesos y node-22/node-24/index.json, archivos process.json
+y verification.json bajo esa raíz; esperar el proceso existente si sigue vivo.
+El driver completa Node22 y después Node24, conserva rechazos completos y
+detiene ante fallo de integridad. Aún no hay decisión de rendimiento registrada.
+La captura de optimización anterior sigue terminal y tampoco debe repetirse.
+
 ## Actualización: variante de warmup por ventana calificada
 
 Lectura completa de la captura única publicada en4e3a1113; NO repetirla.
@@ -12,9 +28,8 @@ públicos históricos y liberación separada de Window/Document y baseline nativ
 El test inicialmente fallido confundía rangeClones con rangeStates: corregido
 y conservado el fallo en el histórico. Evidencia completa en
 reports/validation/native-class-ownership/realm-warmup-method/.
-Revisión read-only del código sin hallazgos. Siguiente: autenticar publicación
-y ejecutar una única secuencia completa sin tracing de realm-warmup, todas
-las ocho cargas, factores y presupuestos originales. Todavía sin aceptación,
+Revisión read-only del código sin hallazgos. Publicación autenticada y secuencia completa de realm-warmup iniciada una
+vez, con las ocho cargas, factores y presupuestos originales; ver registro superior. Todavía sin aceptación,
 sin merge/tag y sin crédito Rust. El gate actual conserva su rechazo.
 
 ## Actualización: captura de optimización terminal, no repetir
