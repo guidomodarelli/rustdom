@@ -10,6 +10,32 @@ C agrega únicamente `#[inline]` a `new_instance<T>` sobre el parent `767aca43`.
 El guard y sus contratos de ownership permanecen iguales. No sumar APIs migradas.
 Los apartados siguientes conservan la historia y no reemplazan este estado.
 
+La corrección XML se publicó en `93856fdd27d2ab7036d8ea58cb1ec40f07f157e3`.
+Su workflow `39706343771` aprobó verificando el archivo histórico, sin construir
+ni medir otra vez. El CI general `39706343650` produjo un fallo real en shard2:
+la tercera ronda de quiescencia ya estaba clara, pero no quedaba otra para
+confirmar dos endpoints consecutivos. Log y endpoint originales conservados en
+`reports/validation/native-class-ownership/ci-quiescence-93856fdd/`.
+La review remota de 93856 fue rechazada por cuota, recibo `6330524298`;
+no considerar ese SHA revisado remotamente ni redisparar para eludir el límite.
+
+Esta actualización corrige solo el contrato funcional de quiescencia, usando
+la espera acotada canónica existente de 12 rondas/10 segundos, siempre con dos
+endpoints claros y baselines nativos exactos. La regresión retiene Document
+reales durante tres observaciones y exige liberación posterior. No altera el
+runtime, helper de GC, ni las tres rondas de los samplers de rendimiento.
+Dos contratos del nuevo diagnóstico y seis de recursos aprobaron por Node22/24;
+evidencia en `reports/validation/native-class-ownership/runner-sharing/`.
+
+Se preparó `RUNNER-SHARING-PROTOCOL.md`, en el directorio de benchmarks de
+ownership: 32 procesos jsdom A/A entre ambos Nodes, comparando un módulo de
+carga compartido con dos copias de fuentes idénticas. Mantiene fixture y lotes
+originales, balance físico/carga/lotes y agrega trazas V8 idénticas en ambos
+brazos. El reviewer local cerró sin hallazgos tras corregir rutas relativas y
+conteo de fuentes. La secuencia diagnóstica completa todavía no se ejecutó:
+publicar el método y registrar su SHA/huella/recibo antes de iniciarla. No
+puede aceptar un presupuesto ni sustituye la revisión remota para mergear.
+
 El CI general de `eaeca4af`, ejecución `39697882540`, terminó success: los ocho
 checks, incluidos macOS, Windows, Linux y cuatro shards, aprobaron. Datos y recibo
 originales en `reports/validation/native-class-ownership/ci-eaeca4af/`.
@@ -115,8 +141,8 @@ en 7/8 procesos; A y B fueron primero cuatro veces cada uno. La mediana descript
 primero/segundo fue +36,250775%. No identifica causalidad de JIT/GC ni reemplaza
 el delta original o la decisión. Todas las demás filas y órdenes quedan visibles.
 
-Próximos pasos: publicar y verificar la corrección de reutilización XML;
-comprobar que CI verifica el archivo sin construir ni iniciar otra medición.
+Próximos pasos: publicar la corrección de quiescencia y el método diagnóstico,
+verificar su CI y ejecutar una única secuencia conforme al protocolo publicado.
 Mantener el presupuesto separado de ownership en su estado real sin aceptar;
 investigar el estado compartido y aislamiento del runner con una hipótesis y un
 protocolo nuevos. No relanzar secuencias V1/C idénticas,

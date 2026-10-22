@@ -10,7 +10,6 @@ const { createBenchmarkRunner } = require('../../benchmarks/worker.cjs');
 const { getBenchmarkPlan } = require('../../benchmarks/workload-plan.cjs');
 const { collectGarbage, captureMemoryState, waitForMemoryQuiescence } = require('../../scripts/memory-endpoint.cjs');
 const settings = require('../../reports/benchmarks/native-class-ownership/constants/main-affinity.cjs');
-const { cleanupRounds } = require('../../reports/benchmarks/native-class-ownership/constants/paired-main.cjs');
 const root = process.env.RUSTDOM_BENCHMARK_PACKAGE || path.resolve(__dirname, '../..');
 const fromPackage = createRequire(path.join(root, 'package.json'));
 const runtimes = [
@@ -29,13 +28,13 @@ function runnerFor(runtime, trackRealms) {
 }
 
 /** Require all warmup and measured realms to disappear, with native resources back at their starting counts. */
-async function assertReleased(report, runtime, expectedNative, quiescenceOptions = {}) {
+async function assertReleased(report, runtime, expectedNative) {
   for (const references of Object.values(report.realmReferences)) {
     assert.equal(references.length, settings.warmupSamples + settings.measuredSamples);
     assert.ok(references.every((reference) => reference instanceof WeakRef));
   }
   const endpoint = await waitForMemoryQuiescence({ label: `${runtime.label}/${report.name}/${report.rows}`,
-    sample: () => captureMemoryState(report.realmReferences, runtime.api), expectedNative, ...quiescenceOptions });
+    sample: () => captureMemoryState(report.realmReferences, runtime.api), expectedNative });
   assert.equal(endpoint.reached, true, JSON.stringify(endpoint));
   assert.deepEqual(endpoint.state.survivors, { window: 0, document: 0 });
   assert.ok(endpoint.trace.slice(-2).every((observation) => observation.clear));
@@ -58,7 +57,8 @@ test('all eight public workloads release warmup and measured Window/Document obj
       const baseline = runtime.api.getNativeTreeStatistics?.();
       const report = await runner.measureWorkload(workload.name, workload.size);
       assert.equal(report.samplesMs.length, settings.measuredSamples);
-      await assertReleased(report, runtime, baseline, { maxRounds: cleanupRounds });
+      // Functional release uses the bounded quiescence policy; the performance sampler keeps its fixed three rounds.
+      await assertReleased(report, runtime, baseline);
     }
   }
 });
