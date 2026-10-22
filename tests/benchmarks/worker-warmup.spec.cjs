@@ -19,13 +19,13 @@ const runtimes = [
 ];
 const oracle = require('../../reports/benchmarks/native-class-ownership/main-affinity/2026-10-21/node-22/index.json');
 
-test('same-realm warmup preserves all eight public outputs and releases real Window, Document and native resources', async () => {
+test('both GC boundaries preserve all eight public outputs and release real Window, Document and native resources', async () => {
   const evidence = { node: process.version, cases: [] };
   const plan = getBenchmarkPlan().filter((workload) => policy.workloads.includes(workload.name));
   assert.equal(plan.length, settings.rows.length);
-  for (const runtime of runtimes) {
+  for (const gcOrder of Object.values(policy.gcOrder)) for (const runtime of runtimes) {
     const runner = createBenchmarkRunner({ engine: runtime.label, runtime: runtime.api,
-      trackRealms: true, warmupCurrentRealm: true });
+      trackRealms: true, warmupCurrentRealm: true, warmupGcOrder: gcOrder });
     for (const workload of plan) {
       await collectGarbage();
       const baseline = runtime.api.getNativeTreeStatistics?.();
@@ -33,6 +33,8 @@ test('same-realm warmup preserves all eight public outputs and releases real Win
       const expected = oracle.summaries.AA.find((row) => row.key === `${report.name}/${report.rows}`);
       assert.equal(report.outputHash, expected.outputHash);
       assert.equal(report.withinRealmWarmupRounds, policy.rounds);
+      if (gcOrder === policy.gcOrder.beforeWarmup) assert.equal(report.withinRealmWarmupGcOrder, gcOrder);
+      else assert.equal(Object.hasOwn(report, 'withinRealmWarmupGcOrder'), false);
       assert.equal(report.samplesMs.length, settings.measuredSamples);
       assert.equal(report.memoryAfterCleanup.length, settings.measuredSamples);
       assert.ok(report.samplesMs.every((sample) => Number.isFinite(sample) && sample > 0));
@@ -63,7 +65,7 @@ test('same-realm warmup preserves all eight public outputs and releases real Win
       assert.deepEqual(endpoint.state.survivors, { window: 0, document: 0 });
       assert.ok(endpoint.trace.slice(-2).every((observation) => observation.clear));
       const { realmReferences, ...measurement } = report;
-      evidence.cases.push({ runtime: runtime.label, measurement, nativeBefore: baseline,
+      evidence.cases.push({ gcOrder, runtime: runtime.label, measurement, nativeBefore: baseline,
         nativeAfterOperations: after, endpoint });
     }
   }
@@ -77,6 +79,10 @@ test('invalid warmup options fail before allocating a native document', () => {
   const before = runtime.api.getParserStatistics().nativeDocument;
   assert.throws(() => createBenchmarkRunner({ engine: runtime.label, runtime: runtime.api,
     warmupCurrentRealm: 'true' }), /warmupCurrentRealm must be a boolean/);
+  assert.throws(() => createBenchmarkRunner({ engine: runtime.label, runtime: runtime.api,
+    warmupCurrentRealm: true, warmupGcOrder: 'undeclared' }), /unknown warmupGcOrder/);
+  assert.throws(() => createBenchmarkRunner({ engine: runtime.label, runtime: runtime.api,
+    warmupGcOrder: policy.gcOrder.beforeWarmup }), /requires warmupCurrentRealm/);
   assert.equal(runtime.api.getParserStatistics().nativeDocument, before);
 });
 

@@ -6,7 +6,7 @@ const settings = require('./constants/ownership-warmup.cjs');
 
 /**
  * Warm public operations in the current realm without replacing measured fixtures.
- * The caller drains GC after this async frame returns, before starting its timer.
+ * The caller owns the declared GC boundary; this function only warms and disposes fixtures.
  * @param {object} input - Current realm, Range inputs, and real observer fixture factories.
  * @returns {Promise<void>} Resolves after all temporary observers are disconnected and hosts removed.
  */

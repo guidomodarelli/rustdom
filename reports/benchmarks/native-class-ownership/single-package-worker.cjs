@@ -88,7 +88,7 @@ function createSinglePackageWorker(settings = defaultSettings) {
       report.nativeBaseline = baseline; save();
       const groups = { window: [], document: [] };
       const runner = createBenchmarkRunner({ engine, runtime: runtime.api, trackRealms: true,
-        warmupCurrentRealm: settings.warmupCurrentRealm ?? false });
+        warmupCurrentRealm: settings.warmupCurrentRealm ?? false, warmupGcOrder: settings.warmupGcOrder });
       for (const input of plan.rows) {
         const record = { label, ...input, complete: false };
         report.batches.push(record); save();

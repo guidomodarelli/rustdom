@@ -294,10 +294,13 @@ function observerDeliveryFixture(document, size, name, roots) {
  * @param {number} size - Fixture row count.
  * @param {boolean} [trackRealms=false] - Return weak observers allocated outside timing.
  * @param {boolean} [warmupCurrentRealm=false] - Warm ownership operations in each current window before timing.
+ * @param {'before-warmup'|'after-warmup'} [warmupGcOrder] - Explicit GC boundary; historical default is after warmup.
  * @returns {Promise<object>} Raw milliseconds and post-cleanup memory snapshots.
  */
-async function measure(runtime, engine, environmentEntry, name, size, trackRealms = false, warmupCurrentRealm = false) {
+async function measure(runtime, engine, environmentEntry, name, size, trackRealms = false, warmupCurrentRealm = false,
+  warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup) {
   const warmOwnershipRealm = warmupCurrentRealm && ownershipWarmup.workloads.includes(name);
+  const collectBeforeWarmup = warmOwnershipRealm && warmupGcOrder === ownershipWarmup.gcOrder.beforeWarmup;
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
@@ -550,16 +553,20 @@ async function measure(runtime, engine, environmentEntry, name, size, trackRealm
         }
       }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
+      if (collectBeforeWarmup) {
+        await collectGarbage();
+        global.gc();
+      }
       if (warmOwnershipRealm) {
         await warmOwnership({ name, window: dom.window, document, size, iterations: RANGE_STATE_ITERATIONS,
           range: lastRange, comparisonMode: rangeComparisonMode, texts: stateTextNodes,
           expectedLifecycle: expectedStateUnits * 3 + RANGE_STATE_ITERATIONS,
           createMutationFixture: mutationRecordFixture, createDeliveryFixture: observerDeliveryFixture,
           captureRecords: captureMutationRecords });
-        await collectGarbage();
+        if (!collectBeforeWarmup) await collectGarbage();
       }
       if (signalsSlotBurst || readsMutationRecords || deliversObservers) await new Promise((resolve) => setImmediate(resolve));
-      global.gc?.();
+      if (!collectBeforeWarmup) global.gc?.();
       observerDeliveryWork?.prepare();
       listenerWork?.prepare();
       xmlWork?.prepare();
@@ -1015,6 +1022,7 @@ async function measure(runtime, engine, environmentEntry, name, size, trackRealm
   }
   const report = { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
   if (warmupCurrentRealm) report.withinRealmWarmupRounds = warmOwnershipRealm ? ownershipWarmup.rounds : 0;
+  if (collectBeforeWarmup) report.withinRealmWarmupGcOrder = warmupGcOrder;
   if (realmReferences) report.realmReferences = realmReferences;
   return report;
 }
@@ -1025,9 +1033,10 @@ async function measure(runtime, engine, environmentEntry, name, size, trackRealm
  * @param {'jsdom'|'rustdom'} engine - Selected implementation.
  * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
  * @param {boolean} [warmupCurrentRealm=false] - Explicit same-window operation warmup.
+ * @param {'before-warmup'|'after-warmup'} [warmupGcOrder] - Declared GC boundary for warmed ownership operations.
  * @returns {Promise<void>} Writes one structured result to stdout.
  */
-async function main(runtime, engine, environmentEntry, warmupCurrentRealm = false) {
+async function main(runtime, engine, environmentEntry, warmupCurrentRealm = false, warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup) {
   const workloads = [];
   const plan = getBenchmarkPlan();
   const requested = new Set(process.argv.slice(3));
@@ -1037,7 +1046,7 @@ async function main(runtime, engine, environmentEntry, warmupCurrentRealm = fals
   assert.ok(selected.length > 0, 'Benchmark shard has no selected workloads');
   for (const { name, size } of selected) {
     process.stderr.write(`Benchmark ${engine}: starting ${name}/${size}\n`);
-    workloads.push(await measure(runtime, engine, environmentEntry, name, size, false, warmupCurrentRealm));
+    workloads.push(await measure(runtime, engine, environmentEntry, name, size, false, warmupCurrentRealm, warmupGcOrder));
     process.stderr.write(`Benchmark ${engine}: completed ${name}/${size}\n`);
   }
   const parserStatistics = runtime.getParserStatistics?.();
@@ -1066,22 +1075,27 @@ function validateEngine(engine) {
  * @param {string} [options.environmentEntry] - Rustdom Vitest environment URL for environment workloads.
  * @param {boolean} [options.trackRealms=false] - Return weak Window/Document observations from direct measurements, including warmups.
  * @param {boolean} [options.warmupCurrentRealm=false] - Opt into three untimed operation rounds in each ownership window.
+ * @param {'before-warmup'|'after-warmup'} [options.warmupGcOrder] - GC boundary; before-warmup requires same-window warmup.
  * @returns {object} Full workload measurement and the unchanged CLI plan executor.
  */
-function createBenchmarkRunner({ engine, runtime, environmentEntry, trackRealms = false, warmupCurrentRealm = false }) {
+function createBenchmarkRunner({ engine, runtime, environmentEntry, trackRealms = false, warmupCurrentRealm = false,
+  warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup }) {
   validateEngine(engine);
   assert.equal(typeof runtime?.JSDOM, 'function', 'BenchmarkRunner: a runtime.JSDOM constructor is required');
   assert.equal(typeof trackRealms, 'boolean', 'BenchmarkRunner: trackRealms must be a boolean');
   assert.equal(typeof warmupCurrentRealm, 'boolean', 'BenchmarkRunner: warmupCurrentRealm must be a boolean');
+  assert.ok(Object.values(ownershipWarmup.gcOrder).includes(warmupGcOrder), 'BenchmarkRunner: unknown warmupGcOrder');
+  assert.ok(warmupCurrentRealm || warmupGcOrder === ownershipWarmup.gcOrder.afterWarmup,
+    'BenchmarkRunner: GC before warmup requires warmupCurrentRealm');
   if (warmupCurrentRealm) assert.equal(typeof global.gc, 'function', 'BenchmarkRunner: same-realm warmup requires --expose-gc');
   const plan = getBenchmarkPlan();
   return {
     measureWorkload: (name, size) => {
       assert.ok(plan.some((workload) => workload.name === name && workload.size === size),
         `BenchmarkRunner: unknown workload or fixture size ${name}/${size}`);
-      return measure(runtime, engine, environmentEntry, name, size, trackRealms, warmupCurrentRealm);
+      return measure(runtime, engine, environmentEntry, name, size, trackRealms, warmupCurrentRealm, warmupGcOrder);
     },
-    run: () => main(runtime, engine, environmentEntry, warmupCurrentRealm),
+    run: () => main(runtime, engine, environmentEntry, warmupCurrentRealm, warmupGcOrder),
   };
 }
 

@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Variante prospectiva: GC antes de calentar, calificada
+
+La variante explícita `warmupGcOrder=before-warmup` mueve las mismas dos
+colecciones major asincrónicas y una síncrona antes de las tres rondas en la
+ventana actual. No fuerza GC entre warmup y reloj; GC natural y asignaciones
+temporales siguen formando parte del método. Defaults frío y warmup anterior
+conservados. No hay cambio de algoritmos Rust ni causa de variación demostrada.
+
+Node22/24:23 tests por versión pasan, con las cinco copias oficiales, ambos
+órdenes, ocho hashes públicos, CLI/Vitest/VM y endpoints Window/Document/nativos.
+Evidencia en `reports/validation/native-class-ownership/pre-gc-warmup-method/`:
+491 crudos/fuentes,403 fuentes del método autenticadas, fallos de preparación
+conservados. Protocolo en `PRE-GC-WARMUP-PROTOCOL.md`. Los tiempos de estos
+tests son funcionales y no deciden presupuestos. Calificación local terminal
+`/tmp/rustdom-pre-gc-method-exroua90`, sin captura o benchmark de aceptación activo.
+
+Antes del ensayo nuevo: revisión final de evidencia, commit/push y autenticación
+de los403 blobs publicados y recibo. Usar los wrappers guardados en el tar:
+`authenticate-pre-gc-warmup.py` y `run-pre-gc-warmup-study.py`. Mantener las ocho
+cargas y límites±2%/±5%/+5%, ambas versiones y todos los factores. El launcher
+usa un marcador exclusivo `.cache/pre-gc-warmup-study.started.json`; si existe,
+consultar primero el proceso real y sus informes. NO reiniciar por silencio.
+Guardar handle y resultado completo. No modificar código ni ejecutar tareas
+CPU intensivas locales mientras mida. Sin aceptación, merge/tag ni crédito Rust.
+
 ## Estado vigente: corrección CI calificada y warmup rechazado
 
 El productor de CI ya no intenta aceptar fuentes actuales con la huella de
