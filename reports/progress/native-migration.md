@@ -7,9 +7,11 @@ historia de planificación; no es el porcentaje actual del proyecto.
 El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
 dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
 entrega tiene 531 archivos (528 JavaScript y tres datos), 4.374 entradas de API y
-7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay siete
-módulos con clasificación revisada: cinco híbridos y los helpers strings.js y
-validate-names.js pendientes de migración. Sus dieciséis anclas siguen en JavaScript. La auditoría de los demás
+7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay once
+módulos con clasificación revisada: ocho híbridos, y strings.js, validate-names.js
+y parser/index pendientes. Se auditaron veinticinco anclas: dos cuerpos
+existentes Rust, cinco híbridos y dieciocho pendientes. Seis APIs auditadas siguen híbridas.
+La auditoría de los demás
 registros sigue pendiente. Eso no significa que carezcan de código Rust.
 
 El esquema 2 agrega 43 declaraciones heredadas omitidas, con el cambio del
@@ -35,6 +37,11 @@ El adaptador de [parsing HTML](inventory/html-parser-audit.md) también es híbr
 html5ever produce una tape, pero decisiones del bridge, reconstrucción y efectos
 siguen en JavaScript, con rutas que vuelven a parse5 incluso después de parsear
 en Rust. Auditar ese módulo no completa sus veinte anclas ni sus APIs públicas.
+La auditoría de [XML y creación de documentos](inventory/document-parsing-audit.md)
+separa control nativo de decisiones que siguen en helpers, factories, WebIDL y
+parsers dependientes. Cinco cuerpos nuevos quedan híbridos por opciones/errores
+todavía JavaScript; solo hasFeature se acredita Rust completo. No acredita
+módulos o APIs completos ni nuevo código de producción.
 
 ## Registro histórico
 

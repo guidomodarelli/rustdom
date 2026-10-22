@@ -124,10 +124,12 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 5);
-  assert.equal(audited.summary.counts.files.audited, 7);
-  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 1);
+  assert.equal(audited.summary.counts.files.states.hybrid, 8);
+  assert.equal(audited.summary.counts.files.audited, 11);
+  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 2);
+  assert.equal(audited.summary.counts.callableUnits.states.hybrid, 5);
+  assert.equal(audited.summary.counts.callableUnits.audited, 25);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 6);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
   const serializerApi = audited.classification.find((entry) => entry.id === 'api:Window.XMLSerializer.prototype.serializeToString');
   assert.equal(serializerAlgorithm.status, 'rust-complete');
@@ -164,6 +166,29 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   assert.ok(htmlParser.rustSources.includes('src/lib.rs'));
   assert.ok(htmlParser.javascriptSources.includes('src/parser/bridge.cjs'));
   assert.ok(htmlParser.pending.length > 0);
+  const dispatch = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/browser/parser/index.js');
+  assert.equal(dispatch.auditComplete, true); assert.equal(dispatch.status, 'pending');
+  assert.deepEqual(dispatch.rustSources, []);
+  const nativeControllers = audited.classification.filter((entry) => entry.id.startsWith('unit:') &&
+    (entry.id.includes('/DOMParser-impl.js:') || entry.id.includes('/DOMImplementation-impl.js:')) && entry.auditComplete);
+  assert.equal(nativeControllers.length, 6);
+  for (const controller of nativeControllers) {
+    assert.ok(controller.rustSources.length > 0); assert.ok(controller.bindings.length > 0);
+    if (controller.id === 'unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:15:3') {
+      assert.equal(controller.status, 'rust-complete'); assert.deepEqual(controller.pending, []);
+    } else {
+      assert.equal(controller.status, 'hybrid'); assert.ok(controller.pending.length > 0);
+    }
+  }
+  const incompleteController = nativeControllers.find((entry) => entry.status === 'hybrid');
+  assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,
+    audits: { [incompleteController.id]: { ...incompleteController, status: 'rust-complete' } } }), /retains pending work/);
+  for (const id of ['api:Window.DOMParser.prototype.parseFromString',
+    ...['hasFeature', 'createDocumentType', 'createDocument', 'createHTMLDocument'].map((name) => `api:Window.DOMImplementation.prototype.${name}`)]) {
+    const api = audited.classification.find((entry) => entry.id === id);
+    assert.equal(api.auditComplete, true); assert.equal(api.status, 'hybrid');
+    assert.ok(api.pending.length > 0, 'Native method control does not complete WebIDL or platform dependencies');
+  }
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot, audits: { 'module:missing': {} } }), /Unknown inventory audit ID/);
   const node = audits['module:lib/jsdom/living/nodes/Node-impl.js'];
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,

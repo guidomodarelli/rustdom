@@ -1,6 +1,30 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: parsing HTML auditado como híbrido
+## Actualización: XML y construcción auditados con criterio estricto
+
+El inventario agrega cuatro módulos relacionados: parser/index pendiente,
+parser/xml y las implementaciones DOMParser/DOMImplementation híbridas. Queda
+con once módulos auditados (ocho híbridos/tres pendientes), veinticinco anclas
+(dos Rust/cinco híbridas/dieciocho pendientes) y seis APIs híbridas auditadas.
+No cambia el denominador 531/4.374/7.246. Solo hasFeature recibe nuevo crédito
+de cuerpo Rust existente; ningún módulo/API queda completo y el alcance sigue
+abierto. Orquestar helpers desde Rust no completa opciones o errores aún JS.
+
+Se conservan 434 tests iniciales aprobados por Node22/24 y el hallazgo de
+sobrecrédito de cinco anclas, corregidas a híbridas. Tras el fix pasaron los
+once tests del inventario y el CLI por Node; los otros 423 tests se reutilizan
+con producto/fuentes iguales. No afirmar 434 reejecutados sobre metadata final.
+Los reportes `document-parsing-audit` guardan ambas instantáneas de 230 fuentes,
+compatibilidad, memoria, catorce procesos CLI y ocho verificaciones idénticas
+de preparación. No se implementó ni recompiló producto.
+
+La rama inventory sigue separada hasta cerrar ownership. El CI general
+afba8091, run 39735898622, aprobó sus ocho jobs; sus logs están en cache para
+publicar con el resultado del ensayo. El run científico 39735778846 continúa
+siendo el único vigente sobre f5526bc1: comprobar estado real, sin reintentos,
+cambios de método o presupuestos. No crear otro PR ni checkpoint del hito abierto.
+
+## Histórico (superado): parsing HTML auditado como híbrido
 
 Esta rama `feature/inventory-node-helpers` agrega la auditoría completa del
 módulo `browser/parser/html.js`: Rust/html5ever produce tapes; selección de ruta,

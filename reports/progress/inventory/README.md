@@ -12,9 +12,9 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.374 | Descriptores propios de objetos públicos y bases heredadas no enumeradas, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 7 | Cinco híbridos (Node-impl, Element-impl, XMLSerializer-impl, living/node y parser/html); strings.js y validate-names.js pendientes de migración |
-| APIs con clasificación revisada | 1 | XMLSerializer.serializeToString mantiene WebIDL y la factory de excepciones en el host |
-| Anclas con clasificación revisada | 17 | Una con control Rust (serializeToString), trece de strings.js y tres de validate-names.js pendientes; no acredita dependencias ni APIs completas |
+| Módulos con clasificación revisada | 11 | Ocho híbridos; strings.js, validate-names.js y el router parser/index siguen pendientes de migración |
+| APIs con clasificación revisada | 6 | XMLSerializer, DOMParser y cuatro métodos de DOMImplementation conservan WebIDL/factories/dependencias del host |
+| Anclas con clasificación revisada | 25 | Dos cuerpos Rust existentes, cinco híbridos; trece de strings.js, tres de validate-names.js y dos del router pendientes; no acredita dependencias ni APIs completas |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan
 por declaración propia de cada objeto o prototipo observado: la herencia y los
@@ -50,6 +50,13 @@ no significa que su migración esté completa. `pending` con `auditComplete=fals
 es una clasificación conservadora todavía sin auditar, y no prueba que no haya
 implementación Rust. Los campos vacíos son pendientes de documentación, no prueba
 de ausencia de tests o código. Ninguna fila sin evidencia acredita Rust completo.
+
+Orquestar llamadas desde Rust no completa una ancla si helpers JavaScript
+todavía fijan opciones semánticas, clases/nombres de error o decisiones del
+cuerpo original. No se redefine la unidad como solo el control de secuencia
+para acreditar `rust-complete`; esos cuerpos permanecen híbridos hasta trasladar
+sus decisiones y dejar bindings mecánicos. Las dependencias invocadas se
+clasifican aparte, sin completar por ello módulos o APIs públicas.
 
 Los IDs de anclas incluyen posiciones dentro de la versión fijada. Una
 actualización del proveedor puede cambiarlos: deben revisarse los IDs, el digest,

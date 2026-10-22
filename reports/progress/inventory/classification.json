@@ -114,34 +114,59 @@
     "auditComplete": true
   },
   {
-    "id": "module:lib/jsdom/browser/parser/index.js",
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/parser.spec.cjs",
+      "tests/xml-parser.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
     "status": "pending",
-    "auditComplete": false,
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Ambos cuerpos mantienen el dispatch HTML/XML en JavaScript; trasladar selección e invocación conservando orden y excepciones."
+    ],
+    "scope": "Control del router. Los parsers llamados tienen sus propios módulos; no acreditan Rust de este dispatch.",
+    "id": "module:lib/jsdom/browser/parser/index.js",
     "referenceModuleIds": [
       "module:lib/jsdom/browser/parser/index.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/xml-parser.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/xml/mod.rs",
+      "src/xml/input.rs",
+      "src/xml/doctype.rs",
+      "src/xml/binding.rs"
+    ],
+    "javascriptSources": [
+      "src/parser/xml.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "La pila, selección de documentos/factories, callbacks, atributos, templates e inserción siguen en JavaScript.",
+      "El shim conserva dispatch de eventos, materialización del objeto atributos y callbacks para resolver prefijos.",
+      "La clasificación individual de sus dieciocho anclas y de los efectos compartidos sigue pendiente."
+    ],
+    "scope": "Módulo y ruta construida; parser léxico/estado/doctypes nativos con builder de plataforma JavaScript. No acredita sus anclas por separado.",
     "id": "module:lib/jsdom/browser/parser/xml.js",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/browser/parser/xml.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "module:lib/jsdom/browser/resources/async-resource-queue.js",
@@ -474,19 +499,34 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/dom-parser-controller.spec.cjs",
+      "tests/dom-parser-recovery.spec.cjs",
+      "tests/dom-parser-memory.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/dom_parser.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/dom-parser.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Factories, parser general, elementos de error, mutaciones y WebIDL conservan algoritmos de plataforma del host.",
+      "Los dos cuerpos controlados en Rust no completan sus dependencias ni la API pública.",
+      "Los helpers específicos fijan opciones o diagnósticos del propio cuerpo; orquestar llamadas en Rust no completa esas decisiones."
+    ],
+    "scope": "Control nativo de MIME/recuperación y documento con scripting deshabilitado; módulo híbrido por las dependencias invocadas y WebIDL.",
     "id": "module:lib/jsdom/living/domparsing/DOMParser-impl.js",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/domparsing/DOMParser-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "module:lib/jsdom/living/domparsing/InnerHTML-impl.js",
@@ -5829,19 +5869,36 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Factories, creación namespaced/validación, mutaciones y WebIDL siguen requiriendo algoritmos del host.",
+      "Los costos históricos del puente permanecen documentados; controlar métodos en Rust no acredita rendimiento aceptado.",
+      "Los helpers específicos fijan opciones o diagnósticos del propio cuerpo; orquestar llamadas en Rust no completa esas decisiones."
+    ],
+    "scope": "Cuatro métodos con control Rust; no incluye completar constructors/factories, WebIDL ni mutación compartida.",
     "id": "module:lib/jsdom/living/nodes/DOMImplementation-impl.js",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/nodes/DOMImplementation-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "module:lib/jsdom/living/nodes/DOMStringMap-impl.js",
@@ -36347,64 +36404,124 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El WebIDL generado y algoritmos de las factories/parser/mutaciones invocados conservan JavaScript; completar esa ruta pública."
+    ],
+    "scope": "API pública DOMImplementation.createDocument; su cuerpo de control nativo no completa el contrato de plataforma del resto de la ruta.",
     "id": "api:Window.DOMImplementation.prototype.createDocument",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/generated/DOMImplementation.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El WebIDL generado y algoritmos de las factories/parser/mutaciones invocados conservan JavaScript; completar esa ruta pública."
+    ],
+    "scope": "API pública DOMImplementation.createDocumentType; su cuerpo de control nativo no completa el contrato de plataforma del resto de la ruta.",
     "id": "api:Window.DOMImplementation.prototype.createDocumentType",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/generated/DOMImplementation.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El WebIDL generado y algoritmos de las factories/parser/mutaciones invocados conservan JavaScript; completar esa ruta pública."
+    ],
+    "scope": "API pública DOMImplementation.createHTMLDocument; su cuerpo de control nativo no completa el contrato de plataforma del resto de la ruta.",
     "id": "api:Window.DOMImplementation.prototype.createHTMLDocument",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/generated/DOMImplementation.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El WebIDL generado y algoritmos de las factories/parser/mutaciones invocados conservan JavaScript; completar esa ruta pública."
+    ],
+    "scope": "API pública DOMImplementation.hasFeature; su cuerpo de control nativo no completa el contrato de plataforma del resto de la ruta.",
     "id": "api:Window.DOMImplementation.prototype.hasFeature",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/generated/DOMImplementation.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "api:Window.DOMParser",
@@ -36437,19 +36554,32 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/dom-parser-controller.spec.cjs",
+      "tests/dom-parser-recovery.spec.cjs",
+      "tests/dom-parser-memory.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/dom_parser.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/dom-parser.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El WebIDL generado y algoritmos de las factories/parser/mutaciones invocados conservan JavaScript; completar esa ruta pública."
+    ],
+    "scope": "API pública DOMParser.parseFromString; su cuerpo de control nativo no completa el contrato de plataforma del resto de la ruta.",
     "id": "api:Window.DOMParser.prototype.parseFromString",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/generated/DOMParser.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "api:Window.DOMRect",
@@ -75704,34 +75834,52 @@
     ]
   },
   {
-    "id": "unit:lib/jsdom/browser/parser/index.js:7:1",
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/parser.spec.cjs",
+      "tests/xml-parser.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
     "status": "pending",
-    "auditComplete": false,
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Ambos cuerpos mantienen el dispatch HTML/XML en JavaScript; trasladar selección e invocación conservando orden y excepciones."
+    ],
+    "scope": "Ancla parseFragment: dispatch y llamada seleccionada en JavaScript; parser dependiente se clasifica aparte.",
+    "id": "unit:lib/jsdom/browser/parser/index.js:7:1",
     "referenceModuleIds": [
       "module:lib/jsdom/browser/parser/index.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
-    "id": "unit:lib/jsdom/browser/parser/index.js:21:1",
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/parser.spec.cjs",
+      "tests/xml-parser.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
     "status": "pending",
-    "auditComplete": false,
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Ambos cuerpos mantienen el dispatch HTML/XML en JavaScript; trasladar selección e invocación conservando orden y excepciones."
+    ],
+    "scope": "Ancla parseIntoDocument: dispatch y llamada seleccionada en JavaScript; parser dependiente se clasifica aparte.",
+    "id": "unit:lib/jsdom/browser/parser/index.js:21:1",
     "referenceModuleIds": [
       "module:lib/jsdom/browser/parser/index.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "unit:lib/jsdom/browser/parser/xml.js:23:1",
@@ -80924,34 +81072,72 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/dom-parser-controller.spec.cjs",
+      "tests/dom-parser-recovery.spec.cjs",
+      "tests/dom-parser-memory.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/dom_parser.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/dom-parser.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El helper JavaScript fija TypeError/diagnóstico y realiza el acceso message→textContent en la recuperación; trasladar esas decisiones y dejar solo bindings mecánicos."
+    ],
+    "scope": "Cuerpo original completo: Rust controla la secuencia, pero helpers específicos JavaScript conservan decisiones propias. No restringir la unidad solo a la orquestación para acreditar Rust completo.",
+    "bindings": [
+      "Los helpers ejecutan operaciones host seleccionadas por Rust; los algoritmos de las factories invocadas continúan pendientes en sus propios módulos."
+    ],
+    "limitations": [
+      "Factories, parser, mutación y WebIDL invocados se clasifican aparte; el propio cuerpo todavía es híbrido."
+    ],
     "id": "unit:lib/jsdom/living/domparsing/DOMParser-impl.js:13:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/domparsing/DOMParser-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/dom-parser-controller.spec.cjs",
+      "tests/dom-parser-recovery.spec.cjs",
+      "tests/dom-parser-memory.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/dom_parser.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/dom-parser.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El helper JavaScript fija encoding UTF-8, readyState complete y scriptingDisabled true; mover al controlador Rust los valores semánticos del cuerpo original."
+    ],
+    "scope": "Cuerpo original completo: Rust controla la secuencia, pero helpers específicos JavaScript conservan decisiones propias. No restringir la unidad solo a la orquestación para acreditar Rust completo.",
+    "bindings": [
+      "Los helpers ejecutan operaciones host seleccionadas por Rust; los algoritmos de las factories invocadas continúan pendientes en sus propios módulos."
+    ],
+    "limitations": [
+      "Factories, parser, mutación y WebIDL invocados se clasifican aparte; el propio cuerpo todavía es híbrido."
+    ],
     "id": "unit:lib/jsdom/living/domparsing/DOMParser-impl.js:41:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/domparsing/DOMParser-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "unit:lib/jsdom/living/domparsing/InnerHTML-impl.js:12:3",
@@ -164307,64 +164493,146 @@
     ]
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "rust-complete",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [],
+    "scope": "Cuerpo completo de hasFeature: devuelve true desde Rust sin helpers que decidan semántica. La API WebIDL y el módulo conservan dependencias pendientes.",
+    "bindings": [
+      "El wrapper invoca el dispatch nativo; no fija el valor retornado ni selecciona otros efectos del cuerpo."
+    ],
+    "limitations": [
+      "No es una API ni módulo Rust completo; no acepta rendimiento ni certifica todas las dependencias."
+    ],
     "id": "unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:15:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/nodes/DOMImplementation-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El helper JavaScript selecciona InvalidCharacterError y construye el diagnóstico QName; mover esos parámetros al controlador Rust."
+    ],
+    "scope": "Cuerpo original completo: Rust controla la secuencia, pero helpers específicos JavaScript conservan decisiones propias. No restringir la unidad solo a la orquestación para acreditar Rust completo.",
+    "bindings": [
+      "Los helpers ejecutan operaciones host seleccionadas por Rust; los algoritmos de las factories invocadas continúan pendientes en sus propios módulos."
+    ],
+    "limitations": [
+      "Factories, parser, mutación y WebIDL invocados se clasifican aparte; el propio cuerpo todavía es híbrido."
+    ],
     "id": "unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:19:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/nodes/DOMImplementation-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "El helper JavaScript fija parsingMode xml y encoding UTF-8 del cuerpo original; mover esas opciones al controlador Rust."
+    ],
+    "scope": "Cuerpo original completo: Rust controla la secuencia, pero helpers específicos JavaScript conservan decisiones propias. No restringir la unidad solo a la orquestación para acreditar Rust completo.",
+    "bindings": [
+      "Los helpers ejecutan operaciones host seleccionadas por Rust; los algoritmos de las factories invocadas continúan pendientes en sus propios módulos."
+    ],
+    "limitations": [
+      "Factories, parser, mutación y WebIDL invocados se clasifican aparte; el propio cuerpo todavía es híbrido."
+    ],
     "id": "unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:31:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/nodes/DOMImplementation-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
+    "tests": [
+      "tests/validation/migration-inventory.spec.mjs",
+      "tests/document-implementation.spec.cjs",
+      "tests/document-implementation-effects.spec.cjs",
+      "tests/document-implementation-detached.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/document-parsing-audit.md",
+      "reports/validation/document-implementation.md"
+    ],
+    "status": "hybrid",
+    "rustSources": [
+      "src/dom/document_implementation.rs",
+      "src/dom/document_implementation_binding.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/document-implementation.cjs",
+      "scripts/build.mjs"
+    ],
+    "pending": [
+      "Los helpers JavaScript fijan parsingMode html, encoding UTF-8 y HTML_NS del cuerpo original; mover esas decisiones al controlador Rust."
+    ],
+    "scope": "Cuerpo original completo: Rust controla la secuencia, pero helpers específicos JavaScript conservan decisiones propias. No restringir la unidad solo a la orquestación para acreditar Rust completo.",
+    "bindings": [
+      "Los helpers ejecutan operaciones host seleccionadas por Rust; los algoritmos de las factories invocadas continúan pendientes en sus propios módulos."
+    ],
+    "limitations": [
+      "Factories, parser, mutación y WebIDL invocados se clasifican aparte; el propio cuerpo todavía es híbrido."
+    ],
     "id": "unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:65:3",
-    "status": "pending",
-    "auditComplete": false,
     "referenceModuleIds": [
       "module:lib/jsdom/living/nodes/DOMImplementation-impl.js"
     ],
-    "rustSources": [],
-    "javascriptSources": [],
-    "tests": [],
-    "evidence": [],
-    "pending": [
-      "Auditar las rutas actuales, registrar pruebas y completar la migración que corresponda."
-    ]
+    "auditComplete": true
   },
   {
     "id": "unit:lib/jsdom/living/nodes/DOMStringMap-impl.js:10:1",
