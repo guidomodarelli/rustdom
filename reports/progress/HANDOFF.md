@@ -1,6 +1,41 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: secuencia hosted única en ejecución
+## Actualización: contraste hosted terminado, sin aceptación
+
+El run `39721610003` es terminal, con fallo de presupuesto y sin errores de
+ejecución. Ambos Node completaron 32 workers, 64 en total, todos con exit 0;
+se conservaron las 9.216 duraciones. No reaplicar la etiqueta ni reiniciar.
+
+Artefacto oficial `12402457156`, ZIP SHA-256
+`526ec22b70bdee0c1cee824f3a1365cdd5beeba825c1c712eb332dc7674401d6`.
+Está completo en `reports/benchmarks/native-class-ownership/hosted-main/39721610003/`.
+Ambos Node reprodujeron offline `verified=true, accepted=false` con el arnés
+congelado de 373 archivos y verificaron la preparación completa. Extracción:
+`/tmp/rustdom-hosted-main-results-6n_lsanc/hosted-main`; no reconstruir paquetes.
+
+Calibración A/A y A/B: Node 22, 5/8 y 5/8; Node 24, 6/8 y 8/8. Todas las
+diferencias puntuales Rustdom A/A están dentro de ±5%; ninguna A/B supera +5%.
+La aceptación global continúa falsa por el control jsdom. No aceptar solo las
+filas calibradas ni atribuir a C las diferencias de filas sin calibrar.
+Se conservaron 91 endpoints inicialmente no claros y los 4.096 finales exigidos
+claros, observando Window/Document por separado. Ver el reporte de memoria.
+
+El CI general de `429b9240`, run `39721714768`, aprobó sus ocho checks,
+incluido Windows/paquetes. Metadata y logs están en la validación `ci-429b9240`.
+El inventario mejorado está publicado aparte en `feature/inventory-node-helpers`,
+`b6a44f50`: 4.374 APIs, con 43 declaraciones añadidas, sin nuevo crédito Rust.
+Integrarlo después de cerrar ownership. No merge ni checkpoint del hito todavía.
+
+Siguiente paso: evaluar un método distinto que quite la carga de dos paquetes
+por proceso, con hipótesis/pruebas/revisión publicadas antes de medir. Esto es
+una hipótesis pendiente, no una solución demostrada. Mantener ambos Node, las
+ocho cargas, todos los resultados y los presupuestos. No repetir este ensayo.
+
+## Histórico: secuencia hosted única en ejecución (superado)
+
+Este bloque describe el estado anterior a la conclusión del run. El resultado
+terminal y los pasos vigentes están al principio del documento; las instrucciones
+de preparación/espera de este bloque ya no indican trabajo pendiente.
 
 El [run 39721610003](https://github.com/guidomodarelli/rustdom/actions/runs/39721610003)
 está ejecutando el contraste sobre `56825a50535b28d3c6ba082de1a81153c21b94ed`.
@@ -19,7 +54,11 @@ byte a byte. Esta actualización del handoff no cambia el método ni sus fuentes
 Los nuevos checks generales se deben comprobar sobre el HEAD actual por separado;
 el contraste permanece vinculado a `56825a50` aunque este documento avance.
 
-## Actualización: preparación del contraste hosted completo
+## Histórico: preparación del contraste hosted completo (superado)
+
+Este bloque registra la preparación de `56825a50`, previa a la activación.
+La secuencia ya terminó y su resultado figura al principio del documento.
+No volver a activarla ni usar los pasos siguientes como instrucciones actuales.
 
 Se agregó `HOSTED-MAIN-PROTOCOL.md`, bindings del arnés existente y
 `ownership-hosted-main.yml`. Mantienen ocho filas, dos Node, tres warmups,
