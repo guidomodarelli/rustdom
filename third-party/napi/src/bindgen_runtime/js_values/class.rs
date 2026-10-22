@@ -317,6 +317,7 @@ unsafe fn new_instance_raw(
 /// Create an instance, adopting the unique boxed native value even on error.
 /// `wrapped_value` must follow PendingClassValue's allocation contract.
 #[doc(hidden)]
+#[inline]
 pub unsafe fn new_instance<T: 'static + ObjectFinalize + MaybeTypeTag>(
   env: sys::napi_env,
   wrapped_value: *mut std::ffi::c_void,

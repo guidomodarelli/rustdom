@@ -1,5 +1,69 @@
 # Continuar rustdom en otra máquina
 
+## Estado vigente: candidato C validado; falta aceptar rendimiento
+
+Continuar en `feature/native-class-ownership`, PR #80. Esta actualización agrega
+únicamente `#[inline]` a `new_instance<T>` sobre el parent publicado `767aca43`.
+El guard y sus contratos de ownership permanecen iguales. No sumar APIs migradas.
+Los apartados siguientes conservan la historia y no reemplazan este estado.
+
+El CI general de `767aca43` terminó success: los ocho checks, incluidos macOS,
+Windows, Linux y cuatro shards, aprobaron. La review remota limpia `6328835318`
+corresponde a ese SHA. Datos originales en
+`reports/validation/native-class-ownership/ci-767aca43/`. Ownership se detuvo en
+preflight antes de compilar/medir. XML `39693070050` terminó A/A sin calibrar:
+208 procesos, 6.656 duraciones, una fila fuera de ±2%, `accepted=null`, sin A/B.
+El ZIP oficial y su verificación están archivados; no elegir un histórico favorable.
+
+C se compiló en `/home/guido/rustdom-native-class-inline-x2yg1emf`, sin Git.
+Addon `afbf5e85e85b542d6324b9a8ce2e0295181ac1896494025dc7834ae1b4c3482f`,
+fuentes canónicas `0d67e1d821c70371ca1b82817870b7ad6a053f534161ae9096591d7199d0b947`
+y distribución completa `9d2d14c14d17f0b1b64473bbeaed435ff893bfc8421029ebba853be67b6e7b6c`.
+Los 560 JavaScript y package.json reconstruidos son idénticos a B. El símbolo
+ToNapiValue de MutationRecord ocupa 713 bytes sin wrapper tipado separado;
+es inspección estática y no prueba mejora temporal.
+
+La validación amplia terminó con exit 0, igual que el empaquetado posterior
+(sesiones 45354 y 24030: no reiniciarlas). Rust: 311 tests y seis del guard,
+fmt/clippy; Memcheck cero errores y bytes definite/indirect, con categorías
+possible/reachable del harness documentadas. Por Linux Node 22.12.0 y 24.14.1:
+3.751 contratos DOM, Jest 22, Vitest 33, VM 34, validación 16, corpus HTML5
+1.784 comparables/8 exclusiones script-on, benchmark harness 122, cinco modos
+de memoria y veinte gates de consumo npm/pnpm. WPT por Node: 240 fixtures,
+83.007 resultados, 1.203 fallos de estándares compartidos; paridad aprobada.
+La primera copia carecía de cuatro archivos de auditoría y produjo dos ENOENT;
+su log negativo permanece junto al rerun de dieciséis casos aprobado.
+
+Archivo completo: `reports/validation/native-class-ownership/inline-candidate/`.
+Conserva 188 entradas, 960 inputs de build y hashes de contenido/gzip. Ejecutar
+`node reports/validation/native-class-ownership/inline-candidate/verify.cjs`
+para recalcular integridad, paridad WPT, gates de paquete y endpoints de memoria.
+Resumen y límites: `reports/memory/native-class-ownership/inline-candidate.md`.
+No son memoria pico ni una garantía universal de ausencia de fugas.
+
+El método de comparación de C está en `PAIRED-INLINE-PROTOCOL.md` y
+`paired-inline-experiment.cjs`, bajo `reports/benchmarks/native-class-ownership/`.
+Congela 357 fuentes y conserva todas las cargas, umbrales y estimador anteriores.
+Sus cuatro workers funcionales completaron 576 duraciones, 768 Window y 768
+Document observados y 256 endpoints finales claros; no son aceptación.
+Los 23 contratos pasaron por Linux Node 22/24 y 20 por Windows Node24 con tres
+preflight Linux omitidos. El comando CI ampliado aprobó 29 por Linux Node22/24.
+
+Próximos pasos: publicar esta actualización validada, revisar el SHA publicado
+y verificar sus tres canales de comentarios. Después ejecutar una sola secuencia
+formal C, 64 procesos/9.216 duraciones, Node22 y luego24, con provenance, manifest
+y snapshots completos y sin otras cargas locales. A y jsdom conservan sus pins;
+la etiqueta B ahora representa C. Manifest preparado localmente en
+`C:/Users/guido/ghq/projects/rustdom/.cache/native-inline-runtime-manifest.json`.
+No repetir el estudio V1 terminado con `accepted=false` ni reinterpretarlo.
+Integrar la decisión C en CI conservando checks/umbrales; el gate anterior no
+se reemplaza automáticamente. Sin aceptación no hay merge ni tag de este hito.
+
+Después del cierre de #80, integrar el inventario `014c7da` y migrar completo
+`living/node.js`. El inventario publicado todavía no permite un porcentaje
+global: 531 módulos, 4.331 APIs y 7.246 anclas, alcance sin cerrar. El objetivo
+continúa siendo retirar toda la implementación de plataforma JavaScript.
+
 ## Actualización: estudio pareado terminado; presupuesto sin aceptar
 
 La rama vigente es feature/native-class-ownership, PR #80. El último head publicado

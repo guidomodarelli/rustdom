@@ -9,10 +9,10 @@ const { loadRuntime } = require('./paired-worker.cjs');
 const { proveSymmetricIsolation } = require('./balanced-worker.cjs');
 const { configureAffinity, affinities } = require('./thread-worker.cjs');
 const { fingerprint } = require('./paired-experiment.cjs');
-const settings = require('./constants/paired-main.cjs');
+const defaultSettings = require('./constants/paired-main.cjs');
 
 /** Balance load and batch order independently; treatment B always remains the candidate in A/B. */
-function schedule(manifest, phase, engine, position) {
+function schedule(manifest, phase, engine, position, settings = defaultSettings) {
   assert.ok(settings.phases.includes(phase), 'Paired main worker: unknown phase');
   assert.ok(settings.engines.includes(engine), 'Paired main worker: unknown engine');
   assert.ok(Number.isSafeInteger(position) && position >= 0 && position < settings.workerCount,
@@ -37,7 +37,7 @@ function schedule(manifest, phase, engine, position) {
 }
 
 /** Check complete executable packages against independently recorded pins, not manifest claims alone. */
-function inspectDistributions(manifest, plan, engine) {
+function inspectDistributions(manifest, plan, engine, settings = defaultSettings) {
   return Object.fromEntries(['A', 'B'].map((label) => {
     const physical = plan.physical[label];
     const actual = fingerprint(plan.roots[label], engine === 'jsdom' ? ['lib', 'package.json'] : settings.distributionParts);
@@ -48,7 +48,7 @@ function inspectDistributions(manifest, plan, engine) {
 }
 
 /** Always perform three rounds and require both runtime baselines in the final two, outside all timers. */
-async function observeCleanup(groups, runtimes, baselines) {
+async function observeCleanup(groups, runtimes, baselines, settings = defaultSettings) {
   const trace = [];
   for (let round = 0; round < settings.cleanupRounds; round++) {
     await collectGarbage();
@@ -61,21 +61,21 @@ async function observeCleanup(groups, runtimes, baselines) {
 }
 
 /** Persist partial evidence and preserve failed runs; this sampler cannot grant budget acceptance. */
-async function main(manifestPath, phase, engine, positionText, output) {
+async function main(manifestPath, phase, engine, positionText, output, settings = defaultSettings) {
   assert.equal(process.platform, 'linux', 'Paired main worker: Linux affinity evidence is required');
   assert.equal(typeof global.gc, 'function', 'Paired main worker: use --expose-gc');
   assert.ok(settings.nodeVersions.includes(process.version), 'Paired main worker: undeclared Node version');
   assert.equal(Object.hasOwn(process.env, 'NODE_OPTIONS'), false, 'Paired main worker: NODE_OPTIONS must be absent');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const position = Number(positionText);
-  const plan = schedule(manifest, phase, engine, position);
+  const plan = schedule(manifest, phase, engine, position, settings);
   const report = { complete: false, gateReevaluated: false, revision: settings.revision, phase, engine, position,
     node: process.version, v8: process.versions.v8, execArgv: process.execArgv,
     heapLimitBytes: getHeapStatistics().heap_size_limit, schedule: plan, settings, batches: [] };
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
   const save = () => fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
   try {
-    report.distributionsBefore = inspectDistributions(manifest, plan, engine); save();
+    report.distributionsBefore = inspectDistributions(manifest, plan, engine, settings); save();
     report.affinity = await configureAffinity('main');
     const runtimes = {};
     for (const label of plan.loadOrder) runtimes[label] = loadRuntime(plan.roots[label], engine);
@@ -95,14 +95,14 @@ async function main(manifestPath, phase, engine, positionText, output) {
         assert.equal(realmReferences[kind].length, settings.warmupSamples + settings.measuredSamples);
         groups[input.label][kind].push(...realmReferences[kind]);
       }
-      record.cleanupTrace = await observeCleanup(groups, runtimes, baselines); save();
+      record.cleanupTrace = await observeCleanup(groups, runtimes, baselines, settings); save();
       for (const endpoint of record.cleanupTrace.slice(-settings.requiredClearRounds)) {
         for (const label of ['A', 'B']) assert.equal(endpoint[label].clear, true,
           `Paired main worker: retained ${label} resources after ${input.label}/${input.name}/${input.size}`);
       }
       record.complete = true; save();
     }
-    report.distributionsAfter = inspectDistributions(manifest, plan, engine);
+    report.distributionsAfter = inspectDistributions(manifest, plan, engine, settings);
     report.affinitiesAfter = affinities();
     assert.equal(report.affinitiesAfter.find((entry) => entry.tid === process.pid).mask, String(settings.cpu));
     assert.ok(report.affinitiesAfter.some((entry) => entry.tid !== process.pid && !entry.disappeared && entry.mask !== String(settings.cpu)));
