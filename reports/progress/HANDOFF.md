@@ -1,5 +1,22 @@
 # Continuar rustdom en otra máquina
 
+## Mapa posterior: correspondencia de las 531 fuentes
+
+Además de la auditoría de strings publicada en `bf4c683a`, esta rama guarda
+`reports/progress/inventory/runtime-correspondence.json` y su método/validación.
+El mapa enlaza los 531 archivos de referencia con las copias construidas A0/C:
+473 JavaScript conservan el texto salvo el adaptador de require, 55 están
+reescritos y tres son datos. No es una auditoría de alcance de ejecución y no
+se convierte en porcentaje de migración. Los cinco módulos/catorce anclas
+clasificados y los denominadores 531/4.374/7.246 no cambian.
+
+Tres contratos por Node 22.12.0/24.14.1 pasaron; ambas salidas son idénticas.
+Catorce procesos de benchmark del CLI verificaron todos los bytes y la
+preparación oficial se autenticó antes/después en ambos Node. Los tiempos
+son del tooling: no se ejecuta el addon ni se crean Window/Document. No se
+modificó el motor ni el ensayo `39727878290`, que sigue siendo la prioridad.
+Integrar este trabajo después de cerrar ownership, sin inventar crédito Rust.
+
 ## Auditoría posterior: strings sigue en JavaScript
 
 Continuar esta rama `feature/inventory-node-helpers` desde su auditoría de

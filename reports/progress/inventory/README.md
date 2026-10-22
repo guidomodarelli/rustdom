@@ -153,3 +153,13 @@ ejecutadas en JavaScript. Se clasifican como pendientes con auditoría completa,
 sin acreditar Rust. Hay cinco módulos y catorce anclas revisadas; permanecen
 531 fuentes, 4.374 APIs y 7.246 anclas. La validación conserva contratos públicos
 reales en ambos Node, perfiles ECMAScript distintos y las mismas declaraciones DOM.
+
+## Ruta física de cada fuente en el runtime
+
+[El mapa de correspondencia](runtime-correspondence/README.md) conecta cada una
+de las 531 fuentes con su archivo construido A0/C y sus hashes: 473 JavaScript
+conservan el texto salvo el adaptador de require, 55 están reescritos y tres
+son datos. Se verificó en ambos Node sobre la preparación oficial autenticada.
+Es evidencia estructural, sin auditoría de alcance de ejecución ni nuevo crédito
+Rust; no cambia el denominador o migrationPercent. Las APIs y anclas se enlazan
+mediante sus referenceModuleIds y el grafo existente de dependencias.
