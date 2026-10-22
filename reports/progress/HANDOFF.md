@@ -2,8 +2,10 @@
 
 ## Estado vigente: secuencia C terminada sin aceptación
 
-Continuar en `feature/native-class-ownership`, PR #80. El último head publicado
-es `eaeca4af3084a23b96fc0214240b552204018c22`, con revisión limpia `6329498729`.
+Continuar en `feature/native-class-ownership`, PR #80. La compilación y medición
+C corresponden a `eaeca4af3084a23b96fc0214240b552204018c22`, revisado antes de
+medir. La evidencia completa se publicó en `6206cc0302bbccf0a6007855b50bffe33eafd19b`,
+con revisión limpia `6330167262` y los ocho checks generales `39702836685` aprobados.
 C agrega únicamente `#[inline]` a `new_instance<T>` sobre el parent `767aca43`.
 El guard y sus contratos de ownership permanecen iguales. No sumar APIs migradas.
 Los apartados siguientes conservan la historia y no reemplazan este estado.
@@ -25,6 +27,28 @@ dos tests históricos pasaron sobre este archivo en Linux/Windows. Su binario CI
 es distinto del addon local C; no equipararlos. El protocolo XML no fija el
 manifest completo de JavaScript y no acepta el presupuesto separado de ownership.
 Archivo: `reports/benchmarks/native-class-ownership/xml-validation/39697882498/`.
+
+El push de datos 6206 activó otra medición XML con las mismas fuentes/método.
+Se canceló `39702836767` tras comprobar esa duplicación y antes de inspeccionar
+sus resultados. El ZIP oficial, estados previos/finales y observaciones disponibles
+quedan en `xml-validation/39702836767/`: 105 entradas, 52 procesos A/A y 1.664
+duraciones, experimento incompleto y sin calibración/aceptación calculadas.
+No equivale a un check verde ni se combina con otra corrida.
+
+Esta actualización incorpora `xml-history.cjs` y el lector de identidad del ZIP
+al workflow XML. Autentica ZIP, verificador y metadata antes de decidir; compara
+ambas fuentes, receta del workflow, herramientas grabadas/reales e inputs raíz
+de npm/Cargo, incluido build.rs y la presencia/ausencia de configuraciones.
+La selección válida recalcula las 14.976 observaciones originales sin remedir;
+un dato faltante/alterado falla, y false/null no acepta presupuesto.
+Los filtros del workflow cubren ese grafo de dependencias.
+
+Validación local de este gate: 20 contratos en Linux Node22/24, 16 en Windows
+Node24 y cuatro casos Linux omitidos explícitamente. CLI actual select/verify
+con referencia real restaurada de Git: reuse=true y exit0. actionlint aprobado.
+Fuente/pins/fixture/verificador revisados sin hallazgos tras cuatro fixes de
+integración; resultados y límites en `reports/validation/native-class-ownership/xml-history/`.
+Se requiere CI/revisión del SHA que publique esta corrección antes de su cierre.
 
 C se compiló en `/home/guido/rustdom-native-class-inline-x2yg1emf`, sin Git.
 Addon `afbf5e85e85b542d6324b9a8ce2e0295181ac1896494025dc7834ae1b4c3482f`,
@@ -91,7 +115,9 @@ en 7/8 procesos; A y B fueron primero cuatro veces cada uno. La mediana descript
 primero/segundo fue +36,250775%. No identifica causalidad de JIT/GC ni reemplaza
 el delta original o la decisión. Todas las demás filas y órdenes quedan visibles.
 
-Próximos pasos: cerrar la review de datos y publicar esta evidencia completa;
+Próximos pasos: publicar y verificar la corrección de reutilización XML;
+comprobar que CI verifica el archivo sin construir ni iniciar otra medición.
+Mantener el presupuesto separado de ownership en su estado real sin aceptar;
 investigar el estado compartido y aislamiento del runner con una hipótesis y un
 protocolo nuevos. No relanzar secuencias V1/C idénticas,
 elegir otro estimador, excluir filas ni cambiar umbrales para aceptar datos previos.
