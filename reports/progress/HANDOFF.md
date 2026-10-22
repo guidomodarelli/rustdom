@@ -1,6 +1,31 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: ensayo rechazado preservado y corrección XML validada
+## Estado actual: row-isolation calificado y revisado, publicar/autenticar antes de medir
+
+Doce contratos por Linux Node22.12.0/24.14.1 aprobaron sin omisiones. Se validaron
+84workers DOM reales, cinco copias oficiales,112lotes y1008tiempos funcionales;
+esos tiempos NO aceptan rendimiento. Window/Document suman1344observaciones por
+tipo, con endpoints requeridos liberados antes de terminar cada worker.
+Los índices seeded previos siguen verificados y rechazados con las factories
+actualizadas; no pueden relabelarse como evidencia del método nuevo.
+
+Fuentes:415archivos, SHA7b13cad926da839fc5650dc0d7a49e9e49c1c71af7fdf9192df5359ee6da51df.
+Evidencia: reports/validation/native-class-ownership/row-isolation-method/.
+El arnés usa una carga por proceso y mantiene16posiciones,4factores globales,
+ocho cargas, ambas fases, mismas144muestras por celda y presupuestos2%/5%.
+GC inicial/arranque/teardown se repiten por carga; no hay equivalencia de historia
+GC/JIT ni afirmación causal. Son1024workers y9216tiempos por Node en el estudio
+previsto, aún NO EJECUTADO. La revisión independiente final terminó sin hallazgos.
+Publicar y autenticar antes de medir una sola
+secuencia nueva. Nunca reiniciar seeded ni la captura V8 ya consumidos.
+
+La corrección XML y todo el ensayo seeded rechazado están publicados/autenticados
+en bc269e63. Storage quedó publicado/auth en11f9597e de feature/inventory-node-helpers:
+13contratos por cuatro perfiles y ledger18módulos/32APIs/55anclas auditadas, sin
+Rust nuevo, alcance cerrado ni porcentaje. Ownership sigue sin aceptación/tag/merge.
+El objetivo integral continúa abierto. Los apartados siguientes son históricos.
+
+## Histórico: ensayo rechazado preservado y corrección XML validada
 
 La sesión original30376 terminó con exit0 de verificación. Ambos padres Node
 terminaron con exit1 presupuestario; los256workers terminaron con exit0. El

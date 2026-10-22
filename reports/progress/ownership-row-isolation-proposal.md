@@ -1,4 +1,4 @@
-# Ownership: hipótesis de aislamiento por carga, todavía sin implementar
+# Ownership: propuesta original de aislamiento por carga
 
 El ensayo seeded original ya terminó en ambos Node, con integridad verificada y
 accepted=false. Los 256 workers terminaron con exit0, sin fallos de ejecución;
@@ -6,7 +6,10 @@ cuatro controles jsdom rechazaron ±2%: dos en Node22 y dos en Node24. Todas las
 filas Rust quedaron dentro de su límite numérico; eso no acepta el conjunto.
 Los resultados completos y los negativos están preservados en
 reports/benchmarks/native-class-ownership/seeded-pre-gc-results/2026-10-22/.
-No se repetirá ese ensayo. Esta propuesta sigue sin implementar ni medir.
+No se repetirá ese ensayo. Actualización posterior: la implementación del
+contraste pasó12contratos en ambos Node; ver ROW-ISOLATION-PROTOCOL.md y
+reports/validation/native-class-ownership/row-isolation-method/. El estudio
+nuevo aún no se midió. El resto conserva la propuesta y sus condiciones originales.
 
 ## Evidencia y límites del diagnóstico
 

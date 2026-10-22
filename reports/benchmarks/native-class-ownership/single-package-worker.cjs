@@ -17,6 +17,8 @@ const defaultSettings = require('./constants/single-package.cjs');
  * @returns {object} Worker functions bound to that configuration.
  */
 function createSinglePackageWorker(settings = defaultSettings) {
+  assert.ok(settings.rowPartition === undefined || settings.rowPartition === 'process',
+    `Single package: unsupported row partition=${settings.rowPartition}`);
   /**
    * Declare startup entropy only for an explicit seeded method; legacy flags remain unchanged.
    * @param {number} position - Prospectively declared position, shared by both engines and treatments.
@@ -34,11 +36,27 @@ function createSinglePackageWorker(settings = defaultSettings) {
     return ['--expose-gc', `--random-seed=${seed}`, `--hash-seed=${seed}`];
   }
 
-  /** Resolve one fixed treatment, balancing pair order, physical baseline and row order independently. */
-  function schedule(manifest, phase, engine, position, label) {
+  /**
+   * Resolve a fixed treatment while retaining its global ordering factors.
+   * @param {object} manifest - Official physical package roots and identities.
+   * @param {string} phase - Declared AA or AB phase.
+   * @param {string} engine - Public DOM engine.
+   * @param {number} position - Balanced global factor position.
+   * @param {string} label - A or B treatment.
+   * @param {number} [rowIndex] - Canonical workload index, required only for process partition.
+   * @returns {object} Physical runtime and the exact ordered rows executed by this worker.
+   * @throws {Error} When the label, partition or row index is undeclared.
+   */
+  function schedule(manifest, phase, engine, position, label, rowIndex) {
     assert.ok(settings.labels.includes(label), 'Single package: unknown treatment label');
     const pair = pairedSchedule(manifest, phase, engine, position, settings);
-    const rows = pair.factors.reverseBatches ? [...settings.rows].reverse() : settings.rows;
+    const orderedRows = pair.factors.reverseBatches ? [...settings.rows].reverse() : settings.rows;
+    let rows = orderedRows;
+    if (settings.rowPartition === 'process') {
+      assert.ok(Number.isSafeInteger(rowIndex) && rowIndex >= 0 && rowIndex < settings.rows.length,
+        `Single package: invalid isolated rowIndex=${rowIndex}`);
+      rows = [settings.rows[rowIndex]];
+    } else assert.equal(rowIndex, undefined, 'Single package: rowIndex requires process partition');
     const factors = { reversePair: pair.factors.reverseLoad, reverseAssignment: pair.factors.reverseAssignment,
       reverseRows: pair.factors.reverseBatches };
     if (settings.engineLeadMask !== undefined) factors.reverseEngines = Boolean(position & settings.engineLeadMask);
@@ -70,7 +88,7 @@ function createSinglePackageWorker(settings = defaultSettings) {
   }
 
   /** Retain partial output on every failure; these workers never decide performance acceptance. */
-  async function main(manifestPath, phase, engine, positionText, label, output) {
+  async function main(manifestPath, phase, engine, positionText, label, output, rowIndexText) {
     assert.equal(process.platform, 'linux', 'Single package: Linux affinity evidence is required');
     assert.equal(typeof global.gc, 'function', 'Single package: use --expose-gc');
     assert.ok(settings.nodeVersions.includes(process.version), 'Single package: undeclared Node version');
@@ -79,11 +97,15 @@ function createSinglePackageWorker(settings = defaultSettings) {
     const position = Number(positionText);
     if (settings.v8Seeds !== undefined) assert.deepEqual(process.execArgv, workerArguments(position),
       'Single package: process flags differ from the declared V8 seed');
-    const plan = schedule(manifest, phase, engine, position, label);
+    const rowIndex = rowIndexText === undefined ? undefined : Number(rowIndexText);
+    if (settings.rowPartition === 'process') assert.equal(rowIndexText, String(rowIndex),
+      'Single package: rowIndex must be a canonical integer argument');
+    const plan = schedule(manifest, phase, engine, position, label, rowIndex);
     const report = { complete: false, gateReevaluated: false, revision: settings.revision, settings,
       phase, engine, position, label, node: process.version, v8: process.versions.v8,
       execArgv: process.execArgv, pid: process.pid, heapLimitBytes: getHeapStatistics().heap_size_limit,
       schedule: plan, batches: [] };
+    if (settings.rowPartition === 'process') report.rowIndex = rowIndex;
     if (settings.v8Seeds !== undefined) {
       report.v8Seed = settings.v8Seeds[position];
       report.randomProbe = Array.from({ length: settings.v8SeedProbeSamples }, () => Math.random());

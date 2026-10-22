@@ -25,14 +25,20 @@ const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 function createSinglePackageStudy({ settings = defaultSettings, method = defaultMethod } = {}) {
   const shared = createPairedStudy({ settings, method, sourceHashes: method.sourceHashes });
   const { schedule, workerArguments } = createSinglePackageWorker(settings);
-  /** Expand every declared pair into two adjacent, independently identified OS processes. */
+  /** Preserve global factors while optionally expanding each treatment into one process per row. */
   function processSchedule() {
     const sequence = [];
     for (const phase of settings.phases) for (let position = 0; position < settings.workerCount; position++) {
       const engines = position & (settings.engineLeadMask ?? 1) ? [...settings.engines].reverse() : settings.engines;
       for (const engine of engines) {
         const pair = pairedSchedule({ copies: {} }, phase, engine, position, settings);
-        for (const label of pair.loadOrder) sequence.push({ phase, position, engine, label });
+        for (const label of pair.loadOrder) {
+          const input = { phase, position, engine, label };
+          if (settings.rowPartition === 'process') {
+            const rows = pair.factors.reverseBatches ? [...settings.rows].reverse() : settings.rows;
+            for (const row of rows) sequence.push({ ...input, rowIndex: settings.rows.indexOf(row) });
+          } else sequence.push(input);
+        }
       }
     }
     return sequence;
@@ -57,7 +63,9 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
       assert.equal(report.randomProbe.length, settings.v8SeedProbeSamples);
       assert.ok(report.randomProbe.every((probeValue) => Number.isFinite(probeValue) && probeValue >= 0 && probeValue < 1));
     }
-    const plan = schedule(manifest, expected.phase, expected.engine, expected.position, expected.label);
+    if (settings.rowPartition === 'process') assert.equal(report.rowIndex, expected.rowIndex);
+    else assert.equal(Object.hasOwn(report, 'rowIndex'), false);
+    const plan = schedule(manifest, expected.phase, expected.engine, expected.position, expected.label, expected.rowIndex);
     assert.deepEqual(report.schedule, plan);
     for (const stage of ['initial', 'configured', 'final']) {
       const threads = stage === 'final' ? report.affinitiesAfter : report.affinity[stage];
@@ -87,7 +95,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     }
     if (expected.engine === 'rustdom') assert.ok(report.nativeBaseline);
     else assert.equal(report.nativeBaseline, undefined);
-    assert.equal(report.batches.length, settings.rows.length);
+    assert.equal(report.batches.length, plan.rows.length);
     for (const [index, batch] of report.batches.entries()) {
       const input = plan.rows[index];
       assert.equal(batch.label, expected.label);
@@ -127,10 +135,12 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
       groups.get(key).push(entry);
     }
     for (const [positionKey, group] of groups) {
-      assert.equal(group.length, settings.engines.length * settings.labels.length,
+      const rowIndices = settings.rowPartition === 'process' ? settings.rows.map((unusedRow, rowIndex) => rowIndex) : [undefined];
+      const keyFor = (entry) => `${entry.engine}/${entry.label}/${entry.rowIndex}`;
+      assert.equal(group.length, settings.engines.length * settings.labels.length * rowIndices.length,
         `Single package: incomplete seeded process group=${positionKey}`);
-      assert.deepEqual(new Set(group.map((entry) => `${entry.engine}/${entry.label}`)),
-        new Set(settings.engines.flatMap((engine) => settings.labels.map((label) => `${engine}/${label}`))));
+      assert.deepEqual(new Set(group.map(keyFor)), new Set(settings.engines.flatMap((engine) =>
+        settings.labels.flatMap((label) => rowIndices.map((rowIndex) => keyFor({ engine, label, rowIndex }))))));
       for (const entry of group) assert.deepEqual(entry.observation.randomProbe, group[0].observation.randomProbe,
         `Single package: startup RNG differs at phase=${entry.phase} position=${entry.position} engine=${entry.engine} label=${entry.label}`);
     }
@@ -140,8 +150,9 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
   function summarize(entries, phase) {
     const pairs = shared.processSchedule().filter((input) => input.phase === phase).map((input) => {
       const reports = entries.filter((entry) => entry.phase === input.phase && entry.engine === input.engine && entry.position === input.position);
-      assert.equal(reports.length, settings.labels.length);
-      assert.deepEqual(reports.map((entry) => entry.label).sort(), settings.labels);
+      const expected = processSchedule().filter((entry) => entry.phase === input.phase && entry.engine === input.engine && entry.position === input.position);
+      assert.deepEqual(reports.map(({ label, rowIndex }) => ({ label, rowIndex })),
+        expected.map(({ label, rowIndex }) => ({ label, rowIndex })), 'Single package: incomplete or reordered treatment rows');
       return { ...input, observation: { batches: reports.flatMap((entry) => entry.observation.batches) } };
     });
     return shared.summarize(pairs, phase);
@@ -159,7 +170,8 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     assert.equal(index.provenance.harnessSha256, index.harness.sha256);
     assert.match(index.provenance.reviewedCommit, /^[0-9a-f]{40}$/);
     assert.ok(index.provenance.receiptUrl.startsWith('https://github.com/guidomodarelli/rustdom/'));
-    assert.deepEqual(index.runs.map(({ phase, engine, position, label }) => ({ phase, engine, position, label })), processSchedule());
+    assert.deepEqual(index.runs.map(({ phase, engine, position, label, rowIndex }) => ({ phase, engine, position, label,
+      ...(settings.rowPartition === 'process' ? { rowIndex } : {}) })), processSchedule());
     const expectedFiles = [...index.harness.files.map((entry) => `harness/${entry.path}`), 'manifest.json',
       ...index.runs.flatMap((entry) => [entry.report, entry.stdout, entry.stderr])].sort();
     assert.deepEqual(Object.keys(index.files).sort(), expectedFiles);
@@ -178,7 +190,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     const accepted = summaries.AA.every((row) => row.calibrated) && summaries.AB.every((row) => row.withinBudget);
     assert.equal(index.accepted, accepted);
     return { verified: true, node: index.node, accepted, processes: entries.length,
-      measuredDurations: entries.length * settings.rows.length * settings.measuredSamples, summaries };
+      measuredDurations: entries.reduce((total, entry) => total + entry.observation.batches.length * settings.measuredSamples, 0), summaries };
   }
 
   /** Preserve a single complete sequence; errors stop it without retry or reconstruction. */
@@ -214,7 +226,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
       }
       shared.verifyHarness(output, harness); save();
       for (const input of processSchedule()) {
-        const prefix = `${input.phase}-${input.position}-${input.engine}-${input.label}`;
+        const prefix = `${input.phase}-${input.position}-${input.engine}-${input.label}${settings.rowPartition === 'process' ? `-row-${input.rowIndex}` : ''}`;
         const entry = { ...input, report: `${prefix}.json`, stdout: `${prefix}.stdout.log`, stderr: `${prefix}.stderr.log` };
         index.runs.push(entry); save();
         process.stdout.write(`Single package ${process.version} ${prefix}\n`);
@@ -223,7 +235,8 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
         try {
           stderr = fs.openSync(path.join(output, entry.stderr), 'wx');
           result = spawnSync(process.execPath, [...workerArguments(input.position), path.join(__dirname, method.workerFilename), manifestPath,
-            input.phase, input.engine, String(input.position), input.label, path.join(output, entry.report)],
+            input.phase, input.engine, String(input.position), input.label, path.join(output, entry.report),
+            ...(settings.rowPartition === 'process' ? [String(input.rowIndex)] : [])],
           { stdio: ['ignore', stdout, stderr], timeout: method.workerTimeoutMs });
         } finally { fs.closeSync(stdout); if (stderr !== undefined) fs.closeSync(stderr); }
         Object.assign(entry, { pid: result.pid, exitCode: result.status, signal: result.signal, error: result.error?.message ?? null });
