@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: sensibilidad offline de los controles
+
+La evidencia parcial del tracing ya se publicó en `58650e58`, con crudos,
+fallo de Node24, lector, replay Windows/Linux y revisión independiente sin
+hallazgos. Su CI general corre en run39762878895; no confundirlo con el CI
+ya aprobado de `4e1e66c1`. No relanzar capturas ni ensayos consumidos.
+
+`reports/benchmarks/native-class-ownership/control-sensitivity/` conserva un
+diagnóstico exploratorio de las 32 filas jsdom del ensayo 39735778846. Lee
+9.216 duraciones de 128 procesos y recalcula la razón de medianas agrupadas;
+después elimina cada pareja de posición únicamente dentro de 512 escenarios
+descriptivos. Cuatro de los seis controles fallidos siguen fuera de ±2% en
+todos sus escenarios; dos pueden cruzarlo, igual que siete filas que pasan
+en el resultado original. No se elimina ningún dato del ensayo ni se cambia
+su decisión `accepted=false`. No es confianza, potencia ni prueba de causas.
+
+Diez tests por Windows/Linux, incluidos tres contratos sobre copias reales,
+y el replay de las 32 filas pasaron. Los resultados son byte-idénticos y los
+inputs coinciden con `58650e58`. Ver validación del mismo nombre. No hay
+nuevas mediciones, código DOM migrado ni evidencia adicional de ausencia de
+fugas. Investigar la variación persistente antes de fijar otro contraste;
+no asumir que descartar una posición o aumentar warmups lo resuelve.
+
 ## Actualización: evidencia parcial preservada y revisada
 
 El tar íntegro de la captura parcial está en
