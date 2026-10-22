@@ -1,6 +1,31 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: identidades de funciones por Window observadas
+## Actualización: launcher de optimización calificado, captura pendiente
+
+`reports/benchmarks/native-class-ownership/optimization-log/` conserva el
+launcher, settings y contratos. Ocho tests pasaron en Linux con Node22/24
+y Windows con Node24. El preflight completo de ambos Node pasó, verificó
+las387 fuentes originales y preparación antes/después, sin ejecutar DOM o
+tracing ni consumir el marker. Fuente original y sampler permanecen intactos. El hashing es por bloques
+de 1 MiB; el control real de 16 MiB confirma hash igual y pico de heap del
+helper reducido de 16.782.237 a2.102.646 bytes, sin afirmar mejoras del DOM.
+
+Evidencia en `reports/validation/native-class-ownership/optimization-log-method/`,
+con crudos, snapshots y tandas previas. Raíz local final
+`/tmp/rustdom-optimization-method-67qtetar`, terminal. Su inputs.json referencia
+el harness congelado en la extracción independiente y el manifest local
+validado. No reconstruir, reinstalar o derivar otra copia del sampler.
+
+Siguiente: autenticar el commit publicado y las seis fuentes de run.py --sources,
+generar recibo y ejecutar una sola vez --capture según OPTIMIZATION-PROTOCOL.
+Guardar el handle; no reiniciar por silencio. Son cuatro procesos jsdom,
+32 lotes y384 ejecuciones incluidas las96 warmups. El worker original solo
+conserva288 duraciones medidas; no inventar intervalos o tiempos de warmup.
+El marker exclusivo .cache/optimization-log-capture.started.json impide otra
+captura desde este checkout. No borrarlo para reintentar. Ante un error,
+conservar todo lo parcial. No hay aceptación, merge/tag o crédito Rust nuevo.
+
+## Histórico: identidades por Window (launcher preparado posteriormente)
 
 La observación sin temporizadores pasó en J0/J1 oficiales, Node22.12.0 y
 24.14.1: cuatro procesos y48 Windows. En cada proceso Range y cinco métodos/
