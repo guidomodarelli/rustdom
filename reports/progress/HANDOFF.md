@@ -1,6 +1,41 @@
 # Continuar rustdom en otra máquina
 
-## Ensayo GC antes del warmup iniciado: no reiniciar
+## Estado actual: ensayo pre-GC terminal y corrección WPT de Windows
+
+La secuencia `/tmp/rustdom-pre-gc-warmup-study-x5ykpauj`, session23748,
+está TERMINAL. Ambos drivers terminaron con exit1, con128/128 workers
+completos por Node. La verificación original y la reconstrucción offline
+terminaron con exit0 y el mismo resultado: verified=true, accepted=false.
+Node22 rechaza4 controles jsdom y Node24 rechaza7;0 puntos Rust exceden sus
+presupuestos numéricos. No aceptar, repetir ni reinterpretar esta secuencia.
+Se preservan1992 archivos,256 workers,18432 duraciones y403 fuentes congeladas
+en `reports/benchmarks/native-class-ownership/pre-gc-warmup-results/2026-10-22/`.
+Archivo SHA-256:4e33dceb5f42555c1536e096be2af3c985909ee1d31ad53acb3bbc76c0541670.
+La captura de optimización y el ensayo anterior también siguen terminales.
+PR80 continúa sin aceptación de rendimiento ni merge/tag de ownership.
+
+El CI39817139002 pasó Linux/macOS y los shards generales, pero Windows falló
+en el estado global TIMEOUT(2) de la referencia jsdom del WPT Range. Node del
+job:24.22.1. `test:compat` ahora limita el lote general a2 procesos y ejecuta
+la suite WPT después, aislada del lote. No se cambian límites, fixtures,
+aserciones ni cleanup. El helper nuevo conserva ambos reportes si la
+comparación falla; antes se perdían esos temporales. Esto no cambia Rust.
+La prueba de correspondencia284+8 describe los heads históricos indicados;
+este cambio posterior modifica package.json solo en el comando de tests.
+`src/`, `scripts/`, Cargo y build.rs permanecen iguales al paquete Windows
+7d5ada1f usado para validar, con hashes del paquete y addon verificados.
+
+Validación local terminal: Node22.12.0 pasa3 tests de diagnósticos y8 WPT;
+Node24.22.1 pasa3748 generales+8 WPT=3756, sin fallos ni omitidos. La referencia
+Range tarda40.00s/28.82s respectivamente, con2808 casos comparados y estado OK.
+Los timeouts intencionales siguen verificándose.
+La validación local y procedencia se conservan en
+`reports/validation/wpt-ci-isolation/`. Consultar sus process.json y logs,
+y los checks del SHA publicado, antes de afirmar que el CI remoto está verde.
+El WIP de geometría en el worktree de inventario continúa sin validar y no
+forma parte de esta corrección. No stagear cambios de otros worktrees.
+
+## Histórico: inicio del ensayo GC antes del warmup
 
 Método publicado y autenticado en `a558e472`:403 blobs Git y recibo de GitHub
 coinciden, hash del arnés8798e3f0420e7bf78fe6dc9051bc4bda787fe2ccf047cc5a12a97b9381ad3543.

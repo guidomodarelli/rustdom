@@ -7,9 +7,10 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { gunzipSync } = require('node:zlib');
-const { executeFixture } = require('./wpt/process.cjs');
-const { assertWptParity } = require('./wpt/comparison.cjs');
-const settings = require('./wpt/constants/execution.cjs');
+const { executeFixture } = require('./process.cjs');
+const { assertWptParity } = require('./comparison.cjs');
+const { assertFixtureParity } = require('./diagnostics.cjs');
+const settings = require('./constants/execution.cjs');
 
 /** Assert observable process termination, not merely a message saying teardown ran. */
 function assertExited(pid) {
@@ -21,10 +22,11 @@ for (const [file, count] of [
   ['dom/nodes/DocumentFragment-getElementById.html', 5],
   ['dom/ranges/Range-mutations-dataChange.html', 2808],
 ]) {
-  test(`isolated real engines preserve all results and terminate after ${file}`, () => {
+  test(`isolated real engines preserve all results and terminate after ${file}`, (context) => {
     const reference = executeFixture('jsdom', file);
     const candidate = executeFixture('rustdom', file);
-    assertWptParity(file, candidate.result, reference.result);
+    context.diagnostic(JSON.stringify({ file, testCount: count, reference: reference.execution, candidate: candidate.execution }));
+    assertFixtureParity(file, candidate, reference);
     assert.equal(reference.result.tests.length, count);
     assert.equal(candidate.result.tests.length, count);
     assert.notEqual(reference.execution.pid, candidate.execution.pid);
@@ -42,8 +44,8 @@ for (const [file, count] of [
 for (const engineName of ['jsdom', 'rustdom']) {
   test(`the real ${engineName} WPT harness still times out with the shared runner multiplier`,
     { timeout: settings.PROCESS_TIMEOUT_MS }, async () => {
-      const engine = engineName === 'jsdom' ? require('jsdom') : require('../dist/index.cjs');
-      const harness = fs.readFileSync(path.join(__dirname, 'fixtures/wpt/resources/testharness.js'), 'utf8');
+      const engine = engineName === 'jsdom' ? require('jsdom') : require('../../dist/index.cjs');
+      const harness = fs.readFileSync(path.join(__dirname, '../fixtures/wpt/resources/testharness.js'), 'utf8');
       let dom;
       let timer;
       let declaredMultiplier;
@@ -89,7 +91,7 @@ test('a real fixture worker cannot overwrite an earlier result before loading th
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rustdom-wpt-output-test-'));
   try {
     const output = path.join(directory, 'result.json'); fs.writeFileSync(output, 'previous evidence\n');
-    const child = spawnSync(process.execPath, [...settings.WORKER_EXEC_ARGV, path.join(__dirname, 'wpt/fixture.cjs'),
+    const child = spawnSync(process.execPath, [...settings.WORKER_EXEC_ARGV, path.join(__dirname, 'fixture.cjs'),
       'jsdom', 'dom/nodes/DocumentFragment-getElementById.html', output], { encoding: 'utf8', timeout: settings.PROCESS_TIMEOUT_MS });
     assert.equal(child.status, 1); assert.match(child.stderr, /EEXIST/);
     assert.equal(fs.readFileSync(output, 'utf8'), 'previous evidence\n'); assertExited(child.pid);
@@ -102,7 +104,7 @@ test('a real fixture worker cannot overwrite an earlier result before loading th
 });
 
 test('the recorded macOS reference timeout remains a parity failure despite every individual test passing', () => {
-  const archive = path.resolve(__dirname, '../reports/validation/native-class-ownership/ci-macos-timeout');
+  const archive = path.resolve(__dirname, '../../reports/validation/native-class-ownership/ci-macos-timeout');
   for (const relative of ['fixture.json.gz', '39686199408/fixture.json.gz']) {
     const row = JSON.parse(gunzipSync(fs.readFileSync(path.join(archive, relative))));
     assert.equal(row.expected.status, 2); assert.equal(row.actual.status, 0);
