@@ -1,6 +1,43 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: secuencia de una copia por proceso activa
+## Actualización: ensayo de una copia terminado, sin aceptación
+
+El run `39727878290` terminó sobre `6f708467`: ambos Node completaron 64 workers,
+128 en total, todos con exit 0. Los drivers dieron exit 1 por presupuesto,
+sin errores de ejecución. Se conservan las 9.216 duraciones y todas las filas.
+No reiniciarlo ni quitar/reaplicar `ownership-single-package-v1`.
+
+El artefacto oficial `12405762060` está completo en
+`reports/benchmarks/native-class-ownership/single-package/39727878290/`.
+ZIP SHA-256 `51d46871123f346547c6c2dd7c75fb292ec97287113a38907fa71ea5cdfcb140`.
+Tar SHA-256 `c8d8395855f057e3b60024fd0a87ac76694c2a34d8c6340213c9f82cfe4b171a`.
+Extracción verificada: `/tmp/rustdom-ownership-results-0yjp1eeo/single-package`.
+Los 380 archivos por Node coinciden con el commit publicado; arnés `fc25f0b6…`.
+Los verificadores congelados y la preparación completa pasaron offline en
+Node22/24 y conservaron `accepted=false`, sin nuevas mediciones.
+
+Calibración A/A y A/B: Node22 6/8 y 6/8; Node24 5/8 y 6/8. Todos los puntos
+Rust A/A están dentro de ±5% y los A/B no superan +5%, pero jsdom no calibra
+nueve filas. No aceptar un subconjunto ni modificar los límites. Memoria:
+12.288 referencias por tipo Window/Document, 3.072 observaciones, 88 iniciales
+no claras conservadas y 2.048 endpoints finales exigidos claros. No es prueba
+de ausencia universal de fugas. El producto continúa híbrido.
+
+El CI general de `181957b9`, run `39727951022`, aprobó sus ocho checks; logs de
+las tres plataformas y metadatos están en `ci-181957b9`. El inventario se publicó
+aparte en `feature/inventory-node-helpers`, `d723c90a`: cinco módulos/catorce anclas
+clasificados y correspondencia física de 531 fuentes, sin nuevo crédito Rust.
+No integrarlo hasta cerrar ownership. No hay merge ni checkpoint de este hito.
+
+Siguiente paso: evaluar el balance independiente de orden de motores y de
+tratamientos. El schedule actual comparte la paridad entre ambos órdenes;
+`order-factors.json` conserva la observación, sin demostrar causalidad. Publicar
+un método distinto y revisado antes de otra medición; no repetir este ensayo.
+
+## Histórico: secuencia de una copia activa (superado)
+
+El run ya terminó; sus antiguos pasos de espera/activación no están pendientes.
+El resultado y las instrucciones vigentes están al principio del documento.
 
 El resultado hosted anterior se publicó en `1024f769`, con el artefacto
 completo y su rechazo conservado. El PR #80 está actualizado. El CI general
