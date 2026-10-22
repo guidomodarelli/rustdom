@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: método de una copia por proceso preparado
+
+El resultado hosted anterior se publicó en `1024f769`, con el artefacto
+completo y su rechazo conservado. El PR #80 está actualizado. El CI general
+`39726914194` se observó en ejecución; XML y preparación ya aprobaron.
+No confundir esa espera con un ensayo hosted nuevo ni reiniciar `39721610003`.
+
+El método nuevo está en `SINGLE-PACKAGE-PROTOCOL.md`, `single-package-worker.cjs`,
+`single-package-experiment.cjs`, sus constantes/tests y el workflow
+`ownership-single-package.yml`. Una distribución física por proceso; 128 workers
+entre ambos Node, ocho cargas, 3 warmups/9 muestras y los presupuestos originales.
+Arnés final: 380 archivos, SHA-256
+`fc25f0b60292e1a394ab792acb21a21bfdb6b6e63a6923106367439fc1febbbe`.
+La revisión estática final no encontró hallazgos accionables.
+
+Validación: once contratos iniciales pasan en cada Node, con ocho workers reales
+entre ambos; sampler/settings idénticos en bytes al final. Tras agregar workflow,
+export y caso negativo de paquete alterado, seis contratos afectados pasan en
+cada Node y seis sin cambios quedan fuera del filtro. No afirmar doce contratos
+reejecutados. Actionlint y el preflight real del YAML pasaron. Fuentes, logs y
+trazas están en los reportes `single-package-method`; la secuencia completa y
+su decisión todavía no se ejecutaron. No hay nuevo crédito de migración.
+
+Antes de activar: hacer commit/push y comprobar los 380 archivos publicados
+contra `reports/validation/native-class-ownership/single-package-method/review.json`.
+Después agregar una sola vez la etiqueta nueva `ownership-single-package-v1`.
+No quitar/reaplicar etiquetas ni rerun. Conservar el run/SHA y sus parciales;
+exit 1 completo permite continuar Node24, exit 2 detiene. No modificar el método
+tras activar. No merge/checkpoint mientras falten presupuesto, CI y review final.
+
 ## Actualización: contraste hosted terminado, sin aceptación
 
 El run `39721610003` es terminal, con fallo de presupuesto y sin errores de
@@ -26,10 +56,9 @@ El inventario mejorado está publicado aparte en `feature/inventory-node-helpers
 `b6a44f50`: 4.374 APIs, con 43 declaraciones añadidas, sin nuevo crédito Rust.
 Integrarlo después de cerrar ownership. No merge ni checkpoint del hito todavía.
 
-Siguiente paso: evaluar un método distinto que quite la carga de dos paquetes
-por proceso, con hipótesis/pruebas/revisión publicadas antes de medir. Esto es
-una hipótesis pendiente, no una solución demostrada. Mantener ambos Node, las
-ocho cargas, todos los resultados y los presupuestos. No repetir este ensayo.
+El método distinto de una copia por proceso se preparó después de este resultado;
+ver la actualización al principio del documento. Sigue siendo una hipótesis,
+no una solución demostrada. No repetir este ensayo hosted anterior.
 
 ## Histórico: secuencia hosted única en ejecución (superado)
 
