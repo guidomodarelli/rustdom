@@ -1,6 +1,42 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: método de tiempo completo calificado, ensayo formal pendiente
+## Actualización: ensayo de suites completas terminado y aceptado
+
+La única captura de la receta publicada en `a10e7a04` terminó con exit0:
+342 CLIs, 54 warmups y 288 mediciones, 10.602 ejecuciones de tests, doce filas
+aceptadas con A/A calibrado en Node22.12.0 y24.14.1. Los verificadores congelados
+Linux Node22/24 y Windows Node24 coinciden; el recálculo Python independiente
+también, en Windows/Linux. Diez contratos del lector (cinco por plataforma)
+rechazan checksum, ledger, decisión e inventario de fuentes alterados sobre
+copias conservadas.
+
+Resultados y muestras crudas:
+`reports/benchmarks/native-class-ownership/runner-suite-timing-results/`.
+Tar completo, índices, fuentes, logs y replays:
+`reports/validation/native-class-ownership/runner-suite-timing-study/`.
+Informe de límites de memoria del mismo nombre en
+`reports/memory/native-class-ownership/`. Se observaron 912 asignaciones Range,
+no su liberación individual; no es una prueba adicional de ausencia de fugas.
+
+Raíz local `/tmp/rustdom-runner-suite-timing-8wamjxj2`, session10111/PID421662
+terminal; replay session63028 también terminal. No relanzar la captura. Los
+contratos de lectura están en `/tmp/rustdom-suite-timing-reader-D6hTNPBZ`.
+La preparación y las 79 fuentes mantuvieron su identidad; no se reconstruyeron
+addons ni se reinstalaron dependencias. Las doce filas y los aumentos de Jest
+permanecen publicados, sin selección de resultados.
+
+Este entregable cierra la medición pendiente de tiempo completo de estas
+suites. Los microbenchmarks anteriores continúan rechazados por seis controles
+jsdom sin calibrar; ownership sigue abierto, sin merge/tag ni crédito nuevo de
+migración. Siguiente: seguir CI y review del SHA publicado y resolver el bloqueo
+de calibración con la evidencia existente, sin repetir ensayos consumidos ni
+cambiar retroactivamente sus presupuestos. Inventario4c09 permanece separado
+hasta cerrar ownership.
+
+## Histórico: método calificado antes del ensayo (superado)
+
+Este bloque registra el estado anterior a la captura. Está superado por el
+ensayo terminal del encabezado: no seguir sus próximos pasos ni relanzarlo.
 
 Se agregó `reports/benchmarks/native-class-ownership/runner-suite-timing/`.
 La receta fija 342 CLIs: 54 warmups y 288 mediciones de Jest/Vitest/VM,
