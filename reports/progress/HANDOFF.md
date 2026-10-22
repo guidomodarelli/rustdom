@@ -1,6 +1,46 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: ensayo de orden independiente activo
+## Actualización: orden independiente completo, presupuesto rechazado
+
+El run `39735778846` terminó sobre `f5526bc1`: 128 procesos por Node, 256 en
+total, todos con exit 0. Ambos drivers dieron exit 1 por presupuesto, sin
+errores de ejecución. Se conservaron las 18.432 duraciones y todas las filas.
+No repetir el run ni quitar/reaplicar `ownership-independent-order-v1`.
+
+El artefacto oficial `12409208308` está íntegro en
+`reports/benchmarks/native-class-ownership/independent-order/39735778846/`.
+ZIP SHA-256 `0ee75c12464aa8cfee9f3ac3b42ba81a01dd54a9ed0c15faddfedbcf4ea2f2a5`.
+Tar SHA-256 `928e17bfd676264bab0e2bf30f8dfe7267831752dbc3a254cb86c5abece76756`.
+Extracción verificada: `/tmp/rustdom-ownership-results-m7jq3638/independent-order`.
+Las 387 fuentes por Node coinciden con el commit publicado, arnés `6904db29…`.
+Los verificadores congelados y preparación completa pasan offline en Node22/24;
+conservan `verified=true, accepted=false`. El lector independiente reproduce
+32 filas, 2.048 medianas de lotes y la misma decisión.
+
+Calibración A/A y A/B: Node22 5/8 y 7/8; Node24 7/8 y 7/8. Todos los puntos
+Rust A/A están dentro de ±5% y los A/B no superan +5%, pero seis filas jsdom
+no calibran. No aceptar un subconjunto ni cambiar límites/estimador. El archivo
+confirma los cuatro factores independientes; no demuestra causas del drift.
+
+Memoria: 24.576 referencias por tipo Window/Document; 6.144 observaciones,
+182 iniciales no claras conservadas y 4.096 estados finales exigidos claros.
+No son picos ni prueba universal de ausencia de fugas. Los diagnósticos por
+posición de muestra son descriptivos y no cambian aceptación ni excluyen datos.
+
+El CI general afba8091, run `39735898622`, aprobó sus ocho checks; metadata y
+logs están publicados en `ci-afba8091`. El nuevo SHA requiere sus propios checks.
+El inventario sigue separado en `feature/inventory-node-helpers`, `4c09d1bd`:
+once módulos, veinticinco anclas y seis APIs auditados, alcance abierto. Solo
+hasFeature recibe nuevo crédito Rust existente; cinco anclas se conservaron
+híbridas tras corregir sobrecrédito. Integrar después de cerrar ownership.
+
+Siguiente paso: analizar dispersión y fuentes de los controles fallidos de
+rangos/observers usando este mismo archivo, sin nuevas muestras ni causalidad
+no demostrada. Antes de otro contraste se requiere una hipótesis respaldada,
+protocolo y revisión publicados. No repetir ensayos rechazados, no relajar
+presupuestos y no hacer merge/checkpoint mientras ownership siga abierto.
+
+## Histórico (superado): activación del ensayo independiente
 
 El método y sus evidencias se publicaron en
 `f5526bc1ea645946b41541350f940f5c85a7e628`. Las 387 fuentes publicadas coinciden
