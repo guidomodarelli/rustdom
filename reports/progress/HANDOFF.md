@@ -1,5 +1,24 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: secuencia hosted única en ejecución
+
+El [run 39721610003](https://github.com/guidomodarelli/rustdom/actions/runs/39721610003)
+está ejecutando el contraste sobre `56825a50535b28d3c6ba082de1a81153c21b94ed`.
+La API de GitHub confirmó vivo el job `119636108675`, paso de Node 22 y después
+Node 24, tras aprobar el preflight oficial. La etiqueta `ownership-hosted-main-v1`
+ya fue aplicada una sola vez. **No quitarla/reaplicarla ni iniciar otra secuencia.**
+
+Consultar el estado actual de ese run antes de continuar; una observación que
+vence no significa que terminó. Su resultado y artefacto final están pendientes.
+Conservar las 64 ejecuciones y 9.216 duraciones si completa; ante fallo de
+ejecución, conservar todo lo parcial. No reconstruir inputs ni reintentar para
+seleccionar una corrida. El presupuesto histórico continúa sin aceptar.
+
+La revisión del SHA publicado confirmó los 373 archivos y arnés `7ef509af…`
+byte a byte. Esta actualización del handoff no cambia el método ni sus fuentes.
+Los nuevos checks generales se deben comprobar sobre el HEAD actual por separado;
+el contraste permanece vinculado a `56825a50` aunque este documento avance.
+
 ## Actualización: preparación del contraste hosted completo
 
 Se agregó `HOSTED-MAIN-PROTOCOL.md`, bindings del arnés existente y
