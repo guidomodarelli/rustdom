@@ -1,6 +1,71 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: orquestador preparado para la única captura nativa
+## Actualización: evidencia parcial preservada y revisada
+
+El tar íntegro de la captura parcial está en
+`reports/validation/native-class-ownership/compilation-diagnostics-partial/`,
+14.218.708 bytes, SHA-256
+`d9e93f17000dd674c27d5515bd749a76945f2f11b4e8c4a1d5539b2c77a9eafd`.
+El lector, análisis por intervalo y resumen están en
+`reports/benchmarks/native-class-ownership/compilation-diagnostics-results/`;
+el informe de recursos, en `reports/memory/native-class-ownership/compilation-diagnostics-partial.md`.
+Son evidencia de diagnóstico, no aceptación del hito ni migraciones nuevas.
+El CI general de `4e1e66c1` terminó verde (run39757410705, ocho checks);
+ownership sigue rechazado (run39757410643). No merge ni tag.
+
+La revisión independiente del paquete final terminó con cero hallazgos
+accionables. El verificador offline y la reproducción desde el tar en Windows
+pasaron; el JSON coincide con Linux y la diferencia de bytes es solo LF/CRLF.
+La lectura y preservación indicadas como siguientes pasos en el estado
+histórico inferior ya se completaron. Seguir investigando los controles de
+rendimiento con los datos existentes antes de definir otro contraste; no
+repetir esta captura ni los ensayos consumidos.
+
+## Histórico: estado al terminar la captura parcial por SIGSEGV
+
+El orquestador y sus seis fuentes se publicaron y cotejaron en `4e1e66c1` antes
+de ejecutar. Se hizo una sola invocación, sesión75648 terminal, launcher exit2.
+Raíz `/tmp/rustdom-native-compilation-ysdkpsaf`, datos en `capture/`. NO relanzar
+el CLI ni los procesos anteriores por tener un archivo incompleto.
+
+Nueve procesos exit0; el último J0/jsdom Node24.14.1, PID370845, terminó por
+SIGSEGV. El índice conserva complete=false, accepted=null y la ausencia del
+after normal de preparación Node24. El último report conserva un lote completo
+y el siguiente iniciado sin spans persistidos; no hay trace nativo de ese proceso.
+La telemetry quedó solo en su header inicial y no representa cero GC observado.
+
+El kernel registró RIP0xa68b6a; addr2line sobre el ejecutable exacto ELF EXEC
+resuelve `node::tracing::NodeTraceBuffer::AddTraceEvent(unsigned long*)`.
+SHA-256 binario bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a.
+El último check de módulos cargados contiene solo J0, ninguna copia Rustdom.
+Esto localiza la instrucción observada, no prueba una causa raíz ni aporta un
+backtrace nativo completo. Se conservan kernel, símbolos, disassembly y fuentes.
+
+Se hizo una verificación de solo lectura después del fallo: seis fuentes,
+390 partes derivadas y preparación oficial siguen idénticas. No se rellenó
+retroactivamente el after faltante del índice. El postproceso distingue los diez
+procesos, conserva 876 spans registrados, de los cuales 864 tienen eventos
+nativos disponibles; doce tienen eventos desconocidos y 84 spans planificados
+no están registrados. Algunos pudieron ejecutarse antes del crash: no contarlos
+como ceros ni afirmar que no se ejecutaron. Ningún subconjunto acepta rendimiento.
+
+En los nueve procesos completos se observan eventos de OptimizeCode/finalización
+en intervalos medidos tras tres warmups. No identifican funciones ni prueban que
+expliquen el rechazo Azure. El lector tiene siete casos numéricos y conserva
+eventos de duración cero, fases no completas y el envelope observado de reloj,
+sin presentarlo como límite universal. Datos/análisis pendientes de cierre y
+publicación de evidencia; no repetir mediciones. Ownership sigue abierto.
+
+Siguiente paso: revisar la lectura parcial y preservar el artefacto íntegro,
+incluido el fallo, con snapshots y hashes. Investigar el mecanismo sin volver
+a ejecutar esta captura ni atribuirlo al guard Rust sin evidencia. No merge ni
+tag. Inventario `4c09d1bd` permanece separado.
+
+## Histórico superado: preparación del orquestador antes de la captura
+
+Esta sección describe el estado anterior a `4e1e66c1`. La captura ya terminó
+parcialmente por SIGSEGV; prevalecen las instrucciones del encabezado. No
+ejecutar el siguiente paso histórico.
 
 `compilation-diagnostics/run.cjs` comparte `command.cjs` con los contratos DOM.
 Verifica 390 partes derivadas contra recibo independiente fijado por SHA, coteja
@@ -22,12 +87,12 @@ benchmarks y memoria equivalentes. Raíz local:
 tipo, 96 observaciones, 64 finales claras y dos iniciales aún no claras conservadas.
 Sin nuevas suites de producto ni builds porque no cambia el runtime.
 
-Siguiente paso inmediato: publicar/cotejar los seis archivos del método y generar
+Paso histórico ya ejecutado (no repetir): publicar/cotejar los seis archivos del método y generar
 recibo `{commit, files}` con hashes relativos al directorio compilation-diagnostics;
 invocar una sola vez el CLI del protocolo con copia instrumentada verificada,
 preparación oficial, recibo, output nuevo y binarios Node22/24. Conservar el
 proceso vivo por su handle, no relanzar por silencio/timeouts de observación.
-La captura nativa de diez procesos sigue pendiente. No repetir capturas previas.
+La captura de diez procesos terminó parcialmente; consultar el encabezado. No repetir capturas previas.
 Ownership sin aceptación; inventario `4c09d1bd` separado, sin merge ni checkpoint.
 
 ## Actualización: posiciones leídas, tracing nativo validado antes de capturar
