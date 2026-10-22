@@ -1,6 +1,6 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: método de una copia por proceso preparado
+## Actualización: secuencia de una copia por proceso activa
 
 El resultado hosted anterior se publicó en `1024f769`, con el artefacto
 completo y su rechazo conservado. El PR #80 está actualizado. El CI general
@@ -23,12 +23,22 @@ reejecutados. Actionlint y el preflight real del YAML pasaron. Fuentes, logs y
 trazas están en los reportes `single-package-method`; la secuencia completa y
 su decisión todavía no se ejecutaron. No hay nuevo crédito de migración.
 
-Antes de activar: hacer commit/push y comprobar los 380 archivos publicados
-contra `reports/validation/native-class-ownership/single-package-method/review.json`.
-Después agregar una sola vez la etiqueta nueva `ownership-single-package-v1`.
-No quitar/reaplicar etiquetas ni rerun. Conservar el run/SHA y sus parciales;
-exit 1 completo permite continuar Node24, exit 2 detiene. No modificar el método
-tras activar. No merge/checkpoint mientras falten presupuesto, CI y review final.
+El método y evidencias se publicaron en `6f70846772e68ae3265616cdc52bb43f9e3c00e8`.
+Los 380 archivos publicados coinciden en bytes con el recibo de revisión;
+`published-source-verification.json` conserva la comprobación previa a activar.
+La etiqueta `ownership-single-package-v1` se agregó una sola vez.
+
+El [run 39727878290](https://github.com/guidomodarelli/rustdom/actions/runs/39727878290)
+se confirmó vivo, job `119655895196`, preparando Node tras checkout, sobre ese
+SHA. Su resultado todavía está pendiente. Consultar su estado real antes de
+continuar; no quitar/reaplicar la etiqueta ni rerun. Conservar todos los parciales
+si falla. Una espera que vence no significa que el job terminó. El workflow
+hosted anterior quedó skipped en el nuevo evento de etiqueta, sin repetirlo.
+
+No modificar el método tras activar. Al terminar, autenticar su artefacto y
+verificar con las 380 fuentes congeladas en ambos Node, sin recompilar paquetes.
+No merge/checkpoint mientras falten presupuesto, CI y review final. La evidencia
+de contratos no acepta el estudio completo; el objetivo sigue abierto.
 
 ## Actualización: contraste hosted terminado, sin aceptación
 
