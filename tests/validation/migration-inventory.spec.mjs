@@ -124,12 +124,12 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 8);
-  assert.equal(audited.summary.counts.files.audited, 11);
-  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 2);
-  assert.equal(audited.summary.counts.callableUnits.states.hybrid, 5);
-  assert.equal(audited.summary.counts.callableUnits.audited, 25);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 6);
+  assert.equal(audited.summary.counts.files.states.hybrid, 10);
+  assert.equal(audited.summary.counts.files.audited, 16);
+  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 19);
+  assert.equal(audited.summary.counts.callableUnits.states.hybrid, 8);
+  assert.equal(audited.summary.counts.callableUnits.audited, 45);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 23);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
   const serializerApi = audited.classification.find((entry) => entry.id === 'api:Window.XMLSerializer.prototype.serializeToString');
   assert.equal(serializerAlgorithm.status, 'rust-complete');
@@ -193,6 +193,44 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   const node = audits['module:lib/jsdom/living/nodes/Node-impl.js'];
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,
     audits: { 'module:lib/jsdom/living/nodes/Node-impl.js': { ...node, status: 'rust-complete' } } }), /retains pending work/);
+});
+
+test('should keep rectangle algorithms distinct from public WebIDL and preserve real dictionary and edge contracts', () => {
+  const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
+  const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
+  const rectangleUnits = audited.classification.filter((entry) => entry.id.startsWith('unit:lib/jsdom/living/geometry/DOMRect'));
+  assert.equal(rectangleUnits.length, 20);
+  assert.equal(rectangleUnits.filter((entry) => entry.status === 'rust-complete').length, 17);
+  assert.equal(rectangleUnits.filter((entry) => entry.status === 'hybrid').length, 3);
+  const rectangleApis = audited.classification.filter((entry) => entry.id.startsWith('api:Window.DOMRect'));
+  assert.equal(rectangleApis.filter((entry) => entry.auditComplete).length, 17);
+  assert.ok(rectangleApis.filter((entry) => entry.auditComplete).every((entry) => entry.status === 'hybrid' && entry.pending.length > 0));
+  const rectangleMetadata = rectangleApis.filter((entry) => entry.id.endsWith('.@@toStringTag'));
+  assert.equal(rectangleMetadata.length, 2);
+  assert.ok(rectangleMetadata.every((entry) => !entry.auditComplete));
+  for (const name of ['DOMRect', 'DOMRectReadOnly', 'DOMRectInit']) {
+    const module = audited.classification.find((entry) => entry.id === `module:lib/jsdom/living/generated/${name}.js`);
+    assert.equal(module.auditComplete, true); assert.equal(module.status, 'pending');
+    assert.deepEqual(module.rustSources, []); assert.ok(module.pending.length > 0);
+    assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,
+      audits: { [module.id]: { ...module, status: 'rust-complete' } } }), /lacks evidence or retains pending work/);
+  }
+  const dom = new JSDOM('');
+  try {
+    const reads = [];
+    const rect = dom.window.DOMRect.fromRect({
+      get height() { reads.push('height'); return -8; },
+      get width() { reads.push('width'); return -4; },
+      get x() { reads.push('x'); return 9; },
+      get y() { reads.push('y'); return 12; },
+    });
+    assert.deepEqual(reads, ['height', 'width', 'x', 'y']);
+    assert.deepEqual({ ...rect.toJSON() }, { x: 9, y: 12, width: -4, height: -8, top: 4, right: 9, bottom: 12, left: 5 });
+    assert.equal(Object.getOwnPropertyDescriptor(dom.window.DOMRect.prototype, 'x').set.length, 1);
+    assert.equal(Object.getOwnPropertyDescriptor(dom.window.DOMRectReadOnly.prototype, 'left').set, undefined);
+    assert.throws(() => Object.getOwnPropertyDescriptor(dom.window.DOMRectReadOnly.prototype, 'left').get.call({}), dom.window.TypeError);
+    assert.equal(audited.summary.scopeClosed, false); assert.equal(audited.summary.migrationPercent, null);
+  } finally { dom.window.close(); }
 });
 
 test('should reproduce byte-identical catalog outputs without mixing timestamps or absolute machine paths', () => {

@@ -12,9 +12,9 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.374 | Descriptores propios de objetos públicos y bases heredadas no enumeradas, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 11 | Ocho híbridos; strings.js, validate-names.js y el router parser/index siguen pendientes de migración |
-| APIs con clasificación revisada | 6 | XMLSerializer, DOMParser y cuatro métodos de DOMImplementation conservan WebIDL/factories/dependencias del host |
-| Anclas con clasificación revisada | 25 | Dos cuerpos Rust existentes, cinco híbridos; trece de strings.js, tres de validate-names.js y dos del router pendientes; no acredita dependencias ni APIs completas |
+| Módulos con clasificación revisada | 16 | Diez híbridos; strings.js, validate-names.js, parser/index y los tres módulos WebIDL de geometría siguen pendientes |
+| APIs con clasificación revisada | 23 | Las seis APIs previas y diecisiete de geometría conservan WebIDL, factories, conversiones o dependencias del host |
+| Anclas con clasificación revisada | 45 | Diecinueve cuerpos Rust existentes, ocho híbridos y dieciocho pendientes; no acredita dependencias ni APIs completas |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan
 por declaración propia de cada objeto o prototipo observado: la herencia y los
@@ -104,13 +104,28 @@ el punto de exposición en jsdom; el código de una base externa requiere su pro
 mapeo. Una declaración heredada de Node no acredita Rust ni obliga a reimplementar
 un adaptador que el objetivo permite conservar en Node.
 
-La validación final tiene once contratos reales por Node, con listener/once,
+La validación histórica del esquema 2 tiene once contratos reales por Node, con listener/once,
 inserción/borrado CSS, propiedades nominadas, CLI y memoria. Se conservan las
 ejecuciones anteriores, incluido un timeout del CLI en Node 22 sobre NTFS montado
 en WSL. La copia Linux conserva las mismas fuentes verificadas y el límite de
 30 segundos. Sus once pruebas pasaron en ambos Node; no se amplió el timeout.
 
 ## Reproducción y validación
+
+La incorporación posterior de geometría agrega 42 clasificaciones revisadas:
+cinco módulos, veinte anclas y diecisiete APIs. Diecisiete cuerpos numéricos ya
+ejecutan sus decisiones en Rust; constructor y ambos fromRect siguen híbridos,
+las APIs siguen híbridas y los tres módulos WebIDL pendientes. No hay nuevo
+código Rust ni un porcentaje de migración defendible. El detalle y los límites
+están en `geometry-ledger-integration.md`.
+
+Pasaron doce contratos por versión en Linux Node22.12.0/24.14.1 y Windows
+Node22.12.0/24.22.1, con jsdom independiente real y liberación de owners.
+Se conservan el timeout sobre NTFS montado y las correcciones del arnés de
+calificación, sin cambiar el límite de 30 segundos. Coinciden las 4374 APIs y
+los archivos de referencia, anclas, clasificación y resumen; `surface.json`
+conserva perfiles Node distintos y cuatro exclusiones ECMAScript adicionales
+en Node24. No se declara igualdad binaria de ese archivo entre versiones.
 
 ```sh
 npm ci

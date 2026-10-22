@@ -1,6 +1,32 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: XML y construcción auditados con criterio estricto
+## Estado actual: geometría incorporada al inventario
+
+La rama feature/inventory-node-helpers incorpora 42 clasificaciones de geometría:
+5 módulos,20 anclas,17 APIs. Total auditado:16 módulos (10 híbridos/6 pendientes),
+45 anclas (19 Rust existentes/8 híbridas/18 pendientes),23 APIs híbridas.
+Denominadores531/4374/7246 y12151 IDs intactos; ninguna API o módulo completo.
+El alcance sigue abierto y migrationPercent=null. No hay Rust nuevo.
+
+Pasaron12 contratos por versión en Linux22.12.0/24.14.1 y
+Windows22.12.0/24.22.1, con DOMRect de jsdom real y release de Window/Document.
+Las declaraciones API coinciden; perfiles Node y cuatro globals ECMAScript
+excluidos difieren y se preservan. No afirmar igualdad binaria de surface.json
+entre versiones. Evidencia en reports/validation/inventory-geometry-ledger/:
+204 crudos/fuentes y recibo; memoria en reports/memory/inventory-geometry-ledger/.
+Archivo SHA-256:803e3ae1a2af320b6adc1df32dadb9ac94a7649a67b73681a8aaa83cd6321ad9.
+Se conservan los fallos del arnés/NTFS y el mismo límite CLI de30s.
+
+Ownership PR80 sigue abierto. Su corrección WPT está publicada en343efdc8:
+Windows ya pasó validate del CI39828339458; comprobar resultado terminal ySHA
+antes de afirmar todo el job verde. El ensayo pre-GC está terminal/rechazado:
+256 workers,18432 tiempos,11 controles jsdom fuera de presupuesto; no repetir.
+La captura de optimización y el ensayo anterior también están consumidos.
+No merge/tag ni nueva fase de runtime hasta cerrar ownership. Esta rama de
+inventario permanece separada, sin crear otro PR draft. La propuesta Storage
+f9e3cf98 sigue solo como propuesta auditada, todavía sin incorporar al ledger.
+
+## Histórico: XML y construcción auditados con criterio estricto
 
 El inventario agrega cuatro módulos relacionados: parser/index pendiente,
 parser/xml y las implementaciones DOMParser/DOMImplementation híbridas. Queda
