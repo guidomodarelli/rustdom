@@ -1,6 +1,40 @@
 # Continuar rustdom en otra máquina
 
-## Inicio registrado del ensayo de warmup: no reiniciar
+## Estado vigente: corrección CI calificada y warmup rechazado
+
+El productor de CI ya no intenta aceptar fuentes actuales con la huella de
+tiempos históricos. La preparación v2 registra su propia identidad; v1 conserva
+los pins originales y ambos lectores rechazan intercambiar sus archivos.
+Builds reales A/B, 14 contratos actuales + 17 históricos por Node22/24 y los
+workers reales pasan. Seis contratos de inputs pasan también en Windows24.
+Actionlint con shellcheck pasa. Código y evidencia están en
+`reports/validation/native-class-ownership/current-build/`. Después de calificar
+solo cambiaron la agrupación equivalente de GITHUB_ENV y el estado documental.
+Verificar los checks de GitHub sobre el SHA publicado antes de dar ese CI por verde.
+
+La secuencia única `/tmp/rustdom-realm-warmup-study-m5hpgvcr`, session10086,
+está TERMINAL. Los 256 workers terminaron con exit0; cada driver Node terminó
+con exit1. La verificación de integridad exit0 confirma `verified=true`,
+`accepted=false`: once controles jsdom exceden ±2%, cinco en Node22 y seis en
+Node24. Todos los puntos Rust cumplen los límites, pero el ensayo completo
+sigue rechazado. No cambiar presupuestos ni volver a ejecutarlo.
+
+Crudos completos y fuentes: `reports/benchmarks/native-class-ownership/realm-warmup-results/2026-10-22/`.
+18.432 duraciones medidas; 24.576 Window y Document por tipo, incluyendo 6.144
+warmups exteriores por tipo. Los contadores trackedOwners son acumulativos por
+worker: usar el último valor de cada worker, no sumar sus lotes. Memoria y límites:
+`reports/memory/native-class-ownership/realm-warmup-results.json`. Endpoints
+finitos claros no prueban ausencia absoluta de fugas. Estado terminal legible
+en `reports/progress/realm-warmup-terminal.json`.
+
+La captura de optimización anterior también está terminal; NO repetir ninguna.
+No hay aceptación de rendimiento, merge, tag ni crédito Rust adicional.
+Siguiente: verificar publicación y CI del arreglo; resolver la calibración con
+un cambio concreto, prospectivo y probado antes de medir. Cerrar el hito80
+antes de avanzar a otra implementación de producción. El objetivo completo
+permanece activo y el porcentaje global sigue sin denominador auditado.
+
+## Histórico: inicio registrado del ensayo de warmup; no reiniciar
 
 Método publicado y autenticado en4a57f334,397 fuentes Git y recibo GitHub
 coincidentes. Se inició una única secuencia sin tracing desde el arnés congelado
@@ -12,8 +46,8 @@ están en `reports/progress/realm-warmup-start.json`. El marker exclusivo local
 Este registro es una instantánea del inicio, no garantiza que siga activo.
 Consultar primero procesos y node-22/node-24/index.json, archivos process.json
 y verification.json bajo esa raíz; esperar el proceso existente si sigue vivo.
-El driver completa Node22 y después Node24, conserva rechazos completos y
-detiene ante fallo de integridad. Aún no hay decisión de rendimiento registrada.
+El driver completaba Node22 y después Node24, conservando rechazos completos y
+deteniendo ante fallo de integridad. Al registrar este inicio no había decisión.
 La captura de optimización anterior sigue terminal y tampoco debe repetirse.
 
 ## Actualización: variante de warmup por ventana calificada

@@ -27,9 +27,9 @@ function exercise(runtime) {
   } finally { window.close(); }
 }
 
-/** @returns {Promise<void>} Validate real packages and native activation; never collect timing samples. */
-async function main() {
-  const output = path.resolve(process.argv[2]); const integrity = verify(output);
+/** @param {string} directory - Real preparation. @param {object} [preparation] - Actual versioned preparation API. @returns {Promise<void>} Checks packages and native activation without timing samples. */
+async function main(directory = process.argv[2], preparation = { verify, verifyFunctionalReport }) {
+  const output = path.resolve(directory); const integrity = preparation.verify(output);
   assert.equal(typeof global.gc, 'function');
   const labels = Object.keys(settings.packageSources);
   const runtimes = Object.fromEntries(labels.map((label) => [label,
@@ -62,7 +62,8 @@ async function main() {
   }
   const report = { pass: true, node: process.version, integrity, baselines,
     measurementExecuted: false, results, observedWindows: results.length, observedDocuments: results.length, endpoints };
-  verifyFunctionalReport(report, integrity);
+  preparation.verifyFunctionalReport(report, integrity);
   process.stdout.write(`${JSON.stringify(report)}\n`);
 }
-main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+if (require.main === module) main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+module.exports = { main };

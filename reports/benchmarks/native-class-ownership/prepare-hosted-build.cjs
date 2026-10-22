@@ -16,6 +16,49 @@ const repositoryRoot = path.resolve(__dirname, '../../..');
 /** @param {Buffer} bytes - Actual file contents. @returns {string} Portable digest. */
 function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 
+/** Keep tool, command and resource contracts identical across versioned input policies. */
+function verifyRecipe(recipe) {
+  const { revision, preparationFiles, ...actual } = recipe;
+  const { revision: originalRevision, preparationFiles: originalFiles, ...expected } = settings;
+  assert.deepEqual(actual, expected, 'Hosted build: input policy must preserve tools, commands and resource settings');
+  assert.equal(typeof revision, 'string', `Hosted build: recipe derived from ${originalRevision} needs a revision`);
+  assert.notEqual(revision, '');
+  for (const filename of originalFiles) assert.ok(preparationFiles.includes(filename), `Hosted build: missing producer source ${filename}`);
+}
+
+/** @param {object} inputs - Actual captured policy result. @param {string} label - Source identity. @returns {string[]} Present optional and required build inputs, preserving legacy defaults. */
+function presentBuildInputs(inputs, label) {
+  return Object.entries(inputs.buildInputHashes?.[label] ?? {}).filter(([, checksum]) => checksum !== null).map(([name]) => name);
+}
+
+/**
+ * Preserve all actual source/build inputs before invoking installation or compilation.
+ * @param {object} roots - Real A/B source roots.
+ * @param {string} output - Caller-owned output already checked for overlap by prepare.
+ * @param {object} index - Producer state with inputsBefore and a files ledger.
+ * @param {object} [recipe] - Versioned preparation recipe.
+ * @returns {object} Complete source names to verify after the build.
+ */
+function snapshotBuildSources(roots, output, index, recipe = settings) {
+  const harness = study.captureHarness(roots.B);
+  index.sourceProvenance = { A: captureSourceIdentity(roots.A), B: captureSourceIdentity(roots.B) };
+  for (const label of ['A', 'B']) assert.equal(index.sourceProvenance[label].sourceHash, index.inputsBefore.sources[label],
+    `Hosted build: ${label} sources changed before the snapshot`);
+  const names = {
+    A: [...new Set([...index.sourceProvenance.A.measuredSources, ...recipe.additionalBuildInputs, ...presentBuildInputs(index.inputsBefore, 'A')])],
+    B: [...new Set([...harness.files.map((file) => file.path), ...recipe.additionalBuildInputs,
+      ...recipe.preparationFiles, ...presentBuildInputs(index.inputsBefore, 'B')])].sort(),
+  };
+  for (const [label, sourceNames] of Object.entries(names)) for (const name of sourceNames) {
+    const category = label === 'A' ? 'baseline-sources' : 'sources';
+    const source = label === 'B' && recipe.preparationFiles.includes(name) ? path.join(repositoryRoot, name) : path.join(roots[label], name);
+    const relative = `${category}/${name}`; const destination = path.join(output, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true }); fs.copyFileSync(source, destination);
+    index.files[relative] = hash(fs.readFileSync(destination));
+  }
+  return names;
+}
+
 /**
  * Reject inherited overrides before creating outputs, installing dependencies or invoking compilers.
  * @param {Record<string, string>} roots - Actual source directories used by both builds.
@@ -135,15 +178,17 @@ function inspectLinks(rootArgument) {
 /**
  * Recalculate packaged bytes after relocation without loading a DOM or invoking compilers.
  * @param {string} outputArgument - Complete preparation directory to inspect offline.
+ * @param {object} [options] - Versioned recipe and actual source-input policy; legacy defaults remain pinned.
  * @returns {object} Verified identities with no performance decision.
  */
-function verify(outputArgument) {
+function verify(outputArgument, { recipe = settings, captureInputs = verifyCurrentInputs } = {}) {
+  verifyRecipe(recipe);
   const output = path.resolve(outputArgument);
   const links = inspectLinks(output);
   const index = JSON.parse(fs.readFileSync(path.join(output, 'index.json'), 'utf8'));
   assert.equal(index.complete, true); assert.equal(index.measurementExecuted, false);
   assert.equal(index.failure, undefined, 'Hosted build: failed preparation cannot be accepted as complete');
-  assert.equal(index.performanceAccepted, null); assert.deepEqual(index.settings, settings);
+  assert.equal(index.performanceAccepted, null); assert.deepEqual(index.settings, recipe);
   assert.equal(typeof index.preparationId, 'string'); assert.notEqual(index.preparationId, '');
   assert.deepEqual(links, index.links);
   assert.deepEqual(index.inputsAfter, index.inputsBefore);
@@ -158,10 +203,11 @@ function verify(outputArgument) {
     assert.ok(filename.startsWith(`${output}${path.sep}`), 'Hosted build: file escapes archive');
     assert.equal(hash(fs.readFileSync(filename)), expected, `Hosted build: archived file changed: ${name}`);
   }
-  assert.deepEqual(verifyCurrentInputs(path.join(output, 'baseline-sources'), path.join(output, 'sources')), index.inputsBefore);
+  assert.deepEqual(captureInputs(path.join(output, 'baseline-sources'), path.join(output, 'sources')), index.inputsBefore);
   const candidateNames = [...new Set([...study.captureHarness(path.join(output, 'sources')).files.map((file) => file.path),
-    ...settings.additionalBuildInputs, ...settings.preparationFiles])];
-  const expectedFiles = [...new Set([...index.sourceProvenance.A.measuredSources, ...settings.additionalBuildInputs])]
+    ...recipe.additionalBuildInputs, ...recipe.preparationFiles, ...presentBuildInputs(index.inputsBefore, 'B')])];
+  const expectedFiles = [...new Set([...index.sourceProvenance.A.measuredSources, ...recipe.additionalBuildInputs,
+    ...presentBuildInputs(index.inputsBefore, 'A')])]
     .map((name) => `baseline-sources/${name}`)
     .concat(candidateNames.map((name) => `sources/${name}`), index.commands.flatMap((entry) => [entry.stdout, entry.stderr]));
   assert.deepEqual(Object.keys(index.files).sort(), expectedFiles.sort());
@@ -232,9 +278,11 @@ function verifyFunctionalReport(report, identity) {
  * @param {string} baselineArgument - Full checkpoint067 sources, with no existing dist directory.
  * @param {string} candidateArgument - Full C sources and unchanged measured harness, with no dist directory.
  * @param {string} outputArgument - New output directory that must not overlap either source root.
+ * @param {object} [options] - Explicit versioned input policy; default enforces the original C study.
  * @returns {object} Verified package identities; performance remains undecided.
  */
-function prepare(baselineArgument, candidateArgument, outputArgument) {
+function prepare(baselineArgument, candidateArgument, outputArgument, { recipe = settings, captureInputs = verifyCurrentInputs } = {}) {
+  verifyRecipe(recipe);
   const roots = { A: fs.realpathSync(baselineArgument), B: fs.realpathSync(candidateArgument) };
   const requestedOutput = path.resolve(outputArgument);
   const output = path.join(fs.realpathSync(path.dirname(requestedOutput)), path.basename(requestedOutput));
@@ -245,40 +293,27 @@ function prepare(baselineArgument, candidateArgument, outputArgument) {
       'Hosted build: output must not overlap either source root');
     assert.equal(fs.existsSync(path.join(root, 'dist')), false, 'Hosted build: dist must be absent before a fresh build');
   }
-  const inputsBefore = verifyCurrentInputs(roots.A, roots.B);
+  const inputsBefore = captureInputs(roots.A, roots.B);
   const tools = inspectTools(roots);
   fs.mkdirSync(path.dirname(output), { recursive: true }); fs.mkdirSync(output);
   const index = { complete: false, measurementExecuted: false, performanceAccepted: null,
-    preparationId: randomUUID(), startedAt: new Date().toISOString(), settings, roots, inputsBefore, tools,
+    preparationId: randomUUID(), startedAt: new Date().toISOString(), settings: recipe, roots, inputsBefore, tools,
     commands: [], files: {}, distributions: {}, installedDependencies: {},
     machine: { cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, release: os.release(), totalMemoryBytes: os.totalmem() } };
   const save = () => fs.writeFileSync(path.join(output, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
   save();
   try {
-    const harness = study.captureHarness(roots.B);
-    index.sourceProvenance = { A: captureSourceIdentity(roots.A), B: captureSourceIdentity(roots.B) };
-    for (const name of [...index.sourceProvenance.A.measuredSources, ...settings.additionalBuildInputs]) {
-      const destination = path.join(output, 'baseline-sources', name);
-      fs.mkdirSync(path.dirname(destination), { recursive: true }); fs.copyFileSync(path.join(roots.A, name), destination);
-      index.files[`baseline-sources/${name}`] = hash(fs.readFileSync(destination));
-    }
-    const names = [...new Set([...harness.files.map((file) => file.path), ...settings.additionalBuildInputs, ...settings.preparationFiles])].sort();
-    for (const name of names) {
-      const source = settings.preparationFiles.includes(name) ? path.join(repositoryRoot, name) : path.join(roots.B, name);
-      const destination = path.join(output, 'sources', name);
-      fs.mkdirSync(path.dirname(destination), { recursive: true }); fs.copyFileSync(source, destination);
-      index.files[`sources/${name}`] = hash(fs.readFileSync(destination));
-    }
+    const names = snapshotBuildSources(roots, output, index, recipe);
     save();
     for (const [label, root] of Object.entries(roots)) for (const step of ['install', 'build']) executeStep(root, output, index, label, step, save);
-    index.inputsAfter = verifyCurrentInputs(roots.A, roots.B); assert.deepEqual(index.inputsAfter, inputsBefore);
+    index.inputsAfter = captureInputs(roots.A, roots.B); assert.deepEqual(index.inputsAfter, inputsBefore);
     assert.deepEqual(inspectCargoConfiguration(roots), tools.cargoConfiguration);
-    for (const name of settings.additionalBuildInputs) {
+    for (const name of names.A) {
       assert.equal(hash(fs.readFileSync(path.join(roots.A, name))), index.files[`baseline-sources/${name}`],
         `Hosted build: baseline input changed during preparation: ${name}`);
     }
-    for (const name of names) {
-      const source = settings.preparationFiles.includes(name) ? path.join(repositoryRoot, name) : path.join(roots.B, name);
+    for (const name of names.B) {
+      const source = recipe.preparationFiles.includes(name) ? path.join(repositoryRoot, name) : path.join(roots.B, name);
       assert.equal(hash(fs.readFileSync(source)), index.files[`sources/${name}`], `Hosted build: source changed during preparation: ${name}`);
     }
     fs.cpSync(path.join(roots.B, 'node_modules'), path.join(output, 'node_modules'), { recursive: true, verbatimSymlinks: true });
@@ -299,7 +334,7 @@ function prepare(baselineArgument, candidateArgument, outputArgument) {
     for (const entry of index.commands) for (const name of [entry.stdout, entry.stderr]) index.files[name] = hash(fs.readFileSync(path.join(output, name)));
     index.links = inspectLinks(output);
     index.complete = true; index.finishedAt = new Date().toISOString(); save();
-    return verify(output);
+    return verify(output, { recipe, captureInputs });
   } catch (error) { index.complete = false; index.failure = { message: error.message, stack: error.stack }; save(); throw error; }
 }
 
@@ -309,4 +344,4 @@ if (require.main === module) {
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) { process.stderr.write(`${error.stack}\n`); process.exitCode = 2; }
 }
-module.exports = { inspectTools, inspectCargoConfiguration, inspectLinks, prepare, verify, verifyFunctionalReport };
+module.exports = { inspectTools, inspectCargoConfiguration, inspectLinks, snapshotBuildSources, prepare, verify, verifyFunctionalReport };
