@@ -124,12 +124,13 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 10);
-  assert.equal(audited.summary.counts.files.audited, 16);
-  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 19);
-  assert.equal(audited.summary.counts.callableUnits.states.hybrid, 8);
-  assert.equal(audited.summary.counts.callableUnits.audited, 45);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 23);
+  assert.equal(audited.summary.counts.files.states.hybrid, 11);
+  assert.equal(audited.summary.counts.files.audited, 18);
+  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 23);
+  assert.equal(audited.summary.counts.callableUnits.states.hybrid, 11);
+  assert.equal(audited.summary.counts.callableUnits.audited, 55);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 29);
+  assert.equal(audited.summary.counts.apis.audited, 32);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
   const serializerApi = audited.classification.find((entry) => entry.id === 'api:Window.XMLSerializer.prototype.serializeToString');
   assert.equal(serializerAlgorithm.status, 'rust-complete');
@@ -231,6 +232,62 @@ test('should keep rectangle algorithms distinct from public WebIDL and preserve 
     assert.throws(() => Object.getOwnPropertyDescriptor(dom.window.DOMRectReadOnly.prototype, 'left').get.call({}), dom.window.TypeError);
     assert.equal(audited.summary.scopeClosed, false); assert.equal(audited.summary.migrationPercent, null);
   } finally { dom.window.close(); }
+});
+
+test('should separate Storage data algorithms from WebIDL, event controllers and origin access', async () => {
+  const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
+  const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
+  const storageUnits = audited.classification.filter((entry) =>
+    entry.id.startsWith('unit:lib/jsdom/living/webstorage/Storage-impl.js:'));
+  const auditedUnits = storageUnits.filter((entry) => entry.auditComplete);
+  assert.equal(auditedUnits.length, 10);
+  assert.equal(auditedUnits.filter((entry) => entry.status === 'rust-complete').length, 4);
+  assert.equal(auditedUnits.filter((entry) => entry.status === 'hybrid').length, 3);
+  assert.equal(auditedUnits.filter((entry) => entry.status === 'pending').length, 3);
+  assert.equal(storageUnits.find((entry) => entry.id.endsWith(':10:3')).auditComplete, false);
+  const storageApis = audited.classification.filter((entry) => entry.id === 'api:Window.Storage' ||
+    entry.id.startsWith('api:Window.Storage.prototype.') ||
+    ['api:Window.localStorage', 'api:Window.sessionStorage'].includes(entry.id));
+  assert.equal(storageApis.filter((entry) => entry.auditComplete).length, 9);
+  assert.equal(storageApis.filter((entry) => entry.auditComplete && entry.status === 'hybrid').length, 6);
+  assert.equal(storageApis.filter((entry) => entry.auditComplete && entry.status === 'pending').length, 3);
+  assert.equal(storageApis.find((entry) => entry.id.endsWith('.@@toStringTag')).auditComplete, false);
+  const generated = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/living/generated/Storage.js');
+  assert.equal(generated.auditComplete, true); assert.equal(generated.status, 'pending');
+  assert.deepEqual(generated.rustSources, []); assert.ok(generated.pending.length > 0);
+  assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,
+    audits: { [generated.id]: { ...generated, status: 'rust-complete' } } }), /lacks evidence or retains pending work/);
+
+  const dom = new JSDOM('', { url: 'https://inventory.example/storage' });
+  const opaque = new JSDOM('');
+  try {
+    const { localStorage, sessionStorage, Storage } = dom.window;
+    localStorage.setItem('partition', 'local');
+    assert.equal(sessionStorage.getItem('partition'), null);
+    localStorage.clear();
+    for (const area of [localStorage, sessionStorage]) {
+      assert.equal(area.getItem('missing'), null);
+      area.setItem('first', ''); area.setItem('second', '\ud800\ud83e\udd80');
+      assert.equal(area.getItem('first'), ''); assert.equal(area.getItem('second'), '\ud800\ud83e\udd80');
+      area.setItem('first', 'overwritten');
+      assert.equal(area.length, 2); assert.deepEqual(Object.keys(area), ['first', 'second']);
+      area.removeItem('first'); area.setItem('first', 'reinserted');
+      assert.deepEqual([area.key(0), area.key(1), area.key(2)], ['second', 'first', null]);
+      area.clear(); assert.equal(area.length, 0); assert.equal(area.getItem('second'), null);
+    }
+    assert.throws(() => new Storage(), dom.window.TypeError);
+    const lengthGetter = Object.getOwnPropertyDescriptor(Storage.prototype, 'length').get;
+    assert.throws(() => lengthGetter.call({}), dom.window.TypeError);
+    for (const name of ['localStorage', 'sessionStorage']) {
+      assert.throws(() => opaque.window[name], (error) =>
+        error instanceof opaque.window.DOMException && error.name === 'SecurityError');
+    }
+    assert.equal(audited.summary.scopeClosed, false); assert.equal(audited.summary.migrationPercent, null);
+  } finally {
+    // Drain the real mutation timers before closing their owner; no platform mocks or retained callbacks.
+    try { await new Promise((resolveTimer) => setTimeout(resolveTimer, 0)); }
+    finally { dom.window.close(); opaque.window.close(); }
+  }
 });
 
 test('should reproduce byte-identical catalog outputs without mixing timestamps or absolute machine paths', () => {

@@ -1,6 +1,33 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: geometría incorporada al inventario
+## Estado actual: Storage validado e incorporado al ledger
+
+Sobre eaf1a736 se agregan 21 auditorías de implementación existente, preservando
+las 84 anteriores: 18 módulos/32 APIs/55 anclas auditadas. Denominadores
+531/4374/7246 y 12151 IDs estables; scopeClosed=false, migrationPercent=null.
+No hay Rust nuevo ni módulos/APIs completos. Fuentes y decisiones en
+reports/progress/inventory/storage-ledger-integration.md.
+
+Pasaron 13 contratos en los cuatro perfiles Linux22.12.0/24.14.1 y
+Windows22.12.0/24.22.1, sin omisiones. Los seis comandos Linux terminaron0;
+Window/Document se liberaron tras tres ciclos por Node, con catálogos retenidos.
+Evidencia: reports/validation/inventory-storage-ledger/ y
+reports/memory/inventory-storage-ledger/. Archivo de 243 miembros, SHA
+23ec74d841ac2418f3ca2dc1f14468fb08e720e863f54c0da04156808706ee75.
+
+El snapshot original de audits.json con CRLF se conserva. La publicación LF
+solo cambia finales de línea; valores iguales y CLI real en ambos Node con los
+cinco derivados idénticos a cada original. Ver lf-proof en el archivo.
+No se repiten las suites para ese formato ni se reescribe la calificación.
+
+El ensayo seeded original ya terminó, verificado y rechazado: cuatro controles
+jsdom fuera de presupuesto, cero filas Rust fuera del límite numérico. Sus
+256 workers y 18432 tiempos están publicados en bc269e63 de la rama ownership.
+No reiniciar ese ensayo ni la captura V8. La calificación del método distinto
+row-isolation sigue en curso; no es aceptación de rendimiento. Ownership PR80
+sigue abierto, sin merge/tag. Los apartados siguientes son históricos.
+
+## Histórico: geometría incorporada al inventario
 
 La rama feature/inventory-node-helpers incorpora 42 clasificaciones de geometría:
 5 módulos,20 anclas,17 APIs. Total auditado:16 módulos (10 híbridos/6 pendientes),
