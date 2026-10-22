@@ -1,5 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Check ownership confirmado: esperar y preservar la secuencia original
+
+El usuario confirmó que el fallo a corregir es Native class ownership Node22
+del PR80. El run39839886330 aprobó los contratos del verificador y rechazó
+después fuentes B distintas del archivo paired-inline histórico. No corregir
+ese rechazo cambiando únicamente los hashes: aquel estudio también conserva
+accepted=false. La aceptación nueva depende de la secuencia seeded ya iniciada.
+
+El CI general39839886220 de dd75a22c terminó success: ocho jobs aprobados,
+Linux/macOS/Windows, cuatro shards y agregación. Metadata original en
+.cache/ci-dd75-complete/run.json; log original Windows en .cache/ci-dd75-windows/.
+El job120037788326 usó Node24.22.0 (confirmado también por ambos workers WPT),
+no24.21.0/24.22.1. El caso Range-mutations-dataChange conserva2808 resultados
+comparados; referencia31430.9888ms y candidato14818.6822ms. Son diagnósticos de
+compatibilidad, no aprobación del presupuesto ownership ni prueba de fugas.
+El helper de archivado conservará esas fuentes de evidencia junto al ensayo.
+La copia versionada de metadata, log y diagnósticos está en
+reports/validation/native-class-ownership/ci-dd75-followup/; su revisión
+independiente y los hashes no conceden aceptación al gate ownership.
+
+El helper local .cache/archive-seeded-pre-gc-study.py está preparado y revisado
+estáticamente sin hallazgos. Su --check-ready rechaza el padre Node22 vivo antes
+de copiar, comprimir o verificar; el archivado NO se ejecutó. Al finalizar ambos
+Node y verificarse la integridad, preservará todo el root original y sus negativos,
+recalculará --verify-set sobre una copia sin nuevos workers de medición y exigirá
+el mismo resultado. El marcador se crea exclusivamente y el tar verifica cada
+archivo de vuelta. Revisar los resultados reales antes de integrar evidencia al
+gate, hacer commit/push o afirmar que ownership pasó. No modificar las409fuentes
+congeladas ni relanzar captura/ensayos. Storage permanece como WIP aparte sin
+validar; la auditoría Event/EventTarget solo se leyó, sin cambios ni ejecución.
+
 ## Ensayo con semillas iniciado: no reiniciar
 
 Método publicado y autenticado en `737a2ba1c2cf5994561c3b739232f5e3cb6fb257`: 409 blobs y recibo
