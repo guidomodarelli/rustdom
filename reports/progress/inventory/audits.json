@@ -1,10 +1,28 @@
 {
   "module:lib/jsdom/living/node.js": {
     "status": "hybrid",
-    "rustSources": ["src/dom/collection_queries.rs", "src/dom/namespaces.rs", "src/dom/tree.rs"],
-    "javascriptSources": ["src/dom/collection-queries.cjs", "src/dom/native-tree.cjs", "scripts/build.mjs"],
-    "tests": ["tests/collection-queries.spec.cjs", "tests/collection-query-fuzz.spec.cjs", "tests/namespaces.spec.cjs", "tests/native-tree.spec.cjs", "tests/node-text.spec.cjs"],
-    "evidence": ["reports/progress/inventory/node-helpers-audit.md", "reports/validation/collection-queries.md", "reports/validation/xml-serializer-controller.md"],
+    "rustSources": [
+      "src/dom/collection_queries.rs",
+      "src/dom/namespaces.rs",
+      "src/dom/tree.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/collection-queries.cjs",
+      "src/dom/native-tree.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/collection-queries.spec.cjs",
+      "tests/collection-query-fuzz.spec.cjs",
+      "tests/namespaces.spec.cjs",
+      "tests/native-tree.spec.cjs",
+      "tests/node-text.spec.cjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/node-helpers-audit.md",
+      "reports/validation/collection-queries.md",
+      "reports/validation/xml-serializer-controller.md"
+    ],
     "pending": [
       "El switch por tipo, selección de factory, copia de atributos, hooks y recursión del clonado siguen ejecutándose en living/node.js del runtime privado.",
       "convertNodesIntoNode conserva en JavaScript la selección de uno/muchos elementos, conversión de strings, creación de fragmentos y orden de append.",
@@ -12,48 +30,383 @@
       "Las factories de nodos y los drivers de adopción/mutación son dependencias de plataforma todavía híbridas; no quedan completos al migrar este helper."
     ],
     "scope": "Siete exports del helper de jsdom 27.4.0; los dos helpers recursivos de namespaces se retiran del runtime y sus consumidores públicos llegan a Rust. El estado híbrido del módulo no acredita sus anclas ni APIs individuales.",
-    "bindings": ["El runtime conserva la identidad de wrappers, los owners visibles al GC y las llamadas a factories/hooks del realm original."]
+    "bindings": [
+      "El runtime conserva la identidad de wrappers, los owners visibles al GC y las llamadas a factories/hooks del realm original."
+    ]
   },
   "module:lib/jsdom/living/nodes/Node-impl.js": {
     "status": "hybrid",
-    "rustSources": ["src/dom/tree.rs", "src/dom/store.rs", "src/dom/node_comparison.rs"],
-    "javascriptSources": ["src/dom/native-tree.cjs", "scripts/build.mjs"],
-    "tests": ["tests/native-tree.spec.cjs"],
-    "evidence": ["reports/validation/collection-queries.md"],
-    "pending": ["Factories, driver general de mutación, efectos y WebIDL mantienen lógica JavaScript."]
+    "rustSources": [
+      "src/dom/tree.rs",
+      "src/dom/store.rs",
+      "src/dom/node_comparison.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/native-tree.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/native-tree.spec.cjs"
+    ],
+    "evidence": [
+      "reports/validation/collection-queries.md"
+    ],
+    "pending": [
+      "Factories, driver general de mutación, efectos y WebIDL mantienen lógica JavaScript."
+    ]
   },
   "module:lib/jsdom/living/nodes/Element-impl.js": {
     "status": "hybrid",
-    "rustSources": ["src/dom/tree.rs", "src/dom/collection_queries.rs"],
-    "javascriptSources": ["src/dom/native-tree.cjs", "src/dom/collection-queries.cjs", "scripts/build.mjs"],
-    "tests": ["tests/attribute-reads.spec.cjs", "tests/attribute-collections.spec.cjs"],
-    "evidence": ["reports/validation/attribute-reads.md"],
-    "pending": ["Las lecturas de atributos usan Rust; construcción, hooks, selectores completos y contratos WebIDL conservan lógica del host."]
+    "rustSources": [
+      "src/dom/tree.rs",
+      "src/dom/collection_queries.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/native-tree.cjs",
+      "src/dom/collection-queries.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/attribute-reads.spec.cjs",
+      "tests/attribute-collections.spec.cjs"
+    ],
+    "evidence": [
+      "reports/validation/attribute-reads.md"
+    ],
+    "pending": [
+      "Las lecturas de atributos usan Rust; construcción, hooks, selectores completos y contratos WebIDL conservan lógica del host."
+    ]
   },
   "module:lib/jsdom/living/domparsing/XMLSerializer-impl.js": {
     "status": "hybrid",
-    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
-    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
-    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/xml-serializer-worker.spec.cjs"],
-    "evidence": ["reports/validation/xml-serializer-controller.md"],
-    "pending": ["La factory de DOMException invocada por el controlador y el WebIDL generado siguen usando JavaScript; deben auditarse y migrarse por separado."],
-    "bindings": ["El constructor conserva su realm como arista JavaScript visible al GC; los helpers ejecutan las lecturas, llamadas y diagnósticos seleccionados por Rust."]
+    "rustSources": [
+      "src/dom/xml_serializer_controller.rs",
+      "src/xml/serialize.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/xml-serializer-controller.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/xml-serializer-controller.spec.cjs",
+      "tests/xml-serializer-worker.spec.cjs"
+    ],
+    "evidence": [
+      "reports/validation/xml-serializer-controller.md"
+    ],
+    "pending": [
+      "La factory de DOMException invocada por el controlador y el WebIDL generado siguen usando JavaScript; deben auditarse y migrarse por separado."
+    ],
+    "bindings": [
+      "El constructor conserva su realm como arista JavaScript visible al GC; los helpers ejecutan las lecturas, llamadas y diagnósticos seleccionados por Rust."
+    ]
   },
   "unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3": {
     "status": "rust-complete",
-    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
-    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
-    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/xml-serializer-worker.spec.cjs"],
-    "evidence": ["reports/validation/xml-serializer-controller.md"],
+    "rustSources": [
+      "src/dom/xml_serializer_controller.rs",
+      "src/xml/serialize.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/xml-serializer-controller.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/xml-serializer-controller.spec.cjs",
+      "tests/xml-serializer-worker.spec.cjs"
+    ],
+    "evidence": [
+      "reports/validation/xml-serializer-controller.md"
+    ],
     "pending": [],
     "scope": "Control de serializeToString: invocación del serializador, captura y selección de excepción, orden de efectos y propagación. No acredita migración de la factory de DOMException ni del WebIDL generado."
   },
   "api:Window.XMLSerializer.prototype.serializeToString": {
     "status": "hybrid",
-    "rustSources": ["src/dom/xml_serializer_controller.rs", "src/xml/serialize.rs"],
-    "javascriptSources": ["src/dom/xml-serializer-controller.cjs", "scripts/build.mjs"],
-    "tests": ["tests/xml-serializer-controller.spec.cjs", "tests/integration/dom-suite.cjs", "tests/integration/realm.vm.mjs"],
-    "evidence": ["reports/validation/xml-serializer-controller.md"],
-    "pending": ["Conversión WebIDL de receiver/root y factory de excepciones de la realm permanecen en el host."]
+    "rustSources": [
+      "src/dom/xml_serializer_controller.rs",
+      "src/xml/serialize.rs"
+    ],
+    "javascriptSources": [
+      "src/dom/xml-serializer-controller.cjs",
+      "scripts/build.mjs"
+    ],
+    "tests": [
+      "tests/xml-serializer-controller.spec.cjs",
+      "tests/integration/dom-suite.cjs",
+      "tests/integration/realm.vm.mjs"
+    ],
+    "evidence": [
+      "reports/validation/xml-serializer-controller.md"
+    ],
+    "pending": [
+      "Conversión WebIDL de receiver/root y factory de excepciones de la realm permanecen en el host."
+    ]
+  },
+  "module:lib/jsdom/living/helpers/strings.js": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "Las decisiones de conversión, parsing y tokens de este helper siguen en el módulo JavaScript construido; trasladarlas y conectar todos sus consumidores."
+    ],
+    "scope": "Clasificación auditada, migración pendiente; el adaptador local de require no traslada algoritmos a Rust."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:8:26": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de asciiLowercase sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:23:26": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de asciiUppercase sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:38:25": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de stripNewlines sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:43:50": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de stripLeadingAndTrailingASCIIWhitespace sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:48:43": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de stripAndCollapseASCIIWhitespace sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:53:30": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de isValidSimpleColor sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:58:37": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de asciiCaseInsensitiveMatch sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:74:45": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de parseInteger sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:94:35": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de parseNonNegativeInteger sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:107:38": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de isValidFloatingPointNumber sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:111:36": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de parseFloatingPointNumber sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:124:34": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de splitOnASCIIWhitespace sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
+  },
+  "unit:lib/jsdom/living/helpers/strings.js:147:25": {
+    "status": "pending",
+    "rustSources": [],
+    "javascriptSources": [
+      "scripts/build.mjs",
+      "src/private-require.cjs"
+    ],
+    "tests": [
+      "tests/validation/string-helper-contracts.spec.mjs",
+      "tests/validation/migration-inventory.spec.mjs"
+    ],
+    "evidence": [
+      "reports/progress/inventory/strings-audit.md"
+    ],
+    "pending": [
+      "El control de splitOnCommas sigue ejecutándose en JavaScript."
+    ],
+    "scope": "Ancla de función de la referencia fijada; no es una certificación normativa ni acredita otros consumidores."
   }
 }

@@ -7,8 +7,9 @@ historia de planificación; no es el porcentaje actual del proyecto.
 El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
 dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
 entrega tiene 531 archivos (528 JavaScript y tres datos), 4.374 entradas de API y
-7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay cuatro
-módulos con clasificación revisada como híbridos; la auditoría de los demás
+7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay cinco
+módulos con clasificación revisada: cuatro híbridos y el helper strings.js
+pendiente de migración. Trece de sus anclas siguen en JavaScript. La auditoría de los demás
 registros sigue pendiente. Eso no significa que carezcan de código Rust.
 
 El esquema 2 agrega 43 declaraciones heredadas omitidas, con el cambio del
@@ -21,19 +22,14 @@ dependencias de plataforma externas, contratos dinámicos, opciones/diccionarios
 otros perfiles de realms y agrupaciones semánticas de algoritmos. No hay todavía
 un porcentaje auditado ni se puede interpretar este catálogo como 0% de Rust.
 
-La base del motor utilizada para esta auditoría es `271221abbfeafebebb7dd817b98fd559592696d3`,
-`checkpoint-065-attribute-reads` (PR 77). El WIP de atributos y calibración está
-publicado aparte en `feature/native-attribute-copy`, commit `c51f9fb`; sus
-controles de rendimiento no están aprobados y no forman parte de este inventario.
-
-El PR 79 agrega la auditoría de XMLSerializer: tres módulos híbridos en total,
-una API híbrida y un ancla con control Rust completo dentro de su alcance
-declarado. WebIDL y la factory de DOMException siguen pendientes. La revisión
-de `62cf726` no encontró hallazgos y sus nueve checks pasaron, incluido el
-control dedicado de Node 24. Falta publicar los resultados y cerrar CI/review
-del SHA final. No contar esta rama como integrada ni ampliar el alcance acreditado
-por haber trasladado el control de un método. Ver
-[validación del controlador](../validation/xml-serializer-controller.md).
+La base de implementación auditada es main / checkpoint 67,
+`3d37f89976a48203e80cc5c435e099267f4ce346`. La auditoría de strings también
+contrastó los paquetes oficiales A0/C del artefacto 12400802735. No acredita
+los cambios experimentales de otras ramas ni la aceptación de ownership.
+La auditoría de XMLSerializer mantiene una API híbrida y un ancla de control
+Rust; WebIDL y la factory de DOMException continúan pendientes. Ver
+[el helper de strings](inventory/strings-audit.md) y
+[la validación del controlador](../validation/xml-serializer-controller.md).
 
 ## Registro histórico
 

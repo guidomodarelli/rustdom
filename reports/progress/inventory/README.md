@@ -12,9 +12,9 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.374 | Descriptores propios de objetos públicos y bases heredadas no enumeradas, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 4 | Node-impl, Element-impl, XMLSerializer-impl y living/node: híbridos, con rutas Rust y JavaScript, pruebas y pendientes |
+| Módulos con clasificación revisada | 5 | Cuatro híbridos (Node-impl, Element-impl, XMLSerializer-impl y living/node) y strings.js pendiente de migración |
 | APIs con clasificación revisada | 1 | XMLSerializer.serializeToString mantiene WebIDL y la factory de excepciones en el host |
-| Anclas con clasificación revisada | 1 | El control del método serializeToString se ejecuta en Rust; no acredita sus dependencias pendientes |
+| Anclas con clasificación revisada | 14 | Una con control Rust (serializeToString) y trece de strings.js pendientes; no acredita dependencias ni APIs completas |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan
 por declaración propia de cada objeto o prototipo observado: la herencia y los
@@ -145,3 +145,11 @@ cerrar las brechas de contratos dinámicos. Auditar cada clasificación con prue
 de comportamiento y evidencia por SHA antes de habilitar un porcentaje. El
 índice histórico de 45,8% por áreas está retirado y no debe recuperarse como
 aproximación del avance actual.
+
+## Auditoría de strings sin cambio de denominador
+
+[La auditoría del helper](strings-audit.md) identifica trece funciones todavía
+ejecutadas en JavaScript. Se clasifican como pendientes con auditoría completa,
+sin acreditar Rust. Hay cinco módulos y catorce anclas revisadas; permanecen
+531 fuentes, 4.374 APIs y 7.246 anclas. La validación conserva contratos públicos
+reales en ambos Node, perfiles ECMAScript distintos y las mismas declaraciones DOM.

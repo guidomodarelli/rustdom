@@ -1,6 +1,34 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual de esta rama: inventario, esquema 2
+## Auditoría posterior: strings sigue en JavaScript
+
+Continuar esta rama `feature/inventory-node-helpers` desde su auditoría de
+`living/helpers/strings.js`, sobre `b6a44f50`. No integrar todavía: el PR #80
+sigue siendo el hito prioritario. El ensayo nuevo `39727878290`, sobre
+`6f708467`, se observó activo; no reiniciarlo ni modificar su método.
+
+Se auditaron el módulo completo y sus trece anclas: todos quedan pendientes
+sin nuevo crédito Rust. Hay cinco módulos revisados (cuatro híbridos, uno
+pendiente), catorce anclas revisadas (una Rust, trece pendientes), 531 fuentes,
+4.374 APIs y 7.246 anclas totales. No cambia el denominador ni hay porcentaje
+global defendible. La inyección local de require explica la diferencia de
+hash entre referencia y archivo construido; no traslada sus algoritmos.
+
+Doce contratos por Node 22.12.0/24.14.1 pasaron sin exclusiones. El nuevo contrato
+público compara jsdom independiente y el paquete real A0. El CLI completó dos
+warmups y cinco procesos medidos por Node, con todos los digests correctos;
+los tiempos absolutos no se presentan como mejoras. Tres ciclos GC por Node
+liberaron Window/Document conservando reportes. Evidencia, snapshot de 208
+fuentes, comandos y trazas: subdirectorios `strings-audit` en los reportes de
+validación/benchmarks/memoria. No se modificó el motor ni se cargó Rust durante
+la generación del inventario; el contrato DOM sí usa el addon real A0.
+
+## Histórico (superado): inventario, esquema 2
+
+Este bloque y las secciones siguientes conservan estados anteriores. Las
+instrucciones vigentes están al principio del documento. El run `39721610003`
+terminó y su evidencia está archivada; sus antiguas esperas no están pendientes.
+No reiniciarlo.
 
 Continuar esta entrega en `feature/inventory-node-helpers`, worktree
 `migration-inventory`. Parte de `014c7dae` y la base de implementación auditada
@@ -27,7 +55,7 @@ antes de actuar; no quitar/reaplicar su etiqueta ni reiniciar muestras.
 Integrar este inventario después de cerrar ese hito, con sus checks/revisión,
 sin presentar estas declaraciones nuevas como nuevas APIs Rust terminadas.
 
-## Estado actual: XMLSerializer validado, publicación final del PR 79
+## Histórico (superado): XMLSerializer validado, publicación final del PR 79
 
 La base estable es `main`, `75db9bb095db8457a6ae567f219e2224a55b9f36`,
 `checkpoint-066-reference-catalog`. Continuar en

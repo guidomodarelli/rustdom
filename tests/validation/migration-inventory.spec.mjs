@@ -125,6 +125,7 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
   assert.equal(audited.summary.counts.files.states.hybrid, 4);
+  assert.equal(audited.summary.counts.files.audited, 5);
   assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
   assert.equal(audited.summary.counts.apis.states.hybrid, 1);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
@@ -139,6 +140,16 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   assert.ok(nodeHelpers.rustSources.length > 0);
   assert.ok(nodeHelpers.javascriptSources.length > 0);
   assert.ok(nodeHelpers.pending.length > 0, 'Native filters do not complete the remaining clone and conversion controllers');
+  const stringHelpers = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/living/helpers/strings.js');
+  assert.equal(stringHelpers.auditComplete, true);
+  assert.equal(stringHelpers.status, 'pending');
+  assert.deepEqual(stringHelpers.rustSources, []);
+  const stringUnits = audited.classification.filter((entry) => entry.id.startsWith('unit:lib/jsdom/living/helpers/strings.js:'));
+  assert.equal(stringUnits.length, 13);
+  for (const unit of stringUnits) {
+    assert.equal(unit.auditComplete, true); assert.equal(unit.status, 'pending');
+    assert.deepEqual(unit.rustSources, []); assert.ok(unit.pending.length > 0);
+  }
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot, audits: { 'module:missing': {} } }), /Unknown inventory audit ID/);
   const node = audits['module:lib/jsdom/living/nodes/Node-impl.js'];
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,
