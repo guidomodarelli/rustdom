@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: método de orden independiente validado, antes de activar
+
+El método nuevo está en `INDEPENDENT-ORDER-PROTOCOL.md`,
+`independent-order-experiment.cjs`, `independent-order-worker.cjs`, sus constantes,
+tests y workflow `ownership-independent-order.yml`. Desacopla el orden de motores
+del orden del par mediante cuatro bits independientes: dieciséis posiciones,
+256 procesos y 18.432 duraciones previstas. Mantiene los paquetes oficiales,
+cargas, estimador, limpieza y presupuestos; no demuestra resolver el drift.
+
+Las 23 pruebas pasan en cada Node 22.12.0/24.14.1, sin skips: 16 workers reales
+en total, 128 lotes y 1.152 duraciones. Se conserva el rechazo anterior por
+verificación legada y el CLI nuevo impide relabelarlo. Las 387 fuentes tienen
+SHA-256 `6904db29afcddf80aca5e775ec9ebe6d2a680b11891259f3bdcc8b58f4f8ff31`;
+revisión independiente sin hallazgos accionables. Actionlint y preflight real
+del YAML pasan en fixture local; no es aprobación del commit publicado.
+
+Evidencias en los reportes `independent-order-method` de validación, benchmarks
+y memoria. Se observaron 1.536 referencias por tipo Window/Document, con los
+256 endpoints finales exigidos claros y 12 observaciones iniciales no claras
+conservadas. No se evaluó rendimiento global ni se ejecutó el estudio completo.
+
+Siguiente paso: publicar el método y verificar las 387 fuentes contra el SHA
+remoto y el recibo. Solo después aplicar `ownership-independent-order-v1` una
+vez y observar ese run hasta terminar. No repetir los ensayos previos, modificar
+límites, seleccionar filas ni hacer merge/tag mientras ownership no esté cerrado.
+El inventario `d723c90a` continúa separado para integrar después de este hito.
+
 ## Actualización: ensayo de una copia terminado, sin aceptación
 
 El run `39727878290` terminó sobre `6f708467`: ambos Node completaron 64 workers,
