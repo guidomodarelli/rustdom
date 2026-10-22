@@ -1,5 +1,41 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: arnés de suites completas calificado, sin ensayo de tiempo
+
+Se agregó `reports/benchmarks/native-class-ownership/runner-suites/` para el
+entregable pendiente de medir tiempo total de Jest/Vitest. La calificación
+completó doce CLIs A0/B en Node22.12.0/24.14.1: Jest23, Vitest34 y VM36 por
+paquete/Node, 372 tests en total (356 originales y16 probes de procedencia).
+También pasan ocho contratos del arnés. Se observaron dos asignaciones de
+Range por probe y el módulo del paquete seleccionado; no se midió su liberación.
+
+Los addons siguen siendo los oficiales, sin builds nuevos. npmci instaló los
+runners desde lockfile fijado y los archivos de producción comparados siguen
+idénticos. La preparación anterior no contenía la suite completa: se fijaron
+sus nueve archivos y tres configs desde Git eaeca4af, iguales a checkpoint067.
+También se corrigió un import dinámico de config que Vite trasladaba a su
+carpeta temporal. Ambos fallos y fuentes históricas se conservan.
+
+Crudos, fuentes, dependencias y recibos están en
+`reports/validation/native-class-ownership/runner-suites-qualification/`;
+el informe de límites de memoria, en el archivo de nombre equivalente en
+`reports/memory/native-class-ownership/`. Raíz local:
+`/tmp/rustdom-runner-suites-ytu9q4xb`, estado final en static-prepared,
+static-contracts y static-qualification. Todas esas ejecuciones son terminales;
+no relanzar por silencio o archivos de los fallos anteriores.
+El readback verificó 15.298 inputs y la extracción en otra raíz pasó el
+verificador sin ejecutar suites. Se conserva también el primer fallo del
+lector de enlaces y su corrección, sin cambios a los crudos.
+
+Siguiente paso: publicar/revisar el arnés y después definir una receta completa
+para el ensayo de tiempo total (orden, replicación, estimador, presupuestos,
+identidad y errores) antes de medir. No existe todavía un CLI de aceptación
+de tiempo total. Las calificaciones no son muestras de rendimiento. Los
+microbenchmarks siguen rechazados y no se reemplazan por este nuevo entregable;
+ownership permanece abierto, sin merge/tag ni nuevo crédito de migración.
+CI58650e58 terminó verde (run39762878895); CI81ed78cb también terminó
+verde con ocho checks (run39764082821). Verificar el CI de cada SHA nuevo.
+
 ## Actualización: sensibilidad offline de los controles
 
 La evidencia parcial del tracing ya se publicó en `58650e58`, con crudos,
