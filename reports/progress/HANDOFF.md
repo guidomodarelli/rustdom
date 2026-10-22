@@ -1,5 +1,33 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: gate C y espera funcional de colecciones
+
+Se reemplaza el preflight obsoleto de ownership (esperaba B833) por la verificación
+offline de la secuencia C existente, fuentes0d67/arnés96491. Autentica los 931
+archivos y recalcula ambos Nodes/64procesos/9.216duraciones con el verificador
+original. Conserva accepted=false y exit1: no remedir, no merge/tag. Fuentes,
+inputs raíz o evidencia distintos producen exit2; una copia recortada de A fue
+rechazada correctamente y los CLI posteriores usaron blobs Git de checkpoint067.
+14contratos nuevos pasaron en Linux22/24 y Windows24; evidencia en
+`reports/validation/native-class-ownership/ownership-evidence/`.
+El comando completo del workflow aprobó 43 contratos por Linux Node 22/24.
+
+El CI general bfe51fef/run39712379896 produjo un fallo real Windows24.22 en
+colecciones jsdom/VM: primera observación clara en ronda12 a326,77ms, sin otra
+para confirmar. Log, JSON y metadata oficiales autenticados están en
+`reports/validation/native-class-ownership/collection-query-quiescence/`.
+La política funcional de colecciones permite64rondas bajo el mismo deadline10s,
+siempre dos estados claros y baselines exactos. No cambia runtime, helpercanónico
+ni samplers de rendimiento. Regresión con propietario fuerte por12observaciones
+y rechazo de retención persistente. Cinco tests por Linux22/24 aprobaron con
+ambos motores, incluyendo52escenarios/120observaciones finales claras por Node.
+Windows24.22 aprobó la regresión jsdom/default/VM; Windows nativo queda para CI.
+Ambos cambios tienen revisión nativa local limpia. No declarar CI final verde
+sin consultar el SHA publicado; revisión remota sigue pendiente por cuota.
+No hay nuevas APIs migradas. Mantener el objetivo completo activo.
+La corrección funcional de colecciones está en `60e8b112`; ambos cambios deben
+quedar publicados antes de continuar. Consultar siempre el head remoto real.
+
 ## Estado actual: diagnóstico con contexto completo terminado
 
 La secuencia aislada sigue terminada, publicada en `5da6a90d`; no reiniciarla.

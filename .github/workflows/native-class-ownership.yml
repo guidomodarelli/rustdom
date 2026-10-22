@@ -4,10 +4,21 @@ on:
   pull_request:
     paths:
       - '.github/workflows/native-class-ownership.yml'
-      - 'third-party/napi/src/bindgen_runtime/**'
+      - 'src/**'
+      - 'third-party/napi/**'
       - 'reports/benchmarks/native-class-ownership/**'
       - 'benchmarks/**'
-      - 'scripts/memory-endpoint.cjs'
+      - 'scripts/**'
+      - 'tests/integration/read-dom-file.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+      - '.npmrc'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - '.cargo/**'
+      - 'rust-toolchain*'
 
 permissions:
   contents: read
@@ -20,12 +31,9 @@ jobs:
   node22:
     name: Native class ownership Node 22
     runs-on: ubuntu-22.04
-    timeout-minutes: 70
+    timeout-minutes: 10
     env:
-      CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
-      RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      OWNERSHIP_OUTPUT: reports/benchmarks/ownership-hosted-${{ github.run_id }}-${{ github.run_attempt }}
-      OWNERSHIP_ARCHIVE: reports/benchmarks/native-class-ownership/hosted/39643090437
+      OWNERSHIP_ARCHIVE: reports/benchmarks/native-class-ownership/paired-inline/2026-10-22
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -35,48 +43,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
-          cache: npm
-      - name: Determinar si la fuente y el protocolo ya tienen evidencia
-        id: history
-        run: node reports/benchmarks/native-class-ownership/history.cjs .baseline "$OWNERSHIP_ARCHIVE" >> "$GITHUB_OUTPUT"
-      - name: Verificar los contratos con observaciones públicas reales
-        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs reports/benchmarks/native-class-ownership/paired-main-evidence.spec.cjs reports/benchmarks/native-class-ownership/paired-study-configuration.spec.cjs reports/benchmarks/native-class-ownership/paired-inline.spec.cjs
-      - name: Verificar la evidencia existente y conservar su resultado
-        if: steps.history.outputs.reuse == 'true'
-        run: |
-          node reports/benchmarks/native-class-ownership/hosted-experiment.cjs --verify "$OWNERSHIP_ARCHIVE"
-          node -e 'const fs = require("node:fs"); const index = JSON.parse(fs.readFileSync(process.env.OWNERSHIP_ARCHIVE + "/index.json")); if (!index.accepted) { console.error("La evidencia verificada sigue sin aprobar el presupuesto; no se repite la medición."); process.exitCode = 1; }'
-      - name: Exigir fuentes declaradas antes de construir o medir
-        if: steps.history.outputs.reuse != 'true'
-        run: node reports/benchmarks/native-class-ownership/source-preflight.cjs .baseline
-      - uses: dtolnay/rust-toolchain@1.99.1
-        if: steps.history.outputs.reuse != 'true'
-      - uses: Swatinem/rust-cache@v2
-        if: steps.history.outputs.reuse != 'true'
-      - name: Preparar la referencia inmutable
-        if: steps.history.outputs.reuse != 'true'
-        working-directory: .baseline
-        run: |
-          test "$(git rev-parse HEAD)" = 3d37f89976a48203e80cc5c435e099267f4ce346
-          npm ci
-          npm run build
-      - name: Preparar el candidato
-        if: steps.history.outputs.reuse != 'true'
-        run: npm ci && npm run build
-      - name: Seleccionar una CPU permitida y registrar herramientas
-        if: steps.history.outputs.reuse != 'true'
-        shell: bash
-        run: |
-          cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
-          echo "RUSTDOM_BENCHMARK_CPU=$cpu" >> "$GITHUB_ENV"
-          taskset -pc $$
-          node --version
-          rustc -Vv
-      - name: Ejecutar una secuencia completa A/A y A/B
-        if: steps.history.outputs.reuse != 'true'
-        run: node reports/benchmarks/native-class-ownership/hosted-experiment.cjs .baseline "$OWNERSHIP_OUTPUT" "$RUSTDOM_BENCHMARK_CPU"
+      - name: Verificar contratos del gate con datos y fuentes reales
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs reports/benchmarks/native-class-ownership/paired-main-evidence.spec.cjs reports/benchmarks/native-class-ownership/paired-study-configuration.spec.cjs reports/benchmarks/native-class-ownership/paired-inline.spec.cjs reports/benchmarks/native-class-ownership/ownership-evidence.spec.cjs
+      - name: Recalcular el estudio C completo y exigir su aceptación
+        run: node reports/benchmarks/native-class-ownership/ownership-evidence.cjs .baseline "$OWNERSHIP_ARCHIVE" > ownership-verification.json
       - uses: actions/upload-artifact@v4
-        if: always() && steps.history.outputs.reuse != 'true'
+        if: always()
         with:
-          name: native-class-ownership-node22-${{ github.event.pull_request.head.sha }}
-          path: ${{ env.OWNERSHIP_OUTPUT }}/
+          name: native-class-ownership-evidence-${{ github.event.pull_request.head.sha }}
+          path: ownership-verification.json
