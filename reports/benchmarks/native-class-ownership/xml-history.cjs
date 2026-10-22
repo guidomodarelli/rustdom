@@ -46,14 +46,14 @@ function assertRuntime(candidateRoot) {
   assert.equal(process.arch, settings.arch, 'XML history: architecture differs from the declared XML recipe');
   for (const flag of settings.unrecordedFlags) assert.ok(!process.env[flag], `XML history: undeclared ${flag} is set`);
   assert.equal(digest(path.join(candidateRoot, settings.workflowPath)), settings.workflowSha256,
-    'XML history: workflow recipe changed; prepare and review its declaration before measuring');
+    'XML history: workflow policy changed; prepare and review its declaration before verifying evidence');
   const compiler = spawnSync('rustc', ['-Vv'], { encoding: 'utf8' });
   if (compiler.error) throw new Error('XML history: rustc -Vv could not execute', { cause: compiler.error });
   assert.equal(compiler.status, 0, 'XML history: rustc -Vv failed');
   assert.equal(compiler.stdout.trim(), settings.rustc, 'XML history: compiler differs from the declared XML recipe');
 }
 
-/** Authenticate declared metadata before it can select either reuse or a new measurement. */
+/** Authenticate declared metadata before selecting or verifying recorded evidence. */
 function assertEvidenceFiles(archiveRoot, recipe) {
   for (const [name, expected] of Object.entries(recipe.evidenceFiles)) {
     const filename = path.join(archiveRoot, name);
@@ -94,7 +94,12 @@ function verifyEvidence(archiveRoot, recipe = settings) {
   return verification;
 }
 
-/** Keep selection, integrity and budget exit codes distinct at the real CLI boundary. */
+/**
+ * Require matching recorded evidence without authorizing another measurement.
+ * @param {string[]} [arguments_] - Selection/verification mode, baseline directory and archive directory.
+ * @returns {void} Writes an eligible selection or the original verified decision and preserves budget failures.
+ * @throws {Error} When the runtime, source inputs, declared policy or evidence integrity does not match.
+ */
 function main(arguments_ = process.argv.slice(2)) {
   const [mode, baselineArgument, archiveArgument] = arguments_;
   assert.ok(mode === '--select' || mode === '--verify', 'XML history: use --select or --verify with baseline and archive paths');
@@ -104,9 +109,10 @@ function main(arguments_ = process.argv.slice(2)) {
   assertRuntime(candidateRoot);
   const recorded = readArchiveIdentity(archiveRoot);
   const reuse = matchesArchiveIdentity(recorded) && canReuse(baselineRoot, archiveRoot, candidateRoot);
-  if (mode === '--select') process.stdout.write(`reuse=${reuse}\n`);
+  assert.equal(reuse, true,
+    'XML history: current inputs do not match the declared evidence; prepare and review matching evidence. Automatic measurement is not authorized.');
+  if (mode === '--select') process.stdout.write('reuse=true\n');
   else {
-    assert.equal(reuse, true, 'XML history: current sources do not match the selected evidence');
     const verification = verifyEvidence(archiveRoot);
     process.stdout.write(`${JSON.stringify(verification)}\n`);
     if (verification.accepted !== true) process.exitCode = 1;

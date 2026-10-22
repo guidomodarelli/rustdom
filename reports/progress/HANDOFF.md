@@ -1,5 +1,81 @@
 # Continuar rustdom en otra máquina
 
+## Estado actual: ensayo rechazado preservado y corrección XML validada
+
+La sesión original30376 terminó con exit0 de verificación. Ambos padres Node
+terminaron con exit1 presupuestario; los256workers terminaron con exit0. El
+resultado completo es verified=true, accepted=false: dos controles jsdom fuera
+de ±2% por Node, cuatro en total. No hay filas Rust fuera de su límite numérico;
+los controles rechazados impiden aceptar el conjunto. NO reiniciar esta secuencia.
+
+Se preservaron2033archivos con readback en
+reports/benchmarks/native-class-ownership/seeded-pre-gc-results/2026-10-22/.
+El tar tiene38684023bytes, SHA39299c4ae809e5a4386a9963f2c35dde657e188404012ed46c8824c26be5a10f.
+La verificación original y la copia son iguales; todas las muestras y negativos
+permanecen. Fuentes medidas737a2ba1/grafo409/SHA7ab4948d4f717b0cc7eaeb7c5e127f28e8417c63f667ed955a341c1fbb071981.
+Memoria:24576observaciones de cada tipo Window/Document, sin supervivientes en
+los endpoints finales, con límites en el reporte de memoria adyacente.
+
+El fix de replay XML ya pasa22contratos por Linux Node22.12/24.14 y18por Windows
+Node22.12/24.22.1, con cuatro omisiones Linux-only explícitas. Actionlint1.7.12
+aprobó. Evidencia en reports/validation/native-class-ownership/xml-replay-only-ci-fix/.
+No se repinea un positivo ni se oculta el XML posterior con accepted=null.
+La revisión independiente final no dejó hallazgos: cotejó ambas calificaciones,
+archivos, medianas y memoria, sin ejecutar mediciones. Se publica este hito de
+corrección CI y evidencia; ownership sigue rechazado, sin tag ni merge.
+El CI general39844860686 y preparación39844860784 de a09924e4 terminaron success.
+Esos checks corresponden a a09924e4, no al commit posterior de esta corrección.
+Los apartados históricos siguientes describen estados anteriores; no son órdenes
+para reiniciar procesos o repetir pruebas ya consumidas.
+
+Storage está validado aparte en Linux22.12/24.14 y Windows22.12/24.22.1:13tests
+por perfil y tres ciclos de memoria por Node Linux. Falta publicar sus derivados
+y evidencia en feature/inventory-node-helpers. La propuesta de aislar cargas sigue
+SOLO documental: no está implementada ni calificada ni medida. No hay código Rust
+nuevo, aprobación de ownership, merge o tag. El objetivo integral sigue abierto.
+
+## Histórico: XML y el fix durante la ejecución original
+
+El run XML39844860696 sobre a099 ejecutó una medición nueva: selector devolvió
+reuse=false con exit0 al comparar fuentes actuales con el archivo viejo; el
+workflow usó esa respuesta para volver a calibrar. La calibración AA terminó
+rechazada (accepted=null), sin AB. No relanzar ni escoger solo una corrida verde.
+Se preservaron ambos ZIP originales con su digest GitHub: run39839886242,
+artefacto12454047296, SHA6e618c74e56c967f833f44b09adc3aa903cb02f831e0d000d8075056f3169703;
+y run39844860696, artefacto12455698885,
+SHAeccb15865ec506363a701b7a8d8f55d21ef123a1956defc2912c14baa5c16a7b.
+Rutas en .cache/xml-current-inputs-studies.json. No se extrajeron completos
+ni se verificaron de nuevo: hacerlo cuando termine el ensayo local activo.
+
+Fix preparado en cuatro archivos fuera del grafo409 congelado:
+.github/workflows/xml-controller.yml solo reproduce evidencia; xml-history.cjs
+exige elegibilidad antes de emitir selección; constants/xml-history.json actualiza
+solo el hash de esa política; xml-history.spec.cjs agrega regresiones CLI reales
+para fuentes/build inputs distintos y ejercita la selección positiva original
+con el workflow actual. No se cambió el archivo de mediciones fijado ni presupuestos.
+Actionlint1.7.12 pasa y la revisión estática quedó sin hallazgos. Faltan los
+contratos/CLI Node22/24 y la revisión final; no commitear sin esas pruebas.
+Debe detener el CI ante evidencia incompatible, no volverlo verde
+sin sustento. No toca el método de ownership que sigue ejecutándose en Node24.
+
+## Histórico: estado parcial del ensayo
+
+La secuencia original session30376/root4zryergi completó Node22:128workers,
+cero fallos de ejecución, exitCode=1 y accepted=false. Dos controles jsdom de
+AB exceden ±2%: mutation-records-collect/1000 +2.9466313394961086% y
+range-control-1000/250 +2.41581572440559%. Ninguna fila Rust excede el
+presupuesto numérico de su fase; eso no concede aceptación al conjunto.
+Node24 arrancó en la MISMA secuencia, padre PID687730, driver671903,
+y fue confirmado vivo al registrar este estado. Node22 PID671904 ya terminó.
+No reiniciar ni omitir Node24 por el negativo anterior. No ejecutar CPU intensiva
+ni cambiar fuentes medidas. Esperar ambos resultados y verificación del conjunto
+antes de archivar/revisar/publicar el ensayo; todavía no está completo.
+Dos lectores offline de .cache conservan todos los grupos y filas de Node22,
+sin modificar aceptación, en seeded-pre-gc-node22-*-diagnostics.json. La propuesta
+reports/progress/ownership-row-isolation-proposal.md es WIP solo documental:
+no está implementada, calificada ni medida. No aplicar otro método hasta terminar
+y preservar el ensayo activo, incluidos ambos Node y sus negativos.
+
 ## Check ownership confirmado: esperar y preservar la secuencia original
 
 El usuario confirmó que el fallo a corregir es Native class ownership Node22

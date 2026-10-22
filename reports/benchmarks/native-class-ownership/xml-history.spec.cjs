@@ -13,6 +13,18 @@ const historicalRecipe = require('./fixtures/xml-history-sources/manifest.json')
 const archive = path.join(__dirname, 'xml-validation/39697882498');
 const cli = path.join(__dirname, 'xml-history.cjs');
 
+/**
+ * Restore the real historical implementation with the current CI selection policy.
+ * @param {object} context - Owns the original source fixture and its cleanup.
+ * @returns {object} Independent baseline and candidate directories.
+ */
+function currentRecipeSources(context) {
+  const sources = historicalSources(context);
+  const repository = path.resolve(__dirname, '../../..');
+  fs.copyFileSync(path.join(repository, settings.workflowPath), path.join(sources.candidate, settings.workflowPath));
+  return sources;
+}
+
 test('selects the actual historical XML sources and declared recipe independently of the current candidate', (context) => {
   const { baseline, candidate, recipe } = historicalSources(context);
   assert.equal(canReuse(baseline, archive, candidate, recipe), true);
@@ -174,7 +186,7 @@ test('the real cancelled duplicate is ineligible and its verifier grants no budg
 
 test('the real CLI selects and verifies only a supported source and tool profile',
   { skip: process.platform !== 'linux' && 'This CI recipe is Linux-specific.' }, (context) => {
-    const { baseline, candidate } = historicalSources(context);
+    const { baseline, candidate } = currentRecipeSources(context);
     const invoke = (mode) => spawnSync(process.execPath, [cli, mode, baseline, archive],
       { cwd: candidate, encoding: 'utf8' });
     const selected = invoke('--select');
@@ -196,3 +208,22 @@ test('the real CLI selects and verifies only a supported source and tool profile
     assert.equal(verified.status, eligible ? 0 : 2, verified.stderr);
     if (eligible) assert.equal(JSON.parse(verified.stdout).accepted, true);
   });
+
+for (const filename of ['third-party/napi/src/bindgen_runtime/js_values/class.rs', 'build.rs']) {
+  test(`the actual CLI refuses automatic measurement for changed inputs: ${filename}`, (context) => {
+    const { baseline, candidate } = currentRecipeSources(context);
+    fs.appendFileSync(path.join(candidate, filename), '\n');
+    assert.equal(canReuse(baseline, archive, candidate), false);
+    const child = spawnSync(process.execPath, [cli, '--select', baseline, archive],
+      { cwd: candidate, encoding: 'utf8' });
+    assert.equal(child.status, 2, child.stderr);
+    assert.equal(child.stdout, '', 'Failed selection cannot emit reuse=false and authorize a new CI measurement');
+    if (process.version === settings.node && process.platform === settings.platform) {
+      const compiler = spawnSync('rustc', ['-Vv'], { encoding: 'utf8' });
+      if (compiler.status === 0 && compiler.stdout.trim() === settings.rustc) {
+        assert.match(child.stderr, /current inputs do not match the declared evidence/);
+        assert.match(child.stderr, /Automatic measurement is not authorized/);
+      } else assert.match(child.stderr, /XML history: (rustc|compiler)/);
+    } else assert.match(child.stderr, /XML history: (Node|platform) differs/);
+  });
+}
