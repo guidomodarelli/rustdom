@@ -1,5 +1,29 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: identidades de funciones por Window observadas
+
+La observación sin temporizadores pasó en J0/J1 oficiales, Node22.12.0 y
+24.14.1: cuatro procesos y48 Windows. En cada proceso Range y cinco métodos/
+getters observados tuvieron doce identidades; JSDOM/Object una. Los endpoints
+finales de Window/Document quedaron claros en la prueba finita. Las387 fuentes
+congeladas se autenticaron y la preparación completa quedó idéntica antes y
+después de cada Node. Dos CLIs sin --expose-gc rechazaron como corresponde.
+
+Fuentes y receta prospectiva: `reports/benchmarks/native-class-ownership/window-identities/`.
+Crudos y fuentes: `reports/validation/native-class-ownership/window-identities/`.
+Límites de memoria en el informe equivalente de `reports/memory/`.
+Raíz local `/tmp/rustdom-window-identities-qualified-ha9snove`, terminal.
+No se midió rendimiento ni se observaron deoptimizaciones en este probe;
+identidades diferentes no prueban código compilado diferente ni causa del
+rechazo de Azure. No aceptar presupuestos o aumentar warmups con este dato.
+
+Siguiente: fijar, probar, publicar y revisar el launcher de la nueva receta de
+trace-opt/trace-deopt antes de su única captura. Usará el worker original
+congelado sin cambios y cuatro procesos jsdom; no relanza tracing nativo ni
+ensayos anteriores. El ensayo de suites ya publicado en2896d90b permanece
+aceptado para ese alcance. Los microbenchmarks siguen rechazados; ownership
+abierto, sin merge/tag ni integración del inventario separado.
+
 ## Actualización: ensayo de suites completas terminado y aceptado
 
 La única captura de la receta publicada en `a10e7a04` terminó con exit0:
