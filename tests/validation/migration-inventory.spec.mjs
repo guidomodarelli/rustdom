@@ -125,7 +125,7 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
   assert.equal(audited.summary.counts.files.states.hybrid, 4);
-  assert.equal(audited.summary.counts.files.audited, 5);
+  assert.equal(audited.summary.counts.files.audited, 6);
   assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
   assert.equal(audited.summary.counts.apis.states.hybrid, 1);
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
@@ -147,6 +147,15 @@ test('should validate authored audit evidence and reject stale IDs or unsupporte
   const stringUnits = audited.classification.filter((entry) => entry.id.startsWith('unit:lib/jsdom/living/helpers/strings.js:'));
   assert.equal(stringUnits.length, 13);
   for (const unit of stringUnits) {
+    assert.equal(unit.auditComplete, true); assert.equal(unit.status, 'pending');
+    assert.deepEqual(unit.rustSources, []); assert.ok(unit.pending.length > 0);
+  }
+  const nameValidation = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/living/helpers/validate-names.js');
+  assert.equal(nameValidation.auditComplete, true); assert.equal(nameValidation.status, 'pending');
+  assert.deepEqual(nameValidation.rustSources, []);
+  const nameUnits = audited.classification.filter((entry) => entry.id.startsWith('unit:lib/jsdom/living/helpers/validate-names.js:'));
+  assert.equal(nameUnits.length, 3);
+  for (const unit of nameUnits) {
     assert.equal(unit.auditComplete, true); assert.equal(unit.status, 'pending');
     assert.deepEqual(unit.rustSources, []); assert.ok(unit.pending.length > 0);
   }

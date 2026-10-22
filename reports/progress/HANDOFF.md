@@ -1,6 +1,29 @@
 # Continuar rustdom en otra máquina
 
-## Mapa posterior: correspondencia de las 531 fuentes
+## Actualización: auditoría de validación de nombres
+
+Esta rama `feature/inventory-node-helpers` conserva ahora seis módulos y
+diecisiete anclas con clasificación revisada. `helpers/validate-names.js` y sus
+tres funciones siguen pendientes: usan JavaScript y xml-name-validator, distinto
+del lookup de namespaces nativo. No cambia el denominador 531/4.374/7.246 ni
+hay crédito Rust o porcentaje global defendible. Solo cuatro filas del ledger
+cambiaron; las APIs y anclas de referencia permanecen idénticas.
+
+Pasaron 13 pruebas por Node 22.12.0/24.14.1, con un contrato diferencial público
+de 60 casos más coerción/reentrancia/realm. Se autenticaron los paquetes A0/C
+oficiales antes/después. Los reportes `name-validation-audit` de validación,
+benchmarks y memoria conservan las 212 fuentes, catálogos, logs, catorce procesos
+del CLI y los ciclos de GC con Window/Document separados. Los tiempos absolutos
+del CLI no son aceptación de rendimiento DOM. No se modificó el producto.
+
+Integrar esta rama después de cerrar ownership. El ensayo anterior 39727878290
+ya terminó rechazado; no reiniciarlo ni seguir sus antiguas esperas de abajo.
+El método nuevo está publicado en `feature/native-class-ownership`, f5526bc1,
+con HANDOFF actualizado en afba8091. Su run 39735778846 se confirmó vivo y debe
+observarse sin reintentos ni cambios de método. No abrir otro PR ni crear un
+checkpoint de este hito mientras ownership siga pendiente.
+
+## Histórico (superado): correspondencia de las 531 fuentes
 
 Además de la auditoría de strings publicada en `bf4c683a`, esta rama guarda
 `reports/progress/inventory/runtime-correspondence.json` y su método/validación.
@@ -17,7 +40,7 @@ son del tooling: no se ejecuta el addon ni se crean Window/Document. No se
 modificó el motor ni el ensayo `39727878290`, que sigue siendo la prioridad.
 Integrar este trabajo después de cerrar ownership, sin inventar crédito Rust.
 
-## Auditoría posterior: strings sigue en JavaScript
+## Histórico (superado): strings sigue en JavaScript
 
 Continuar esta rama `feature/inventory-node-helpers` desde su auditoría de
 `living/helpers/strings.js`, sobre `b6a44f50`. No integrar todavía: el PR #80

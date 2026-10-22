@@ -7,9 +7,9 @@ historia de planificación; no es el porcentaje actual del proyecto.
 El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
 dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
 entrega tiene 531 archivos (528 JavaScript y tres datos), 4.374 entradas de API y
-7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay cinco
-módulos con clasificación revisada: cuatro híbridos y el helper strings.js
-pendiente de migración. Trece de sus anclas siguen en JavaScript. La auditoría de los demás
+7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Hay seis
+módulos con clasificación revisada: cuatro híbridos y los helpers strings.js y
+validate-names.js pendientes de migración. Sus dieciséis anclas siguen en JavaScript. La auditoría de los demás
 registros sigue pendiente. Eso no significa que carezcan de código Rust.
 
 El esquema 2 agrega 43 declaraciones heredadas omitidas, con el cambio del
@@ -28,7 +28,8 @@ contrastó los paquetes oficiales A0/C del artefacto 12400802735. No acredita
 los cambios experimentales de otras ramas ni la aceptación de ownership.
 La auditoría de XMLSerializer mantiene una API híbrida y un ancla de control
 Rust; WebIDL y la factory de DOMException continúan pendientes. Ver
-[el helper de strings](inventory/strings-audit.md) y
+[el helper de strings](inventory/strings-audit.md),
+[la validación de nombres](inventory/name-validation-audit.md) y
 [la validación del controlador](../validation/xml-serializer-controller.md).
 
 ## Registro histórico
