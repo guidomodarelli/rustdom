@@ -1,5 +1,39 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: preparación reproducible para CI, todavía sin medir
+
+El CI general de `40a4adf3`, run39714488637, aprobó los ocho checks: Windows,
+macOS, Linux, cuatro shards y agregado, incluido Memcheck. Esto confirma el fix
+anterior de espera de colecciones. XML también verde; ownership conserva exit1
+por el estudio C completo con accepted=false, sin preflight B obsoleto.
+
+Se agregó una receta de preparación separada: `ownership-build.yml` y
+`prepare-hosted-build.cjs`. Construye A/C desde fuentes completas, con versiones
+fijadas, sin dist previo; conserva fuentes, herramientas, logs, todos los paquetes
+de ejecución DOM y dependencias. No ejecuta un benchmark. Rechaza overrides y
+configuración externa de Cargo, rutas ambiguas y enlaces no portables.
+
+Validación local final terminada: build11075 exit0, root
+`/tmp/rustdom-hosted-build-links-00612sdr`; validación48980 exit0. No reiniciar.
+17 contratos por Linux Node22/24 y cuatro workers reales, incluyendo traslado:
+60 observaciones Window/Document por tipo y 40 estados finales claros exigidos.
+El tar se extrajo y verificó con ambos Node sin usar los roots originales.
+Las distribuciones reconstruidas son bit-idénticas a A/C/jsdom congelados.
+Código revisado localmente sin hallazgos. Evidencia completa en
+`reports/validation/native-class-ownership/hosted-build/` y memoria correspondiente.
+
+Se preservan tres intentos de desarrollo: uno detenido por defectos de revisión,
+otro con carpeta dependencies incorrecta, y otro que pasó workers/16contratos
+pero conservaba un enlace absoluto .bin/tldts. Este último no se aprueba; la
+versión final preserva y enumera enlaces relativos y rechaza referencias externas.
+
+Siguiente paso: publicar y observar el nuevo workflow de preparación, autenticar
+su artefacto oficial y fijar esas distribuciones antes de declarar un contraste
+hosted con hipótesis/método nuevos. No repetir el ensayo hosted antiguo ni las
+secuencias C/diagnósticos terminados. No aceptar rendimiento desde un build o
+desde tests. Sin APIs migradas nuevas, merge ni tag; revisión remota sigue
+pendiente por cuota. El objetivo completo permanece activo.
+
 ## Actualización: gate C y espera funcional de colecciones
 
 Se reemplaza el preflight obsoleto de ownership (esperaba B833) por la verificación

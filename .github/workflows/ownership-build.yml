@@ -1,0 +1,93 @@
+name: Prepare ownership packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ownership-build.yml'
+      - 'reports/benchmarks/native-class-ownership/*.cjs'
+      - 'reports/benchmarks/native-class-ownership/constants/**'
+      - 'reports/benchmarks/native-class-ownership/*PROTOCOL.md'
+      - 'src/**'
+      - 'scripts/**'
+      - 'benchmarks/**'
+      - 'third-party/**'
+      - 'tests/integration/read-dom-file.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+      - '.npmrc'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - '.cargo/**'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ownership-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-067-xml-serializer-controller
+          path: .baseline
+      - name: Declarar las rutas temporales del build y su evidencia
+        run: |
+          echo "CARGO_TARGET_DIR=$RUNNER_TEMP/ownership-build-target" >> "$GITHUB_ENV"
+          echo "RUSTDOM_HOSTED_BUILD_ARCHIVE=$RUNNER_TEMP/ownership-build" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Construir y conservar fuentes, herramientas y paquetes completos
+        run: node reports/benchmarks/native-class-ownership/prepare-hosted-build.cjs .baseline . "$RUNNER_TEMP/ownership-build"
+      - name: Validar comportamiento público y liberación en Node 24
+        run: node --expose-gc reports/benchmarks/native-class-ownership/hosted-build-worker.cjs "$RUNNER_TEMP/ownership-build" > "$RUNNER_TEMP/ownership-node24.json" 2> "$RUNNER_TEMP/ownership-node24.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Validar comportamiento público y liberación en Node 22
+        run: node --expose-gc reports/benchmarks/native-class-ownership/hosted-build-worker.cjs "$RUNNER_TEMP/ownership-build" > "$RUNNER_TEMP/ownership-node22.json" 2> "$RUNNER_TEMP/ownership-node22.stderr.log"
+      - name: Verificar integridad, portabilidad y rechazos en Node 22
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test reports/benchmarks/native-class-ownership/prepare-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-contracts-node22.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Verificar integridad, portabilidad y rechazos en Node 24
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test reports/benchmarks/native-class-ownership/prepare-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-contracts-node24.log"
+      - name: Conservar los symlinks relativos del archivo preparado
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/ownership-build" ]; then
+            tar -czf "$RUNNER_TEMP/ownership-build.tar.gz" -C "$RUNNER_TEMP" ownership-build
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-prepared-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/ownership-build.tar.gz
+            ${{ runner.temp }}/ownership-node22.json
+            ${{ runner.temp }}/ownership-node24.json
+            ${{ runner.temp }}/ownership-node*.stderr.log
+            ${{ runner.temp }}/ownership-contracts-*.log
+            ${{ runner.temp }}/relocated-*.json
+            ${{ runner.temp }}/relocated-*.stderr.log
