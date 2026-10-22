@@ -16,13 +16,15 @@ const readJson = (filename) => JSON.parse(fs.readFileSync(filename, 'utf8'));
 
 /**
  * Balance mode order within each package-assignment, load-order and batch-order factor.
- * @returns {object[]} Fixed 16-process schedule for one Node version.
+ * @param {object} [configuration=settings] - Reviewed position selection and mode order.
+ * @returns {object[]} Fixed process schedule for one Node version.
  */
-function processSchedule() {
-  return Array.from({ length: settings.positions }, (_, position) => {
+function processSchedule(configuration = settings) {
+  const positions = configuration.selectedPositions ?? Array.from({ length: configuration.positions }, (_, position) => position);
+  return positions.map((position) => {
     // Factor parity gives each mode two leading positions within either value of every scheduling bit.
     const reverseModes = (position ^ (position >> 1) ^ (position >> 2)) & 1;
-    return (reverseModes ? [...settings.modes].reverse() : settings.modes).map((mode) => ({ mode, position }));
+    return (reverseModes ? [...configuration.modes].reverse() : configuration.modes).map((mode) => ({ mode, position }));
   }).flat();
 }
 
@@ -55,17 +57,18 @@ function prepareRunners(source, directory) {
  * Recompute identities, public outcomes and weak target endpoints from a completed report.
  * @param {object} report - Scalar worker observations, without strong DOM references.
  * @param {object} input - Exact mode, position, package manifest and harness roots sent to the child.
+ * @param {object} [configuration=settings] - Reviewed diagnostic revision and workload scope.
  * @returns {void} Returns only when all diagnostic contracts hold.
  * @throws {AssertionError} When evidence is incomplete, altered or falsely reports collection.
  */
-function validateWorker(report, input) {
+function validateWorker(report, input, configuration = settings) {
   assert.equal(report.complete, true); assert.equal(report.gateReevaluated, false);
-  assert.equal(report.revision, settings.revision);
+  assert.equal(report.revision, configuration.revision);
   assert.equal(report.mode, input.mode); assert.equal(report.position, input.position);
   assert.equal(report.factoryShared, input.mode === settings.sharedMode);
   assert.ok(settings.nodeVersions.includes(report.node));
   assert.deepEqual(report.execArgv, settings.flags);
-  assert.deepEqual(report.schedule, diagnosticSchedule(input.manifest, input.mode, input.position));
+  assert.deepEqual(report.schedule, diagnosticSchedule(input.manifest, input.mode, input.position, configuration));
   assert.deepEqual(report.runnerRoots, input.runnerRoots);
   assert.deepEqual(report.runnersBefore, report.runnersAfter);
   for (const label of settings.labels) {
@@ -76,7 +79,8 @@ function validateWorker(report, input) {
     assert.equal(report.distributionsBefore[label].sha256, original.distributionHashes[physical]);
   }
   assert.deepEqual(report.distributionsBefore, report.distributionsAfter);
-  assert.equal(report.batches.length, settings.labels.length);
+  assert.equal(report.batches.length, report.schedule.batches.length);
+  const outputByWorkload = new Map();
   for (const [index, batch] of report.batches.entries()) {
     const expected = report.schedule.batches[index];
     for (const key of ['label', 'name', 'size']) assert.equal(batch[key], expected[key]);
@@ -90,8 +94,10 @@ function validateWorker(report, input) {
       if (round >= original.cleanupRounds - original.requiredClearRounds) assert.equal(endpoint[label].clear, true);
     }
     assert.match(batch.outputHash, settings.digestPattern);
+    const key = `${batch.name}/${batch.rows}`;
+    if (outputByWorkload.has(key)) assert.equal(batch.outputHash, outputByWorkload.get(key));
+    else outputByWorkload.set(key, batch.outputHash);
   }
-  assert.equal(report.batches[0].outputHash, report.batches[1].outputHash);
   for (const stage of [report.affinity.configured, report.affinitiesAfter]) {
     assert.equal(stage.find((entry) => entry.tid === report.pid).mask, String(original.cpu));
     assert.ok(stage.some((entry) => entry.tid !== report.pid && !entry.disappeared && entry.mask !== String(original.cpu)));
@@ -102,10 +108,11 @@ function validateWorker(report, input) {
  * Preserve stdout/stderr and partial reports when a child or its assertions fail.
  * @param {object} input - Frozen worker configuration and actual package locations.
  * @param {string} prefix - New artifact filename prefix, outside previous evidence.
+ * @param {object} [configuration=settings] - Reviewed worker entry and scope.
  * @returns {object} Verified completed worker report.
  * @throws {Error} When a process fails, times out or produces invalid evidence.
  */
-function runWorker(input, prefix) {
+function runWorker(input, prefix, configuration = settings) {
   const inputPath = `${prefix}.input.json`;
   const output = `${prefix}.json`;
   fs.writeFileSync(inputPath, `${JSON.stringify(input, null, 2)}\n`, { flag: 'wx' });
@@ -113,7 +120,7 @@ function runWorker(input, prefix) {
   const stderr = fs.openSync(`${prefix}.stderr.log`, 'wx');
   let child;
   try {
-    child = spawnSync(process.execPath, [...settings.flags, path.join(__dirname, settings.files.worker), inputPath, output],
+    child = spawnSync(process.execPath, [...settings.flags, path.join(__dirname, configuration.files.worker), inputPath, output],
       { stdio: ['ignore', stdout, stderr], timeout: settings.workerTimeoutMs });
   } finally { fs.closeSync(stdout); fs.closeSync(stderr); }
   const outcome = { status: child.status, signal: child.signal, error: child.error?.message ?? null, pid: child.pid };
@@ -122,7 +129,7 @@ function runWorker(input, prefix) {
   const report = readJson(output);
   assert.equal(report.pid, child.pid);
   assert.equal(report.node, process.version);
-  validateWorker(report, input);
+  validateWorker(report, input, configuration);
   return report;
 }
 
@@ -131,23 +138,25 @@ function runWorker(input, prefix) {
  * @param {string} manifestPath - Independent jsdom package locations and their recorded identities.
  * @param {string} output - New output directory retaining source copies, reports and all process logs.
  * @param {string} provenancePath - Published SHA, reviewed harness hash and review receipt description.
+ * @param {object} [configuration=settings] - Frozen recipe with an explicitly selected worker and source scope.
  * @returns {void} Records a complete diagnostic, never a performance acceptance decision.
  * @throws {Error} When preflight, execution or verification fails; partial evidence is retained.
  */
-function run(manifestPath, output, provenancePath) {
+function run(manifestPath, output, provenancePath, configuration = settings) {
   output = path.resolve(output);
   assert.equal(process.platform, 'linux');
   assert.ok(settings.nodeVersions.includes(process.version));
   assert.equal(Object.hasOwn(process.env, 'NODE_OPTIONS'), false);
-  const identity = harness.captureHarness(root);
+  const method = createPairedStudy({ method: configuration });
+  const identity = method.captureHarness(root);
   const provenance = readJson(provenancePath);
   assert.equal(identity.identity.sourceHash, settings.sourceHash);
   assert.equal(provenance.harnessSha256, identity.sha256, 'Runner sharing: harness differs from the reviewed source');
   assert.match(provenance.reviewedCommit, settings.commitPattern);
   assert.equal(typeof provenance.reviewReceipt, 'string'); assert.ok(provenance.reviewReceipt.length > 0);
   fs.mkdirSync(output);
-  const index = { revision: settings.revision, complete: false, gateReevaluated: false,
-    node: process.version, settings, provenance, harness: identity, runs: [] };
+  const index = { revision: configuration.revision, complete: false, gateReevaluated: false,
+    node: process.version, settings: configuration, provenance, harness: identity, runs: [] };
   const save = () => fs.writeFileSync(path.join(output, settings.files.index), `${JSON.stringify(index, null, 2)}\n`);
   save();
   try {
@@ -157,16 +166,20 @@ function run(manifestPath, output, provenancePath) {
       const destination = path.join(output, settings.files.harness, entry.path);
       fs.mkdirSync(path.dirname(destination), { recursive: true }); fs.copyFileSync(path.join(root, entry.path), destination);
     }
-    let expectedOutput;
-    for (const trial of processSchedule()) {
+    const expectedOutputs = new Map();
+    for (const trial of processSchedule(configuration)) {
       const prefix = path.join(output, `${trial.mode}-${trial.position}`);
       index.runs.push({ ...trial, prefix: path.basename(prefix), complete: false }); save();
-      const report = runWorker({ ...trial, manifest, runnerRoots }, prefix);
-      expectedOutput ??= report.batches[0].outputHash;
-      assert.equal(report.batches[0].outputHash, expectedOutput, 'Runner sharing: public output differs across diagnostic processes');
+      const report = runWorker({ ...trial, manifest, runnerRoots }, prefix, configuration);
+      for (const batch of report.batches) {
+        const key = `${batch.name}/${batch.rows}`;
+        if (expectedOutputs.has(key)) assert.equal(batch.outputHash, expectedOutputs.get(key),
+          `Runner sharing: public output differs across processes for ${key}`);
+        else expectedOutputs.set(key, batch.outputHash);
+      }
       index.runs.at(-1).complete = true; save();
     }
-    assert.deepEqual(harness.captureHarness(root), identity, 'Runner sharing: source changed during the sequence');
+    assert.deepEqual(method.captureHarness(root), identity, 'Runner sharing: source changed during the sequence');
     index.complete = true; save();
   } catch (error) { index.failure = { message: error.message, stack: error.stack }; save(); throw error; }
 }

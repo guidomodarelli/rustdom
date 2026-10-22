@@ -1,6 +1,33 @@
 # Continuar rustdom en otra máquina
 
-## Estado vigente: secuencia C terminada sin aceptación
+## Preparación actual: diagnóstico con contexto completo
+
+La secuencia aislada sigue terminada, publicada en `5da6a90d`; no reiniciarla.
+Se preparó `RUNNER-SHARING-CONTEXT-PROTOCOL.md` para observar las ocho filas
+originales en posiciones0/4, manteniendo física J0/J1 y cargaA/B, con modos
+shared/independent en orden ABBA. Son ocho procesos entre Node22/24 y 1.152
+duraciones planificadas. Esta secuencia nueva todavía no se ejecutó: publicar
+el método y fijar SHA/huella/recibo antes de iniciarla.
+
+Los controladores compartidos aceptan esa receta explícita y conservan los
+defaults aislados. Los checksums ahora se comparan por cada una de las ocho
+filas. Cuatro contratos pasaron por Linux Node22/24; la validación incluye ocho
+workers funcionales, 648 duraciones y 288 comprobaciones finales de recursos.
+La revisión local del código cerró sin hallazgos. Fuentes y evidencia en
+`reports/validation/native-class-ownership/runner-sharing-context/`.
+
+El análisis offline adicional de las 9.216 muestras, sin cambiar aceptación,
+está en `paired-inline-sample-trajectories/2026-10-22/`, bajo el directorio
+de benchmarks de ownership. Incluye los 1.024 lotes y conserva todas las filas.
+Linux/Windows produjeron el mismo JSON y Node verificó los cálculos. No permite
+atribuir causas ni juzgar warmups no registrados; motiva conservar el contexto.
+
+El CI general de `5da6a90d`, ejecución39708758945, seguía activo al preparar
+este registro; XML39708758900success y ownership39708758943failure por preflight
+histórico. Consultar estado real antes de declarar cierre. Mantener rendimiento
+sin aceptar y revisión remota pendiente por cuota, sin merge/tag ni APIs nuevas.
+
+## Estado del motor y evidencia previa: secuencia C sin aceptación
 
 Continuar en `feature/native-class-ownership`, PR #80. La compilación y medición
 C corresponden a `eaeca4af3084a23b96fc0214240b552204018c22`, revisado antes de
@@ -158,8 +185,8 @@ en 7/8 procesos; A y B fueron primero cuatro veces cada uno. La mediana descript
 primero/segundo fue +36,250775%. No identifica causalidad de JIT/GC ni reemplaza
 el delta original o la decisión. Todas las demás filas y órdenes quedan visibles.
 
-Próximos pasos: publicar el resultado diagnóstico ya terminado y verificar el
-CI del SHA final. No repetirlo ni adoptar la separación como una solución probada.
+El resultado aislado ya se publicó en 5da6a90d. Los próximos pasos actuales
+están al inicio del documento; no repetirlo ni adoptar la separación como fix probado.
 Mantener el presupuesto separado de ownership en su estado real sin aceptar;
 investigar el estado compartido y aislamiento del runner con una hipótesis y un
 protocolo nuevos. No relanzar secuencias V1/C idénticas,

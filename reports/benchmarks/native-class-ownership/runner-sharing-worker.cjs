@@ -18,14 +18,16 @@ const settings = require('./constants/runner-sharing.cjs');
  * @param {object} manifest - Independently prepared runtime copies and distributions.
  * @param {string} mode - Declared harness-sharing arm.
  * @param {number} position - Balanced position from zero through seven.
- * @returns {object} Original schedule restricted to the diagnostic row.
+ * @param {object} [configuration=settings] - Frozen scope; null workload retains the complete original plan.
+ * @returns {object} Original schedule restricted only when a specific workload is configured.
  * @throws {AssertionError} When mode or position falls outside the declared design.
  */
-function diagnosticSchedule(manifest, mode, position) {
-  assert.ok(settings.modes.includes(mode), 'Runner sharing: unknown diagnostic mode');
+function diagnosticSchedule(manifest, mode, position, configuration = settings) {
+  assert.ok(configuration.modes.includes(mode), 'Runner sharing: unknown diagnostic mode');
   const plan = schedule(manifest, settings.phase, settings.engine, position, original);
+  if (configuration.workload === null) return plan;
   return { ...plan, batches: plan.batches.filter(({ name, size }) =>
-    name === settings.workload.name && size === settings.workload.size) };
+    name === configuration.workload.name && size === configuration.workload.size) };
 }
 
 /**
@@ -56,18 +58,19 @@ function marker(event, label) {
  * Exercise full public batches and preserve partial results without accepting a budget.
  * @param {string} inputPath - JSON file with mode, position, runtime manifest and harness roots.
  * @param {string} output - New JSON report path; existing reports are never overwritten initially.
- * @returns {Promise<void>} Resolves after both batches and resource endpoints are verified.
+ * @param {object} [configuration=settings] - Reviewed diagnostic scope and revision.
+ * @returns {Promise<void>} Resolves after all declared batches and resource endpoints are verified.
  * @throws {Error} When execution, identities, public results or resource checks fail.
  */
-async function main(inputPath, output) {
+async function main(inputPath, output, configuration = settings) {
   assert.equal(process.platform, 'linux', 'Runner sharing: Linux affinity is required');
   assert.ok(settings.nodeVersions.includes(process.version), 'Runner sharing: undeclared Node version');
   assert.deepEqual(process.execArgv, settings.flags, 'Runner sharing: unexpected instrumentation flags');
   assert.equal(Object.hasOwn(process.env, 'NODE_OPTIONS'), false, 'Runner sharing: NODE_OPTIONS must be absent');
   const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
   const { mode, position, manifest, runnerRoots } = input;
-  const plan = diagnosticSchedule(manifest, mode, position);
-  const report = { revision: settings.revision, complete: false, gateReevaluated: false,
+  const plan = diagnosticSchedule(manifest, mode, position, configuration);
+  const report = { revision: configuration.revision, complete: false, gateReevaluated: false,
     mode, position, pid: process.pid, node: process.version, v8: process.versions.v8,
     execArgv: process.execArgv, schedule: plan, runnerRoots, batches: [] };
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
@@ -88,6 +91,7 @@ async function main(inputPath, output) {
     const groups = { A: { window: [], document: [] }, B: { window: [], document: [] } };
     const runners = Object.fromEntries(settings.labels.map((label) => [label,
       factories[label]({ engine: settings.engine, runtime: runtimes[label].api, trackRealms: true })]));
+    const outputByWorkload = new Map();
     save();
     for (const batch of plan.batches) {
       const record = { ...batch, complete: false };
@@ -95,6 +99,10 @@ async function main(inputPath, output) {
       const { realmReferences, ...measurement } = await runners[batch.label].measureWorkload(batch.name, batch.size);
       marker(settings.events.returned, batch.label);
       Object.assign(record, measurement);
+      const key = `${batch.name}/${batch.size}`;
+      if (outputByWorkload.has(key)) assert.equal(measurement.outputHash, outputByWorkload.get(key),
+        `Runner sharing: public results differ for ${key}`);
+      else outputByWorkload.set(key, measurement.outputHash);
       for (const kind of ['window', 'document']) {
         assert.equal(realmReferences[kind].length, original.warmupSamples + original.measuredSamples);
         groups[batch.label][kind].push(...realmReferences[kind]);
@@ -106,7 +114,6 @@ async function main(inputPath, output) {
       }
       record.complete = true; save(); marker(settings.events.end, batch.label);
     }
-    assert.equal(report.batches[0].outputHash, report.batches[1].outputHash, 'Runner sharing: public results differ');
     report.runnersAfter = inspectRunners(runnerRoots);
     report.distributionsAfter = inspectDistributions(manifest, plan, settings.engine, original);
     report.affinitiesAfter = affinities();
