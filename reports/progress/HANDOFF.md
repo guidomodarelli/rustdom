@@ -1,6 +1,18 @@
 # Continuar rustdom en otra máquina
 
-## Actualización: método de orden independiente validado, antes de activar
+## Actualización: ensayo de orden independiente activo
+
+El método y sus evidencias se publicaron en
+`f5526bc1ea645946b41541350f940f5c85a7e628`. Las 387 fuentes publicadas coinciden
+en bytes con el recibo de revisión; la comprobación previa a activar está en
+`independent-order-method/published-source-verification.json` de validación.
+Se aplicó `ownership-independent-order-v1` una sola vez.
+
+El [run 39735778846](https://github.com/guidomodarelli/rustdom/actions/runs/39735778846)
+se confirmó vivo sobre ese SHA, job `119680992084`, preparando Node después del
+checkout. Su resultado está pendiente. No quitar/reaplicar la etiqueta ni rerun;
+una espera que vence no demuestra que el job terminó. Los otros dos workflows
+por etiqueta quedaron skipped sin repetir los ensayos anteriores.
 
 El método nuevo está en `INDEPENDENT-ORDER-PROTOCOL.md`,
 `independent-order-experiment.cjs`, `independent-order-worker.cjs`, sus constantes,
@@ -21,11 +33,12 @@ y memoria. Se observaron 1.536 referencias por tipo Window/Document, con los
 256 endpoints finales exigidos claros y 12 observaciones iniciales no claras
 conservadas. No se evaluó rendimiento global ni se ejecutó el estudio completo.
 
-Siguiente paso: publicar el método y verificar las 387 fuentes contra el SHA
-remoto y el recibo. Solo después aplicar `ownership-independent-order-v1` una
-vez y observar ese run hasta terminar. No repetir los ensayos previos, modificar
-límites, seleccionar filas ni hacer merge/tag mientras ownership no esté cerrado.
-El inventario `d723c90a` continúa separado para integrar después de este hito.
+Siguiente paso: observar ese mismo run hasta terminar, conservar el artefacto
+completo o parcial y verificarlo con sus 387 fuentes congeladas en ambos Node.
+No reconstruir paquetes ni cambiar el método después de activar. No repetir
+ensayos previos, modificar límites, seleccionar filas ni hacer merge/tag mientras
+ownership no esté cerrado. El inventario `d723c90a` continúa separado para
+integrar después de este hito.
 
 ## Actualización: ensayo de una copia terminado, sin aceptación
 
