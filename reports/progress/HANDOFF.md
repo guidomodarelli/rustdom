@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: posiciones leídas, tracing nativo validado antes de capturar
+
+Se completó la lectura de primeros/últimos bloques de los 80 lotes de la captura
+`2af7a05c`: 160 bloques y todos sus frames por source location están en
+`reports/benchmarks/native-class-ownership/sampler-diagnostics-results/2026-10-22/position-comparison/`.
+El input original y sus 960 intervalos permanecen sin modificaciones. No hay
+nueva decisión de rendimiento ni una dirección universal de variación. La
+inspección de los diez perfiles confirma que no contienen metadata de tiers o
+eventos de compilación; no puede deducirse JIT de sus pocos ticks hoja.
+
+El nuevo protocolo de observación nativa está en
+`reports/benchmarks/native-class-ownership/compilation-diagnostics/PROTOCOL.md`.
+Reutiliza sin cambios wrapper, sampler y 390 partes autenticadas de la copia
+instrumentada. Solo añade flags nativos de Node/V8 y retira CPU profiler del
+futuro diagnóstico, sin cambiar fixtures, warmups, muestras, paquetes o limpieza.
+No modifica el arnés de aceptación ni el resultado rechazado 39735778846.
+
+Pasaron los probes de capacidad CLI y contratos reales J0/A0 en ambos Node:
+cuatro procesos DOM, 32 cargas y 384 spans, todos los outputs iguales al archivo
+original. La preparación oficial completa se verificó antes/después en ambos
+Node. Hubo 384 referencias por tipo Window/Document, 96 observaciones, 64
+finales exigidas claras y dos iniciales aún no claras conservadas. Son contratos,
+no muestras de la captura futura ni prueba universal de ausencia de fugas.
+
+El método captura eventos de categorías de compilación, no identidad de función
+ni causalidad. Se preservan principal/fondo, fases y nombres; los 510.536 eventos
+completos de categoría de los contratos no son 510.536 compilaciones. La revisión
+independiente del protocolo, contratos y posiciones terminó sin hallazgos.
+Crudos y fuentes en `reports/validation/native-class-ownership/compilation-diagnostics-method/`;
+raíz local `/tmp/rustdom-compilation-method-ca_1479i`.
+
+El CI general de `8c6dc74b`, run39750126871, aprobó ocho checks. El de `2af7a05c`,
+run39752006618, seguía vivo en la última consulta; comprobar estado real y los
+checks del SHA que publique el método. Sin merge ni tag de ownership.
+
+Siguiente paso: implementar y revisar el orquestador de la única captura nativa
+de diez procesos del protocolo, cotejar las fuentes publicadas y ejecutarla una
+sola vez. Aún no se ejecutó esa captura. Conservar cualquier error sin reintentos;
+no repetir las capturas anteriores. No atribuir el rechazo de Azure a JIT ni GC
+sin evidencia. Ownership sigue abierto e inventario `4c09d1bd` separado.
+
 ## Actualización: captura CPU/GC local completa, sin aceptar rendimiento
 
 El método y fix se publicaron y cotejaron en `8c6dc74b` antes de medir.
