@@ -1,5 +1,37 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: método de tiempo completo calificado, ensayo formal pendiente
+
+Se agregó `reports/benchmarks/native-class-ownership/runner-suite-timing/`.
+La receta fija 342 CLIs: 54 warmups y 288 mediciones de Jest/Vitest/VM,
+con A/A y A/C, Node 22.12.0/24.14.1, doce tiempos por celda y decisión de
+doce filas. Todavía no se ejecutó el ensayo formal. El resultado anterior
+de microbenchmarks sigue rechazado y ownership sigue abierto, sin merge/tag.
+
+El ejercicio final pasó 18 CLIs/558 tests, 13 tests del método y cinco
+contratos de replay por Node Linux. El replay congelado también pasó en
+Node 24.14.1 nativo Windows. Se corrigieron cuatro P2 de revisión y se
+preservaron fuentes previas, ejercicios y reproducción del fallo Windows.
+Ver evidencia, índices, archive y lector en
+`reports/validation/native-class-ownership/runner-suite-timing-method/`;
+los límites de memoria están en el informe del mismo nombre en
+`reports/memory/native-class-ownership/`.
+
+Raíz local `/tmp/rustdom-suite-timing-method-llt4lx03`, final en
+`exercise-portability`. Todas las ejecuciones de calificación son terminales.
+Preparación fija `/tmp/rustdom-runner-suites-ytu9q4xb/static-prepared`,
+índice SHA-256 `cc7d36f1e702c27935c8ed49afe7da280ca760adcb17be45a2db6bc735b845fc`.
+No reconstruir addons ni reinstalar dependencias para el ensayo.
+
+Siguiente paso: autenticar en Git/GitHub el commit publicado y los 79 archivos
+de `study.cjs --sources`, generar recibo y ejecutar una sola vez el CLI formal
+según `PROTOCOL.md`. Registrar su handle y conservar resultados completos o
+parciales; no relanzar por silencio, timeout del observador o rechazo de límites.
+Durante la captura no correr builds, tests, reviews ni compresión en este host.
+El CI general del último SHA publicado `53b4d225` terminó verde en Linux,
+Windows y macOS (run 39768757722); el check ownership sigue fallando por la
+evidencia de rendimiento anterior. No hay nuevo crédito de migración Rust.
+
 ## Actualización: arnés de suites completas calificado, sin ensayo de tiempo
 
 Se agregó `reports/benchmarks/native-class-ownership/runner-suites/` para el
