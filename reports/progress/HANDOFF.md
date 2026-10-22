@@ -1,6 +1,31 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: CI corregido y método con semillas calificado
+## Ensayo con semillas iniciado: no reiniciar
+
+Método publicado y autenticado en `737a2ba1c2cf5994561c3b739232f5e3cb6fb257`: 409 blobs y recibo
+GitHub coinciden con la calificación. SHA del arnés:
+7ab4948d4f717b0cc7eaeb7c5e127f28e8417c63f667ed955a341c1fbb071981.
+Una sola secuencia está iniciada en `/tmp/rustdom-seeded-pre-gc-study-4zryergi`, session30376,
+Node22 PID671904, driver PID671903. Se confirmó vivo al
+registrar esta instantánea; comprobar procesos reales y process.json antes de
+actuar. `reports/progress/seeded-pre-gc-start.json` guarda el momento.
+
+El marcador `.cache/seeded-pre-gc-study.started.json` está consumido.
+NO reiniciar por silencio, timeout de observación o un lock. Esperar el mismo
+handle/PID si está vivo. No ejecutar tareas CPU intensivas ni modificar fuentes
+medidas mientras corre. Node24 debe seguir al finalizar Node22, incluso si
+rechaza presupuestos. Un fallo de integridad detiene y conserva lo parcial.
+Guardar todos los crudos y la decisión del conjunto completo, también negativos.
+Todavía no hay una aceptación o mejora nueva ni autorización de merge/tag.
+
+La captura de optimización y los ensayos anteriores están terminales y no se
+repiten. La auditoría de geometría eaf1a736 está publicada por separado;
+ningún algoritmo nuevo Rust se acredita por este método o esa clasificación.
+Las instrucciones de calificación históricas siguientes no autorizan relanzar
+esta secuencia. Sus fuentes efectivas permanecen en el snapshot publicado737a2ba1;
+este registro de inicio solo modifica documentación fuera del arnés medido.
+
+## Histórico: CI corregido y calificación del método con semillas
 
 El CI general 39828339458 de 343efdc8 pasó sus ocho jobs: Linux/Windows/macOS,
 memoria, paquete, Valgrind y benchmarks generales. XML 39828339502 y preparación
