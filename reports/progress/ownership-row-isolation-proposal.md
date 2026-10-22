@@ -9,7 +9,12 @@ reports/benchmarks/native-class-ownership/seeded-pre-gc-results/2026-10-22/.
 No se repetirá ese ensayo. Actualización posterior: la implementación del
 contraste pasó12contratos en ambos Node; ver ROW-ISOLATION-PROTOCOL.md y
 reports/validation/native-class-ownership/row-isolation-method/. El estudio
-nuevo aún no se midió. El resto conserva la propuesta y sus condiciones originales.
+nuevo ya terminó:1024workers por Node, integridad verificada y accepted=false
+en ambos Node. Siete controles jsdom rechazaron el presupuesto, cuatro en22 y
+tres en24; ninguna fila Rust excedió su límite numérico. Los
+[resultados completos](../benchmarks/native-class-ownership/row-isolation-results/2026-10-22/README.md)
+conservan todas las muestras y rechazos. El resto del documento mantiene la
+propuesta histórica y sus condiciones originales; no autoriza otro ensayo.
 
 ## Evidencia y límites del diagnóstico
 

@@ -1,6 +1,202 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: row-isolation calificado y revisado, publicar/autenticar antes de medir
+## Estado actual: estudio rechazado preservado y calificación offline aprobada
+
+La secuencia original session56332 terminó con exit0 de verificación. Ambos
+padres terminaron exit1 por presupuesto, con1024workers completos exit0 por Node
+y9216duraciones por Node. Resultado conjunto verified=true, accepted=false.
+Hay siete controles jsdom fuera de±2%: cuatro en22 y tres en24; ninguna fila Rust
+excede su límite numérico. Eso no acepta ownership ni habilita tag/merge.
+
+Node24 rechazó AA mutation-records-collect/1000−2.2221592592%; AB
+mutation-records-collect/100+4.4938907504%; AB
+observer-delivery-records/100+2.4843249360%. Sus cambios Rust respectivos fueron
++1.1419376500%,−1.5191454170% y+3.3886532027%. La tabla Node22 aparece abajo,
+con las32filas completas en el nuevo summary.json.
+
+Evidencia completa en reports/benchmarks/native-class-ownership/row-isolation-results/2026-10-22/.
+El tar conserva todos los bytes originales y su copia produce el mismo resultado:
+264854969B, SHAa0643d2c1ff7431f0aea1200e66b2a8bd51a9b4059a51e382b2daf277d0e981c.
+Se dividió byte a byte en8partes de hasta32MiB, con archive-parts.json, hashes
+individuales y global, sin cambiar ninguna muestra. El tar completo se conserva
+en.cache/row-isolation-study-full-a0643d2c.tar.gz: publicar las partes y
+materializarlo al consumirlo, sin stagear un archivo que excede el límite GitHub.
+receipt.json, raw-files.json, build-inputs.json y compiled-package.json conservan
+las identidades; summary.json y reports/memory/native-class-ownership-row-isolation-2026-10-22.json
+ya se derivaron de la copia verificada.
+
+Después del cierre, WSL apareció Stopped y su/tmp vacío. El archivo completo,
+partes y reportes sobrevivieron en Windows. Se perdieron los recibos temporales
+de la primera calificación21aunque el coordinador session93708 terminó exit0;
+no usarlos como prueba final. No repetir ningún benchmark ni captura.
+
+La recuperación offline materializó y verificó el tar y restauró ambos datasets
+en/home/guido/rustdom-validation/recorded-evidence-8g_5cu_3. Un intento falló antes
+de los tests por el ref mal escrito checkpoint067: corregido a
+checkpoint-067-xml-serializer-controller, confirmado en Git y workflow. El
+intento permanece en.cache/recorded-evidence-durable-35uo1ozx y marcador inicial.
+La continuación --resume reutilizó esos datos, comprobó hashes y baseline vacío
+y preservó logs nuevos: session67722 terminó exit0; output
+.cache/recorded-evidence-durable-tfz3dsem y marcador
+.cache/recorded-evidence-durable-resume.started.json. Los28contratos reales
+pasaron en Node22.12.0 y24.14.1 sin omisiones, mocks ni mediciones DOM nuevas.
+Logs/PIDs, fixtures y fuentes se escribieron directamente en Windows.
+
+La evidencia QA está en reports/validation/native-class-ownership/recorded-evidence/:
+229archivos, tar1487833B, SHA1101b31782bddb3d39fbd89ad2552654e4a8bf282ca82e79afc561b8e4317872,
+readback de todos los miembros y9fuentes calificadas. Las415fuentes congeladas
+del estudio siguen intactas. Se conservan guards vivos originales, intentos
+fallidos y sus límites; los recibos perdidos no se cuentan como evidencia final.
+
+El diagnóstico enlazado autentica2051archivos y conserva128celdas completas.
+La revisión detectó y se corrigió la falta inicial de contraste con los hashes
+de raw-files.json. El resultado previo se conserva como histórico no autoritativo.
+Dos pruebas reales alteraron un informe y un índice en copias propias: ambos
+CLI rechazaron los cambios y conservaron el resultado positivo. Productor,
+recibos y logs están en el QA; no hubo otra captura ni muestreo de rendimiento.
+
+El transporte probado es constants/recorded-archive.json,
+materialize-recorded-archive.py y recorded-archive.spec.cjs, junto a los seis
+archivos recorded-evidence ya preparados. Los workflows siguen sin modificarse:
+CI general verde, ownership/XML rojos por evidencia obsoleta. El objetivo Rust
+integral sigue abierto; esta evidencia no agrega implementación Rust. La revisión
+independiente final quedó sin hallazgos, con recibos en ambos paquetes. También
+se corrigió el estado obsoleto de ownership-row-isolation-proposal.md. Falta
+publicar el commit y verificar el remoto; no tag ni merge de ownership mientras
+los controles de rendimiento no acepten el conjunto completo.
+
+## Histórico: seguimiento antes del cierre del estudio original
+
+Secuencia ORIGINAL session56332, root/tmp/rustdom-row-isolation-study-s_tqvw17,
+driver716796 y Node24padre745171. Método publicado/autenticadoa0346b13.
+Node22padre716797 terminó exit1:1024workers exit0,9216tiempos; accepted=false.
+Cuatro controles jsdom rechazaron ±2%, ninguna fila Rust excedió su límite:
+
+| Fase | Carga | Cambio jsdom (%) | Cambio Rust (%) |
+| --- | --- | ---: | ---: |
+| AA | range-control-1000/250 | +3.1312514131 | -0.1223331930 |
+| AB | range-control-1000/1000 | +2.7107127480 | -3.1625944357 |
+| AB | range-state-lifecycle-1000/1000 | -2.7474026406 | -0.9956979548 |
+| AB | range-state-lifecycle-1000/250 | +2.8401337078 | -1.2534506621 |
+
+Índice Node22SHA65d0722e8e4bcc9e73561563afe605c0887992184663c5174b0324ecc3d0eb62.
+Resumen/lector offline en .cache/row-isolation-node22-terminal/. Allí se conserva
+la observación de presencia de10variables de entorno en driver/Node24/unworker:
+ninguna estaba presente; no se recogieron valores ni se observaron caches por API.
+No hay inferencia causal ni aceptación completa a partir de esos datos.
+
+Node24 ya arrancó en el MISMO driver y debe continuar completo. Comprobar
+procesos/handle actuales: silencio no autoriza reinicio. Marcador consumido
+.cache/row-isolation-study.started.json. NO repetir seeded ni captura V8, ni este
+ensayo. No CPU intensiva ni cambios en415fuentes SHA7b13cad926da839fc5650dc0d7a49e9e49c1c71af7fdf9192df5359ee6da51df.
+Esperar ambos Nodes, preservar todos los crudos y negativos y verificar el conjunto.
+No hay aceptación de ownership, tag o merge. El objetivo integral sigue abierto.
+
+El CI general39857277961 de a0346b13 terminó success en sus8jobs. Metadata completa
+incluido snapshot terminal en .cache/ci-a034-overview/. No es aceptación del gate
+ownership ni prueba del adaptador WIP. El XML bc26939855479776 pasó contratos y
+rechazó evidencia incompatible sin volver a medir; rawen.cache/ci-bc269-checks.
+
+El pedido humano más reciente es corregir CI. Se confirmaron los dos fallos de
+a034: ownership39857277890/job120098649449 y XML39857277990/job120098649471.
+Ambos salen2 por inputs incompatibles con su evidencia fijada; los43contratos
+del job ownership pasan sin omisiones. Logs descargados con gh --log-failed,
+como texto UTF8, en .cache/ci-a034-overview/gate-failures/ y copia adyacente
+.cache/ci-a034-gate-errors/. No se cambiaron presupuestos, pins ni workflows.
+
+Aclaración al usuario: no existe un resultado local aprobado de ownership que
+CI rechace por error. Las suites funcionales pasan en ambos entornos; los gates
+actuales salen2 por evidencia obsoleta y el Node22 local original ya rechazó
+calibración jsdom. Son causas distintas y no se debe afirmar que «pasa local».
+
+Archivador preparado en .cache/archive-row-isolation-study.py con configuración
+.cache/constants/archive-row-isolation-study.json. Revisión estática0hallazgos.
+Su --check-ready fue probado contra driver real vivo y rechazó exit1 sin crear
+marker/output, en .cache/row-isolation-archive-guard-live/ y -live-v2/. Ambos
+conservan logs, recibos y fuentes exactas por SHA; v1 se reconstruyó al mismohash
+tras añadir logging de PID, con esa procedencia documentada. Guard v2 tienehelperSHA
+7f4cf6ec01dca39e2287f35af7a0a447404c0ff9ba2083899c2bacb9f094f196 yconfigSHA
+ea66e9a824e332963c1fbf8420cae7464ca43db4f08c1114e5551228484478a6.
+La operación de archivado completo TODAVÍA NO SE EJECUTÓ. Solo hacerlo cuando
+originaldriver yambospadres estén terminales y exista verificación original0.
+Registra suPID yelverificador offline antes dewait; preserva copia/readback,
+receta ysidecar compiled-package.json auténtico de la preparación original.
+Guardar también losguardreceipts yelresumenNode22 con la evidencia QA posterior.
+
+El plan de integración está en reports/progress/ownership-gate-integration-proposal.md.
+Se mantienen compilado0d67 y arnés0b485/415fuentes, sin cambios de runtime/build
+salvo test:compat en package.json. No modificar las415fuentes ni gate activo.
+
+## Adaptador del gate preparado fuera del grafo: WIP sin ejecutar
+
+Se preparó recorded-evidence.cjs y su decoder recorded-evidence-extract.py,
+constants/recorded-evidence.json, recorded-evidence.spec.cjs,
+recorded-evidence-fixtures.py y recorded-evidence-contract-cli.cjs bajo
+reports/benchmarks/native-class-ownership/. Los seis archivos están FUERA415.
+No se conectó el workflow ni se cambió el gate actual. No hay política final
+ni fixtures de datasets porque la secuencia original todavía sigue activa.
+
+El adaptador exige fuentes/harness actuales y su vínculo explícito con cada
+índice archivado, preparación compilada original y todos los inputs adicionales.
+El package.json compilado debe acompañar al archivo como sidecar; su hash se
+contrasta con la declaración histórica congelada. Solo se permite el cambio
+scripts.test:compat; cambios de build/exports/dependencias se rechazan aunque
+la política actualice su hash. El decoder rechaza links, escapes, duplicados,
+cobertura/digests inválidos y PYTHONOPTIMIZE. Limpia su temporal en finally.
+La salida CLI compartida distingue presupuesto rechazado1 de integridad/inputs2.
+
+Revisión estática: los hallazgos de enlace de arnés y Python optimizado fueron
+corregidos y la revisión de esos fixes quedó sin hallazgos. Hay21contratos
+funcionales preparados con dos datasets reales, CLI real y tar inválidos reales,
+sin mocks. La revisión estática final, incluidos CLI y21contratos, quedó sin hallazgos. NO SE
+EJECUTARON los contratos: hacerlo en ambos Node solo después de terminar el
+estudio para no competir con sus mediciones. No commitear este WIP sin pruebas.
+
+Después: archivar todos los crudos/negativos y verificar copia offline, preservar
+compiled-package.json desde prepared/sources/package.json (hash histórico del
+manifiesto), derivar receta final y crear fixtures fresh para seeded rechazado
+y row-isolation completo. Env de tests: RUSTDOM_RECORDED_EVIDENCE_FIXTURE, JSON
+con scenarios en orden seeded,rowIsolated y outputRoot vacío/nuevo por Node.
+Cada escenario define kind, baselineRoot, candidateRoot, archiveRoot, policy y
+expectedAccepted original. Policy requiere archive/rawManifest (filename,sha256),
+archivePrefix, nodeDirectories, sourceHashes, compiledSourceHashes, harnessSha256,
+buildInputHashes (10inputs por label) y compiledPackageManifest (sidecar relativo
+al archiveRoot). No inventar resultados ni usar datos parciales para completarla.
+El helper row-isolation y su guard están preparados como se describe arriba.
+El de seeded sigue siendo histórico: nunca ejecutarlo de nuevo para otra medición.
+
+Preparación nueva, todavía sin ejecución: .cache/qualify-recorded-evidence.py
+exige primero --check-ready del archivador, el archivo completo y su readback;
+solo entonces crea fixtures propias desde ambos datasets reales y snapshots
+medidos409/415. Usa los10inputs adicionales, sidecar compilado autenticado,
+salida propia y21contratos por Node22.12.0/24.14.1. Revisión estática sin hallazgos;
+no equivale a pruebas ejecutadas. No modifica los archivos históricos.
+
+.cache/analyze-row-isolation.py está preparado para derivar todas las32filas
+y memoria por fila/proceso desde la copia completa verificada. No calcula una
+tendencia entre lotes dentro del proceso: este método tiene solo un lote por
+proceso. .cache/finish-row-isolation-ci-evidence.py espera al driver original
+sin trabajo pesado, verifica pins de helpers, exige guard terminal y ejecuta
+una sola vez archive, analyze y qualify. Preserva logs/PIDs y se detiene ante
+cualquier fallo, sin reintentos automáticos ni mediciones nuevas. La revisión
+estática de ambos scripts terminó sin hallazgos. Coordinador ORIGINAL activo:
+session93708, PID758772, root/tmp/rustdom-row-isolation-ci-followup-zrbeis4v;
+marcador consumido .cache/row-isolation-followup.started.json. No reiniciarlo.
+Está esperando al driver716796; todavía no ejecutó archive/analyze/qualify.
+No hay aceptación de rendimiento por preparar o iniciar estos helpers. El
+estudio original sigue siendo la única medición activa. Última lectura de Node24:
+600workers completos,601iniciados, faseAB, observado1792709150.7784102.
+
+Diagnóstico adicional preparado en .cache/diagnose-row-isolation.py, revisión
+estática0, sin ejecutar. Exige el mismo guard terminal y archivo verificado;
+describe128celdas con16procesos/nuevemuestras, todos los procesos físicos y
+máscaras de afinidad registradas en los extremos. No modifica el estimador,
+presupuestos ni aceptación; no infiere causalidad, independencia o estado estable.
+Ejecutarlo después del archivado sin interferir con ninguna medición activa.
+Una lectura acotada del primer worker jsdom Node22 confirmó principalCPU2 y
+hilos de fondo0-15 en ambos extremos: no prueba actividad de scheduler ni causa.
+
+## Histórico: método row-isolation calificado y revisado
 
 Doce contratos por Linux Node22.12.0/24.14.1 aprobaron sin omisiones. Se validaron
 84workers DOM reales, cinco copias oficiales,112lotes y1008tiempos funcionales;
