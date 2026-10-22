@@ -1,6 +1,29 @@
 # Continuar rustdom en otra máquina
 
-## Variante prospectiva: GC antes de calentar, calificada
+## Ensayo GC antes del warmup iniciado: no reiniciar
+
+Método publicado y autenticado en `a558e472`:403 blobs Git y recibo de GitHub
+coinciden, hash del arnés8798e3f0420e7bf78fe6dc9051bc4bda787fe2ccf047cc5a12a97b9381ad3543.
+Se inició una sola secuencia sin tracing en
+`/tmp/rustdom-pre-gc-warmup-study-x5ykpauj`, session23748, Node22 PID615481.
+El proceso fue confirmado vivo al registrar esta instantánea. Driver, publicación
+y momento están en `reports/progress/pre-gc-warmup-start.json`; esto no garantiza
+que siga activo al leerlo después. El marcador exclusivo
+`.cache/pre-gc-warmup-study.started.json` está consumido. NO relanzar.
+
+Consultar primero el handle y los procesos reales, archivos process.json e
+índices Node22/24 de esa raíz. Esperar la secuencia existente si sigue activa.
+No confundir silencio o timeout de observación con terminación. Completar ambos
+Node y guardar íntegros crudos y rechazos; fallo de integridad detiene la
+secuencia conservando lo parcial. No modificar código ni ejecutar tareas CPU
+intensivas locales mientras mida. Aún no hay decisión de rendimiento nueva.
+
+La captura de optimización y el ensayo caliente anterior siguen terminales y
+no deben repetirse. Ownership permanece abierto, sin aceptación, merge/tag o
+crédito de migración. Las instrucciones de preparación siguientes documentan
+la calificación previa; no son autorización para iniciar otra secuencia.
+
+## Histórico: calificación de GC antes de calentar
 
 La variante explícita `warmupGcOrder=before-warmup` mueve las mismas dos
 colecciones major asincrónicas y una síncrona antes de las tres rondas en la
