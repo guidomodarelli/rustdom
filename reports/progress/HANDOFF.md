@@ -1,6 +1,42 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: ensayo pre-GC terminal y corrección WPT de Windows
+## Estado actual: CI corregido y método con semillas calificado
+
+El CI general 39828339458 de 343efdc8 pasó sus ocho jobs: Linux/Windows/macOS,
+memoria, paquete, Valgrind y benchmarks generales. XML 39828339502 y preparación
+39828339498 también aprobaron. El worker remoto WPT usó Node 24.21.0;
+localmente se validó 24.22.1 además de 22.12.0. Logs y límites observados en
+`reports/validation/native-class-ownership/wpt-ci-followup-343efdc8/`.
+El gate ownership 39828339560 sigue rechazado; no repinear para ponerlo verde.
+
+La auditoría de geometría está publicada por separado en eaf1a736, rama
+`feature/inventory-node-helpers`: 16 módulos, 45 anclas y 23 APIs auditados.
+Denominadores 531/4374/7246 intactos, sin Rust nuevo ni porcentaje global.
+La antigua mención de ese WIP sin validar quedó superada por ese commit.
+
+El método `seeded-pre-gc` está CALIFICADO, todavía NO MEDIDO. Node 22.12.0 y
+24.14.1 pasan 11 tests cada uno: cinco paquetes oficiales con semillas y dos
+workers default, 56 lotes/504 tiempos funcionales por Node, 672 owners de cada
+tipo. Fuentes: 409, SHA 7ab4948d4f717b0cc7eaeb7c5e127f28e8417c63f667ed955a341c1fbb071981.
+Archivo de 501 crudos/fuentes: SHA f2a955c51ed094401c492c452811fc6f51559daf62c3397ee5cdae346588bc67.
+Detalles en `SEEDED-PRE-GC-PROTOCOL.md` y
+`reports/validation/native-class-ownership/seeded-pre-gc-method/`.
+
+Controla semillas 1..16 por posición, iguales entre A/B y ambos motores.
+No desactiva JIT/compilación/GC concurrentes, no usa predictable ni garantiza
+control del hash incorporado en snapshots. Probes RNG reales, flags efectivos
+y endpoints verificados. Conserva sampler, ocho filas, 16 posiciones y las
+combinaciones de cuatro factores, 3 warmups/9 muestras y presupuestos 2%/5%.
+No atribuir todavía la variación previa a las semillas.
+
+Antes de medir: revisión final, commit/push y autenticación de los 409 blobs y
+recibo. Usar un marcador nuevo exclusivo, raíz nueva y ambos Node. Si sigue
+activo, no reiniciar por silencio ni ejecutar CPU intensiva o modificar fuentes
+medidas. No relanzar la captura o estudios históricos consumidos. El ensayo
+pre-GC anterior sigue íntegro y rechazado (11 controles jsdom); no mezclar sus
+tiempos. Hasta aceptar un conjunto completo, ownership sigue sin merge/tag.
+
+## Histórico: ensayo pre-GC terminal y corrección WPT de Windows
 
 La secuencia `/tmp/rustdom-pre-gc-warmup-study-x5ykpauj`, session23748,
 está TERMINAL. Ambos drivers terminaron con exit1, con128/128 workers

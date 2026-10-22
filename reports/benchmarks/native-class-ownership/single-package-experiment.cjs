@@ -24,7 +24,7 @@ const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
  */
 function createSinglePackageStudy({ settings = defaultSettings, method = defaultMethod } = {}) {
   const shared = createPairedStudy({ settings, method, sourceHashes: method.sourceHashes });
-  const { schedule } = createSinglePackageWorker(settings);
+  const { schedule, workerArguments } = createSinglePackageWorker(settings);
   /** Expand every declared pair into two adjacent, independently identified OS processes. */
   function processSchedule() {
     const sequence = [];
@@ -51,7 +51,12 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     assert.equal(report.revision, settings.revision); assert.deepEqual(report.settings, settings);
     for (const key of ['node', 'phase', 'engine', 'position', 'label', 'pid']) assert.equal(report[key], expected[key]);
     assert.ok(settings.nodeVersions.includes(report.node));
-    assert.deepEqual(report.execArgv, ['--expose-gc']);
+    assert.deepEqual(report.execArgv, workerArguments(expected.position));
+    if (settings.v8Seeds !== undefined) {
+      assert.equal(report.v8Seed, settings.v8Seeds[expected.position]);
+      assert.equal(report.randomProbe.length, settings.v8SeedProbeSamples);
+      assert.ok(report.randomProbe.every((probeValue) => Number.isFinite(probeValue) && probeValue >= 0 && probeValue < 1));
+    }
     const plan = schedule(manifest, expected.phase, expected.engine, expected.position, expected.label);
     assert.deepEqual(report.schedule, plan);
     for (const stage of ['initial', 'configured', 'final']) {
@@ -107,6 +112,30 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     }
   }
 
+  /**
+   * Match the actual startup RNG prefix across both engines and labels at each fixed position.
+   * @param {object[]} entries - Complete paired process observations, already validated individually.
+   * @returns {void} Throws if a declared pair is incomplete or its observed RNG prefixes differ.
+   * @throws {Error} When the phase/position group is incomplete or its matched processes have unequal RNG prefixes.
+   */
+  function validateSeedProbes(entries) {
+    if (settings.v8Seeds === undefined) return;
+    const groups = new Map();
+    for (const entry of entries) {
+      const key = `${entry.phase}/${entry.position}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(entry);
+    }
+    for (const [positionKey, group] of groups) {
+      assert.equal(group.length, settings.engines.length * settings.labels.length,
+        `Single package: incomplete seeded process group=${positionKey}`);
+      assert.deepEqual(new Set(group.map((entry) => `${entry.engine}/${entry.label}`)),
+        new Set(settings.engines.flatMap((engine) => settings.labels.map((label) => `${engine}/${label}`))));
+      for (const entry of group) assert.deepEqual(entry.observation.randomProbe, group[0].observation.randomProbe,
+        `Single package: startup RNG differs at phase=${entry.phase} position=${entry.position} engine=${entry.engine} label=${entry.label}`);
+    }
+  }
+
   /** Reuse the original pooled-median estimator, retaining each real child report separately. */
   function summarize(entries, phase) {
     const pairs = shared.processSchedule().filter((input) => input.phase === phase).map((input) => {
@@ -142,6 +171,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
       validateWorker(observation, index.manifest, { ...entry, node: index.node });
       return { ...entry, observation };
     });
+    validateSeedProbes(entries);
     const summaries = Object.fromEntries(settings.phases.map((phase) => [phase, summarize(entries.filter((entry) => entry.phase === phase), phase)]));
     assert.deepEqual(summaries.AA.map((row) => row.outputHash), summaries.AB.map((row) => row.outputHash));
     assert.deepEqual(index.summaries, summaries);
@@ -192,7 +222,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
         let stderr; let result;
         try {
           stderr = fs.openSync(path.join(output, entry.stderr), 'wx');
-          result = spawnSync(process.execPath, ['--expose-gc', path.join(__dirname, method.workerFilename), manifestPath,
+          result = spawnSync(process.execPath, [...workerArguments(input.position), path.join(__dirname, method.workerFilename), manifestPath,
             input.phase, input.engine, String(input.position), input.label, path.join(output, entry.report)],
           { stdio: ['ignore', stdout, stderr], timeout: method.workerTimeoutMs });
         } finally { fs.closeSync(stdout); if (stderr !== undefined) fs.closeSync(stderr); }
@@ -204,6 +234,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
         validateWorker(readJson(path.join(output, entry.report)), manifest, { ...entry, node: process.version });
       }
       const entries = index.runs.map((entry) => ({ ...entry, observation: readJson(path.join(output, entry.report)) }));
+      validateSeedProbes(entries);
       index.summaries = Object.fromEntries(settings.phases.map((phase) => [phase, summarize(entries.filter((entry) => entry.phase === phase), phase)]));
       index.preparationAfter = preparation.inspectPreparation(preparedRoot);
       index.harnessAfter = shared.captureHarness(); assert.deepEqual(index.harnessAfter, harness);
@@ -226,7 +257,7 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
     return { verified: true, accepted: results.every((result) => result.accepted), results };
   }
   return { captureHarness: shared.captureHarness, inspectPreparation: preparation.inspectPreparation,
-    processSchedule, validateWorker, summarize, run, verify, verifySet };
+    processSchedule, validateWorker, validateSeedProbes, summarize, run, verify, verifySet };
 }
 
 const study = createSinglePackageStudy();

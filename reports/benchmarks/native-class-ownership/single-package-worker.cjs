@@ -17,6 +17,23 @@ const defaultSettings = require('./constants/single-package.cjs');
  * @returns {object} Worker functions bound to that configuration.
  */
 function createSinglePackageWorker(settings = defaultSettings) {
+  /**
+   * Declare startup entropy only for an explicit seeded method; legacy flags remain unchanged.
+   * @param {number} position - Prospectively declared position, shared by both engines and treatments.
+   * @returns {string[]} Actual Node startup flags, before loading a physical runtime.
+   * @throws {Error} When the declared position has no positive seed or finite probe configuration.
+   */
+  function workerArguments(position) {
+    if (settings.v8Seeds === undefined) return ['--expose-gc'];
+    assert.ok(Array.isArray(settings.v8Seeds) && settings.v8Seeds.length === settings.workerCount,
+      `Single package: V8 seeds must cover all ${settings.workerCount} declared positions`);
+    const seed = settings.v8Seeds[position];
+    assert.ok(Number.isSafeInteger(seed) && seed > 0, `Single package: invalid V8 seed at position=${position}: ${seed}`);
+    assert.ok(Number.isSafeInteger(settings.v8SeedProbeSamples) && settings.v8SeedProbeSamples > 0,
+      `Single package: invalid RNG probe sample count=${settings.v8SeedProbeSamples} at position=${position}`);
+    return ['--expose-gc', `--random-seed=${seed}`, `--hash-seed=${seed}`];
+  }
+
   /** Resolve one fixed treatment, balancing pair order, physical baseline and row order independently. */
   function schedule(manifest, phase, engine, position, label) {
     assert.ok(settings.labels.includes(label), 'Single package: unknown treatment label');
@@ -60,11 +77,17 @@ function createSinglePackageWorker(settings = defaultSettings) {
     assert.equal(Object.hasOwn(process.env, 'NODE_OPTIONS'), false, 'Single package: NODE_OPTIONS must be absent');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const position = Number(positionText);
+    if (settings.v8Seeds !== undefined) assert.deepEqual(process.execArgv, workerArguments(position),
+      'Single package: process flags differ from the declared V8 seed');
     const plan = schedule(manifest, phase, engine, position, label);
     const report = { complete: false, gateReevaluated: false, revision: settings.revision, settings,
       phase, engine, position, label, node: process.version, v8: process.versions.v8,
       execArgv: process.execArgv, pid: process.pid, heapLimitBytes: getHeapStatistics().heap_size_limit,
       schedule: plan, batches: [] };
+    if (settings.v8Seeds !== undefined) {
+      report.v8Seed = settings.v8Seeds[position];
+      report.randomProbe = Array.from({ length: settings.v8SeedProbeSamples }, () => Math.random());
+    }
     fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' });
     const save = () => fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
     const checkLoaded = () => {
@@ -113,7 +136,7 @@ function createSinglePackageWorker(settings = defaultSettings) {
       report.complete = true; save();
     } catch (error) { report.failure = { message: error.message, stack: error.stack }; save(); throw error; }
   }
-  return { schedule, loadedPackages, observeCleanup, main };
+  return { schedule, workerArguments, loadedPackages, observeCleanup, main };
 }
 
 const worker = createSinglePackageWorker();
