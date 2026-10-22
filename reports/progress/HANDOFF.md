@@ -1,5 +1,22 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: variante de warmup por ventana calificada
+
+Lectura completa de la captura única publicada en4e3a1113; NO repetirla.
+El nuevo método opt-in está en REALM-WARMUP-PROTOCOL.md: tres rondas de
+operaciones fuera del reloj en la misma ventana; temporales removidas y GC
+antes de medir. No es el costo de primer uso ni cambia los rechazos anteriores.
+
+Node22/24:23 tests por versión pasan, con cinco paquetes oficiales, hashes
+públicos históricos y liberación separada de Window/Document y baseline nativo.
+El test inicialmente fallido confundía rangeClones con rangeStates: corregido
+y conservado el fallo en el histórico. Evidencia completa en
+reports/validation/native-class-ownership/realm-warmup-method/.
+Revisión read-only del código sin hallazgos. Siguiente: autenticar publicación
+y ejecutar una única secuencia completa sin tracing de realm-warmup, todas
+las ocho cargas, factores y presupuestos originales. Todavía sin aceptación,
+sin merge/tag y sin crédito Rust. El gate actual conserva su rechazo.
+
 ## Actualización: captura de optimización terminal, no repetir
 
 La única captura del launcher publicado en8d4dcf67 terminó con exit0. Raíz
@@ -20,8 +37,8 @@ otros motivos, y recompilaciones en generated/Range.js y Range-impl.js.
 Los registros no alinean eventos con los temporizadores del DOM. No sumar
 sus duraciones como CPU/pausas, no atribuirles el rechazo de Azure y no usar
 los tiempos instrumentados para aceptar presupuestos. Los rechazos anteriores
-siguen vigentes. El siguiente paso es cerrar lectura y publicación verificables
-y contrastar un cambio correctivo del sampler con límites y alcance intactos.
+siguen vigentes. Lectura y publicación completas en4e3a1113; el contraste prospectivo nuevo
+conserva presupuestos y declara su alcance de operaciones calientes.
 
 ## Histórico: launcher calificado antes de la captura (superado)
 

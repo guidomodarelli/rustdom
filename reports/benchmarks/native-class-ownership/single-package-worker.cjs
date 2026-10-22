@@ -87,7 +87,8 @@ function createSinglePackageWorker(settings = defaultSettings) {
       const baseline = runtime.api.getNativeTreeStatistics?.();
       report.nativeBaseline = baseline; save();
       const groups = { window: [], document: [] };
-      const runner = createBenchmarkRunner({ engine, runtime: runtime.api, trackRealms: true });
+      const runner = createBenchmarkRunner({ engine, runtime: runtime.api, trackRealms: true,
+        warmupCurrentRealm: settings.warmupCurrentRealm ?? false });
       for (const input of plan.rows) {
         const record = { label, ...input, complete: false };
         report.batches.push(record); save();

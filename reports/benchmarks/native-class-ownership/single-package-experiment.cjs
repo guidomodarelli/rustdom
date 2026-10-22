@@ -89,6 +89,8 @@ function createSinglePackageStudy({ settings = defaultSettings, method = default
       for (const key of ['name', 'size']) assert.equal(batch[key], input[key]);
       assert.equal(batch.rows, input.size); assert.equal(batch.complete, true);
       assert.equal(batch.samplesMs.length, settings.measuredSamples);
+      if (settings.warmupCurrentRealm) assert.equal(batch.withinRealmWarmupRounds, settings.withinRealmWarmupRounds);
+      else assert.equal(Object.hasOwn(batch, 'withinRealmWarmupRounds'), false);
       assert.ok(batch.samplesMs.every((sample) => Number.isFinite(sample) && sample > 0));
       assert.match(batch.outputHash, /^[0-9a-f]{64}$/);
       assert.equal(batch.memoryAfterCleanup.length, settings.measuredSamples);
