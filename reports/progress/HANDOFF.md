@@ -1,13 +1,25 @@
 # Continuar rustdom en otra máquina
 
-## Preparación actual: diagnóstico con contexto completo
+## Estado actual: diagnóstico con contexto completo terminado
 
 La secuencia aislada sigue terminada, publicada en `5da6a90d`; no reiniciarla.
-Se preparó `RUNNER-SHARING-CONTEXT-PROTOCOL.md` para observar las ocho filas
+Se publicó `RUNNER-SHARING-CONTEXT-PROTOCOL.md` en `8cc47053` para observar las ocho filas
 originales en posiciones0/4, manteniendo física J0/J1 y cargaA/B, con modos
 shared/independent en orden ABBA. Son ocho procesos entre Node22/24 y 1.152
-duraciones planificadas. Esta secuencia nueva todavía no se ejecutó: publicar
-el método y fijar SHA/huella/recibo antes de iniciarla.
+duraciones medidas. La única secuencia terminó con exit0 en ocho workers y
+ambos drivers, Node22 antes de Node24. Root original
+`/tmp/rustdom-runner-context-study-alwnuvvp`, sesión96791 terminal: no reiniciar.
+El método/367fuentes se fijó en c5afe557… antes de medir, con review local limpia.
+
+El resultado es inconcluso: en range-control-1000/250 Node22 dio primero/segundo
++16,718885% shared/pos0 y −1,029562% independent/pos0; pos4 dio +0,529461% y
+−9,200011%. Node24 conservó valores negativos en ambos modos/casos. No permite
+adoptar la separación como fix ni aceptar ownership. Los 1.366 archivos crudos,
+64 comparaciones y 1.152 muestras están en
+`runner-sharing-context-diagnostics/2026-10-22/`, bajo benchmarks de ownership.
+Linux/Windows recalcularon JSON idéntico; Node cruzó todas las medianas/muestras.
+No repetir estos contrastes. Definir una hipótesis nueva antes de medir, revisando
+entorno de ejecución y procedencia de fuentes, compilados y herramientas.
 
 Los controladores compartidos aceptan esa receta explícita y conservan los
 defaults aislados. Los checksums ahora se comparan por cada una de las ocho
@@ -22,8 +34,8 @@ de benchmarks de ownership. Incluye los 1.024 lotes y conserva todas las filas.
 Linux/Windows produjeron el mismo JSON y Node verificó los cálculos. No permite
 atribuir causas ni juzgar warmups no registrados; motiva conservar el contexto.
 
-El CI general de `5da6a90d`, ejecución39708758945, seguía activo al preparar
-este registro; XML39708758900success y ownership39708758943failure por preflight
+El CI general de `8cc47053`, ejecución39710595898, seguía activo al preparar
+este registro; XML39710595698success y ownership39710595756failure por preflight
 histórico. Consultar estado real antes de declarar cierre. Mantener rendimiento
 sin aceptar y revisión remota pendiente por cuota, sin merge/tag ni APIs nuevas.
 
