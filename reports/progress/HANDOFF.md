@@ -32,9 +32,26 @@ ownership: 32 procesos jsdom A/A entre ambos Nodes, comparando un módulo de
 carga compartido con dos copias de fuentes idénticas. Mantiene fixture y lotes
 originales, balance físico/carga/lotes y agrega trazas V8 idénticas en ambos
 brazos. El reviewer local cerró sin hallazgos tras corregir rutas relativas y
-conteo de fuentes. La secuencia diagnóstica completa todavía no se ejecutó:
-publicar el método y registrar su SHA/huella/recibo antes de iniciarla. No
-puede aceptar un presupuesto ni sustituye la revisión remota para mergear.
+conteo de fuentes. Esa preparación se publicó antes de ejecutar la secuencia;
+el resultado actual terminado está registrado a continuación. El diagnóstico
+no puede aceptar un presupuesto ni sustituye la revisión remota para mergear.
+
+El método se publicó en `4b76fe2a550c3c979e7412fe7400d02e81d0cf3c` y la
+única secuencia diagnóstica terminó con exit0: 32 procesos/576 duraciones,
+Node22 antes de Node24. Root original `/tmp/rustdom-runner-sharing-study-yco2wkdn`,
+sesión16508 terminal: no reiniciar. Archivo y análisis portable en
+`reports/benchmarks/native-class-ownership/runner-sharing-diagnostics/2026-10-22/`.
+Se verificaron 1.470 archivos crudos, todos los resultados públicos coincidieron
+y quedaron claros los endpoints. El primer lote fue más lento 4/8 en ambos
+brazos Node22 y 3/8 en ambos Node24. El contraste no reprodujo el patrón anterior
+ni demostró que separar el módulo arregle la inestabilidad. Las trazas del script
+son anónimas y no identifican measure; no atribuirles causalidad.
+El diagnóstico usa trazas y omite el contexto de las otras siete filas: no acepta
+presupuesto ni justifica cambiar el runner como fix demostrado. Investigar el
+contexto completo y una hipótesis nueva antes de otra medición.
+El paso de contratos del shard2 del CI de 4b76 ya aprobó; CI general aún en curso
+al preparar este registro, XML39707715801success y ownership39707715813failure
+en el preflight histórico. No declarar CI general verde sin consultar su final.
 
 El CI general de `eaeca4af`, ejecución `39697882540`, terminó success: los ocho
 checks, incluidos macOS, Windows, Linux y cuatro shards, aprobaron. Datos y recibo
@@ -141,8 +158,8 @@ en 7/8 procesos; A y B fueron primero cuatro veces cada uno. La mediana descript
 primero/segundo fue +36,250775%. No identifica causalidad de JIT/GC ni reemplaza
 el delta original o la decisión. Todas las demás filas y órdenes quedan visibles.
 
-Próximos pasos: publicar la corrección de quiescencia y el método diagnóstico,
-verificar su CI y ejecutar una única secuencia conforme al protocolo publicado.
+Próximos pasos: publicar el resultado diagnóstico ya terminado y verificar el
+CI del SHA final. No repetirlo ni adoptar la separación como una solución probada.
 Mantener el presupuesto separado de ownership en su estado real sin aceptar;
 investigar el estado compartido y aislamiento del runner con una hipótesis y un
 protocolo nuevos. No relanzar secuencias V1/C idénticas,
