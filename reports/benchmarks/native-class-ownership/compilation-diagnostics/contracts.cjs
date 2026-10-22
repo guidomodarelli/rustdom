@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const settings = require('./constants/trace.json');
+const { createTraceCommand } = require('./command.cjs');
 
 const [diagnosticRoot, manifestPath, frozenNodeRoot, outputRoot] = process.argv.slice(2);
 fs.mkdirSync(outputRoot);
@@ -14,13 +15,12 @@ for (const engine of ['jsdom', 'rustdom']) {
   fs.mkdirSync(directory);
   const output = path.join(directory, 'report.json');
   const tracePath = path.join(directory, 'trace.json');
-  const command = ['--expose-gc', `--trace-event-categories=${settings.categories.join(',')}`,
-    `--trace-event-file-pattern=${tracePath}`, path.join(diagnosticRoot, 'worker.cjs'),
-    manifestPath, 'AA', engine, '0', 'A', output];
-  const result = spawnSync(process.execPath, command, { encoding: 'utf8' });
+  const command = createTraceCommand({ node: process.execPath, diagnosticRoot, manifestPath,
+    directory, phase: 'AA', engine, label: 'A' });
+  const result = spawnSync(command[0], command.slice(1), { encoding: 'utf8' });
   fs.writeFileSync(path.join(directory, 'stdout.log'), result.stdout ?? '');
   fs.writeFileSync(path.join(directory, 'stderr.log'), result.stderr ?? '');
-  fs.writeFileSync(path.join(directory, 'process.json'), `${JSON.stringify({ command: [process.execPath, ...command],
+  fs.writeFileSync(path.join(directory, 'process.json'), `${JSON.stringify({ command,
     exitCode: result.status }, null, 2)}\n`);
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(fs.readFileSync(output));

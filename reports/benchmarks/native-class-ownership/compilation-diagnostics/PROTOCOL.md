@@ -4,6 +4,26 @@ Estado: validación del método. No ejecutar la captura de diez procesos antes
 de publicar, revisar y cotejar estas fuentes y pasar contratos reales Node22/24.
 No repetir las capturas anteriores ni convertirlas en aceptación.
 
+El orquestador está en `run.cjs`; comparte `command.cjs` con los contratos reales.
+Las seis fuentes requeridas están declaradas en `constants/trace.json`. Antes
+de invocarlo, el operador verifica en Git y GitHub el SHA publicado y los bytes
+de esas seis fuentes, y escribe un recibo `{commit, files}` con hashes por path
+relativo a este directorio. `verifySources` coteja bytes con ese recibo; por sí
+solo no demuestra publicación remota. El recibo de derivación está fijado por
+SHA-256 independiente y se autentican sus 390 partes antes de importar el sampler.
+
+```text
+node run.cjs DERIVED OFFICIAL_PREPARATION PUBLICATION.json NEW_OUTPUT NODE22 NODE24
+```
+
+El directorio de salida debe ser nuevo y disjunto de ambas entradas, resolviendo
+su padre real. Se copian fuentes instrumentadas, fuentes del método y recibo.
+El índice conserva comandos, PIDs, exit/signal, stdout/stderr y hashes de traces;
+cualquier fallo de proceso o lectura detiene el resto sin reintentos. Se revalidan
+fuentes y preparación después de cada Node. Los contratos del orquestador usan
+procesos Node reales que fallan o escriben un JSON inválido: deben conservar el
+primer resultado y no lanzar el siguiente. No son muestras del producto.
+
 ## Pregunta y fundamento
 
 La captura CPU/GC publicada en `2af7a05c` conserva 960 intervalos. Los controles

@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Actualización: orquestador preparado para la única captura nativa
+
+`compilation-diagnostics/run.cjs` comparte `command.cjs` con los contratos DOM.
+Verifica 390 partes derivadas contra recibo independiente fijado por SHA, coteja
+seis fuentes con recibo que el operador autentica en Git/GitHub, fija las dos
+versiones Node y los diez tratamientos, preserva logs/índice/error y se detiene
+sin reintentos. Copia fuentes/recibo y revalida fuentes y preparación tras cada
+Node. La autenticación remota no se deduce de un JSON ni de verifySources solo.
+
+Seis casos por Node22/24 pasan, incluidos procesos reales exit7 y JSON inválido
+tras exit0, sin mocks; no ejecutan DOM. Con el comando compartido pasaron cuatro
+procesos DOM/32 cargas/384 spans. Las tres fuentes de comando permanecen iguales;
+se reutiliza esa evidencia después del delta de documentación/copia/revalidación
+de main, y se repitieron los seis casos sobre las seis fuentes finales. La
+revisión independiente final no encontró hallazgos. Aún no se ejecutó main completo.
+
+Evidencia en `reports/validation/native-class-ownership/compilation-orchestrator/`,
+benchmarks y memoria equivalentes. Raíz local:
+`/tmp/rustdom-compilation-orchestrator-uyseygat`. Memoria DOM: 384 referencias por
+tipo, 96 observaciones, 64 finales claras y dos iniciales aún no claras conservadas.
+Sin nuevas suites de producto ni builds porque no cambia el runtime.
+
+Siguiente paso inmediato: publicar/cotejar los seis archivos del método y generar
+recibo `{commit, files}` con hashes relativos al directorio compilation-diagnostics;
+invocar una sola vez el CLI del protocolo con copia instrumentada verificada,
+preparación oficial, recibo, output nuevo y binarios Node22/24. Conservar el
+proceso vivo por su handle, no relanzar por silencio/timeouts de observación.
+La captura nativa de diez procesos sigue pendiente. No repetir capturas previas.
+Ownership sin aceptación; inventario `4c09d1bd` separado, sin merge ni checkpoint.
+
 ## Actualización: posiciones leídas, tracing nativo validado antes de capturar
 
 Se completó la lectura de primeros/últimos bloques de los 80 lotes de la captura
