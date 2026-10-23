@@ -1,5 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Publicación y verificación remota de la integración ownership
+
+f7eaa04748a37bef765f76c050f623afe6365ab6 está publicado en PR80 y autenticado:
+24blobsGitHub,6fuentes calificadas idénticas; workingtree limpio en ese hito.
+Run39876191401 completó ambos jobs. Los pasos de contratos pasaron en ambos
+Node y los gates reales terminaron exit1, verified=true, accepted=false.
+Los outputs coinciden exactamente con los32resúmenes del estudio original;
+ya no falla ownership por inputs obsoletos2. Los siete controles siguen rechazados.
+
+ZIPs CI12468801985(Node22) y12468288930(Node24) autenticados con los digestsGitHub:
+f6d9d2fdf1f0a5655d5f46c8a18086b90ea65e6be064762ef2098b337c8d8013 y
+2f8346c196ba3e78316f4075a9ed3ce75e0f43d309e5df3fe9e9c2913d53e157.
+Copias completas, metadata/run.log y recibos en
+reports/validation/native-class-ownership/recorded-workflow-ci/39876191401/
+(WIP propio de evidencia posterior, aún sin commit). No repetir las pruebas ni
+el estudio para capturar esta confirmación; no mapear el rechazo a un check verde.
+CI general f7:39876191361, XML39876191349, preparación39876191352 en seguimiento.
+El general previo501f39872143130 terminó success en sus8jobs.
+
+XML aún fija su evidencia antigua incompatible. Dos estudios ya guardados,
+39839886242 positivo y39844860696 posterior con AA rechazado, usan fuente0b485,
+baseline993a1e y el mismo candidateBinary221e6754e8e6ef461007f5d6834cb586ebbf0f0a6d8556651ab93b64e6b9c0f5.
+Ese hash aparece también en el índice del artefacto oficial actual501f para
+dist/rustdom.node; por ahora solo se cotejó metadata, no todo el árbol físico.
+Sus sourceCommit son3905893d92d00364591257946f25e1b94364b1a0 y
+782b73d02340e898a17a4f2b42685651107e213c. Conservar ambos, no elegir solo el aprobado.
+Archivos fuente en.cache/xml-ci-dd75-artifacts/ y.cache/xml-ci-a099-failure/,
+también preservados dentro del tar seeded publicado. Falta recalcular ambos
+estudios con su verificador offline y resolver elegibilidad sin inventar
+contexto de build ausente ni disparar mediciones automáticas.
+
 ## Integración de CI validada localmente, posterior al commit publicado501f1845
 
 501f184577b62ea0f3d78cba24c91a3cb6afae09 está publicado y autenticado:
