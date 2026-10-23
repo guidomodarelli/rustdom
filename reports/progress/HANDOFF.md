@@ -1,5 +1,16 @@
 # Continuar rustdom en otra máquina
 
+## Timeout explícito del CI habitual — 2026-10-23
+
+`.github/workflows/ci.yml` ahora limita `validate` a 60 minutos por OS,
+`benchmark_shards` a 45 por shard y el agregador `benchmarks` a 5. Antes no
+tenían timeout explícito. Actionlint aprobó el workflow real y se contrastaron
+16 jobs exitosos de dos runs: máximos 34 min 34 s / 22 min 36 s / 5 s.
+Evidencia y límites en `reports/validation/ci-timeouts/2026-10-23/`.
+Los 26 pins y las 434 fuentes congeladas siguen intactos. Los límites nuevos
+no cambian un run ya iniciado, el protocolo del estudio ni su rechazo.
+No hubo captura nueva, cambios de runtime ni aceptación de rendimiento.
+
 ## Estudio autorizado terminado y rechazado — 2026-10-23
 
 La autorización humana posterior al método publicado permitió exactamente una
