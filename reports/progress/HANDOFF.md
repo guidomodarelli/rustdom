@@ -37,6 +37,19 @@ ni garantía universal de ausencia de fugas. El runtime sigue híbrido.
 
 El timeout global de 180 minutos no se agotó: la medición duró 2 h 48 min 9 s
 y el job 2 h 51 min 39 s. Exit 1 fue rechazo numérico, no un test colgado.
+
+El análisis descriptivo posterior en
+`reports/benchmarks/native-class-ownership/shared-fixture-study-diagnostics/`
+reutiliza el lector estadístico existente sobre todas las muestras publicadas:
+64 combinaciones y 128 tratamientos. Node 22/24 producen bytes idénticos,
+SHA256 `76167f6d72197415610a1e3f1cd34c2eaf49a0babfcf53ff2218ccd9c02ab51a`.
+La fila Rust con exceso presenta oscilaciones también en AA. En AB hay doce
+diferencias positivas y cuatro negativas al comparar descriptivamente medianas
+de proceso por seed, desde -21.1927% hasta +44.9204%. Son descripciones, no un
+estimador nuevo ni una recalibración del gate. Sin eventos GC/JIT del candidato,
+estos tiempos no identifican una causa ni justifican tocar el runtime a ciegas.
+Se conservan todos los procesos y warmup; no hubo nueva ejecución DOM ni captura.
+
 No hay tag ni merge ni aceptación nueva para integrar al gate. No continuar
 con otro módulo antes de cerrar este hito. Investigar los datos existentes;
 cualquier estudio distinto requerirá su propio protocolo y autorización,
