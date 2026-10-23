@@ -40,17 +40,30 @@ function canReuse(baselineRoot, archiveRoot, candidateRoot = process.cwd(), reci
 }
 
 /** Require the recipe's actual tools before selecting or consuming evidence in CI. */
-function assertRuntime(candidateRoot) {
-  assert.equal(process.version, settings.node, 'XML history: Node differs from the declared XML recipe');
-  assert.equal(process.platform, settings.platform, 'XML history: platform differs from the declared XML recipe');
-  assert.equal(process.arch, settings.arch, 'XML history: architecture differs from the declared XML recipe');
-  for (const flag of settings.unrecordedFlags) assert.ok(!process.env[flag], `XML history: undeclared ${flag} is set`);
-  assert.equal(digest(path.join(candidateRoot, settings.workflowPath)), settings.workflowSha256,
+function assertRuntime(candidateRoot, recipe = settings) {
+  assert.equal(process.version, recipe.node, 'XML history: Node differs from the declared XML recipe');
+  assert.equal(process.platform, recipe.platform, 'XML history: platform differs from the declared XML recipe');
+  assert.equal(process.arch, recipe.arch, 'XML history: architecture differs from the declared XML recipe');
+  for (const flag of recipe.unrecordedFlags) assert.ok(!process.env[flag], `XML history: undeclared ${flag} is set`);
+  for (const name of Object.keys(process.env)) {
+    if ((recipe.allowedDirectoryFlags || []).includes(name)) {
+      if (process.env[name]) assert.ok(path.isAbsolute(process.env[name]), `XML history: ${name} must be an absolute directory`);
+      continue;
+    }
+    if ((recipe.unrecordedFlagPrefixes || []).some((prefix) => name.startsWith(prefix))) {
+      assert.ok(!process.env[name], `XML history: undeclared ${name} is set`);
+    }
+  }
+  if (recipe.glibc) assert.equal(process.report.getReport().header.glibcVersionRuntime, recipe.glibc,
+    'XML history: libc differs from the declared XML recipe');
+  if (recipe.nodeExecutableSha256) assert.equal(digest(process.execPath), recipe.nodeExecutableSha256,
+    'XML history: Node executable differs from the declared XML recipe');
+  assert.equal(digest(path.join(candidateRoot, recipe.workflowPath)), recipe.workflowSha256,
     'XML history: workflow policy changed; prepare and review its declaration before verifying evidence');
   const compiler = spawnSync('rustc', ['-Vv'], { encoding: 'utf8' });
   if (compiler.error) throw new Error('XML history: rustc -Vv could not execute', { cause: compiler.error });
   assert.equal(compiler.status, 0, 'XML history: rustc -Vv failed');
-  assert.equal(compiler.stdout.trim(), settings.rustc, 'XML history: compiler differs from the declared XML recipe');
+  assert.equal(compiler.stdout.trim(), recipe.rustc, 'XML history: compiler differs from the declared XML recipe');
 }
 
 /** Authenticate declared metadata before selecting or verifying recorded evidence. */
@@ -60,12 +73,18 @@ function assertEvidenceFiles(archiveRoot, recipe) {
     assert.ok(fs.existsSync(filename), `XML history: declared evidence file is missing: ${name}`);
     assert.equal(digest(filename), expected, `XML history: declared evidence file changed: ${name}`);
   }
+  for (const [name, expected] of Object.entries(recipe.verifierSources || {})) {
+    assert.equal(digest(path.resolve(__dirname, '../../..', name)), expected,
+      `XML history: declared verifier source changed: ${name}`);
+  }
 }
 
 /** Read actual ZIP metadata after authenticating its bytes, without evaluating timings. */
 function readArchiveIdentity(archiveRoot, recipe = settings) {
   assertEvidenceFiles(archiveRoot, recipe);
-  const result = spawnSync(recipe.python, ['-B', path.join(__dirname, 'xml-history-identity.py'), archiveRoot], { encoding: 'utf8' });
+  const arguments_ = ['-B', path.join(__dirname, 'xml-history-identity.py'), archiveRoot];
+  if (recipe.fullInputCapture) arguments_.push('--full-inputs');
+  const result = spawnSync(recipe.python, arguments_, { encoding: 'utf8' });
   if (result.error) throw new Error('XML history: recorded input reader could not execute', { cause: result.error });
   assert.equal(result.status, 0, `XML history: recorded input identities could not be read: ${result.stderr}`);
   return JSON.parse(result.stdout);
@@ -86,7 +105,11 @@ function matchesArchiveIdentity(identity, recipe = settings) {
  */
 function verifyEvidence(archiveRoot, recipe = settings) {
   assertEvidenceFiles(archiveRoot, recipe);
-  const result = spawnSync(recipe.python, ['-B', path.join(archiveRoot, 'verify.py')], { encoding: 'utf8' });
+  const arguments_ = recipe.fullInputCapture
+    ? ['-B', path.join(__dirname, 'verify-xml-current-capture.py'), '--archive',
+      path.join(archiveRoot, 'artifact.zip'), recipe.evidenceFiles['artifact.zip'], process.execPath]
+    : ['-B', path.join(archiveRoot, 'verify.py')];
+  const result = spawnSync(recipe.python, arguments_, { encoding: 'utf8' });
   if (result.error) throw new Error('XML history: archived verifier could not execute', { cause: result.error });
   assert.equal(result.status, 0, `XML history: archived observations failed verification: ${result.stderr}`);
   const verification = JSON.parse(result.stdout);
@@ -100,20 +123,20 @@ function verifyEvidence(archiveRoot, recipe = settings) {
  * @returns {void} Writes an eligible selection or the original verified decision and preserves budget failures.
  * @throws {Error} When the runtime, source inputs, declared policy or evidence integrity does not match.
  */
-function main(arguments_ = process.argv.slice(2)) {
+function main(arguments_ = process.argv.slice(2), recipe = settings) {
   const [mode, baselineArgument, archiveArgument] = arguments_;
   assert.ok(mode === '--select' || mode === '--verify', 'XML history: use --select or --verify with baseline and archive paths');
   const candidateRoot = process.cwd();
   const baselineRoot = path.resolve(baselineArgument);
   const archiveRoot = path.resolve(archiveArgument);
-  assertRuntime(candidateRoot);
-  const recorded = readArchiveIdentity(archiveRoot);
-  const reuse = matchesArchiveIdentity(recorded) && canReuse(baselineRoot, archiveRoot, candidateRoot);
+  assertRuntime(candidateRoot, recipe);
+  const recorded = readArchiveIdentity(archiveRoot, recipe);
+  const reuse = matchesArchiveIdentity(recorded, recipe) && canReuse(baselineRoot, archiveRoot, candidateRoot, recipe);
   assert.equal(reuse, true,
     'XML history: current inputs do not match the declared evidence; prepare and review matching evidence. Automatic measurement is not authorized.');
   if (mode === '--select') process.stdout.write('reuse=true\n');
   else {
-    const verification = verifyEvidence(archiveRoot);
+    const verification = verifyEvidence(archiveRoot, recipe);
     process.stdout.write(`${JSON.stringify(verification)}\n`);
     if (verification.accepted !== true) process.exitCode = 1;
   }
@@ -121,4 +144,4 @@ function main(arguments_ = process.argv.slice(2)) {
 if (require.main === module) {
   try { main(); } catch (error) { process.stderr.write(`${error.stack}\n`); process.exitCode = 2; }
 }
-module.exports = { canReuse, verifyEvidence, readArchiveIdentity, matchesArchiveIdentity };
+module.exports = { canReuse, verifyEvidence, readArchiveIdentity, matchesArchiveIdentity, main };

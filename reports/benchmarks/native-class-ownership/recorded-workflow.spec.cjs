@@ -55,9 +55,9 @@ function execute(name, executable, argumentsList, options = {}) {
   return child;
 }
 
-test('the actual current ownership gate reports all seven control failures with budget exit one', () => {
+test('the actual ownership gate preserves all seven recorded control failures with budget exit one', () => {
   const child = execute('current-gate', process.execPath, [path.join(__dirname, 'row-isolation-evidence.cjs'),
-    row.baselineRoot, row.archiveRoot]);
+    row.baselineRoot, row.archiveRoot], { cwd: row.candidateRoot });
   assert.equal(child.status, 1); assert.match(child.stderr, /has not accepted the performance budget/);
   const result = JSON.parse(child.stdout);
   assert.equal(result.verified, true); assert.equal(result.accepted, false); assert.equal(result.measurementExecuted, false);
@@ -71,7 +71,8 @@ test('the actual current ownership gate reports all seven control failures with 
     .filter((summary) => Math.abs(summary.jsdomControlChangePercent) > studySettings.controlBudgetPercent).length), [4, 3]);
 });
 
-test('the actual gate rejects a changed build input before emitting any recorded budget result', (context) => {
+/** Copy the complete measured implementation and build recipe into a test-owned directory. */
+function candidateCopy(context) {
   const candidate = temporaryDirectory(context);
   const names = new Set([...captureHarness(row.candidateRoot).files.map((entry) => entry.path),
     ...Object.keys(policy.buildInputHashes.B)]);
@@ -81,11 +82,21 @@ test('the actual gate rejects a changed build input before emitting any recorded
     const target = path.join(candidate, name);
     fs.mkdirSync(path.dirname(target), { recursive: true }); fs.copyFileSync(source, target);
   }
-  fs.appendFileSync(path.join(candidate, 'build.rs'), '\n');
-  const child = execute('changed-build-input', process.execPath, [path.join(__dirname, 'row-isolation-evidence.cjs'),
-    row.baselineRoot, row.archiveRoot], { cwd: candidate });
-  assert.equal(child.status, 2); assert.equal(child.stdout, ''); assert.match(child.stderr, /current B build input differs: build\.rs/);
-});
+  return candidate;
+}
+
+for (const [name, filename, diagnostic] of [
+  ['changed-build-input', 'build.rs', /current B build input differs: build\.rs/],
+  ['changed-implementation', 'src/dom/xml_serializer_controller.rs', /current B sources differ from the measured inputs/],
+]) {
+  test(`the actual gate rejects ${name} before emitting any recorded budget result`, (context) => {
+    const candidate = candidateCopy(context);
+    fs.appendFileSync(path.join(candidate, filename), '\n');
+    const child = execute(name, process.execPath, [path.join(__dirname, 'row-isolation-evidence.cjs'),
+      row.baselineRoot, row.archiveRoot], { cwd: candidate });
+    assert.equal(child.status, 2); assert.equal(child.stdout, ''); assert.match(child.stderr, diagnostic);
+  });
+}
 
 test('the actual gate rejects missing arguments without consuming any dataset', () => {
   const child = execute('missing-arguments', process.execPath, [path.join(__dirname, 'row-isolation-evidence.cjs')]);

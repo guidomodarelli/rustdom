@@ -1,6 +1,59 @@
 # Continuar rustdom en otra máquina
 
-## Candidato XML implementado y validado; falta medir rendimiento
+## Cierre del PR80: XML medido y aprobado; ownership sigue pendiente
+
+La única ejecución `xml-native-properties-v1`, run `39907233079`, terminó
+`success` sobre `a5a1379d2d59827f557c44b94e7660db43619b04`. Su archivo completo
+se autenticó y recalculó: 7972 archivos regulares, 85334021 bytes, 6 symlinks,
+468 workers, 14976 duraciones medidas y 33408 de warmup. Los trece controles
+AA pasan ±2% (máximo absoluto 1,062616%) y las trece filas AB pasan +5%
+(máximo +3,387522% en `xml-serializer-getter-error/1`). No volver a ejecutar
+este protocolo. Los datos, transporte original y límites están en
+`reports/benchmarks/native-class-ownership/xml-native-properties-results/39907233079/`.
+El híbrido tarda 4,422–5,998 veces jsdom en sus trece filas de referencia;
+pasar el presupuesto no demuestra que sea más rápido que jsdom ni permite
+comparar causalmente los dos candidatos B medidos en hosts separados.
+
+El CI general de a5a1379d, run `39906777387`, aprobó sus ocho jobs. El gate
+XML de ese SHA todavía fallaba por fuentes desactualizadas; se agregó un
+consumidor del ZIP completo y una receta separada para la fuente medida.
+Los archivos históricos y sus decisiones conservan su validez original.
+Los 28 contratos de selección/transporte/CLI pasaron por Node 22.12.0 y
+24.14.1; el perfil de rendimiento registrado sigue siendo únicamente Node24.
+
+El review ampliado encontró un bypass de integridad con Python -O. Se
+reprodujo sobre una copia alterada y ambos lectores ahora rechazan -O, -OO
+y PYTHONOPTIMIZE antes de consumir entradas. Once tests de observaciones
+pasaron en Python Linux3.10/Windows3.12; cuatro tests de la CLI completa
+pasaron por Node22/24, con ocho variantes optimizadas rechazadas por perfil.
+La salida numérica normal conserva las observaciones originales.
+
+Ownership: el test de replay del CI de a5a1379d esperaba exit1 sobre datos
+históricos pero ejecutaba desde la implementación actual, que correctamente
+devuelve exit2 por fuentes diferentes. Ahora el replay usa la copia física
+medida, y una regresión comprueba el rechazo de una implementación cambiada.
+Esto no acepta el presupuesto: los siete controles históricos rechazados
+siguen rechazados y el gate final sobre las fuentes actuales sigue pendiente.
+Los 35 contratos de replay/transporte/CLI pasaron por Node22/24 con `TMPDIR`
+separado por perfil. El CLI real sobre el checkout actual conserva exit2
+por fuentes diferentes. Los resultados, intentos iniciales y límites están en
+`reports/validation/native-class-ownership/recorded-workflow-current-source/`.
+No crear tag ni mergear hasta resolverlo y verificar CI/review del SHA final.
+No ampliar PR80 con inventario ni otras migraciones. El objetivo completo
+permanece activo, sin un porcentaje auditado defendible.
+
+El probe de memoria del run nuevo observó 15 Window y 15 Document con
+endpoints finales claros. Los 442 workers rustdom terminaron con sesiones
+XML live/references/cleanupErrors en cero, pero `xmlParsers.live=1` en todos.
+No inferir liberación total ni fuga desde ese contador aislado. Ver
+`reports/memory/native-class-ownership-xml-native-properties-39907233079.md`.
+Los cambios de gate/lector/test no modifican el runtime medido ni introducen
+referencias persistentes al DOM. Conservan las limitaciones del análisis finito.
+
+Engram no tiene identidad runtime registrada y sus operaciones atribuidas al
+agente siguen deshabilitadas. No inventar sesión ni usar otro sistema.
+
+### Contexto del candidato ya publicado (anterior a la medición)
 
 Continuar en `feature/native-class-ownership`, PR 80. Se implementó lectura
 N-API directa para las tres propiedades de objetos/funciones de la ruta de

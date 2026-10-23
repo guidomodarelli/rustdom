@@ -3,7 +3,9 @@ import copy
 import importlib.util
 import io
 import json
+import os
 import statistics
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -25,6 +27,41 @@ class XmlObservationTests(unittest.TestCase):
 
     def verify(self, index=None):
         return VERIFIER.verify_observations(self.index if index is None else index, self.bundle.read)
+
+    def consume_in_subprocess(self, flags=(), optimize_environment=None):
+        """Run the real observations API against the complete recorded ZIP in another interpreter."""
+        script = '''
+import importlib.util, json, sys, zipfile
+spec = importlib.util.spec_from_file_location('xml_observations', sys.argv[1])
+reader = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(reader)
+with zipfile.ZipFile(sys.argv[2]) as archive:
+    print(json.dumps(reader.verify_observations(json.loads(archive.read('experiment.json')), archive.read)))
+'''
+        environment = dict(os.environ)
+        environment.pop('PYTHONOPTIMIZE', None)
+        if optimize_environment is not None:
+            environment['PYTHONOPTIMIZE'] = optimize_environment
+        return subprocess.run([sys.executable, '-B', *flags, '-c', script,
+                               str((ROOT / 'verify-xml-observations.py').resolve()),
+                               str((ROOT / 'xml-validation/39697882498/artifact.zip').resolve())],
+                              env=environment, capture_output=True, text=True, encoding='utf8')
+
+    def test_subprocess_consumer_verifies_the_real_complete_archive(self):
+        result = self.consume_in_subprocess()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIs(report['verified'], True)
+        self.assertIs(report['accepted'], True)
+        self.assertEqual(report['measuredDurations'], 14976)
+
+    def test_optimized_interpreters_cannot_run_the_real_observations_consumer(self):
+        for flags, environment_value in [(('-O',), None), (('-OO',), None), ((), '1'), ((), '2')]:
+            with self.subTest(flags=flags, optimize=environment_value):
+                result = self.consume_in_subprocess(flags, environment_value)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, '')
+                self.assertIn('requires Python assertions', result.stderr)
 
     def test_complete_real_archive_retains_all_samples_and_acceptance(self):
         result = self.verify()

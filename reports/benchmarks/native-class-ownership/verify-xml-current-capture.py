@@ -1,12 +1,18 @@
 """Verify the original full-input XML capture without executing DOM, GC or measurements."""
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import subprocess
 import sys
+import tarfile
+import tempfile
+import zipfile
 
 sys.dont_write_bytecode = True
+if sys.flags.optimize:
+    raise RuntimeError('XML capture verification requires Python assertions; disable -O, -OO and PYTHONOPTIMIZE.')
 ROOT = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location('xml_observations', ROOT / 'verify-xml-observations.py')
 OBSERVATIONS = importlib.util.module_from_spec(SPEC)
@@ -15,6 +21,48 @@ SPEC.loader.exec_module(OBSERVATIONS)
 
 def digest(filename):
     return hashlib.sha256(filename.read_bytes()).hexdigest()
+
+
+def verify_archive(filename, expected_sha256, node='node'):
+    """Authenticate a separately declared ZIP digest and verify its complete physical capture."""
+    actual_sha256 = digest(filename)
+    if actual_sha256 != expected_sha256.lower():
+        raise ValueError('XML archive verification failed: artifact.zip SHA-256 differs from the declared digest')
+    with zipfile.ZipFile(filename) as bundle:
+        entries = [entry for entry in bundle.infolist() if not entry.is_dir()]
+        if len(entries) != 1 or entries[0].filename != OBSERVATIONS.POLICY['archiveTarFilename']:
+            raise ValueError('XML archive verification failed: expected exactly the declared tar.xz member')
+        if bundle.testzip() is not None:
+            raise ValueError('XML archive verification failed: ZIP CRC mismatch')
+        payload = bundle.read(entries[0])
+    with tempfile.TemporaryDirectory(prefix=OBSERVATIONS.POLICY['archiveTemporaryPrefix']) as temporary:
+        root = Path(temporary).resolve()
+        with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
+            names = set()
+            for entry in archive:
+                if entry.name in names:
+                    raise ValueError('XML archive verification failed: duplicate tar member')
+                names.add(entry.name)
+                destination = root / entry.name
+                if Path(entry.name).is_absolute() or '..' in Path(entry.name).parts or not destination.resolve().is_relative_to(root):
+                    raise ValueError('XML archive verification failed: tar member escapes the extraction directory')
+                if not (entry.isfile() or entry.isdir() or entry.issym() or entry.islnk()):
+                    raise ValueError('XML archive verification failed: unsupported tar entry type')
+                if entry.issym() and not (destination.parent / entry.linkname).resolve().is_relative_to(root):
+                    raise ValueError('XML archive verification failed: symbolic link escapes the extraction directory')
+                if entry.islnk():
+                    target = root / entry.linkname
+                    if not target.resolve().is_relative_to(root) or not target.is_file():
+                        raise ValueError('XML archive verification failed: hard link requires a preceding contained file')
+                # tar_filter preserves the producer's valid relative npm links on
+                # Python 3.10, whose data_filter misresolves those link destinations.
+                archive.extract(entry, root, filter=tarfile.tar_filter)
+        for name in names:
+            if not (root / name).resolve().is_relative_to(root):
+                raise ValueError('XML archive verification failed: extracted path resolves outside its directory')
+        study = root / OBSERVATIONS.POLICY['archiveRootDirectory']
+        result = verify(study / 'capture', study / 'preparation', node)
+        return {**result, 'archiveTransportVerified': True, 'archiveSha256': actual_sha256}
 
 
 def verify(capture_root, preparation_root, node='node'):
@@ -97,6 +145,10 @@ process.stdout.write(JSON.stringify({identity, functional}));
 
 
 if __name__ == '__main__':
-    if len(sys.argv) not in (3, 4):
-        raise SystemExit('Use verify-xml-current-capture.py CAPTURE PREPARATION [NODE]')
-    print(json.dumps(verify(Path(sys.argv[1]), Path(sys.argv[2]), *sys.argv[3:]), indent=2))
+    if len(sys.argv) in (4, 5) and sys.argv[1] == '--archive':
+        result = verify_archive(Path(sys.argv[2]), sys.argv[3], *sys.argv[4:])
+    elif len(sys.argv) in (3, 4):
+        result = verify(Path(sys.argv[1]), Path(sys.argv[2]), *sys.argv[3:])
+    else:
+        raise SystemExit('Use verify-xml-current-capture.py CAPTURE PREPARATION [NODE] or --archive ZIP SHA256 [NODE]')
+    print(json.dumps(result, indent=2))

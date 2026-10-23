@@ -3,6 +3,10 @@ import json
 import math
 from pathlib import Path
 import statistics
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('XML observations verification requires Python assertions; disable -O, -OO and PYTHONOPTIMIZE.')
 
 PROTOCOL_PATH = Path(__file__).parent / 'xml-validation/39697882498/constants/protocol.json'
 POLICY = json.loads((Path(__file__).parent / 'constants/xml-observation-policy.json').read_text(encoding='utf8'))
