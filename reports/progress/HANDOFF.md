@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Prioridad de cierre del PR80 y estudio original terminado
+
+El usuario pidió explicar por qué el PR no termina. Se reconoció el exceso de
+alcance y se congeló el trabajo accesorio: no agregar inventario u otras líneas
+paralelas al PR80. Su cierre requiere resolver los gates de rendimiento de
+ownership y la evidencia XML desactualizada, con los límites vigentes. No
+eludir checks, repinear un resultado rechazado o mover el objetivo completo.
+
+El estudio original de afinidad auxiliar terminó: sesión 19732 exit 1; ambos
+Node completaron 1024 workers con exit 0 y verify-set dio exit 0/integridad true.
+La aceptación global y por perfil es false. Son 13 controles jsdom fuera de ±2% y
+un exceso numérico Rust en Node 24/AB/mutation-records-collect/1000, +5,62685%.
+Esa fila también falla su control, +2,04545%; no permite atribución causal.
+No repetir la secuencia. Ya no hay medición activa ni restricción de carga local.
+
+Archivo completo en reports/benchmarks/native-class-ownership/background-affinity-results/2026-10-22/:
+7425 archivos, 1355361715 bytes crudos. El transporte publicado study.tar.xz ocupa
+6684604 bytes, SHA 0cb8a43985aa92e5dfff64420a36c6be1453f2a300e94aa3f31d0fef520e7d25.
+La captura gzip inicial de 265296558 bytes y sus ocho fragmentos se conservan
+localmente; ambas compresiones contienen exactamente el mismo tar. Sus recibos
+originales se preservan. Todos los miembros se verificaron por readback; el CLI
+verificador pasó sin ejecutar experimentos. Conserva las 32 celdas, no solo rechazos.
+Los 24576 Window y 24576 Document observados llegaron a endpoints finales claros;
+incluyen 6144 owners de warmup por tipo. Son pruebas finitas, no ausencia universal
+de fugas o memoria pico. El arnés ya carga un solo paquete por proceso: las
+otras entradas de loadedBefore/After están vacías; no corregir un defecto inexistente.
+
 ## Calificación de inventario completada en GitHub
 
 El workflow nuevo inventory-qualification.yml validará las propuestas estáticas
@@ -94,7 +121,7 @@ reports/validation/inventory-dom-token-list-audit/ para fuentes y límites.
 Validar comportamiento y catálogo en Node22/24 después del estudio activo,
 antes de incorporar; no abrir otro PR ni migrar runtime hasta cerrar ownership.
 
-## Estudio de afinidad auxiliar original en ejecución
+## Inicio histórico del estudio de afinidad auxiliar original
 
 5e6ac005036922bd9965849c84b3876bfa92a8fd está publicado en PR80. Se autenticaron
 17payloads del commit y422blobs de fuentes calificadas contra el árbol GitHub;
@@ -102,7 +129,8 @@ el launcher coincide con el tar de QA revisado. Recibo operativo en
 .cache/background-affinity-publication.json, transporte SHA54c1e92548c93ab123bbd061d49bf1ba8d282eacac77d8a07bca72ec5f87372c,
 launcherSHA12681be6c6d009a64ad5b873e956a5843b43a9706badd5877b2ae03f2fa6b32e.
 
-Se lanzó UNA secuencia nueva después de esa publicación. Session19732,
+Se lanzó UNA secuencia nueva después de esa publicación, ahora terminada y
+rechazada como consta al inicio de este documento. Session19732,
 driverPID692, raíz persistente /home/guido/rustdom-validation/background-affinity-study-k98_55yo,
 Node22 padrePID955. El preflight confirmó ambos ejecutables exactos antes del
 primer worker y guardó hashes. Al observar, había12entradas de1024 en Node22,
