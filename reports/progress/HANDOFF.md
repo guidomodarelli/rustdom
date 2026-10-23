@@ -1,51 +1,46 @@
 # Continuar rustdom en otra máquina
 
-## Estado comprobado: CI general verde y regresión XML identificada
+## Candidato XML implementado y validado; falta medir rendimiento
 
-El CI general de `8fc28d6706a30c1e1179b5799b909c99f71a15c1` terminó con sus
-ocho jobs aprobados: run `39896887685`. Incluye Windows, macOS, Linux, los cuatro
-shards y Valgrind. La corrección del timeout WPT pasó en el CI real. Sus logs,
-metadatos finales y el fallo previo están en `ci-windows-timeout/` bajo
-`reports/validation/native-class-ownership/`.
+Continuar en `feature/native-class-ownership`, PR 80. Se implementó lectura
+N-API directa para las tres propiedades de objetos/funciones de la ruta de
+error XML. Se conserva la exportación `xmlSerializerOperation` y sus callbacks;
+el binding público usa `xmlSerializerOperationWithNativeProperties`.
+No hay caches/referencias persistentes nuevas. Fuente canónica:
+`5ef668c47a78bb73ef5b0881fbf20e6d36c4d4cc9686198c26e722d8fc9c6806`.
 
-La única secuencia XML `39896591561`, medida desde `92dd067c`, terminó con
-calibración válida y rendimiento rechazado: 468 workers, 14.976 duraciones y
-39 celdas AA/AB/reference. Las trece filas AA pasaron ±2%; la única fila AB que
-superó +5% es `xml-serializer-getter-error/1`, con +5,6064051645%. No reiniciar
-esa ejecución, ni la etiqueta consumida `xml-full-inputs-v1`. No cambiar
-presupuestos, estimador o muestras. Tampoco repetir capturas V8 anteriores.
+QA real Linux/glibc 2.35 en Node 22.12.0 y 24.14.1: 753 tests XML por Node,
+3774 de compatibilidad, 9 de procesos WPT, Jest 22, Vitest 33 y VM 34; corpus
+HTML 1784 con 8 exclusiones script-on, WPT completo 240 archivos por Node,
+21 contratos de preparación por Node, 311 tests Rust, formato y Clippy.
+Los JSON WPT mantienen fallos compartidos y `complete:false`; no equivalen
+a cumplimiento total de estándares. Ver los crudos e intentos de setup en
+`reports/validation/native-class-ownership/xml-native-properties/`.
 
-El ZIP oficial de 8.537.409 bytes, SHA-256
-`b1e0e826b36e8f8b0fb8ce653d7d1bee1d2e2682ae86156387e3c123731738d5`,
-está en `reports/benchmarks/native-class-ownership/xml-full-inputs-results/39896591561/`.
-Conserva 7.972 archivos regulares y 85.323.956 bytes crudos, fuentes completas,
-paquetes y todos los resultados. UUID: `594a44a8-95c6-40a4-ac90-6421e12c3ef8`.
-El lector verificó físicamente preparación, recursos, binarios, dist,
-dependencias, fuentes y before/after; recalculó todas las muestras y decisiones.
-Los consumos del lector con Node 22.12.0 y 24.14.1 dan JSON idéntico. Nueve tests
-con archivos reales pasan en Python 3.10/Linux y 3.12/Windows; se rechazan
-inputs posteriores modificados y aceptación falseada, sin medir de nuevo.
+Memoria: 132 estados por Node, 114 endpoints incluyendo warmup, 57 fixtures
+por engine. Window y Document separados, retención intencional y liberación;
+todos los endpoints llegaron a sus baselines observados. No es una prueba
+universal de ausencia de fugas ni memoria pico. Crudos en
+`reports/memory/native-class-ownership-xml-native-properties/`.
 
-La comparación directa también conserva una deuda importante: en estas trece
-filas el motor híbrido tarda entre 4,640 y 6,301 veces el tiempo de jsdom 27.4.0.
-La tabla completa está publicada. No atribuir ese costo a Rust puro ni toda la
-variación al guard del PR: A es checkpoint 066 y B incluye el controlador XML
-migrado en checkpoint 067, además del arreglo de ownership.
+El CI general de la base `e1e8188d` terminó con sus ocho jobs aprobados:
+run `39902558587`. No confundirlo con el CI del candidato nuevo tras el push.
+El review aislado Codex del delta de código/protocolo cerró sin hallazgos.
+La cuota de review remoto sigue agotada: no enviar otro `@codex review`.
 
-El probe separado observó 15 Window y 15 Document con endpoints claros.
-442 workers rustdom terminaron con contadores de sesiones XML en cero; otros
-contadores no son cero, incluido `xmlParsers.live=1`. No se observó por weak refs
-cada Window del benchmark ni memoria pico. Ver el informe específico en
-`reports/memory/native-class-ownership-xml-full-inputs-39896591561.*`.
+Siguiente acción: publicar/autenticar fuentes y recibo del candidato, comprobar
+el build XML remoto y lanzar una sola vez `xml-native-properties-v1` con el
+workflow `xml-native-properties-evidence.yml`. El método existente, las trece
+filas, AA ±2%, AB +5%, muestras y estimador no cambian. Ver el PLAN versionado.
+No afirmar mejora hasta leer y verificar todos sus resultados originales.
 
-Siguiente acción: investigar `Host::property` en `src/dom/xml_serializer_controller.rs`.
-La ruta de error cruza el helper JavaScript tres veces (factory, global, message).
-Evaluar acceso N-API directo para objetos/funciones, preservando primitivos,
-proxies, orden observable, realms, reentrancia y el contrato nativo existente.
-Es una hipótesis de optimización, todavía sin implementación o medición nueva.
-Validar cualquier cambio en Node 22/24 antes de declarar otro experimento con
-un candidato distinto. Ownership sigue sin aceptación. No hay tag ni merge.
-El alcance del PR continúa congelado; no sumar inventario u otras fases.
+El estudio anterior `39896591561` está consumido y rechazado: AA válida,
+`xml-serializer-getter-error/1` +5,6064051645%; el híbrido tardó 4,640–6,301
+veces jsdom en sus trece filas. No reiniciar `xml-full-inputs-v1`, capturas V8
+ni estudios anteriores, cambiar presupuestos o repinear un archivo rechazado.
+Ownership sigue sin aceptación; no hay tag ni merge. El alcance del PR sigue
+congelado, sin inventario ni migraciones ajenas a su cierre. El objetivo total
+de migración permanece activo y no tiene un porcentaje defendible auditado.
 
 ## Windows WPT: corrección del timeout validada localmente
 

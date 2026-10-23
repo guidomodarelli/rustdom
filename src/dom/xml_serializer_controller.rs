@@ -5,6 +5,7 @@ use napi::{
     bindgen_prelude::{FnArgs, FromNapiValue, Function, JsObjectValue, ToNapiValue, Unknown},
 };
 use napi_derive::napi;
+use std::ffi::CStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static CALLS: AtomicU64 = AtomicU64::new(0);
@@ -21,6 +22,7 @@ impl Drop for RunGuard {
 struct Host<'env> {
     env: &'env Env,
     helpers: Unknown<'env>,
+    native_object_properties: bool,
 }
 
 impl<'env> Host<'env> {
@@ -28,8 +30,20 @@ impl<'env> Host<'env> {
         self.helpers.coerce_to_object()?.get_named_property(name)
     }
 
-    fn property(&self, receiver: Unknown, name: &str) -> Result<Unknown<'env>> {
-        let name = self.env.create_string(name)?.to_unknown();
+    fn property(&self, receiver: Unknown, name: &CStr) -> Result<Unknown<'env>> {
+        if self.native_object_properties
+            && matches!(
+                receiver.get_type()?,
+                ValueType::Object | ValueType::Function
+            )
+        {
+            // ToObject is identity for objects/functions, including proxies. N-API
+            // preserves the original getter receiver and pending thrown value.
+            return receiver.coerce_to_object()?.get_c_named_property(name);
+        }
+        // Keep primitive boxing and intrinsic null/undefined diagnostics in the
+        // original JS helper's realm. The legacy entry point always uses it.
+        let name = self.env.create_string(name.to_string_lossy())?.to_unknown();
         Function::<FnArgs<(Unknown, Unknown)>, Unknown>::from_unknown(self.helper("property")?)?
             .apply(self.helpers, (receiver, name).into())
     }
@@ -61,9 +75,9 @@ impl<'env> Host<'env> {
         // Match CallExpression order: fetch the factory, then realm, then message.
         // Failures in this catch body propagate directly rather than being wrapped again.
         let namespace = self.helper("exceptionNamespace")?;
-        let factory = self.property(namespace, "create")?;
-        let global = self.property(owner, "_globalObject")?;
-        let message = self.property(error, "message")?;
+        let factory = self.property(namespace, c"create")?;
+        let global = self.property(owner, c"_globalObject")?;
+        let message = self.property(error, c"message")?;
         let mut arguments = self.env.create_array(2)?;
         // Array literals create own data properties, bypassing inherited setters and
         // non-writable indices installed while reading the original exception's message.
@@ -96,10 +110,38 @@ pub fn xml_serializer_operation<'env>(
     root: Unknown<'env>,
     helpers: Unknown<'env>,
 ) -> Result<Unknown<'env>> {
+    execute_operation(env, owner, root, helpers, false)
+}
+
+/// Execute XMLSerializer with direct object reads and the scoped helper for primitives.
+/// The separate entry point preserves the existing callback-based native contract.
+#[napi]
+pub fn xml_serializer_operation_with_native_properties<'env>(
+    env: &'env Env,
+    owner: Unknown<'env>,
+    root: Unknown<'env>,
+    helpers: Unknown<'env>,
+) -> Result<Unknown<'env>> {
+    execute_operation(env, owner, root, helpers, true)
+}
+
+fn execute_operation<'env>(
+    env: &'env Env,
+    owner: Unknown<'env>,
+    root: Unknown<'env>,
+    helpers: Unknown<'env>,
+    native_object_properties: bool,
+) -> Result<Unknown<'env>> {
     CALLS.fetch_add(1, Ordering::Relaxed);
     ACTIVE.fetch_add(1, Ordering::Relaxed);
     let _guard = RunGuard;
-    match (Host { env, helpers }).run(owner, root) {
+    match (Host {
+        env,
+        helpers,
+        native_object_properties,
+    })
+    .run(owner, root)
+    {
         Ok(value) => Ok(value),
         Err(error) => {
             env.throw(capture_pending_error(env, error))?;
