@@ -1,5 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Candidato funcional: consumidores compartidos sin mutar los nodos medidos
+
+`reports/benchmarks/native-class-ownership/shared-fixture-candidate/` agrega
+fixtures de mutaciones y entrega con métodos de prototipo compartidos. Las
+factories anteriores creaban métodos por fixture; eso no prueba que V8 no
+reutilizara código. Los callbacks bound siguen siendo distintos aunque su
+target sea común. No presentar la hipótesis como causa demostrada.
+
+La calificación reutiliza el warmup original de tres rondas y los helpers
+Range originales. Verifica las ocho cargas y los tamaños canónicos con el
+HTML/Range original, primeras mutaciones intactas y hashes públicos del
+jsdom independiente. Corrieron dos ciclos por carga en jsdom J0 y candidato
+híbrido B de la preparación oficial, en Node 22.12.0 y 24.14.1.
+
+Pasaron cuatro tests funcionales y cinco tests de evidencia por Node. La
+calificación final observó 76 Window y 76 Document por separado: 58 primeras
+rondas no claras, 152 estados finales requeridos claros, recursos nativos
+al baseline (`napiClasses.live=22`). Incluye error de validación, carga no
+soportada, entrega encolada cancelada, fixtures descartados y promesas
+pendientes retenidos deliberadamente. Datos y todos los intentos/logs en
+`reports/validation/native-class-ownership/shared-fixture-candidate/`; memoria
+en `reports/memory/shared-fixture-candidate.*`. Evidencia finita, sin afirmar
+memoria pico ni ausencia universal de fugas.
+
+Esta variante todavía no está integrada al worker de rendimiento congelado.
+El siguiente paso es preparar y calificar esa integración prospectiva sin
+alterar el sampler consumido, sus presupuestos/estimador ni el runtime.
+No hubo capturas nuevas, no se eligió otra cantidad de rondas y no se concede
+aceptación por compartir métodos. Ownership sigue accepted=false; candidato
+performanceAccepted=null. Sin tag ni merge. El objetivo completo sigue activo.
+
 ## Atribución offline de funciones V8 por scriptId
 
 El CI general 39962409292 del commit `0a9e851a` terminó success en sus ocho
