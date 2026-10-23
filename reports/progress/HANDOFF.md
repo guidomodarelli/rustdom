@@ -1,5 +1,56 @@
 # Continuar rustdom en otra máquina
 
+## Contraste prospectivo de afinidad auxiliar calificado
+
+La evidencia remota de ownership quedó publicada en417dd2a04b2e569bcc39687e28829207310ab960:
+12blobsGitHub autenticados y seis fuentes funcionales idénticas a f7eaa047.
+No repetir CI ni generar nuevos commits de evidencia por cada ejecución que
+solo cambia metadatos. El rechazo presupuestario original sigue vigente.
+
+Hito posterior: siete archivos background-affinity bajo
+reports/benchmarks/native-class-ownership/ (constants, helper, worker, experiment,
+spec y BACKGROUND-AFFINITY-PROTOCOL.md). No cambian las415fuentes previas. El método
+conserva el estudio completo y mueve los hilos auxiliares existentes a0-1,3-15
+antes del sampler principalCPU2. No demuestra causalidad ni aislamiento físico.
+Usa el mismo build oficial antiguo, restaurado y verificado físicamente, no el501f.
+
+Calificación final ORIGINAL completa: session68460 terminó0, coordinadorPID960,
+.cache/background-affinity-qualification-sg5ldgtp/ y marcador consumido
+.cache/background-affinity-linux-fifo-qualification.started.json. Ambos Node
+aprobaron13/13 sin skips y40workers reales por versión. Las422fuentes quedaron
+idénticas, SHA46b2e7cc0db55660f9c82a37866c43a7af32cb627de2bd339ebdc055f39edbff;
+las415fuentes previas tampoco cambiaron. No reiniciar esta calificación.
+
+La revisión corrigió una carrera que podía sobrescribir un archivo ajeno. Una
+segunda revisión reforzó el sentinel negativo a JSON válido, para distinguir
+la implementación anterior. El primer intento funcional se detuvo solo en sus
+PIDs propios verificados y se conserva íntegro en
+.cache/background-affinity-qualification-fcgcc3q5/, con interruption.json;
+session79561 terminó1 y no cuenta como calificación aprobada. El segundo intento,
+session39071, terminó1 con12/13: sus40workers Node22 pasaron, pero /mnt/c no admite
+FIFO. Se corrigió el test para usar un FIFO temporal Linux y limpiarlo, sin mocks
+ni omisiones. Todo ese intento permanece en.cache/background-affinity-qualification-9epqf_1k/.
+Ningún intento funcional se presenta como aceptación de rendimiento.
+
+Paquete QA completo en reports/validation/native-class-ownership/background-affinity/:
+1885miembros regulares,19100717B, SHA9276029a57b768156a2b1675f3c1ae0456bf2549af895be3ffba1ac834926cd7.
+Todos los miembros se releyeron; conserva los tres intentos, procesos, fuentes,
+muestras y coordinadores. Memoria en reports/memory/native-class-ownership-background-affinity-qualification-2026-10-22.*:
+960Window y960Document observados, incluidos240owners de warmup por tipo; los
+últimos dos endpoints de tres fueron claros antes de salir. No demuestra fuga
+universal, memoria pico ni pendiente de crecimiento en un proceso.
+
+El empaquetador ya terminó. .cache/authenticate-background-publication.py y
+.cache/run-background-affinity-study.py exigen revisión final, commit/push y
+autenticación antes de una única secuencia nueva en almacenamiento Linux persistente.
+El launcher verifica ambos ejecutables exactos y sus hashes antes del primer
+worker. Su marcador será.cache/background-affinity-study.started.json: si existe,
+inspeccionar ese proceso y nunca repetirlo. Consultar el estado real de Git/marker
+para distinguir publicación de medición; al redactar este hito aún no se lanzó.
+Conservar todos los negativos y no cambiar umbrales. Sin tag, merge ni crédito
+de migración mientras el hito siga rechazado. El CI general f7 terminó success
+en sus ocho jobs (run39876191361); ownership y XML siguen pendientes por separado.
+
 ## Publicación y verificación remota de la integración ownership
 
 f7eaa04748a37bef765f76c050f623afe6365ab6 está publicado en PR80 y autenticado:
@@ -14,7 +65,7 @@ f6d9d2fdf1f0a5655d5f46c8a18086b90ea65e6be064762ef2098b337c8d8013 y
 2f8346c196ba3e78316f4075a9ed3ce75e0f43d309e5df3fe9e9c2913d53e157.
 Copias completas, metadata/run.log y recibos en
 reports/validation/native-class-ownership/recorded-workflow-ci/39876191401/
-(WIP propio de evidencia posterior, aún sin commit). No repetir las pruebas ni
+(publicados en417dd2a0). No repetir las pruebas ni
 el estudio para capturar esta confirmación; no mapear el rechazo a un check verde.
 CI general f7:39876191361, XML39876191349, preparación39876191352 en seguimiento.
 El general previo501f39872143130 terminó success en sus8jobs.
