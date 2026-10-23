@@ -37,9 +37,10 @@ jobs:
         node:
           - {version: '22.12.0', major: 22}
           - {version: '24.14.1', major: 24}
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       OWNERSHIP_PARTS: reports/benchmarks/native-class-ownership/row-isolation-results/2026-10-22
+      OWNERSHIP_CURRENT_PARTS: reports/benchmarks/native-class-ownership/current-source-results/39921160254
       OWNERSHIP_FIXTURES: .cache/ownership-recorded-ci
     steps:
       - uses: actions/checkout@v4
@@ -66,8 +67,15 @@ jobs:
         run: |
           node --test reports/benchmarks/native-class-ownership/current-ownership-diagnostics.spec.cjs
           node reports/benchmarks/native-class-ownership/current-ownership-diagnostics.cjs > ownership-trajectories.json
-      - name: Comprobar fuentes y presupuesto del estudio histórico
-        run: node reports/benchmarks/native-class-ownership/row-isolation-evidence.cjs .baseline "$OWNERSHIP_FIXTURES/row-archive" > ownership-verification.json
+      - name: Verificar el consumo de la captura actual y los rechazos de integridad
+        env:
+          RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_BASELINE: ${{ github.workspace }}/.baseline
+          RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_TEST_OUTPUT: ${{ github.workspace }}/.cache/ownership-current-evidence-contracts
+        run: |
+          mkdir -p "$RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_TEST_OUTPUT"
+          node --test reports/benchmarks/native-class-ownership/current-ownership-evidence.spec.cjs
+      - name: Recalcular la captura actual completa y exigir el presupuesto original
+        run: node reports/benchmarks/native-class-ownership/current-ownership-evidence.cjs .baseline "$OWNERSHIP_CURRENT_PARTS" > ownership-verification.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -76,6 +84,7 @@ jobs:
           path: |
             ownership-verification.json
             ownership-trajectories.json
+            .cache/ownership-current-evidence-contracts/
             .cache/ownership-recorded-ci/commands/
             .cache/ownership-recorded-ci/evidence-output/
             .cache/ownership-recorded-ci/transport-output/

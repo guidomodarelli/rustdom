@@ -35,8 +35,16 @@ memoria pico ni ausencia universal de fugas. Ver
 El CI general de `eafe4109`, run `39920996839`, aprobó sus ocho jobs,
 incluido Linux con Valgrind, Windows, macOS y shards/aggregate. El gate XML
 también aprobó. Los dos hilos de review de GitHub están resueltos. El gate
-de ownership sigue rechazando la evidencia anterior por fuentes distintas;
-este archivo actual tampoco acepta el presupuesto, por calibración.
+anterior rechazaba las fuentes actuales contra el estudio histórico. El nuevo
+consumidor `current-ownership-evidence.cjs` verifica el ZIP actual completo,
+sus miembros, preparación, fuentes/build inputs actuales y arnés; reutiliza
+los lectores existentes y conserva el resultado original. En Node 22/24 pasó
+ocho contratos por perfil: exit1 por presupuesto rechazado y exit2 para fuentes
+o transporte inválidos y Python optimizado. No ejecuta DOM, GC ni sampler.
+CI mantiene los 35 contratos históricos y ahora usa este consumidor como gate;
+continúa rechazando el presupuesto de calibración, sin cambiar sus límites.
+La revisión aislada terminó sin hallazgos. Logs y metodología en
+`reports/validation/native-class-ownership/current-evidence-gate/`.
 
 Esta publicación preserva el resultado completo y su revisión independiente
 sin hallazgos accionables. Continuar analizando la variación usando estos logs
@@ -53,12 +61,15 @@ Cada índice es un realm nuevo. Esto muestra variación dentro y entre procesos,
 sin identificar JIT, GC o scheduler como causa. El control no carga el addon;
 no atribuir su variación únicamente al guard Rust. Pasaron diez contratos por
 Node 22/24 y ambos CLI descriptivos produjeron bytes idénticos, sin muestreo.
-CI ejecuta ese diagnóstico y conserva el JSON antes del gate histórico. Solo
-cambió el nombre de ese gate, que confundía el estudio histórico con el actual;
-el comando, el presupuesto y el runtime medidos permanecen intactos.
-Inspeccionar las fronteras
-de setup/warmup/realm y los registros existentes antes de cambiar producto o
-metodología. El candidato consumido no autoriza otra captura.
+CI ejecuta ese diagnóstico y conserva el JSON antes del gate de la captura
+actual. Los contratos del estudio histórico y los presupuestos se conservan.
+La inspección de los 2048 reportes confirmó que no hay campos por intervalo
+de CPU, JIT o GC; stderr solo contiene warnings de ESM en los 1024 procesos
+Node 22. Las trazas históricas de compilación son parciales, de otro host y
+otro método: no permiten atribuir causalidad al resultado actual de Azure.
+Está pendiente la respuesta del usuario a si autoriza un diagnóstico nuevo,
+separado y sin aceptación, que capture esos datos. No iniciarlo sin respuesta;
+el candidato consumido no autoriza otra captura por sí solo.
 
 No hay tag ni merge. El hito no está cerrado y el objetivo total de Rust sigue
 pendiente, sin porcentaje global auditado defendible. Engram permanece sin
