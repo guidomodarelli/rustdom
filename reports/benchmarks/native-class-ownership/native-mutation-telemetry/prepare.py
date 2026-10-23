@@ -21,7 +21,7 @@ def load(filename, name):
 
 
 def prepare(repository, manifest, output, mode):
-    """Combine the two previously reviewed derivations; expose no runnable capture entrypoint."""
+    """Combine reviewed source derivations with the guarded wrapper; never execute generated code."""
     repository = repository.resolve(strict=True)
     method = Path(__file__).resolve().parent
     policy = json.loads((method / 'constants/protocol.json').read_text(encoding='utf-8'))
@@ -63,13 +63,15 @@ def prepare(repository, manifest, output, mode):
     shutil.copytree(qualified / 'harness/benchmarks/shared-ownership-fixtures', output / 'harness/benchmarks/shared-ownership-fixtures')
     # The old jsdom-only wrapper is reference material; it must not become a native producer.
     (output / 'worker.cjs').rename(output / 'unexecuted-jsdom-wrapper-reference.cjs')
+    shutil.copyfile(method / 'worker.cjs', output / 'worker.cjs')
     sampler = output / 'harness/benchmarks/worker.cjs'
     original = (repository / 'benchmarks/worker.cjs').read_text(encoding='utf-8')
     (output / 'combined-sampler.patch').write_text(''.join(difflib.unified_diff(original.splitlines(keepends=True),
         sampler.read_text(encoding='utf-8').splitlines(keepends=True), fromfile='frozen/benchmarks/worker.cjs',
         tofile='native-telemetry/benchmarks/worker.cjs')), encoding='utf-8')
     (output / 'protocol.json').write_text(json.dumps({**policy, 'mode': mode}, indent=2) + '\n', encoding='utf-8')
-    receipt = {'revision': policy['revision'], 'mode': mode, 'captureImplemented': False, 'measurementExecuted': False,
+    receipt = {'revision': policy['revision'], 'mode': mode, 'captureImplemented': policy['captureImplemented'],
+        'workerImplemented': True, 'measurementExecuted': False,
         'gateReevaluated': False, 'performanceAccepted': None, 'sourceHarnessSha256': policy['sourceHarnessSha256'],
         'verifiedSourceFiles': len(source_manifest['files']), 'sourceManifestSha256': hashlib.sha256(manifest.read_bytes()).hexdigest(),
         'qualifiedSamplerSha256': qualified_receipt['samplerAfterSha256'],

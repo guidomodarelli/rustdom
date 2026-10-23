@@ -1,102 +1,137 @@
-# Preparación de un posible diagnóstico de MutationRecord
+# Diagnóstico prospectivo de MutationRecord nativo
 
-Estado: **preparación y lector individual, sin productor ni workflow de captura**. No hay
-diagnóstico nuevo ejecutado ni autorización nueva solicitada o recibida.
-`captureImplemented=false`, `performanceAccepted=null`, `gateReevaluated=false`.
-El estudio `40012710923` está terminado y rechazado; su autorización se consumió
-en esa única ejecución y no alcanza a este trabajo futuro.
+`native-mutation-telemetry-v1` es un método separado, implementado pero **sin
+ejecutar ni autorizar**. El estudio `ownership-shared-fixtures-v1`, run
+`40012710923`, terminó rechazado y su autorización se consumió en esa secuencia.
+No se repite, amplía, corrige ni convierte en aceptado ese estudio.
 
-## Dato faltante
+Este método necesita publicación, contratos en CI, revisión local íntegra y
+autorización humana explícita independiente antes de aplicar su etiqueta.
+`captureImplemented=true` expresa capacidad del código; no consentimiento.
+No se creó/aplicó la etiqueta ni se inició un workflow de captura.
 
-En `40012710923`, Node 22 AB `mutation-records-collect/100` excede +5%, pero
-su control jsdom también excede ±2%. Las trayectorias varían también en AA.
-No contienen GC/JIT ni CPU profiles del candidato dentro de los spans.
-Los perfiles nativos anteriores de `profiles/v2` cubren Range y el candidato
-`8332276799c5ccc18c7a45a5136a856b039736597d5e104e22f074f8e23f1ddd`,
-no esta fila con el runtime actual `5ef668c47a78bb73ef5b0881fbf20e6d36c4d4cc9686198c26e722d8fc9c6806`.
-El diagnóstico reciente `39959175058` solo ejecutó jsdom.
+## Pregunta y evidencia faltante
 
-## Plan de diagnóstico propuesto
+Node 22 AB `mutation-records-collect/100` excedió +5%, con un control jsdom
+también fuera de ±2%. Las trayectorias varían también en AA y no contienen
+eventos GC/JIT o perfiles CPU del candidato durante sus spans.
+Los perfiles nativos anteriores cubren Range y el candidato `83322767…`,
+no esta fila con el runtime actual `5ef668c4…`. El diagnóstico `39959175058`
+solo ejecutó jsdom. No hay causa suficiente para modificar Rust a ciegas.
 
-El plan conserva el orden original de `current-ownership-experiment.cjs`,
-seleccionando explícitamente `mutation-records-collect/100` como caso de
-diagnóstico. No es un nuevo estudio de aceptación de rendimiento.
+Se busca describir GC, compilación/deoptimización y frames V8 dentro de los
+límites originales, distinguiendo operaciones de setup, warmup y cleanup.
+La instrumentación altera el contexto. No identifica automáticamente una causa,
+no garantiza stacks de funciones Rust internas y no estima una mejora causal.
 
-- Node 22.12.0 y 24.14.1.
-- Modos CPU/GC y JIT/GC independientes; cada modo incluye ambas etiquetas.
-- AA y AB, jsdom y Rustdom, etiquetas A/B y las 16 semillas/posiciones originales.
-- 128 procesos por Node/modo; 256 por Node y 512 propuestos en total.
-- Tres warmup y nueve mediciones por proceso, sin recortar posiciones o extremos:
-  1536 warmup y 4608 duraciones medidas, 6144 spans en total.
-- 6144 Window y 6144 Document esperados por separado; tres rondas y dos estados
-  finales claros requeridos por proceso, con los baselines nativos originales.
+## Secuencia fija
 
-Son cantidades **planificadas**, no observadas. La selección de una fila tiene
-un propósito diagnóstico explícito y no permite sustituir la matriz completa,
-aceptar presupuesto, cambiar estimador o conceder una mejora. Los CPU profiles
-de V8 no garantizan stacks internos de funciones Rust y la instrumentación
-altera el contexto; sus tiempos no se agregarán a un A/B no instrumentado.
+Se reutiliza el orden de `current-ownership-experiment.cjs`, seleccionando
+explícitamente una fila para diagnóstico. No es un estudio de aceptación.
 
-## Preparación que ya puede probarse sin DOM
+| Factor | Valor fijado |
+| --- | --- |
+| Fila | `mutation-records-collect/100`, índice 0 |
+| Runtimes | Node 22.12.0, después Node 24.14.1 |
+| Modos por Node | CPU/GC y después JIT/GC, cada uno con ambas etiquetas |
+| Agenda por modo | Orden original completo de AA/AB, jsdom/Rustdom, A/B y 16 posiciones |
+| Semillas | 1..16, flags y afinidad originales |
+| Procesos | 128 por Node/modo; 256 por Node; 512 en total |
+| Cada proceso | 3 warmup + 9 duraciones medidas, sin recortar índices o extremos |
+| Warmup dentro del realm | Tres rondas originales; nodos medidos sin pre-mutarlos |
+| CPU | Inspector con intervalo solicitado de 100 µs |
+| JIT | `--log-code --log-function-events --log-deopt --no-logfile-per-isolate --logfile=v8.log` |
+| Relojes | Anchors monotónicos y scripts con nombres propios; incertidumbre de timestamp 1 µs |
 
-`schedule.cjs` solo construye el plan y no lanza procesos.
-`prepare.py` combina dos derivaciones existentes del repositorio actual:
+Si se completa, se esperan 1536 warmup y 4608 duraciones medidas: 6144 spans,
+6144 Window y 6144 Document por separado, 1024 endpoints finales requeridos,
+256 perfiles CPU y 256 logs JIT. Son cantidades planificadas, no observadas.
+Los modos no se mezclan al comprobar prefijos RNG por fase/posición/motor/label.
 
-1. El sampler instrumentado de `jsdom-telemetry/prepare.py`, con CPU del proceso
-   y límites de setup/warmup/operación/cleanup alrededor del reloj original.
-2. Los hooks de fixtures compartidos de `shared-fixture-worker/prepare.py`.
+## Entradas, derivación e identidad
 
-La preparación autentica las 434 fuentes contra un recibo externo publicado,
-no solo contra el hash que declare el input. Exige el sampler compartido
-calificado `d24c7282…` y el patch compartido canónico antes de aplicarlo sobre
-la copia instrumentada. La fuente original no se modifica. Conserva los recibos,
-patches y fuentes derivados, y registra hashes de todos sus archivos.
+La preparación es la original de `39906777389`, autenticada por ZIP y tar
+contra el recibo publicado. Se conservan los paquetes A0/A1/B/J0/J1 y las
+distribuciones completas originales, sin reconstruir ni instalar dependencias.
+Los dos ejecutables se autentican por SHA256/version antes del primer worker,
+con probe acotado a 10 s, y se vuelven a comprobar después de cada Node.
 
-El wrapper antiguo exclusivo de jsdom se conserva como referencia sin ejecutar;
-no se expone como productor nativo nuevo. Las copias de código son material de
-preparación, no resultados de una medición. No ejecutar sus samplers para
-"comprobar" este método sin la autorización de una captura independiente.
+El runtime `5ef668c47a78bb73ef5b0881fbf20e6d36c4d4cc9686198c26e722d8fc9c6806`,
+el grafo congelado de 434 archivos y los 26 pins previos no cambian.
+`prepare.py` reutiliza las derivaciones actuales de telemetría y fixtures
+compartidos; exige el sampler calificado `d24c7282…` y su patch canónico.
+El sampler combinado registra CPU y bordes fuera del reloj original y conserva
+el cuerpo, inputs, warmup, hashes públicos, afinidad y teardown de la operación.
 
-Los contratos ejercen ambas derivaciones reales, todos los archivos generados,
-un grafo falsificado, preservación de un output existente y Python optimizado.
-Los contratos Node comprueban el plan completo y que su mutación no pueda cambiar
-la agenda o presupuestos originales. No se mockean addons ni plataformas.
+Los mapas `derived-code-cpu.json`/`derived-code-jit.json`, versionados fuera de
+la captura, fijan los bytes ejecutables/configuración y todos los nombres del
+árbol derivado. Un recibo local reescrito no puede redefinir ese código. Se
+rechazan archivos extra, enlaces y redirecciones de resolución de módulos.
+El recibo de revisión liga método, mapas, workflows y dependencias reutilizadas.
 
-`analyze.cjs` adapta el lector de reloj publicado, reutiliza sus funciones de
-intersección y conserva la incertidumbre, ticks negativos y eventos completos.
-Exige que el motor y las revisiones de report/telemetry coincidan con una identidad
-explícita. Rechaza clasificar un perfil histórico como nativo o como captura nueva;
-para Rust exige un baseline nativo y retorno de recursos mediante `isReleased`.
-Exige las tres rondas de cleanup y los dos finales claros, junto con tres warmup
-y nueve muestras medidas; una traza vacía o requisitos relajados no son válidos.
-Exige también un batch completo y doce Window/Document observados por separado.
-La validación usa cuatro perfiles auténticos anteriores (CPU/JIT de ambos Node),
-contrastando todos los resultados contra el lector original del repositorio
-actual. Esto no es una prueba end-to-end de un profiler nativo nuevo ni hace pasar
-un perfil jsdom por Rust. El contrato de corrupción solo comprueba que ese relabel
-inválido sea rechazado; no produce una muestra positiva ni una medición sintética.
+Cada worker conserva `report.json.source.json` con los bytes del sampler y
+genera un reporte con revisión/purpose nuevos. El sidecar fija PID, Node,
+run/intento/commit, derivación, modo, recursos de observación y errores.
+No se presenta un perfil histórico jsdom/Range como nativo nuevo. La lectura
+de fixtures históricos exige sus revisiones explícitas y no valida una captura.
 
-## Trabajo pendiente antes de pedir una ejecución
+## Recursos y límites de tiempo
 
-Faltan el wrapper nativo de profiling, colector de ejecución, replay colectivo y
-workflow de activación. Deben conservar los invariantes siguientes:
+Cada proceso conserva tres rondas de cleanup, con dos finales claros, doce
+observaciones de cada owner y retorno al baseline nativo mediante `isReleased`.
+La GC se guarda como escalares; no se retienen targets DOM en esos eventos.
+Stop/disable/disconnect de Inspector y desconexión de PerformanceObserver se
+intentan independientemente en errores. Se conservan errores y parciales.
 
-- Autenticar los dos binarios y la preparación original antes del primer worker,
-  sus hashes después, los pins del método y la distribución completa A/B.
-- Publicar y revisar el método completo y sus contratos Node 22/24; no declarar
-  validación end-to-end del profiler nativo basándose solo en estas preparaciones.
-- Mantener identidades nuevas explícitas en cada reporte; no convertir perfiles
-  históricos de jsdom o Range en datos nativos nuevos.
-- Cerrar y desconectar Inspector/observers en éxito y errores; preservar muestras,
-  GC/JIT, perfiles completos, intervalos de reloj e incertidumbre, incluidas cotas
-  negativas o eventos desconocidos, sin corregirlos para obtener una conclusión.
-- No aceptar rendimiento desde un diagnóstico; no relanzar ante error, timeout o
-  resultado negativo. Conservar todos los parciales y el transporte íntegro.
-- Exigir autorización humana explícita independiente antes de activar una única
-  secuencia. No crear/aplicar una etiqueta mientras falten código, revisión o esa
-  autorización. El protocolo definitivo deberá fijar también límites de tiempo,
-  orden de modos/Node, identidad publicada y recepción de artifacts.
+Hay un límite de 180000 ms por worker. El colector tiene 110 minutos de presupuesto
+y no inicia otro proceso si no queda el límite completo de un worker. El step
+de captura tiene 130 minutos y el job 180; archivo/subida tienen 25/10 minutos.
+Esto reserva margen operativo, sin garantizar que sobreviva cualquier archivo
+a un timeout global, fallo de disco o cancelación del runner.
 
-Los 26 pins y el grafo congelado de 434 archivos del estudio terminado permanecen
-intactos. El runtime continúa híbrido; el hito de ownership y la migración completa
-no están resueltos. No hay tag ni merge con rendimiento rechazado.
+Se detiene ante el primer error de integridad, worker, recurso, RNG o presupuesto.
+Una secuencia parcial sigue parcial; no se repite ni se completan muestras faltantes.
+Los snapshots del padre se guardan antes y después de cada Node sin GC forzado.
+No son memoria pico, límites universales de retención ni prueba de ausencia de fugas.
+
+## Consumo único y preservación
+
+El workflow solo responde a `ownership-native-mutation-telemetry-v1` en PR #80,
+intento 1, sin cancelar una ejecución viva. Consulta todo el historial del repo
+para impedir otra ejecución no omitida del mismo workflow y exige contratos
+exitosos de ambos Node en el SHA actual, además del recibo local de revisión.
+El colector comprueba el evento etiquetado y el HEAD Git real del mismo commit.
+No existe una opción de retry, reducción de la agenda o aceptación de rendimiento.
+
+Se archiva el árbol entero, incluidos preparación, fuentes, originales, wrappers,
+perfiles, logs JIT, muestras/warmup, spans, GC, errores y resultados parciales.
+También se conservan controles de historial/QA y logs del colector. El lector
+completo comprueba todos los procesos, ficheros, muestras y estados finales;
+rechaza capturas incompletas. Ante un parcial se preserva el transporte íntegro
+y se analizan los archivos disponibles sin relanzar.
+
+La futura recolección debe autenticar artifact por ID/run/commit/intento/tamaño/
+digest y conservar ZIP, tar, metadata y manifiesto completo. No ejecutar código
+desde el archivo. Un replay estricto necesita el checkout Git real y limpio del
+commit fuente publicado; no normalizar `sourceCommit/sourceChanges/sourceGitErrors`.
+
+## Validación y alcance
+
+Los contratos usan derivaciones reales y datos históricos autenticados: CPU/JIT
+de ambos Node y la calificación funcional compartida. Comprueban agenda, probes,
+integridad externa, archivos extra/symlinks, preservación de outputs y rechazo de
+contextos locales/reintentos, sin ejecutar DOM ni profiling nuevo.
+Las corrupciones son solo casos negativos, no muestras positivas fabricadas.
+
+El entrypoint del replay es `run.cjs --verify <capture>` y usa código del checkout
+actual revisado, no scripts archivados. `--preflight <preparation>` solo autentica
+datos/archivos. El código fuente preparado no se ejecutó para calificar esta fase.
+El profiler nativo end-to-end y un replay positivo de sus 512 procesos siguen sin
+validarse; no se infieren a partir de perfiles jsdom ni de contratos de rechazo.
+
+La salida del diagnóstico es `performanceAccepted=null`, `gateReevaluated=false`.
+Un exit 0 solo indica diagnóstico íntegro, no presupuesto aprobado. Se conservan
+relojes inciertos, deltas CPU negativos, eventos desconocidos, regresiones y
+controles rechazados. Nada se añade a un A/B no instrumentado ni cambia sus
+presupuestos/estimador. El runtime continúa híbrido; no hay tag ni merge con
+ownership rechazado y el objetivo completo de migración sigue pendiente.

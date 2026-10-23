@@ -61,19 +61,24 @@ estimador nuevo ni una recalibración del gate. Sin eventos GC/JIT del candidato
 estos tiempos no identifican una causa ni justifican tocar el runtime a ciegas.
 Se conservan todos los procesos y warmup; no hubo nueva ejecución DOM ni captura.
 
-La preparación de un posible diagnóstico específico está en
-`reports/benchmarks/native-class-ownership/native-mutation-telemetry/`.
-Por ahora hay plan, derivación de fuentes y lector individual, `captureImplemented=false`:
-no productor ni workflow de captura y no se solicitó autorización nueva.
-El plan propuesto selecciona MutationRecord/100 y conserva todos los seeds,
-AA/AB, motores y etiquetas, con CPU/JIT por separado: 512 procesos previstos,
-ninguno ejecutado. Cuatro contratos Python ejercen ambas derivaciones reales y
-rechazos de integridad/overwrite/optimización; ocho contratos por Node verifican
-la agenda y sus límites, reproducen CPU/JIT históricos y rechazan relabels o
-claims nativos sin baseline. No validan end-to-end un profiler Rust nuevo. Evidencia en
-`reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/`.
-Faltan wrapper de profiling nativo, colector, replay colectivo, workflow, revisión
-del método completo y su autorización independiente antes de cualquier captura.
+El método específico `native-mutation-telemetry-v1` está en
+`reports/benchmarks/native-class-ownership/native-mutation-telemetry/`, con wrapper,
+colector, replay y workflows. `captureImplemented=true` significa capacidad del
+código, no autorización. No se creó/aplicó su etiqueta ni se ejecutó el diagnóstico.
+Selecciona MutationRecord/100 y conserva todos los seeds, AA/AB, motores y labels,
+CPU/JIT por separado: 512 procesos propuestos, ninguno ejecutado. Requiere revisión
+local íntegra, CI de contratos del SHA final y autorización humana independiente
+antes de una única activación en PR #80. No reutilizar permisos de otros estudios.
+
+Pasaron cuatro contratos Python y quince por Node con datos históricos reales,
+derivaciones, corrupción de código/metadata y guardas de contexto. Ambos preflights
+solo leen/autentican archivos; no prueban el profiler nativo end-to-end ni un replay
+positivo de una captura nueva. Evidencia actual en
+`reports/validation/native-class-ownership/native-telemetry-method/`; la fase anterior
+sin productor de `05814530` se conserva en `native-telemetry-preparation/2026-10-23/`.
+Metodología y límites de recursos en `reports/memory/native-mutation-telemetry-method.md`.
+El protocolo completo fija 3 minutos por worker, presupuesto del colector 110 minutos,
+step 130 y job 180; ante error/timeout preserva parciales, sin retry ni muestras extra.
 
 No hay tag ni merge ni aceptación nueva para integrar al gate. No continuar
 con otro módulo antes de cerrar este hito. Investigar los datos existentes;

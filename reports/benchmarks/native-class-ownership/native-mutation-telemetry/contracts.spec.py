@@ -26,11 +26,11 @@ class Derivation(unittest.TestCase):
             for mode in policy['modes']:
                 output = Path(temporary) / mode
                 receipt = method.prepare(repository, manifest, output, mode)
-                self.assertFalse(receipt['measurementExecuted']); self.assertFalse(receipt['captureImplemented'])
+                self.assertFalse(receipt['measurementExecuted']); self.assertEqual(receipt['captureImplemented'], policy['captureImplemented'])
                 self.assertIsNone(receipt['performanceAccepted']); self.assertFalse(receipt['gateReevaluated'])
                 self.assertEqual(receipt['verifiedSourceFiles'], 434)
                 self.assertEqual(receipt['qualifiedSamplerSha256'], policy['qualifiedSamplerSha256'])
-                self.assertFalse((output / 'worker.cjs').exists())
+                self.assertTrue((output / 'worker.cjs').is_file())
                 self.assertFalse(any(output.rglob('report.json')))
                 for name, expected in receipt['derivedFiles'].items():
                     self.assertEqual(hashlib.sha256((output / name).read_bytes()).hexdigest(), expected)

@@ -23,7 +23,8 @@ function analyzeProcess(directory, identity) {
     assert.equal(report.settings[name], settings[name], `Native telemetry: non-canonical ${name}`);
   }
   if (report.engine === 'rustdom') {
-    assert.ok(Number.isSafeInteger(report.nativeBaseline?.napiClasses?.live), 'Native telemetry: missing native class baseline');
+    assert.ok(Number.isSafeInteger(report.nativeBaseline?.napiClasses?.live) && report.nativeBaseline.napiClasses.live >= 0,
+      'Native telemetry: missing or invalid native class baseline');
   } else assert.equal(report.nativeBaseline, undefined, 'Native telemetry: jsdom cannot declare a native baseline');
   assert.equal(telemetry.complete, true); assert.equal(telemetry.accepted, null);
   assert.equal(telemetry.gateReevaluated, false); assert.equal(telemetry.pid, report.pid);

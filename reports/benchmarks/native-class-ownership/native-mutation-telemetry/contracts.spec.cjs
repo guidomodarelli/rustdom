@@ -6,8 +6,11 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { createHash } = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 const { plan } = require('./schedule.cjs');
 const { analyzeProcess } = require('./analyze.cjs');
+const { annotate } = require('./worker.cjs');
+const coordinator = require('./run.cjs');
 const policy = require('./constants/protocol.json');
 const repository = path.resolve(__dirname, '../../../..');
 const study = require('../current-ownership-experiment.cjs');
@@ -89,10 +92,12 @@ test('historical jsdom telemetry cannot borrow a native or new-capture identity'
   assert.throws(() => analyzeProcess(profile.directory, { ...historicalIdentity, telemetryRevision: policy.revision }), { code: 'ERR_ASSERTION' });
 });
 test('a corrupted jsdom report cannot claim native release without a native baseline', () => {
-  withCorruptedReport((report) => { report.engine = 'rustdom'; }, (temporary) => {
-    assert.throws(() => analyzeProcess(temporary, { ...historicalIdentity, engine: 'rustdom' }), {
-      code: 'ERR_ASSERTION', message: 'Native telemetry: missing native class baseline' });
-  });
+  for (const baseline of [undefined, { napiClasses: { live: -1 } }]) {
+    withCorruptedReport((report) => { report.engine = 'rustdom'; report.nativeBaseline = baseline; }, (temporary) => {
+      assert.throws(() => analyzeProcess(temporary, { ...historicalIdentity, engine: 'rustdom' }), {
+        code: 'ERR_ASSERTION', message: 'Native telemetry: missing or invalid native class baseline' });
+    });
+  }
 });
 test('missing release rounds or a report-supplied weaker requirement cannot claim release', () => {
   for (const change of [(report) => { report.batches[0].cleanupTrace = []; },
@@ -113,4 +118,78 @@ test('an incomplete batch or omitted owner observations cannot claim complete re
     (report) => { delete report.batches[0].trackedOwners.window; }]) {
     withCorruptedReport(change, (temporary) => assert.throws(() => analyzeProcess(temporary, historicalIdentity), { code: 'ERR_ASSERTION' }));
   }
+});
+test('the real worker CLI refuses local execution and repeated hosted attempts before writing evidence', () => {
+  const parent = fs.realpathSync(os.tmpdir()); const temporary = fs.mkdtempSync(path.join(parent, 'rustdom-native-worker-guard-'));
+  const output = path.join(temporary, 'report.json');
+  try {
+    for (const [hosted, attempt, message] of [['false', '1', 'requires the declared hosted runner'], ['true', '2', 'repeated attempts are forbidden']]) {
+      const result = spawnSync(process.execPath, [path.join(__dirname, 'worker.cjs'), 'unused', 'AA', 'rustdom', '0', 'A', output, '0'], {
+        env: { ...process.env, GITHUB_ACTIONS: hosted, GITHUB_RUN_ATTEMPT: attempt }, encoding: 'utf8', timeout: 10000 });
+      assert.equal(result.status, 2); assert.ok(result.stderr.includes(message));
+      assert.deepEqual(fs.readdirSync(temporary), []);
+    }
+  } finally { assert.equal(path.dirname(temporary), parent); fs.rmdirSync(temporary); }
+});
+test('already-annotated historical study reports cannot be relabeled as fresh sampler output', () => {
+  const report = JSON.parse(fs.readFileSync(path.join(process.env.NATIVE_TELEMETRY_QUALIFICATION_CORPUS, 'node22/000/report.json'), 'utf8'));
+  assert.throws(() => annotate(report, policy, '0'.repeat(64), {}), { code: 'ERR_ASSERTION' });
+});
+test('the real coordinator CLI refuses local execution and repeated attempts before touching output', () => {
+  const parent = fs.realpathSync(os.tmpdir()); const temporary = fs.mkdtempSync(path.join(parent, 'rustdom-native-coordinator-guard-'));
+  try {
+    for (const [hosted, attempt, message] of [['false', '1', 'requires the declared hosted runner'], ['true', '2', 'repeated attempts are forbidden']]) {
+      const result = spawnSync(process.execPath, [path.join(__dirname, 'run.cjs'), '--capture', 'unused', path.join(temporary, 'capture'),
+        '0'.repeat(40), process.execPath, process.execPath], {
+        env: { ...process.env, GITHUB_ACTIONS: hosted, GITHUB_RUN_ATTEMPT: attempt }, encoding: 'utf8', timeout: 10000 });
+      assert.equal(result.status, 2); assert.ok(result.stderr.includes(message)); assert.deepEqual(fs.readdirSync(temporary), []);
+    }
+  } finally { assert.equal(path.dirname(temporary), parent); fs.rmdirSync(temporary); }
+});
+test('a genuinely derived CPU/JIT tree matches registered bytes without running it', () => {
+  for (const mode of policy.modes) {
+    const directory = `${process.env.NATIVE_TELEMETRY_DERIVED_PREFIX}-${mode}`;
+    const receipt = JSON.parse(fs.readFileSync(path.join(directory, 'preparation.json'), 'utf8'));
+    assert.equal(coordinator.verifyDerived(directory, receipt, mode), receipt);
+  }
+});
+test('self-consistent local hashes or same-byte symlinks cannot redefine the reviewed executable graph', () => {
+  const parent = fs.realpathSync(os.tmpdir()); const temporary = fs.mkdtempSync(path.join(parent, 'rustdom-native-derivation-corruption-'));
+  try {
+    const original = `${process.env.NATIVE_TELEMETRY_DERIVED_PREFIX}-cpu`;
+    for (const variant of ['changed-bytes', 'redirected-path', 'extra-dependency']) {
+      const directory = path.join(temporary, variant); fs.cpSync(original, directory, { recursive: true });
+      const receipt = JSON.parse(fs.readFileSync(path.join(directory, 'preparation.json'), 'utf8'));
+      if (variant === 'changed-bytes') {
+        fs.appendFileSync(path.join(directory, 'worker.cjs'), '\n// corrupted input\n');
+        receipt.derivedFiles['worker.cjs'] = createHash('sha256').update(fs.readFileSync(path.join(directory, 'worker.cjs'))).digest('hex');
+        fs.writeFileSync(path.join(directory, 'preparation.json'), JSON.stringify(receipt));
+      } else if (variant === 'redirected-path') {
+        const target = path.join(temporary, 'same-worker.cjs'); fs.renameSync(path.join(directory, 'worker.cjs'), target);
+        fs.symlinkSync(target, path.join(directory, 'worker.cjs'));
+      } else {
+        fs.mkdirSync(path.join(directory, 'node_modules')); fs.writeFileSync(path.join(directory, 'node_modules/overlay.cjs'), 'module.exports = {};\n');
+      }
+      assert.throws(() => coordinator.verifyDerived(directory, receipt, 'cpu'), { code: 'ERR_ASSERTION' });
+    }
+  } finally {
+    assert.equal(path.dirname(temporary), parent); assert.equal(fs.realpathSync(temporary), temporary);
+    fs.rmSync(temporary, { recursive: true });
+  }
+});
+test('actual paired startup probes remain complete and reject missing labels or corrupted values', () => {
+  const root = process.env.NATIVE_TELEMETRY_QUALIFICATION_CORPUS;
+  const index = JSON.parse(fs.readFileSync(path.join(root, 'index.json'), 'utf8'));
+  const entries = index.processes.flatMap((entry, ordinal) => {
+    if (entry.node !== policy.nodeVersions[0] || entry.input.phase !== 'AA' || entry.input.position !== 0 || entry.input.rowIndex !== policy.rowIndex) return [];
+    const report = JSON.parse(fs.readFileSync(path.join(root, 'node22', String(ordinal).padStart(3, '0'), 'report.json'), 'utf8'));
+    return [{ ...entry.input, node: entry.node, probe: report.randomProbe }];
+  });
+  coordinator.validateProbeGroup(entries);
+  assert.throws(() => coordinator.validateProbeGroup(entries.slice(1)), { code: 'ERR_ASSERTION' });
+  const corrupted = structuredClone(entries); corrupted[0].probe[0] = -1;
+  assert.throws(() => coordinator.validateProbeGroup(corrupted), { code: 'ERR_ASSERTION' });
+});
+test('the full replay cannot promote a genuine historical diagnostic to this method', () => {
+  assert.throws(() => coordinator.verify(historicalRoot), { code: 'ERR_ASSERTION' });
 });
