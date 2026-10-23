@@ -1,5 +1,23 @@
 # Continuar rustdom en otra máquina
 
+## Calificación de inventario preparada para GitHub
+
+El workflow nuevo inventory-qualification.yml validará las propuestas estáticas
+de DOMTokenList y DOMStringMap sobre el runtime real del PR80, en Node22.12.0 y
+24.14.1. Herramientas/tests vienen del snapshot inmutable a89ce898; el runtime
+se compila desde el HEAD del PR, pues la rama de inventario todavía difiere en
+seis archivos N-API. Tras comprobar once fuentes auditadas, el snapshot usa el
+dist y node_modules reales del PR mediante symlinks. No se mezclan fuentes
+productivas ni se compila el runtime antiguo de inventario.
+
+Los jobs ejecutan filtros Rust, catálogo y suites DOM públicas/nativas reales,
+CLI y helpers finitos de memoria. Regeneran catálogo en carpeta aparte y copian
+solo reportes nuevos. Se conservan versiones, commits, hashes y fallos parciales.
+Ver reports/validation/inventory-qualification/PROTOCOL.md. La calificación real
+está pendiente hasta que GitHub termine; no incorpora propuestas al ledger ni
+acredita Rust nuevo. Está fuera de las 422 fuentes del estudio original y no
+ejecuta benchmarks o carga local. No crear otro PR ni tag/merge por este trabajo.
+
 ## Preparación XML: validación remota completada
 
 Se agregó `Prepare XML packages`, con baseline checkpoint-066-reference-catalog,
