@@ -10,7 +10,7 @@ const { isReleased } = require('../../../scripts/memory-endpoint.cjs');
 const { createPairedStudy, runStudyCli } = require('./paired-main-experiment.cjs');
 const { schedule: pairedSchedule } = require('./paired-main-worker.cjs');
 const { createSinglePackageWorker } = require('./single-package-worker.cjs');
-const preparation = require('./hosted-main-experiment.cjs');
+const defaultPreparation = require('./hosted-main-experiment.cjs');
 const defaultSettings = require('./constants/single-package.cjs');
 const defaultMethod = require('./constants/single-package-study.cjs');
 const harnessRoot = path.resolve(__dirname, '../../..');
@@ -22,7 +22,8 @@ const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
  * @param {object} options - Immutable settings and explicit method provenance.
  * @returns {object} Archive producer and offline verifier.
  */
-function createSinglePackageStudy({ settings = defaultSettings, method = defaultMethod } = {}) {
+function createSinglePackageStudy({ settings = defaultSettings, method = defaultMethod,
+  preparation = defaultPreparation } = {}) {
   const shared = createPairedStudy({ settings, method, sourceHashes: method.sourceHashes });
   const { schedule, workerArguments } = createSinglePackageWorker(settings);
   /** Preserve global factors while optionally expanding each treatment into one process per row. */

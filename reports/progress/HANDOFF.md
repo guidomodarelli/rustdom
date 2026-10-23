@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Candidato actual: protocolo de ownership pendiente de ejecutar
+
+El check XML de113a1aec aprobó en GitHub (`39917369584`). Los35contratos
+de ownership pasaron por Node22/24 también en CI; el gate final sigue
+rechazando las fuentes actuales antes de consumir el archivo histórico.
+No confundir ese rechazo de identidad con una nueva regresión funcional.
+
+La preparación oficial39906777389/artifact12481226791 corresponde al runtime
+actuala5a1379d/fuente5ef668c4, no al antiguo candidatoB0d67. Se autenticó su
+ZIP completo y se verificaron fuentes, inputs de raíz, distribuciones completas,
+dependencias y probes públicos de Node22/24. Sus datos están en
+`reports/validation/native-class-ownership/current-source-preparation/39906777389/`.
+
+`CURRENT-OWNERSHIP-PROTOCOL.md` declara una sola secuencia para este runtime
+ya cambiado, con etiqueta exclusiva `ownership-current-source-v1` y workflow
+`ownership-current-source.yml`. Reutiliza row-isolation: ocho cargas, dos fases,
+16posiciones, semillas1..16, mismos warmups, nueve muestras y mediana agrupada;
+jsdom±2%, RustAA±5%, RustAB+5%. Son1024procesos por Node22/24. El ensayo no se
+ha lanzado al redactar esta sección: consultar el workflow antes de actuar.
+No repetirlo ni repetir estudios anteriores si el resultado no calibra.
+
+La factory existente admite una preparación explícita sin alterar su default
+histórico. La revisión detectó y cerró dos P2 antes de medir: repetir la etiqueta
+ya no evita el guard de historial de runs, y el hash del arnés incluye todas las
+dependencias de la preparación actual. Los dos contratos nuevos pasaron por
+Node22/24. También pasaron12tests públicos por Node, con40workers por perfil,
+las cinco copias reales, las ocho cargas y liberación de Window/Document.
+Estos tiempos de calificación no aceptan presupuesto ni seleccionan muestras.
+
+La regresión de los archivos históricos también pasó35contratos por Node y
+conservó todos los rechazos. Los505archivos de QA, fuentes revisadas y límites
+están en `reports/validation/native-class-ownership/current-ownership-method/`;
+el informe de memoria observa480Window/Document por Node y80endpoints claros.
+También pasaron seis contratos de inputs de build por perfil y el CLI vinculó
+los inputs completos del checkout con la preparación oficial, antes de medir.
+Antes de lanzar: publicar y autenticar arnés/recibo. El runtime productivo y su
+fuente5ef668c4 siguen sin cambios; no hay tag ni merge. El CI general113a1aec
+seguía activo en la última comprobación. Consultar el estado remoto original.
+La cuota de review remoto está agotada y Engram continúa sin identidad runtime.
+
 ## Cierre del PR80: XML medido y aprobado; ownership sigue pendiente
 
 La única ejecución `xml-native-properties-v1`, run `39907233079`, terminó
