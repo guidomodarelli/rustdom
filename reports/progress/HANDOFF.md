@@ -61,6 +61,20 @@ estimador nuevo ni una recalibración del gate. Sin eventos GC/JIT del candidato
 estos tiempos no identifican una causa ni justifican tocar el runtime a ciegas.
 Se conservan todos los procesos y warmup; no hubo nueva ejecución DOM ni captura.
 
+La preparación de un posible diagnóstico específico está en
+`reports/benchmarks/native-class-ownership/native-mutation-telemetry/`.
+Por ahora hay plan, derivación de fuentes y lector individual, `captureImplemented=false`:
+no productor ni workflow de captura y no se solicitó autorización nueva.
+El plan propuesto selecciona MutationRecord/100 y conserva todos los seeds,
+AA/AB, motores y etiquetas, con CPU/JIT por separado: 512 procesos previstos,
+ninguno ejecutado. Cuatro contratos Python ejercen ambas derivaciones reales y
+rechazos de integridad/overwrite/optimización; ocho contratos por Node verifican
+la agenda y sus límites, reproducen CPU/JIT históricos y rechazan relabels o
+claims nativos sin baseline. No validan end-to-end un profiler Rust nuevo. Evidencia en
+`reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/`.
+Faltan wrapper de profiling nativo, colector, replay colectivo, workflow, revisión
+del método completo y su autorización independiente antes de cualquier captura.
+
 No hay tag ni merge ni aceptación nueva para integrar al gate. No continuar
 con otro módulo antes de cerrar este hito. Investigar los datos existentes;
 cualquier estudio distinto requerirá su propio protocolo y autorización,
