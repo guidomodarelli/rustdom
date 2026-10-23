@@ -12,9 +12,9 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.374 | Descriptores propios de objetos públicos y bases heredadas no enumeradas, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 16 | Diez híbridos; strings.js, validate-names.js, parser/index y los tres módulos WebIDL de geometría siguen pendientes |
-| APIs con clasificación revisada | 23 | Las seis APIs previas y diecisiete de geometría conservan WebIDL, factories, conversiones o dependencias del host |
-| Anclas con clasificación revisada | 45 | Diecinueve cuerpos Rust existentes, ocho híbridos y dieciocho pendientes; no acredita dependencias ni APIs completas |
+| Módulos con clasificación revisada | 18 | Once híbridos y siete pendientes; ningún módulo completo |
+| APIs con clasificación revisada | 32 | Veintinueve híbridas y tres pendientes; ninguna API completa |
+| Anclas con clasificación revisada | 55 | Veintitrés cuerpos Rust existentes, once híbridos y veintiuno pendientes; no acredita dependencias ni APIs completas |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan
 por declaración propia de cada objeto o prototipo observado: la herencia y los
@@ -111,6 +111,12 @@ en WSL. La copia Linux conserva las mismas fuentes verificadas y el límite de
 30 segundos. Sus once pruebas pasaron en ambos Node; no se amplió el timeout.
 
 ## Reproducción y validación
+
+La integración posterior de Storage agrega 21 clasificaciones a las 84 anteriores:
+dos módulos, diez anclas y nueve APIs. Los recuentos actuales de la tabla inicial
+provienen de `summary.json` y están detallados en `storage-ledger-integration.md`.
+Los denominadores y los 12151 IDs no cambian. El historial de geometría que sigue
+describe su hito anterior, no los totales vigentes.
 
 La incorporación posterior de geometría agrega 42 clasificaciones revisadas:
 cinco módulos, veinte anclas y diecisiete APIs. Diecisiete cuerpos numéricos ya

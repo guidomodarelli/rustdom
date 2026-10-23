@@ -1,5 +1,43 @@
 # Continuar rustdom en otra máquina
 
+## DOMTokenList: propuesta estática revisada, fuera del ledger
+
+Sobre11f9597 se prepara una propuesta de31clasificaciones existentes:
+dos módulos,18anclas y11APIs. Siete cuerpos ya ejecutan sus decisiones en Rust,
+diez son híbridos y uno permanece pendiente. Diez APIs son híbridas y el
+constructor público sigue pendiente. Constructor interno, cinco aliases Array
+y toStringTag quedan diferidos explícitamente; no se impone reimplementar V8.
+No hay código Rust nuevo ni modificación de audits/classification/summary.
+Los totales vigentes siguen18módulos/32APIs/55anclas; denominadores531/4374/7246,
+12151IDs, scopeClosed=false y migrationPercent=null. README corregido: mostraba
+los totales anteriores a Storage, no una diferencia real del ledger.
+
+Fuentes y decisiones: reports/progress/inventory/dom-token-list-audit.*.
+Evidencia estática en reports/validation/inventory-dom-token-list-audit/:
+32miembros,126321B, SHA55753a022bb144856999f9744e0c57425593fe4f01a67162b9653b9acc59a76c.
+Seis fuentes locales coinciden con las fuentes archivadas de la preparación
+oficial39720077911 y cuatro archivos construidos con su manifest B físico.
+El snapshot original queda separado: review corrigió attrModified de híbrido
+a cuerpo Rust existente con limpieza mecánica de cache en el binding.
+La revisión final quedó sin hallazgos y el verificador estático comprobó IDs,
+alcance propuesto/diferido, recuentos y readback del tar. No se ejecutaron DOM,
+addon, suites, generador, GC o benchmarks para esta auditoría.
+
+No incorporar al ledger hasta validar el catálogo y comportamiento relevante
+en Node22/24 después del ensayo activo. Los logs históricos son175casos públicos,
+cinco nativos y cuatro Rust; el test nativo actual tiene un sexto caso posterior.
+No presentarlos como nuevas ejecuciones ni como validación de todo el archivo actual.
+Memoria: análisis de owners, Weak/Rc y antecedentes finitos; sin nueva prueba de GC,
+memoria pico ni garantía absoluta de ausencia de fugas.
+
+El estudio ownership nuevo de afinidad auxiliar está activo sobre5e6ac005,
+session19732, driver692, padreNode22=955, raíz persistente
+/home/guido/rustdom-validation/background-affinity-study-k98_55yo.
+Al consultar había271workers Node22 completos exit0, sin fallos; comprobar handle,
+/proc y execution.json para el estado actual. No reiniciar, ejecutar suites
+intensivas ni editar fuentes medidas mientras esté vivo. Node24 es secuencial.
+Mantener esta rama separada, sin otro PR draft, merge o tag del hito abierto.
+
 ## Estado actual: Storage validado e incorporado al ledger
 
 Sobre eaf1a736 se agregan 21 auditorías de implementación existente, preservando
