@@ -1,5 +1,37 @@
 # Continuar rustdom en otra máquina
 
+## Diagnóstico adicional autorizado el 23 de octubre de 2026
+
+El usuario respondió «Autorizar el diagnóstico nuevo» a la pregunta sobre un
+experimento separado de CPU/GC/JIT de jsdom en Node22/24. Ya no está pendiente
+esa decisión. La autorización no acepta el estudio rechazado ni cambia sus
+presupuestos. El CI general de c71ede39 terminó con sus ocho jobs aprobados,
+incluido Linux con Valgrind, Windows, macOS y shards/aggregate; XML aprobó.
+
+El método nuevo está en `reports/benchmarks/native-class-ownership/jsdom-telemetry/`.
+Fija 64 procesos jsdom-only, ocho cargas, posiciones0/15, ambas etiquetas y
+Node22/24. CPU+GC y JIT+GC se observan en procesos separados porque V8 desactiva
+su file logger mientras Inspector tiene activo el CPU profiler. El sampler
+productivo, la fuente5ef y el estudio39921160254 siguen intactos.
+
+La herramienta completó 32 procesos de calificación y 384 intervalos, con
+384 Window y 384 Document por tipo y 64 endpoints finales claros; también
+conserva tres primeros endpoints no claros. Pasaron 12 contratos por Node22/24
+con los datos originales y trasladados. Se preservan los dos parciales previos
+y la recuperación del lector, sin repetir los cuatro children ya completados:
+los 14 deltas negativos siguen firmados. El P2 de identidad quedó corregido y
+Node/PID se contrastan con el proceso observado, con regresiones reales.
+
+Los 2094 archivos de QA están en
+`reports/validation/native-class-ownership/jsdom-telemetry-method/qualification.tar.xz`,
+43372036 bytes / SHA256 031d4e51c517d131bd76eb86e986b3b3a2701aee4bd3a877fa449106871b6962.
+Su extracción verificó todos los miembros y el replay en ambos Node. Memoria:
+`reports/memory/jsdom-telemetry-method.{json,md}`. La captura completa no se lanzó
+al redactar este bloque; consultar el workflow antes de actuar. Publicar y
+autenticar el recibo de revisión del método antes de aplicar una sola vez
+`ownership-jsdom-telemetry-v1`. No presentar QA como aceptación ni reiniciar
+capturas anteriores. Engram sigue sin identidad registrada para escrituras.
+
 ## Estado actual: terminó el estudio de ownership; presupuesto rechazado
 
 El único run `39921160254`, job `120306452464`, terminó sobre `eafe4109`.
@@ -67,9 +99,9 @@ La inspección de los 2048 reportes confirmó que no hay campos por intervalo
 de CPU, JIT o GC; stderr solo contiene warnings de ESM en los 1024 procesos
 Node 22. Las trazas históricas de compilación son parciales, de otro host y
 otro método: no permiten atribuir causalidad al resultado actual de Azure.
-Está pendiente la respuesta del usuario a si autoriza un diagnóstico nuevo,
-separado y sin aceptación, que capture esos datos. No iniciarlo sin respuesta;
-el candidato consumido no autoriza otra captura por sí solo.
+El usuario autorizó después un diagnóstico separado y sin aceptación; ver el
+bloque superior. El candidato consumido sigue sin autorizar una recaptura de
+su estudio ni un ajuste de presupuesto.
 
 No hay tag ni merge. El hito no está cerrado y el objetivo total de Rust sigue
 pendiente, sin porcentaje global auditado defendible. Engram permanece sin
