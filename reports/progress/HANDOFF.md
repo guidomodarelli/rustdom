@@ -41,6 +41,25 @@ este archivo actual tampoco acepta el presupuesto, por calibración.
 Esta publicación preserva el resultado completo y su revisión independiente
 sin hallazgos accionables. Continuar analizando la variación usando estos logs
 y muestras, sin recapturar ni transformar el rechazo en aceptación.
+
+El diagnóstico posterior está en
+`reports/benchmarks/native-class-ownership/current-source-diagnostics/39921160254/`.
+Incluye las 18432 duraciones mediante 64 combinaciones Node/fase/carga/motor
+en total y 128 celdas, todas
+las medianas por índice y proceso y las copias físicas. En jsdom Node 22 AA,
+mutation-records-collect/100 baja de 2,372 a 1,941 ms por índice en A y de
+2,614 a 1,976 ms en B; el contraste agrupado sigue rechazado en +3,6199%.
+Cada índice es un realm nuevo. Esto muestra variación dentro y entre procesos,
+sin identificar JIT, GC o scheduler como causa. El control no carga el addon;
+no atribuir su variación únicamente al guard Rust. Pasaron diez contratos por
+Node 22/24 y ambos CLI descriptivos produjeron bytes idénticos, sin muestreo.
+CI ejecuta ese diagnóstico y conserva el JSON antes del gate histórico. Solo
+cambió el nombre de ese gate, que confundía el estudio histórico con el actual;
+el comando, el presupuesto y el runtime medidos permanecen intactos.
+Inspeccionar las fronteras
+de setup/warmup/realm y los registros existentes antes de cambiar producto o
+metodología. El candidato consumido no autoriza otra captura.
+
 No hay tag ni merge. El hito no está cerrado y el objetivo total de Rust sigue
 pendiente, sin porcentaje global auditado defendible. Engram permanece sin
 identidad runtime registrada; no inventar una sesión ni usar otra memoria.

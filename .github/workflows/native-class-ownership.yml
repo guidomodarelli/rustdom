@@ -62,7 +62,11 @@ jobs:
           RUSTDOM_RECORDED_EVIDENCE_FIXTURE: ${{ github.workspace }}/${{ env.OWNERSHIP_FIXTURES }}/evidence-fixture.json
           RUSTDOM_RECORDED_ARCHIVE_FIXTURE: ${{ github.workspace }}/${{ env.OWNERSHIP_FIXTURES }}/archive-fixture.json
         run: node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/recorded-evidence.spec.cjs reports/benchmarks/native-class-ownership/recorded-archive.spec.cjs reports/benchmarks/native-class-ownership/recorded-workflow.spec.cjs
-      - name: Recalcular el estudio actual completo y exigir su aceptación
+      - name: Validar y describir todas las muestras actuales sin nuevas mediciones
+        run: |
+          node --test reports/benchmarks/native-class-ownership/current-ownership-diagnostics.spec.cjs
+          node reports/benchmarks/native-class-ownership/current-ownership-diagnostics.cjs > ownership-trajectories.json
+      - name: Comprobar fuentes y presupuesto del estudio histórico
         run: node reports/benchmarks/native-class-ownership/row-isolation-evidence.cjs .baseline "$OWNERSHIP_FIXTURES/row-archive" > ownership-verification.json
       - uses: actions/upload-artifact@v4
         if: always()
@@ -71,6 +75,7 @@ jobs:
           include-hidden-files: true
           path: |
             ownership-verification.json
+            ownership-trajectories.json
             .cache/ownership-recorded-ci/commands/
             .cache/ownership-recorded-ci/evidence-output/
             .cache/ownership-recorded-ci/transport-output/
