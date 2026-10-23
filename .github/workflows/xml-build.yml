@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/xml-build.yml'
       - 'reports/benchmarks/native-class-ownership/*.cjs'
+      - 'reports/benchmarks/native-class-ownership/*xml*.py'
       - 'reports/benchmarks/native-class-ownership/constants/**'
       - 'reports/benchmarks/native-class-ownership/*PROTOCOL.md'
       - 'src/**'
@@ -90,6 +91,8 @@ jobs:
         run: |
           set -o pipefail
           node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/xml-build-inputs.spec.cjs reports/benchmarks/native-class-ownership/prepare-xml-hosted-build.spec.cjs reports/benchmarks/native-class-ownership/xml-current-run.spec.cjs 2>&1 | tee "$RUNNER_TEMP/xml-contracts-node24.log"
+      - name: Verificar las muestras XML históricas y sus rechazos sin medir
+        run: python3 -B reports/benchmarks/native-class-ownership/test-verify-xml-observations.py
       - name: Conservar todos los datos parciales y symlinks del build
         if: always()
         shell: bash

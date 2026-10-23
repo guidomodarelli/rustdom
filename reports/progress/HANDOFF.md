@@ -1,5 +1,52 @@
 # Continuar rustdom en otra máquina
 
+## Estado comprobado: CI general verde y regresión XML identificada
+
+El CI general de `8fc28d6706a30c1e1179b5799b909c99f71a15c1` terminó con sus
+ocho jobs aprobados: run `39896887685`. Incluye Windows, macOS, Linux, los cuatro
+shards y Valgrind. La corrección del timeout WPT pasó en el CI real. Sus logs,
+metadatos finales y el fallo previo están en `ci-windows-timeout/` bajo
+`reports/validation/native-class-ownership/`.
+
+La única secuencia XML `39896591561`, medida desde `92dd067c`, terminó con
+calibración válida y rendimiento rechazado: 468 workers, 14.976 duraciones y
+39 celdas AA/AB/reference. Las trece filas AA pasaron ±2%; la única fila AB que
+superó +5% es `xml-serializer-getter-error/1`, con +5,6064051645%. No reiniciar
+esa ejecución, ni la etiqueta consumida `xml-full-inputs-v1`. No cambiar
+presupuestos, estimador o muestras. Tampoco repetir capturas V8 anteriores.
+
+El ZIP oficial de 8.537.409 bytes, SHA-256
+`b1e0e826b36e8f8b0fb8ce653d7d1bee1d2e2682ae86156387e3c123731738d5`,
+está en `reports/benchmarks/native-class-ownership/xml-full-inputs-results/39896591561/`.
+Conserva 7.972 archivos regulares y 85.323.956 bytes crudos, fuentes completas,
+paquetes y todos los resultados. UUID: `594a44a8-95c6-40a4-ac90-6421e12c3ef8`.
+El lector verificó físicamente preparación, recursos, binarios, dist,
+dependencias, fuentes y before/after; recalculó todas las muestras y decisiones.
+Los consumos del lector con Node 22.12.0 y 24.14.1 dan JSON idéntico. Nueve tests
+con archivos reales pasan en Python 3.10/Linux y 3.12/Windows; se rechazan
+inputs posteriores modificados y aceptación falseada, sin medir de nuevo.
+
+La comparación directa también conserva una deuda importante: en estas trece
+filas el motor híbrido tarda entre 4,640 y 6,301 veces el tiempo de jsdom 27.4.0.
+La tabla completa está publicada. No atribuir ese costo a Rust puro ni toda la
+variación al guard del PR: A es checkpoint 066 y B incluye el controlador XML
+migrado en checkpoint 067, además del arreglo de ownership.
+
+El probe separado observó 15 Window y 15 Document con endpoints claros.
+442 workers rustdom terminaron con contadores de sesiones XML en cero; otros
+contadores no son cero, incluido `xmlParsers.live=1`. No se observó por weak refs
+cada Window del benchmark ni memoria pico. Ver el informe específico en
+`reports/memory/native-class-ownership-xml-full-inputs-39896591561.*`.
+
+Siguiente acción: investigar `Host::property` en `src/dom/xml_serializer_controller.rs`.
+La ruta de error cruza el helper JavaScript tres veces (factory, global, message).
+Evaluar acceso N-API directo para objetos/funciones, preservando primitivos,
+proxies, orden observable, realms, reentrancia y el contrato nativo existente.
+Es una hipótesis de optimización, todavía sin implementación o medición nueva.
+Validar cualquier cambio en Node 22/24 antes de declarar otro experimento con
+un candidato distinto. Ownership sigue sin aceptación. No hay tag ni merge.
+El alcance del PR continúa congelado; no sumar inventario u otras fases.
+
 ## Windows WPT: corrección del timeout validada localmente
 
 El falloWindows70fc preserva2808asserts correctos idénticos, pero la referencia
