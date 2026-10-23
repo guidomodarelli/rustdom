@@ -1,5 +1,34 @@
 # Continuar rustdom en otra máquina
 
+## Candidato y CI publicados: 81b27131 / 8c464147
+
+El candidato funcional de fixtures está publicado en `81b27131`. El workflow
+`8c464147` autentica la preparación oficial y ejecuta los paquetes reales en
+Ubuntu 22.04, con Node 22.12.0 y 24.14.1. La revisión cerró un P1 de propagación
+de errores: Bash explícito con pipefail y un control negativo impiden que
+tee oculte un fallo. Seis comprobaciones locales del comando real pasaron.
+
+El run 39988794384 terminó success en ambos jobs, con cuatro tests funcionales
+y cinco de evidencia por Node. Artifacts 12516188121 / 12517565598 y logs
+completos se conservaron y autenticaron en
+`reports/validation/native-class-ownership/shared-fixture-ci/39988794384/`.
+Ambos lectores offline producen bytes idénticos. Los siete archivos de cada
+ZIP incluyen la evidencia completa y el control negativo esperado; no volver
+a ejecutar scripts archivados para leer estos datos.
+
+CI observó 76 Window y 76 Document por separado, 59 primeras rondas no claras
+y 152 estados finales requeridos claros; recursos nativos al baseline 22.
+Es un conjunto separado del local, que tiene 58 primeras rondas no claras.
+Memoria: `reports/memory/shared-fixture-ci-39988794384.*`. No es memoria pico,
+ausencia universal de fugas ni evidencia de rendimiento aceptado.
+
+Siguiente acción: integrar los consumidores en una copia prospectiva del
+worker y calificar la integración, preservando HTML, primeras mutaciones,
+campos, orden, rondas, preparación, entropía, afinidad y teardown. No modificar
+ni recapturar el sampler consumido, no cambiar presupuestos o estimador.
+Ownership sigue accepted=false; candidato performanceAccepted=null.
+Sin tag ni merge; todas las fases restantes siguen pendientes.
+
 ## Candidato funcional: consumidores compartidos sin mutar los nodos medidos
 
 `reports/benchmarks/native-class-ownership/shared-fixture-candidate/` agrega
