@@ -1,0 +1,76 @@
+name: XML full input evidence
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: xml-full-inputs-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.label.name == 'xml-full-inputs-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Impedir una segunda ejecución del protocolo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/xml-current-evidence.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/xml-existing-runs.txt"
+          python3 -c 'import os,pathlib; runs=pathlib.Path(os.environ["RUNNER_TEMP"],"xml-existing-runs.txt").read_text().split(); assert runs == [os.environ["GITHUB_RUN_ID"]], "XML protocol already consumed; no automatic repetition"'
+      - name: Exigir el recibo de revisión y las fuentes publicadas
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib
+          receipt=json.loads(pathlib.Path('reports/validation/native-class-ownership/xml-current-method/review.json').read_text())
+          assert receipt['actionableFindings'] == 0
+          assert receipt['qualification']['node22']['passed'] and receipt['qualification']['node24']['passed']
+          for name, expected in receipt['files'].items():
+              assert hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest() == expected, name
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-066-reference-catalog
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Preparar inputs completos con el productor ya calificado
+        shell: bash
+        run: |
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/xml-full-inputs-target"
+          } >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/xml-full-inputs"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/xml-full-inputs-target" node reports/benchmarks/native-class-ownership/prepare-xml-hosted-build.cjs .baseline . "$RUNNER_TEMP/xml-full-inputs/preparation" > "$RUNNER_TEMP/xml-full-inputs/preparation.stdout.log" 2> "$RUNNER_TEMP/xml-full-inputs/preparation.stderr.log"
+      - name: Comprobar el runtime público y la liberación antes de medir
+        run: node --expose-gc reports/benchmarks/native-class-ownership/xml-hosted-build-worker.cjs "$RUNNER_TEMP/xml-full-inputs/preparation" > "$RUNNER_TEMP/xml-full-inputs/functional.json" 2> "$RUNNER_TEMP/xml-full-inputs/functional.stderr.log"
+      - name: Ejecutar una secuencia XML con el protocolo sin cambios
+        run: node reports/benchmarks/native-class-ownership/xml-current-run.cjs --run .baseline . "$RUNNER_TEMP/xml-full-inputs/preparation" "$RUNNER_TEMP/xml-full-inputs/capture" > "$RUNNER_TEMP/xml-full-inputs/execution.stdout.json" 2> "$RUNNER_TEMP/xml-full-inputs/execution.stderr.log"
+      - name: Conservar inputs y todos los resultados, incluidos fallos
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/xml-full-inputs" ]; then
+            cp "$RUNNER_TEMP/xml-existing-runs.txt" "$RUNNER_TEMP/xml-full-inputs/" || true
+            tar -cJf "$RUNNER_TEMP/xml-full-inputs.tar.xz" -C "$RUNNER_TEMP" xml-full-inputs
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xml-full-inputs-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/xml-full-inputs.tar.xz

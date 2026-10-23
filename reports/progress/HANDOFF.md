@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## XML: protocolo de inputs completos calificado, aún sin ejecutar
+
+Se agregó xml-current-run.cjs y el workflow xml-current-evidence.yml para una
+única secuencia con la etiqueta xml-full-inputs-v1. Reutiliza el experimento
+XML existente, corpus, estimador y presupuestos sin cambios. Antes/después
+compara fuentes, inputs de raíz, dist, node_modules, compilador y ejecutable
+Node con la preparación completa. No convierte integridad en aceptación ni
+accepted:null en false. El wrapper espera al coordinador sin timeout adicional.
+
+Nueve contratos reales por Node22.12.0/24.14.1 pasaron usando el ZIP oficial
+XML39886057332; actionlint pasó. Revisión read-only independiente cerró dos P2
+y terminó sin hallazgos. El recibo y logs están en
+reports/validation/native-class-ownership/xml-current-method/. Antes de medir:
+publicar/autenticar recibo y fuentes, comprobar QA remota de xml-build y que
+el protocolo no tenga otra ejecución no omitida. No se lanzó la secuencia al
+escribir esta sección. No relanzar un estudio consumido ni cambiar los gates
+históricos sin verificar independientemente el resultado completo nuevo.
+
+El CI general70fc run39894045206 agregó un fallo Windows: la referencia jsdom
+de Range-mutations-dataChange.html devolvió harnessstatus2, exit0 de proceso,
+137427.7593ms, Node24.21.0. La comparación lo conserva como fallo; no dar por
+pasados todos los assertions o atribuir causa sin leer los datos. Los shards
+y macOS pasaron. Linux seguía activo en la última consulta. Este fallo queda
+separado de los dos gates anteriores; no repetir capturas V8 o benchmarks.
+
 ## Prioridad de cierre del PR80 y estudio original terminado
 
 El usuario pidió explicar por qué el PR no termina. Se reconoció el exceso de
