@@ -1,5 +1,42 @@
 # Continuar rustdom en otra máquina
 
+## Método prospectivo completo, sin ejecutar — 2026-10-23
+
+`reports/benchmarks/native-class-ownership/shared-fixture-study/` implementa el
+estudio separado `ownership-shared-fixtures-v1`. El protocolo fija la matriz
+original completa: 1024 procesos por Node, 2048 en total, semillas1..16,
+AA/AB, ocho filas, presupuestos jsdom±2%, RustAA±5% y RustAB+5%, estimador
+original sin cambios. El sampler derivado debe ser byte-idéntico al ya
+calificado en 80 procesos; solo cambia la identidad del wrapper externo.
+
+Pasaron 15 contratos por Node22.12.0/24.14.1 y preflights completos de la
+preparación oficial. Ambos preflights finales son idénticos. Se verifican
+los dos binarios antes de iniciar workers y otra vez después de cada perfil.
+Actionlint aprobó ambos workflows. Revisión independiente final del método:
+cero hallazgos. Datos y todos los logs en
+`reports/validation/native-class-ownership/shared-fixture-study-method/`.
+Los contratos usan reportes auténticos guardados; no equivalen a ejecutar
+end-to-end la secuencia nueva, que todavía no ocurrió.
+
+El colector conserva solo copias de los valores del estimador entre workers,
+en vez de retener todas las listas de módulos y trazas. Se ejerció con 80
+reportes reales sin nuevo DOM: JSON completos45339618bytes, vistas39791bytes,
+720duraciones preservadas. Son tamaños serializados, no heap/RSS/peak ni una
+medición de mejora de memoria. Informe en `reports/memory/shared-fixture-study-method.*`.
+
+El workflow de contratos corre en PRs. El de captura solo responde a la
+etiqueta nueva, exige QA del mismo SHA, revisión publicada y un único run
+no omitido en el historial completo. No se creó ni aplicó esa etiqueta.
+No iniciar una captura antes de autorización humana explícita para este
+estudio nuevo: el pedido anterior fue analizar sin repetir la captura y la
+autorización posterior alcanzó solo al diagnóstico CPU/GC/JIT ya terminado.
+Primero publicar/autenticar el método y verificar su CI sobre el SHA final;
+después pedir esa autorización con el protocolo concreto disponible.
+
+Ownership histórico sigue accepted=false; el método no concede aceptación.
+El runtime/harness congelados permanecen intactos. Sin tag ni merge; no avanzar
+a otro módulo antes de cerrar este hito. El objetivo completo sigue activo.
+
 ## Integración funcional del worker derivado — 2026-10-23
 
 `reports/benchmarks/native-class-ownership/shared-fixture-worker/` integra los
