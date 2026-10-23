@@ -1,5 +1,29 @@
 # Continuar rustdom en otra máquina
 
+## Preparación XML: publicación para validación remota pendiente
+
+Se agregó `Prepare XML packages`, con baseline checkpoint-066-reference-catalog,
+captura completa de inputs y cinco paquetes físicos. Reutiliza el productor real
+mediante una factory que conserva la política checkpoint067 por defecto. El
+workflow construye y ejecuta probes de liberación, cuatro suites XML y doce
+contratos de integridad/CLI en Node 22.12.0 y 24.14.1. Conserva logs parciales,
+paquetes con symlinks y reportes estructurados de compatibilidad.
+
+La revisión estática independiente cerró dos P2 de filtros y conservación de
+reportes, sin hallazgos restantes. `actionlint` y `git diff --check` pasan. Las
+422 fuentes del estudio activo conservan exactamente sus hashes publicados;
+ninguno de los doce archivos de implementación nuevos o modificados pertenece
+a ese grafo. Los tests funcionales nuevos todavía no se ejecutaron: se publican
+para calificarlos en GitHub, sin carga local durante el estudio original. No
+confundir esta preparación con aceptación de rendimiento ni crear checkpoint
+o merge hasta completar la validación real y resolver los gates pendientes.
+
+Estado observado del estudio original: Node 22 terminó sus 1024 workers con
+exit 0, pero su decisión completa fue exit 1. El mismo coordinador ya ejecuta
+Node 24 (PID 24226); el estudio conjunto sigue incompleto y su aceptación es
+null. No reiniciarlo ni sustituir su SUT. Analizar el resultado completo cuando
+ambos Node y verify-set finalicen, conservando también cualquier rechazo.
+
 ## Correspondencia de compilación y arnés verificada
 
 Se recalcularon desde bytes reales los alcances canónicos de la preparación

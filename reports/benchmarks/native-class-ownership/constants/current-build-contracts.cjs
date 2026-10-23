@@ -2,6 +2,7 @@
 'use strict';
 const { validationNodeVersions } = require('./hosted-build.cjs');
 module.exports = {
+  baselineName: 'checkpoint067',
   sha256Pattern: /^[0-9a-f]{64}$/,
   sourceInputsDirectoryPrefix: 'rustdom-current-build-inputs-',
   preparationDirectoryPrefix: 'rustdom-current-preparation-',
