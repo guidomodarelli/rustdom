@@ -1,5 +1,16 @@
 # Integración del gate ownership después del estudio activo
 
+Actualización posterior a501f1845: el workflow WIP ya enlaza el replay íntegro
+actual con un binding público y fixtures reconstruidas por CLI. Node22 aprobó
+34contratos y el gate real devolvió exit1 de presupuesto, conservando los siete
+controles rechazados. Node24 también aprobó34y su gate real devolvió el mismo
+rechazo esperado. Ambos perfiles y el readback del paquete QA terminaron sin
+fallos de integridad. Las rutas de fixtures son
+absolutas por github.workspace para los hijos que cambian cwd. No se cambian
+presupuestos ni se transforma accepted=false en éxito. La revisión final quedó
+sin hallazgos; comprobar publicación y CI remoto sobre el SHA vigente de esta
+integración antes de considerar cerrado su seguimiento.
+
 El estudio row-isolation de a0346b13 terminó y fue rechazado en ambos Node. Este
 plan no cambia el gate, sus datos, presupuestos ni las 415 fuentes congeladas.
 No iniciar otras mediciones, repetir capturas o seleccionar resultados favorables.

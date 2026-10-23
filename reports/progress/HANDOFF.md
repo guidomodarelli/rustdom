@@ -1,6 +1,63 @@
 # Continuar rustdom en otra máquina
 
-## Estado actual: estudio rechazado preservado y calificación offline aprobada
+## Integración de CI validada localmente, posterior al commit publicado501f1845
+
+501f184577b62ea0f3d78cba24c91a3cb6afae09 está publicado y autenticado:
+38blobsGitHub,9fuentes calificadas idénticas y workingtree limpio en ese hito.
+Los gates antiguos de ese SHA fallaron de nuevo por evidencia obsoleta;
+CI general39872143130 sigue en seguimiento y el build39872143199 terminó success.
+
+WIP propio posterior: workflow ownership actualizado para Node22.12.0 y24.14.1,
+constants/row-isolation-evidence.json, constants/recorded-fixtures.json,
+row-isolation-evidence.cjs, prepare-recorded-fixtures.py y recorded-workflow.spec.cjs.
+Todo bajo reports/benchmarks/native-class-ownership/ salvo el workflow existente.
+No cambia las415fuentes, muestras, estimador ni presupuestos. Reconstruye el
+archivo íntegro y conserva exit1 de presupuesto frente a exit2 de integridad.
+El workflow exige accepted=true y por ahora debe fallar con los siete controles;
+esto corrige el enlace de evidencia actual, no acepta rendimiento.
+
+La revisión detectó rutas relativas de fixtures heredadas por hijos con cwd
+distinto: corregidas usando github.workspace en ambas variables. El nuevo
+contrato exige rutas absolutas. Calificación incompleta anterior session60522
+fue detenida solo en su grupo propio verificado688/1147/1149; no había sampler.
+Se conserva.cache/recorded-workflow-qualification-a3hvwgpg/interruption.json
+y todos sus logs/snapshots. Los43contratos históricos ya habían terminado
+pass43y se reutilizan; las fuentes históricas y415siguen intactas.
+
+Calificación ORIGINAL corregida: session28167, PID1173,
+.cache/recorded-workflow-qualification-iykkfojr, marcador consumido
+.cache/recorded-workflow-path-fix-qualification.started.json.
+Session28167 terminó exit0. Actionlint y baseline Git pasaron; ambos Node
+aprobaron34/34sin omisiones y sus CLI reales terminaron exit1 con verified=true,
+accepted=false y los siete controles originales. Los datos y logs están en
+Windows y resisten la parada de WSL; no hubo benchmarks ni capturas nuevas.
+Las seis fuentes nuevas y las415anteriores siguen iguales a sus snapshots.
+No reiniciar la calificación ni convertir su rechazo presupuestario en éxito.
+
+Paquete QA en reports/validation/native-class-ownership/recorded-ownership-workflow/:
+260archivos, tar2235025B, SHAdef517c2902ba40e84f819d367ccf42598669d65abfff7675059b29e28ca6973,
+con readback completo, todos los outputs de tests/gates, fuentes y antecedentes.
+Solo omite copias grandes de inputs que ya están publicados íntegramente en
+las8partes y el tar seeded; sus declaraciones, hashes y receta de reconstrucción
+se conservan. Revisión estática del fix y revisión final del paquete quedaron
+sin hallazgos; ambos paquetes conservan review.json, sin aprobación remota
+GitHub. Consultar Git y CI para identificar y validar el SHA de publicación.
+La aprobación del replay no acepta el presupuesto del estudio rechazado.
+
+El artefacto oficial actual12466637940 del run39872143199 está autenticado por
+digestGitHub y preservado en
+reports/validation/native-class-ownership/hosted-build-ci/39872143199/ (WIP propio).
+ZIP14962495B SHA24a902eff4586839304b03ba8362d84eb390c5d3107a58e71e50e840fe4e3ad8;
+tarSHA1858a8898c6b0538f4b12d771239dcaadb71a353a5a8b5d5b9bcfe249a2e6b1b.
+Preparación c70ffb83-606d-47df-bd85-2a692e3fdbaa, inputs estables, fuente B compilada
+0b4855490382ab18b7e96851dbdef95e7596268690ae169850daf097498687e9,
+fingerprint B0d723e9ec7987f65ab873450c4340a8f2d6211b21f5eebd9233817dd70f35f5f.
+No sustituirlo en estudios antiguos. Probes15Window/Doc por Node pasan y se
+documentan por separado en reports/memory/native-class-ownership-hosted-build-39872143199.*.
+La recolección no ejecutó localmente paquetes ni recompuso sus árboles físicos;
+hacerlo antes de usarlos en una hipótesis futura. XML sigue sin modificar.
+
+## Hito publicado501f1845: estudio rechazado y calificación offline aprobada
 
 La secuencia original session56332 terminó con exit0 de verificación. Ambos
 padres terminaron exit1 por presupuesto, con1024workers completos exit0 por Node
@@ -61,8 +118,8 @@ archivos recorded-evidence ya preparados. Los workflows siguen sin modificarse:
 CI general verde, ownership/XML rojos por evidencia obsoleta. El objetivo Rust
 integral sigue abierto; esta evidencia no agrega implementación Rust. La revisión
 independiente final quedó sin hallazgos, con recibos en ambos paquetes. También
-se corrigió el estado obsoleto de ownership-row-isolation-proposal.md. Falta
-publicar el commit y verificar el remoto; no tag ni merge de ownership mientras
+se corrigió el estado obsoleto de ownership-row-isolation-proposal.md. El commit
+501f1845 y sus38blobs están verificados en el remoto; no tag ni merge de ownership mientras
 los controles de rendimiento no acepten el conjunto completo.
 
 ## Histórico: seguimiento antes del cierre del estudio original
