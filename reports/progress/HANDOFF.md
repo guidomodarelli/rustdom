@@ -1,6 +1,6 @@
 # Continuar rustdom en otra máquina
 
-## Calificación de inventario preparada para GitHub
+## Calificación de inventario completada en GitHub
 
 El workflow nuevo inventory-qualification.yml validará las propuestas estáticas
 de DOMTokenList y DOMStringMap sobre el runtime real del PR80, en Node22.12.0 y
@@ -13,10 +13,20 @@ productivas ni se compila el runtime antiguo de inventario.
 Los jobs ejecutan filtros Rust, catálogo y suites DOM públicas/nativas reales,
 CLI y helpers finitos de memoria. Regeneran catálogo en carpeta aparte y copian
 solo reportes nuevos. Se conservan versiones, commits, hashes y fallos parciales.
-Ver reports/validation/inventory-qualification/PROTOCOL.md. La calificación real
-está pendiente hasta que GitHub termine; no incorpora propuestas al ledger ni
-acredita Rust nuevo. Está fuera de las 422 fuentes del estudio original y no
-ejecuta benchmarks o carga local. No crear otro PR ni tag/merge por este trabajo.
+Ver reports/validation/inventory-qualification/PROTOCOL.md. El run39888943268
+pasó sobre e17c3937 en ambos Node: 279 tests Node y filtros Rust de cuatro tokens
+y tres dataset por versión, sin fallos o skips. Pasaron 24 ciclos de memoria
+entre listas/mapas y ambos Node, más dos endpoints de snapshots nativos. Los
+ZIP completos, logs, contexto y ocho reportes nuevos crudos se conservan en
+reports/validation/inventory-qualification/39888943268/. Cuatro catálogos son
+idénticos entre perfiles; las cuatro exclusiones ECMAScript adicionales de
+Node24 se validaron contra el contrato y un realm real, conservando ambas
+superficies. Los tests diferenciales son subconjuntos, no casos extra.
+
+El ledger conserva sus 105 auditorías; integrar las propuestas TokenList31 y
+StringMap12 requiere actualizarlo y validar su nueva salida, sin acreditar
+Rust nuevo. La calificación está fuera de las 422 fuentes del estudio original
+y no ejecuta benchmarks o carga local. No crear otro PR ni tag/merge por esto.
 
 ## Preparación XML: validación remota completada
 
