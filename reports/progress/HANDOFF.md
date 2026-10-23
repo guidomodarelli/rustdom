@@ -1,5 +1,44 @@
 # Continuar rustdom en otra máquina
 
+## Integración funcional del worker derivado — 2026-10-23
+
+`reports/benchmarks/native-class-ownership/shared-fixture-worker/` integra los
+fixtures compartidos en una copia derivada del sampler. Solo cambia dos
+factories y agrega spans después del stop clock. El runtime source5ef y el
+harness congelado `97284800` permanecen intactos.
+
+Una única calificación funcional ejecutó 80 procesos exit0: cinco paquetes
+físicos por ocho filas, en Node 22.12.0 y 24.14.1, posición 0/seed1. Conservó
+los 960 spans (240 warmup + 720 medidos), hashes públicos originales, flags,
+afinidad, orden, warmup por realm y teardown. Cada fila de mutación/delivery
+ejerció 48 fixtures con consumidores compartidos; Range registró cero.
+No es aceptación de rendimiento ni demuestra estabilidad de JIT.
+
+Archivo íntegro y recibo canónico en
+`reports/validation/native-class-ownership/shared-fixture-worker/`: 784 archivos,
+61981992 bytes crudos; tar.xz 874000 bytes, SHA256
+`955c0b75b7aaf5f1f87ccc534ecfa9fa29856c14d3c67bd47e6a951d91f4c28d`.
+Los snapshots originales del método se preservaron. Se corrigió después un
+P2 del lector: exige pins externos versionados y contrasta el grafo congelado,
+sin repetir el sampler ni ejecutar código archivado. Pasaron 15 contratos por
+Node y ambos replays producen SHA256
+`f44053b0dda5e7894495083dbb49709e164c5c107bc586266d5ecc7d4211690d`.
+Revisión independiente final: cero hallazgos accionables. El workflow nuevo
+`shared-fixture-worker.yml` solo extrae y verifica evidencia, sin recapturas.
+
+Memoria: 960 Window y 960 Document por separado; se conservaron nueve primeras
+rondas no claras y 160 estados finales requeridos claros. Baselines nativos
+preservados, napiClasses.live=22. Informe en `reports/memory/shared-fixture-worker.*`.
+Son observaciones finitas tras GC, sin memoria pico ni garantía universal.
+
+Siguiente acción: preparar un protocolo prospectivo concreto para evaluar
+esta variante del harness y revisarlo antes de cualquier estudio nuevo de
+aceptación. No repetir los estudios consumidos ni cambiar presupuestos,
+estimador o filas/semillas para obtener verde. El diagnóstico autorizado ya
+terminó; esta calificación funcional no autoriza otra captura de aceptación.
+Ownership histórico sigue accepted=false; candidato performanceAccepted=null.
+Sin tag ni merge. No avanzar a otro módulo Rust antes de cerrar este hito.
+
 ## Candidato y CI publicados: 81b27131 / 8c464147
 
 El candidato funcional de fixtures está publicado en `81b27131`. El workflow
