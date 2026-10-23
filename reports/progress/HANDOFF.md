@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Captura adicional terminada y verificada: 39959175058
+
+El diagnóstico autorizado ya se ejecutó una sola vez sobre `22aeb0ba`:
+run 39959175058, job 120432514538, attempt 1, success. No volver a aplicar
+`ownership-jsdom-telemetry-v1` ni repetir sus 64 procesos. Las afirmaciones
+anteriores de “no se lanzó” describen el momento de publicación del método.
+
+Node 22.12.0 y 24.14.1 leyeron los 64 reportes y produjeron filas idénticas:
+768 intervalos (192 warmups, 576 medidos), 52 deltas CPU negativos conservados,
+768 Window y 768 Document observados, tres primeras rondas no claras y 128
+endpoints finales claros; 32 Inspectors detenidos y desconectados.
+Artifact 12504756416, ZIP 97613352 bytes, SHA256
+ef50c0b640187ce67739c27ce8f95d139a7e2ccab9266748f9f14bbede7c6cd8.
+Está completo en cuatro partes reconstruibles en
+`reports/benchmarks/native-class-ownership/jsdom-telemetry-results/39959175058/`.
+Se conservan todos los perfiles/logs, replays, fuentes, hardware y metodología.
+Memoria: `reports/memory/jsdom-telemetry-39959175058.{json,md}`.
+
+Hay JIT durante operaciones medidas y variación sin GC observado en algunas
+cargas. Los modos CPU y JIT son procesos distintos, con incertidumbre temporal
+explícita. Esto permite investigar calentamiento/tiering por carga, pero aún
+no identifica la causa suficiente de los trece controles originales rechazados.
+`accepted:null` para este diagnóstico; ownership conserva `accepted:false`.
+No cambiar presupuestos, no recapturar el estudio consumido y no conceder tag
+ni merge. El objetivo de migración completa sigue pendiente.
+
+
 ## Diagnóstico adicional autorizado el 23 de octubre de 2026
 
 El usuario respondió «Autorizar el diagnóstico nuevo» a la pregunta sobre un
