@@ -1,5 +1,47 @@
 # Continuar rustdom en otra máquina
 
+## Estudio autorizado terminado y rechazado — 2026-10-23
+
+La autorización humana posterior al método publicado permitió exactamente una
+ejecución de `ownership-shared-fixtures-v1`. Terminó el run `40012710923`, job
+`120616868608`, intento 1, commit `14c2cc236ebcf68abc7c9d06f4b5b88e35e57ab4`.
+No relanzar el workflow, reaplicar la etiqueta ni repetir mediciones. La sección
+prospectiva de abajo conserva la situación histórica anterior a esa autorización.
+
+Resultado completo: 2048 procesos, 18432 duraciones medidas y 6144 warmup;
+integridad verificada, `accepted=false`. Ambos replays offline en Node 22.12.0
+y 24.14.1 son byte-idénticos, SHA256
+`a2bf8c0238ec36213dbc7e4370fb5da3b589bd461c5f985b39e9a889d23d544a`.
+Once controles jsdom exceden ±2% (nueve en Node 22, dos en Node 24). Node 22 AB
+`mutation-records-collect/100` registra +10.3053% del candidato frente a +5%;
+su control jsdom también excede el presupuesto, por lo que no demuestra una
+regresión causal de Rust. Se conservan todas las filas y los rechazos históricos.
+
+Artifact `12536755023`: ZIP 24890432 bytes, SHA256
+`da8bc23906f2961e8e0c75ca5d5c823fd6f51b51e24cb184d4e2b4c53d620a9e`;
+tar 24942664 bytes, SHA256
+`09a49f6d126028c2ab870fc9cd5d7c748da22f3beb827705367852c45ff51e38`.
+Archivo íntegro, metadata, logs, manifiesto de todos los miembros, lectores,
+CSV y análisis en
+`reports/benchmarks/native-class-ownership/shared-fixture-study-results/40012710923/`.
+No ejecutar scripts archivados. El replay exige un checkout Git real y limpio
+del commit fuente 14c2cc23; no falsear `sourceCommit/sourceChanges/sourceGitErrors`.
+El README incluye comandos de reproducción offline. Los 26 pins del método y
+el grafo congelado de 434 archivos permanecen sin cambios.
+
+Recursos: 24576 Window y 24576 Document separados, 228 primeras rondas no claras
+preservadas, 4096 estados finales requeridos claros y baseline nativo 22.
+Snapshots del padre y límites en
+`reports/memory/shared-fixture-study-40012710923.{md,json}`. No son memoria pico
+ni garantía universal de ausencia de fugas. El runtime sigue híbrido.
+
+El timeout global de 180 minutos no se agotó: la medición duró 2 h 48 min 9 s
+y el job 2 h 51 min 39 s. Exit 1 fue rechazo numérico, no un test colgado.
+No hay tag ni merge ni aceptación nueva para integrar al gate. No continuar
+con otro módulo antes de cerrar este hito. Investigar los datos existentes;
+cualquier estudio distinto requerirá su propio protocolo y autorización,
+sin reutilizar esta autorización consumida. La migración completa sigue pendiente.
+
 ## Método prospectivo completo, sin ejecutar — 2026-10-23
 
 `reports/benchmarks/native-class-ownership/shared-fixture-study/` implementa el
