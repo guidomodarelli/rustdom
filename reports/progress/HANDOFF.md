@@ -1,5 +1,26 @@
 # Continuar rustdom en otra máquina
 
+## DOMStringMap: propuesta estática fuera del ledger
+
+Se preparó una propuesta de doce filas: dos módulos, nueve anclas y una API.
+Seis anclas ya ejecutaban sus decisiones en Rust y tres siguen híbridas; el
+constructor público queda pendiente. Constructor interno y toStringTag se
+difieren. Los getters HTMLElement.dataset y SVGElement.dataset son consumidores
+fuera de esta propuesta. Las propiedades dinámicas del Proxy siguen como brecha
+del catálogo; no se inventan IDs ni se completa una API pública de dataset.
+
+Ver reports/progress/inventory/dom-string-map-audit.* y
+reports/validation/inventory-dom-string-map-audit/. Ocho fuentes locales
+coinciden con el snapshot oficial; cinco fuentes de referencia coinciden con
+el catálogo y cinco archivos físicos B con el manifest. El tar conserva 31
+miembros, 759717 bytes, SHA246f28dc3f7903a1aee873726ba7e126b3b4c1d7df6d79ab6e2d8b7ee895233d.
+El verificador solo usa IDs y bytes: no se ejecutaron DOM, addon, generador,
+suites, GC o benchmarks. Los antecedentes conservan regresiones de escritura y
+borrado; no son nuevas mediciones. No se modifican los seis archivos del
+catálogo/ledger, sus 105 auditorías ni scopeClosed=false/migrationPercent=null.
+Validar comportamiento y catálogo en Node22/24 después del estudio original,
+antes de incorporar estas filas. No hay Rust nuevo ni un PR adicional.
+
 ## DOMTokenList: propuesta estática revisada, fuera del ledger
 
 Sobre11f9597 se prepara una propuesta de31clasificaciones existentes:
