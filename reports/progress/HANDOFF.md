@@ -1,6 +1,6 @@
 # Continuar rustdom en otra máquina
 
-## Preparación XML: publicación para validación remota pendiente
+## Preparación XML: validación remota completada
 
 Se agregó `Prepare XML packages`, con baseline checkpoint-066-reference-catalog,
 captura completa de inputs y cinco paquetes físicos. Reutiliza el productor real
@@ -13,10 +13,17 @@ La revisión estática independiente cerró dos P2 de filtros y conservación de
 reportes, sin hallazgos restantes. `actionlint` y `git diff --check` pasan. Las
 422 fuentes del estudio activo conservan exactamente sus hashes publicados;
 ninguno de los doce archivos de implementación nuevos o modificados pertenece
-a ese grafo. Los tests funcionales nuevos todavía no se ejecutaron: se publican
-para calificarlos en GitHub, sin carga local durante el estudio original. No
-confundir esta preparación con aceptación de rendimiento ni crear checkpoint
-o merge hasta completar la validación real y resolver los gates pendientes.
+a ese grafo. El commit 385072cce0f292458ecbb03fc9efb6b0a2d719fa pasó XML
+run39886057332 y ownership run39886057190. Cada Node pasó 455 tests XML y doce
+contratos nuevos, además de catorce contratos actuales y diecisiete históricos
+de ownership. Se usaron paquetes reales y CLI trasladado, sin suites locales.
+La evidencia cruda vive en reports/validation/native-class-ownership/xml-build-ci/39886057332/.
+Conserva ZIP XML completo, metadata, logs, probes y cuatro reportes nuevos
+seleccionados por el intervalo del paso; los históricos incluidos en el ZIP no
+se cuentan como nuevos. Son 60 Window y 60 Document observados en cuatro
+perfiles, todos liberados bajo el contrato finito. No prueba todos los ciclos
+XML ni ausencia universal de fugas. No confundir esta preparación con aceptación
+de rendimiento: los gates rechazados siguen vigentes, sin checkpoint ni merge.
 
 Estado observado del estudio original: Node 22 terminó sus 1024 workers con
 exit 0, pero su decisión completa fue exit 1. El mismo coordinador ya ejecuta
