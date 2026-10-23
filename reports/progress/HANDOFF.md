@@ -1,5 +1,65 @@
 # Continuar rustdom en otra máquina
 
+## Correspondencia de compilación y arnés verificada
+
+Se recalcularon desde bytes reales los alcances canónicos de la preparación
+antigua333archivos/0d67 y del arnés medido336archivos/0b485. Solo difieren tres
+helpers nuevos de benchmarks y benchmarks/worker.cjs. Dentro del alcance capturado,
+src, scripts, third-party/napi, locks y Cargo.toml coinciden. La diferencia de
+package.json es adicional, fuera del hash canónico: solo scripts.test:compat.
+
+Los índices oficiales antiguo39720077911 y fresco39872143199 describen los mismos
+569archivos por A0/A1/B y531por J0/J1, salvo B/package.json. Las dependencias
+descritas también coinciden. La comparación de distribuciones frescas sigue
+siendo de metadata; no se releyó su árbol físico completo. No cambia elegibilidad
+XML, SUT del estudio ni aceptación de rendimiento. Ver
+reports/validation/native-class-ownership/build-correspondence/2026-10-22/.
+Conserva ambos índices, hashes canónicos por archivo, manifiestos reales,
+publicación del arnés y productor. Revisión estática sin hallazgos; ninguna
+ejecución nueva de producto, suite, compilación, GC o medición.
+
+Después del estudio original, verificar físicamente el build fresco antes de
+usarlo o afirmar igualdad de sus árboles. Esta evidencia explica los dos hashes
+de alcance; no autoriza repinear datos rechazados ni sustituir paquetes medidos.
+
+## Inventario: auditoría estática publicada durante la espera
+
+La rama separada feature/inventory-node-helpers publicó5f7759030a08756dba1dc3e894850d95ca5d5364:
+propuesta DOMTokenList de31filas y corrección del README a18/32/55auditadas.
+Se autenticaron13payloads GitHub y los seis blobs del catálogo/ledger siguen
+idénticos a11f9597. El inventario conserva12151IDs y scopeClosed=false;
+no se ejecutaron suites, addon, generador, GC ni benchmarks en esa auditoría.
+Siete anclas propuestas ya eran Rust; no hay implementación nueva ni filas
+incorporadas al ledger. Revisión estática sin hallazgos; ver su HANDOFF y
+reports/validation/inventory-dom-token-list-audit/ para fuentes y límites.
+Validar comportamiento y catálogo en Node22/24 después del estudio activo,
+antes de incorporar; no abrir otro PR ni migrar runtime hasta cerrar ownership.
+
+## Estudio de afinidad auxiliar original en ejecución
+
+5e6ac005036922bd9965849c84b3876bfa92a8fd está publicado en PR80. Se autenticaron
+17payloads del commit y422blobs de fuentes calificadas contra el árbol GitHub;
+el launcher coincide con el tar de QA revisado. Recibo operativo en
+.cache/background-affinity-publication.json, transporte SHA54c1e92548c93ab123bbd061d49bf1ba8d282eacac77d8a07bca72ec5f87372c,
+launcherSHA12681be6c6d009a64ad5b873e956a5843b43a9706badd5877b2ae03f2fa6b32e.
+
+Se lanzó UNA secuencia nueva después de esa publicación. Session19732,
+driverPID692, raíz persistente /home/guido/rustdom-validation/background-affinity-study-k98_55yo,
+Node22 padrePID955. El preflight confirmó ambos ejecutables exactos antes del
+primer worker y guardó hashes. Al observar, había12entradas de1024 en Node22,
+la última aún activa; no hay decisión de aceptación parcial. Node24 se ejecutará
+después por el mismo coordinador. Revalidar handle19732,/proc y execution.json
+para obtener el estado actual. Una ausencia de salida no autoriza reiniciar.
+
+Marcador consumido: .cache/background-affinity-study.started.json. Nunca repetir
+este estudio por timeout, cambio de máquina o pérdida del handle de observación.
+Los datos viven en/home persistente; no usar/tmp para el corpus. No editar las
+fuentes medidas ni ejecutar trabajo intensivo mientras el proceso esté activo.
+Esperar ambos Node y verify-set íntegro, luego preservar todos los datos,
+analizar/publicar aceptación o rechazo y revisar CI sobre el SHA final. Los
+estudios anteriores permanecen rechazados; no hay tag ni merge todavía.
+Esta nota operativa es WIP propio posterior al commit5e6ac005.
+
 ## Contraste prospectivo de afinidad auxiliar calificado
 
 La evidencia remota de ownership quedó publicada en417dd2a04b2e569bcc39687e28829207310ab960:
