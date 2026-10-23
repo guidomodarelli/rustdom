@@ -1,5 +1,52 @@
 # Continuar rustdom en otra máquina
 
+## Estado actual: terminó el estudio de ownership; presupuesto rechazado
+
+El único run `39921160254`, job `120306452464`, terminó sobre `eafe4109`.
+No hay una medición activa. No volver a aplicar `ownership-current-source-v1`
+ni reiniciar el estudio o sus capturas anteriores. Ambos Node completaron
+1024 workers con exit0 y 9216 duraciones por perfil: 2048 / 18432 en total.
+Sus dos drivers terminaron exit1 por presupuesto. La verificación completa
+en Node 22.12.0 y 24.14.1 reprodujo el resultado original: `verified:true`,
+`executionComplete:true`, `accepted:false`.
+
+Trece controles jsdom exceden ±2%: siete en Node 22 y seis en Node 24.
+Ningún punto Rust sale de ±5% en AA ni supera +5% en AB; eso no concede
+aceptación cuando el control no calibra. Se conservaron todas las 32 filas,
+muestras, semillas, orden y límites. No convertir este resultado en éxito
+ni aceptar un subconjunto favorable.
+
+El ZIP oficial `12495305796` tiene 25045959 bytes y SHA256
+`97cd554d9a56c62005cd2ce303898b160fd329fe107950dce2d6c7cfb93e7d79`.
+Contiene el tar original con 14058 archivos regulares / 1392246717 bytes y
+seis enlaces relativos. La preparación completa sigue siendo
+`b1412b0b-da1f-4147-9879-c38a821b43da`; fuente A `67523bf3`, B `5ef668c4`,
+arnés `97284800`. Las 434 fuentes por Node coincidieron con el grafo revisado
+publicado: 868 comprobaciones. Los datos, lectores, tablas y metodología están
+en `reports/benchmarks/native-class-ownership/current-source-results/39921160254/`.
+
+Memoria: 24576 Window y 24576 Document observados por separado, incluidos
+6144 owners de warmup por tipo. Se preservan las 259 primeras rondas no claras;
+los 4096 endpoints finales requeridos quedaron claros antes de salir.
+`napiClasses.live=22` coincide con baseline 22 en los workers rustdom. No es
+memoria pico ni ausencia universal de fugas. Ver
+`reports/memory/current-ownership-39921160254.{json,md}`.
+
+El CI general de `eafe4109`, run `39920996839`, aprobó sus ocho jobs,
+incluido Linux con Valgrind, Windows, macOS y shards/aggregate. El gate XML
+también aprobó. Los dos hilos de review de GitHub están resueltos. El gate
+de ownership sigue rechazando la evidencia anterior por fuentes distintas;
+este archivo actual tampoco acepta el presupuesto, por calibración.
+
+Esta publicación preserva el resultado completo y su revisión independiente
+sin hallazgos accionables. Continuar analizando la variación usando estos logs
+y muestras, sin recapturar ni transformar el rechazo en aceptación.
+No hay tag ni merge. El hito no está cerrado y el objetivo total de Rust sigue
+pendiente, sin porcentaje global auditado defendible. Engram permanece sin
+identidad runtime registrada; no inventar una sesión ni usar otra memoria.
+
+### Registro previo al lanzamiento (histórico; no ejecutar otra secuencia)
+
 ## Candidato actual: protocolo de ownership pendiente de ejecutar
 
 El check XML de113a1aec aprobó en GitHub (`39917369584`). Los35contratos
