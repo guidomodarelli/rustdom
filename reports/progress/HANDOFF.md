@@ -1,5 +1,34 @@
 # Continuar rustdom en otra máquina
 
+## Atribución offline de funciones V8 por scriptId
+
+El CI general 39962409292 del commit `0a9e851a` terminó success en sus ocho
+jobs, incluidos Linux con Valgrind, Windows, macOS y benchmarks. El turno
+anterior produjo avance verificable: captura autorizada, evidencia publicada
+y verificador portable; no fue una espera ni una repetición de estado.
+
+`reports/benchmarks/native-class-ownership/jit-origin-analysis/` atribuye por
+scriptId todos los 1.107.823 registros function de los 32 logs JIT originales:
+384 intervalos, 96 warmups y 288 medidos. Los otros 32 procesos son CPU y no
+tienen log JIT. Lectores Node 22/24 byte-idénticos; seis contratos por Node.
+No se ejecutaron nuevas capturas, DOM, perfiles ni ciclos de GC.
+
+En operaciones medidas, Node 22 tiene 196 registros jsdom/turbofan posibles
+y 171 contenidos para todos los offsets del envelope observado; el arnés
+tiene 21/18. En Node 24, jsdom/maglev tiene 88/79 y jsdom/turbofan 74/68;
+el arnés también registra tiering. Son registros de emisión, no funciones
+únicas ni CPU de compilación, y no identifican causalidad sobre los trece
+controles rechazados. Se conservan acciones y fuentes desconocidas.
+
+La revisión siguiente del calentamiento debe cubrir código de jsdom y sus
+consumidores del arnés. Los datos no justifican elegir arbitrariamente más
+rondas: hay actividad posterior al warmup en ambos. Mantener fronteras y
+resultados públicos, memoria y todos los controles antes de plantear una
+secuencia prospectiva revisada. No modificar ni relanzar el sampler consumido,
+no cambiar presupuestos/estimador y no aceptar por observar eventos JIT.
+Ownership sigue rejected/accepted=false; este análisis accepted=null.
+Sin tag ni merge; el objetivo de migración completa sigue pendiente.
+
 ## Captura adicional terminada y verificada: 39959175058
 
 El diagnóstico autorizado ya se ejecutó una sola vez sobre `22aeb0ba`:
