@@ -112,3 +112,16 @@ test('the recorded macOS reference timeout remains a parity failure despite ever
     assert.throws(() => assertWptParity(row.file, row.actual, row.expected));
   }
 });
+
+test('the recorded Windows reference timeout remains a failure despite all 2808 assertions passing', () => {
+  const filename = path.resolve(__dirname,
+    '../../reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz');
+  const report = JSON.parse(gunzipSync(fs.readFileSync(filename)));
+  const expected = report.reference.result;
+  const actual = report.candidate.result;
+  assert.equal(expected.status, 2); assert.equal(actual.status, 0);
+  assert.equal(expected.tests.length, 2808);
+  assert.deepEqual(actual.tests, expected.tests);
+  assert.ok(expected.tests.every((entry) => entry.status === 0));
+  assert.throws(() => assertWptParity(report.file, actual, expected));
+});

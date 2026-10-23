@@ -1,6 +1,21 @@
 # Continuar rustdom en otra máquina
 
-## XML: protocolo de inputs completos calificado, aún sin ejecutar
+## Windows WPT: corrección del timeout validada localmente
+
+El falloWindows70fc preserva2808asserts correctos idénticos, pero la referencia
+jsdom tardó137427.7593ms y devolvióstatus2 al superar el límite largo120s.
+La política upstream timeout_multiplier ahora es3 para ambos motores:180s
+harnesslargo,210s fixture y240s proceso. Comparación y corpus siguen intactos;
+una regresión conserva el rechazo del informe original. No cambia benchmarks.
+
+Pasaron nueve contratos de procesos reales por Node22.12.0/24.14.1 sobre Linux,
+incluidos ambos motores, timeouts reales y procesos reapados. La referencia
+WindowsNode24.21.0 pasó sus2808asserts yestado0. Reviewindependiente0hallazgos.
+reports/validation/native-class-ownership/ci-windows-timeout/39894045206/
+conserva crudos, QA y límites; falta CI remoto del ajuste. El ZIP original se
+leyó parcialmente porrangos/CRC, sin afirmar autenticación del ZIP completo.
+
+## XML: protocolo calificado y ejecución original remota activa
 
 Se agregó xml-current-run.cjs y el workflow xml-current-evidence.yml para una
 única secuencia con la etiqueta xml-full-inputs-v1. Reutiliza el experimento
@@ -14,8 +29,11 @@ XML39886057332; actionlint pasó. Revisión read-only independiente cerró dos P
 y terminó sin hallazgos. El recibo y logs están en
 reports/validation/native-class-ownership/xml-current-method/. Antes de medir:
 publicar/autenticar recibo y fuentes, comprobar QA remota de xml-build y que
-el protocolo no tenga otra ejecución no omitida. No se lanzó la secuencia al
-escribir esta sección. No relanzar un estudio consumido ni cambiar los gates
+el protocolo no tenga otra ejecución no omitida. Todo ello quedó confirmado:
+92dd067c autenticó15payloads y6fuentes; XMLbuild39896156334 terminósuccess.
+La única ejecución remota39896591561 comenzó desde92dd, con etiqueta
+xml-full-inputs-v1. En la última consulta preparaba sus inputs completos;
+no asumir que seguirá activa: consultar el run original. No relanzar ni cambiar los gates
 históricos sin verificar independientemente el resultado completo nuevo.
 
 El CI general70fc run39894045206 agregó un fallo Windows: la referencia jsdom
