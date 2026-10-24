@@ -1,5 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Estudio frío completo y rechazado — 2026-10-24
+
+El run40113188886/job120928996128, intento1, del SHA b63cf834 terminó
+con captura completa y exit1 por rechazo de rendimiento, sin timeout.
+La evidencia íntegra está en
+`reports/benchmarks/native-class-ownership/cold-cleanup-study-results/40113188886/`:
+ZIP/tar originales, API, logs, manifiesto completo, muestras/warmup, replays,
+lectores probados y análisis. Artifact12572122750; ZIP SHA b82e1d3d9af43d7c0d2f39924cdfa9a6fd277bbe74ffcc9ab5d7150df2499eaf.
+
+El replay estricto y los exports coinciden en Node22.12.0/24.14.1 con
+511pins y434fuentes:2048procesos,18432duraciones medidas,6144warmup,
+24576Window y24576Document por separado. Ocho controles jsdom exceden±2%
+y una fila Rust excede+5%: Node24 AB range-control-1000/250,+6.5743%,
+con su control jsdom también rechazado,+3.5261%. No atribuir causalidad
+al candidato ni aceptar ownership. Preservar los rechazos históricos.
+No relanzar esta secuencia ni completar muestras; no tag ni merge.
+
+Se conservan264primeras rondas no claras,4096estados finales claros,
+baselines nativos y3snapshots del padre. Recursos y límites en
+`reports/memory/cold-cleanup-study-40113188886.md` y JSON adyacente:
+son observaciones finitas, no memoria pico ni ausencia universal de fugas.
+Pasaron18contratos de transporte en Linux/Windows,5del artifact completo,
+10del lector en cada Node y lectura positiva de la versión a publicar en
+ambos Node. La revisión aislada se conserva en el paquete.
+
+La autorización permanente de fb18f6a0 sigue vigente para el siguiente
+trabajo justificado, sin pedir permiso operativo. Los hooks ya están
+instalados/trusted; no restablecer el bloqueo histórico por autorización.
+El CI general40121155551 de fb18f6a0 aprobó sus ocho jobs. La migración
+sigue pendiente y el runtime sigue híbrido; el candidato no está integrado.
+
 ## Autorización permanente y estudio en curso — 2026-10-24
 
 El usuario indicó: «porfavor deja de pedir autorizacion, estas autorizado
