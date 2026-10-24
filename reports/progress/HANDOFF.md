@@ -1,5 +1,33 @@
 # Continuar rustdom en otra máquina
 
+## Método prospectivo de collapse revisado antes de captura — 2026-10-24
+
+Código: reports/benchmarks/native-class-ownership/range-collapse-study/.
+QA/review: reports/validation/native-class-ownership/range-collapse-study-method/.
+563pins actuales incluyen511históricos y434de arnés intactos. Tar8c430f0b,
+distribuciónB0d2c0835/ELF43410883, controles/dependencias calificados sin rebuild.
+19contratos del método y14paquetes por Node22.12.0/24.14.1 pasan; --plan y
+--preflight son byteidénticos entre versiones. Actionlint y revisión aislada
+final0hallazgos. Rondas raw1..4 preservadas, incluido fallo MODULE_NOT_FOUND
+cerrado mediante binding autocontenido y --inspect de flags/config sin sampler.
+
+Nueva disposición adjacent-paired-row-v1: pares de labels por fila consecutivos,
+frente a distancia ordinal8 en los1024pares del archivo histórico. No es una
+mejora temporal medida ni causa demostrada. Se conservan multiset/grupos/filas,
+factores/semillas, warmup, medidas y estimador originales. Una vista canónica
+para el estimador reproduce exactamente las summaries históricas; los reportes
+no se mutan ni se relabelan. Presupuestos±2%/±5% y rechazos históricos intactos.
+
+Siguiente acción: observar los ocho checks del SHA exacto publicado (cuatro
+específicos y validate3OS+benchmarks), verificar recibo/sourceFiles y activar
+UNA vez ownership-range-collapse-v1 bajo autorización permanente. No preguntar
+permiso. Todavía0aplicaciones de esa etiqueta/0capturas de esta revisión; no
+usar activadores históricos ni repetir una secuencia ante rechazo/error.
+Job180min/captura175min/worker180000ms. Plan2048procesos,18432medidas y6144warmup,
+Window/Document separados, baselines y3snapshots del padre; conservar todo,
+incluso parciales y controles rechazados. No aceptar sin decisión íntegra.
+Runtime híbrido, migración pendiente, sin tag/merge de ownership todavía.
+
 ## Paquetes de collapse preparados sin recompilar — 2026-10-24
 
 Preparador/identidades en reports/benchmarks/native-class-ownership/range-collapse-packages/.

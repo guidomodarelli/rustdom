@@ -1,0 +1,17 @@
+import hashlib,json,statistics
+from pathlib import Path
+repository=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+original=Path('/home/guido/rustdom-validation/shared-study-result-40012710923/archive/shared-study/capture/index.json')
+data=json.loads(original.read_bytes()); groups={}
+for position,entry in enumerate(data['processes']):
+ input=entry['input']; key=(entry['node'],input['phase'],input['position'],input['engine'],input['rowIndex'])
+ groups.setdefault(key,[]).append(position)
+assert data['complete'] and data['decision']['accepted'] is False and all(len(pair)==2 for pair in groups.values())
+distances=[pair[1]-pair[0] for pair in groups.values()]
+output=repository/'.cache/range-study-order-analysis.json'
+output.write_text(json.dumps({'sourceRunId':40012710923,'sourceRevision':data['revision'],'sourceIndexSha256':hashlib.sha256(original.read_bytes()).hexdigest(),
+ 'historicalComplete':True,'historicalAccepted':False,'processes':len(data['processes']),'matchedRowPairs':len(groups),
+ 'ordinalDistance':{'minimum':min(distances),'median':statistics.median(distances),'maximum':max(distances)},
+ 'prospectiveOrdinalDistance':1,'newMeasurementExecuted':False,'historicalDataRelabeled':False,
+ 'limitation':'Distancia ordinal, no latencia medida ni prueba causal de deriva o mejora de calibración; el efecto se evaluará con el estudio nuevo.'},indent=2,ensure_ascii=False)+'\n')
+print(output.read_text())

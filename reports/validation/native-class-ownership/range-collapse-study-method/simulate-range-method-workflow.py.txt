@@ -1,0 +1,27 @@
+import datetime,hashlib,json,os,subprocess
+from pathlib import Path
+source=Path('/home/guido/rustdom-validation/range-collapse-study-method-f06')
+root=Path('/home/guido/rustdom-validation/range-collapse-study-qa')
+output=root/'workflow-simulation'; output.mkdir(exist_ok=False)
+prepared=root/'extracted-final/range-collapse-packages'
+environment={**os.environ,'RUSTDOM_RANGE_PACKAGE_PREPARATION':str(prepared),
+ 'RUSTDOM_RANGE_PACKAGE_HISTORY':str(prepared),'RUSTDOM_RANGE_PACKAGE_SOURCE':str(prepared/'sources')}
+commands=[]
+for version,folder in [('22','node-22'),('24','node')]:
+ node=Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')/folder/'bin/node'
+ for name,arguments in [('packages-node'+version,['--test','--test-concurrency=1',str(source/'reports/benchmarks/native-class-ownership/range-collapse-packages/contracts.spec.cjs')]),
+ ('preflight-node'+version,[str(source/'reports/benchmarks/native-class-ownership/range-collapse-study/study.cjs'),'--preflight',str(prepared)]),
+ ('plan-node'+version,[str(source/'reports/benchmarks/native-class-ownership/range-collapse-study/study.cjs'),'--plan'])]:
+  command=[str(node),*arguments]
+  with (output/(name+'.stdout.log')).open('xb') as stdout,(output/(name+'.stderr.log')).open('xb') as stderr:
+   result=subprocess.run(command,cwd=source,env=environment,stdout=stdout,stderr=stderr)
+  commands.append({'name':name,'argv':command,'exitCode':result.returncode,'node':subprocess.check_output([node,'--version'],text=True).strip(),
+   'nodeSha256':hashlib.sha256(node.read_bytes()).hexdigest()})
+  print(json.dumps({'name':name,'exitCode':result.returncode}),flush=True)
+  (output/'commands.json').write_text(json.dumps(commands,indent=2)+'\n')
+  if result.returncode:
+   print((output/(name+'.stdout.log')).read_text()[-8000:]);print((output/(name+'.stderr.log')).read_text()[-4000:]); raise SystemExit(result.returncode)
+assert (output/'preflight-node22.stdout.log').read_bytes()==(output/'preflight-node24.stdout.log').read_bytes()
+assert (output/'plan-node22.stdout.log').read_bytes()==(output/'plan-node24.stdout.log').read_bytes()
+(output/'summary.json').write_text(json.dumps({'complete':True,'preflightIdentical':True,'planIdentical':True,'packageContractsPerNode':14,
+ 'benchmarkExecuted':False,'performanceAccepted':None,'finishedAtUTC':datetime.datetime.now(datetime.timezone.utc).isoformat()},indent=2)+'\n')
