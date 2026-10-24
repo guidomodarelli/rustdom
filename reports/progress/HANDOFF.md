@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Propuesta auditada de Range, sin cambiar el método — 2026-10-24
+
+Clasificación propuesta en reports/progress/inventory/range-audit-20261024/:
+3 módulos híbridos y 31 APIs (27 híbridas/4 pendientes), cero aprobaciones Rust
+completas nuevas. No duplica herencia ni cambia denominadores o porcentajes.
+El catálogo canónico permanece intacto: su prueba de conteos está entre los
+563 pins del estudio. Integrar esta propuesta y actualizar ese contrato con
+tests/review después de terminar la captura; todavía no está integrada.
+
+QA y archivos íntegros en reports/validation/inventory-range-audit/20261024/.
+Node 22.12.0 y 24.14.1 pasan 70 contratos Range, siete del catálogo canónico
+y el CLI con las auditorías propuestas. Se preservan ambos intentos: el primero
+falló solo por un helper ESM faltante en el directorio temporal (69/70);
+el segundo copia ese helper actual y pasa sin cambiar assertions o runtime.
+Los catálogos coinciden entre intentos; entre Node solo difieren la versión
+del perfil y los globals ECMAScript excluidos de surface.json. El manifiesto
+del ZIP preserva los datos.
+
+El SUT es A0 preparado y autenticado, con las 20 fuentes mapeadas de Range
+iguales al árbol auditado d6c4404d. Esto NO califica el guard de ownership ni
+el candidato aislado de collapse; no atribuir ese HEAD al binario completo.
+No se reconstruyeron paquetes ni se ejecutaron benchmarks. Recursos y límites:
+reports/memory/inventory-range-audit-20261024.md. No memoria pico ni garantía
+universal de ausencia de fugas a partir de estos escenarios finitos.
+
+La única captura de rendimiento sigue siendo run 40137458635/job 121001909695,
+intento 1, fuente 02291d6b; no reiniciar, completar muestras ni cambiar método.
+No tag/merge de ownership sin aceptación íntegra e integración probada.
+La autorización permanente está vigente y la migración general sigue activa.
+
 ## Análisis offline preparado; resultado nuevo pendiente — 2026-10-24
 
 Analizador actual: reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs.
