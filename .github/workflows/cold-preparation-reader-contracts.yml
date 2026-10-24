@@ -1,0 +1,58 @@
+name: Verificar preparación autenticada de ownership
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cold-preparation-reader-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/cold-cleanup-transport/**'
+      - 'reports/benchmarks/native-class-ownership/cold-cleanup-build/**'
+      - 'reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    name: Preparación autenticada Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar transporte real y rechazos
+        run: python reports/benchmarks/native-class-ownership/cold-cleanup-transport/transport.spec.py reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/transport > "$RUNNER_TEMP/cold-transport-contracts.log" 2>&1
+      - name: Extraer solo el archivo autenticado sin ejecutar su código
+        run: |
+          python reports/benchmarks/native-class-ownership/cold-cleanup-transport/extract.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/transport" "$RUNNER_TEMP/cold-preparation" > "$RUNNER_TEMP/cold-extraction.json"
+          echo "RUSTDOM_COLD_REPLAY_ROOT=$RUNNER_TEMP/cold-preparation/cold-cleanup-preparation" >> "$GITHUB_ENV"
+      - name: Leer paquetes y reportes usando código actual
+        run: node reports/benchmarks/native-class-ownership/cold-cleanup-transport/replay.cjs "$RUSTDOM_COLD_REPLAY_ROOT" > "$RUNNER_TEMP/cold-replay.json" 2> "$RUNNER_TEMP/cold-replay.stderr.log"
+      - name: Probar rechazo de fuentes y estados adulterados
+        run: node --test reports/benchmarks/native-class-ownership/cold-cleanup-transport/replay.spec.cjs > "$RUNNER_TEMP/cold-replay-contracts.log" 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cold-preparation-reader-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/cold-transport-contracts.log
+            ${{ runner.temp }}/cold-extraction.json
+            ${{ runner.temp }}/cold-replay.json
+            ${{ runner.temp }}/cold-replay.stderr.log
+            ${{ runner.temp }}/cold-replay-contracts.log
+            ${{ runner.temp }}/cold-preparation-members.json.gz
+            ${{ runner.temp }}/cold-preparation-extraction.json

@@ -1,5 +1,24 @@
 # Continuar rustdom en otra máquina
 
+## Preparación de CI autenticada:40065437939 — 2026-10-24
+
+El run40065437939/job120787588512,intento1,f559d37a terminó success.
+Archivo íntegro autenticado: artifact12549521134; evidencia en
+`reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/`.
+ZIP21a79f0d/tar045d0035,7889miembros,7043regulares,6links. Lectura offline
+idéntica en Node22/24, SHA4b807020. Pasan17tests de transporte por plataforma
+y5de replay por Node, sin DOM;17incluye sustitución de bytecode cache real.
+
+El addon de CI es0a949fb3, distinto del9bablocal. Pasaron14pruebas nativas por
+Node con el0a949 real. La regresión de MutationRecord está ahora en tests/ para
+ejecución habitual. Memoria canónica:30Window y30Document observados por separado,
+20estados finales claros; no memoria pico ni garantía universal de ausencia de fugas.
+
+Sigue pendiente completar Jest/Vitest/VM/corpus con el binario exacto0a949 y
+preparar un método prospectivo separado antes de solicitar una secuencia nueva.
+No repetir estudios consumidos ni aceptar rendimiento por este build/replay.
+No tag/merge. Mantener el runtime principal y el trabajo ajeno intactos.
+
 ## Preparación fresca corregida: tag y commit — 2026-10-24
 
 `cold-cleanup-build/` reutiliza el productor existente y fija baseline067 más
