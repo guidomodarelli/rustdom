@@ -1,0 +1,70 @@
+"""Build a same-path baseline/cold-drop pair and run actual Rust ownership tests; never run a benchmark."""
+import difflib
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+plan = json.loads(Path(sys.argv[1]).read_text())
+root = Path(plan['destination'])
+root.mkdir()
+source = root / 'source'
+source.mkdir()
+logs = root / 'logs'
+logs.mkdir()
+artifacts = root / 'artifacts'
+artifacts.mkdir()
+for record in plan['files']:
+    original = Path(plan['sourceRepository']) / record['path']
+    assert original.stat().st_size == record['bytes']
+    assert hashlib.sha256(original.read_bytes()).hexdigest() == record['sha256'], record['path']
+    destination = source / record['path']
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(original, destination)
+(root / 'source-copy-plan.json').write_text(json.dumps(plan, indent=2) + '\n')
+toolchain = Path('/home/guido/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin')
+environment = dict(os.environ, PATH=str(toolchain) + os.pathsep + os.environ.get('PATH', ''),
+    CARGO_HOME='/mnt/c/Users/guido/ghq/projects/rustdom/.tools/cargo', CARGO_TARGET_DIR=str(root / 'target'),
+    RUSTC=str(toolchain / 'rustc'), RUSTDOC=str(toolchain / 'rustdoc'), RUSTUP_TOOLCHAIN='1.99.1')
+def run(label, argv):
+    with (logs / (label + '.stdout.log')).open('xb') as stdout, (logs / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(argv, cwd=source, env=environment, stdout=stdout, stderr=stderr)
+    (logs / (label + '.command.json')).write_text(json.dumps({'argv': list(map(str, argv)), 'exitCode': result.returncode,
+        'DOMExecuted': False, 'benchmarkExecuted': False}, indent=2) + '\n')
+    print(json.dumps({'phase': label, 'exitCode': result.returncode}), flush=True)
+    assert result.returncode == 0, label
+    return logs / (label + '.stdout.log')
+run('rustc-version', [toolchain / 'rustc', '-Vv'])
+run('cargo-version', [toolchain / 'cargo', '--version'])
+guard = source / 'third-party/napi/src/bindgen_runtime/class_ownership.rs'
+base_guard = guard.read_bytes()
+needle = b'impl<T> Drop for PendingClassValue<T> {\n    fn drop(&mut self) {'
+assert base_guard.count(needle) == 1
+harness = root / 'ownership-tests.rs'
+harness.write_text('#[path = ' + json.dumps(str(guard)) + ']\nmod class_ownership;\n')
+for variant in ['baseline', 'cold-cleanup']:
+    if variant == 'cold-cleanup':
+        changed = base_guard.replace(needle, b'impl<T> Drop for PendingClassValue<T> {\n    #[cold]\n    #[inline(never)]\n    fn drop(&mut self) {')
+        guard.write_bytes(changed)
+        patch = ''.join(difflib.unified_diff(base_guard.decode().splitlines(True), changed.decode().splitlines(True),
+            fromfile='a/third-party/napi/src/bindgen_runtime/class_ownership.rs', tofile='b/third-party/napi/src/bindgen_runtime/class_ownership.rs'))
+        (root / 'cold-cleanup.patch').write_text(patch)
+    test_binary = artifacts / (variant + '-ownership-tests')
+    run(variant + '-compile-ownership-tests', [toolchain / 'rustc', '--test', '--edition=2021', '-C', 'opt-level=3', harness, '-o', test_binary])
+    run(variant + '-ownership-tests', [test_binary])
+    cargo_log = run(variant + '-build', [toolchain / 'cargo', 'build', '--release', '--locked', '--offline', '--message-format=json-render-diagnostics'])
+    messages = [json.loads(line) for line in cargo_log.read_text().splitlines() if line.strip()]
+    package = next(entry for entry in messages if entry.get('reason') == 'compiler-artifact' and entry['target']['name'] == 'rustdom'
+        and 'cdylib' in entry['target']['crate_types'])
+    binary = next(Path(name) for name in package['filenames'] if name.endswith('.so'))
+    retained = artifacts / (variant + '.node')
+    shutil.copyfile(binary, retained)
+    run(variant + '-symbols', ['nm', '-S', '-C', '--defined-only', retained])
+    (artifacts / (variant + '.json')).write_text(json.dumps({'sourceOrigin': plan['originCommit'],
+        'guardSha256': hashlib.sha256(guard.read_bytes()).hexdigest(), 'binarySha256': hashlib.sha256(retained.read_bytes()).hexdigest(),
+        'variant': variant, 'measurementExecuted': False, 'performanceAccepted': None}, indent=2) + '\n')
+assert hashlib.sha256((Path(plan['sourceRepository']) / 'third-party/napi/src/bindgen_runtime/class_ownership.rs').read_bytes()).digest() == hashlib.sha256(base_guard).digest()
+print(json.dumps({'completedVariants': 2, 'runtimeWorkingTreeChanged': False, 'benchmarkExecuted': False, 'performanceAccepted': None}), flush=True)

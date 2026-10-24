@@ -1,5 +1,26 @@
 # Continuar rustdom en otra máquina
 
+## Variante de ownership aislada, sin medir — 2026-10-24
+
+En reports/benchmarks/native-class-ownership/cold-cleanup-candidate/ hay un patch
+experimental que añade cold/inline(never) solo al Drop de PendingClassValue.
+Se compiló base y variante desde f44f5dd0 en la misma ruta, con Rust 1.99.1.
+ToNapiValue de MutationRecord pasa de 713 a 681 bytes; no demuestra mejora temporal.
+La hipótesis antigua del wrapper adicional no se aplica al binario actual.
+
+Pasaron 6 tests del guard por variante, 311 tests Rust del candidato, formato/Clippy y
+14 tests del addon real por variante/Node 22.12.0 y24.14.1, incluyendo fallo real
+de wrap de MutationRecord y preservación UTF-16. Memcheck conserva 0 pérdidas
+definitivas/indirectas y 0 errores; 48 bytes posibles y 548 alcanzables en ambas,
+visibles en logs, con stack de libtest/std. Alcance finito; no memoria pico.
+
+NO se aplicó el patch al runtime principal, no se repitió ningún estudio ni se
+midió rendimiento. La variante no está calificada por suites completas Jest/
+Vitest o Windows/macOS. El siguiente paso es completar su calificación y un
+protocolo separado antes de pedir autorización independiente para una medición.
+No aceptar el gate, tag ni merge por reducción de tamaño de código.
+
+
 ## Diagnóstico nativo terminado y verificado — 2026-10-24
 
 El usuario autorizó una sola secuencia de native-mutation-telemetry-v1, ya consumida:
