@@ -1,0 +1,43 @@
+"""Run the actual publication guard on the owned Linux QA copy without capture."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+repository = Path(__file__).resolve().parents[1]
+packet = repository / 'reports/validation/native-class-ownership/cold-cleanup-study-method'
+linux_root = '/home/guido/rustdom-validation/cold-study-method-4aba'
+probe = '/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom/.cache/probe-cold-publication.cjs'
+results = {}
+for version, directory in [('22', 'node-22'), ('24', 'node')]:
+    node = f'/mnt/c/Users/guido/ghq/projects/rustdom/.tools/{directory}/bin/node'
+    command = ['wsl.exe', '-d', 'Ubuntu-22.04', '--', node, probe, linux_root]
+    label = f'publication-attempt2-node{version}'
+    with (packet / (label + '.stdout.json')).open('xb') as stdout, (packet / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(command, stdout=stdout, stderr=stderr, cwd=repository)
+    receipt = {'argv': command, 'exitCode': result.returncode, 'benchmarkExecuted': False, 'captureExecuted': False}
+    with (packet / (label + '.command.json')).open('x', encoding='utf-8') as target:
+        json.dump(receipt, target, indent=2)
+        target.write('\n')
+    if result.returncode != 0:
+        raise RuntimeError(f'Publication probe failed for Node {version}: inspect {label}.stderr.log')
+    observed = json.loads((packet / (label + '.stdout.json')).read_text(encoding='utf-8'))
+    assert observed['node'] == {'22': 'v22.12.0', '24': 'v24.14.1'}[version]
+    assert observed['publicationContracts'] == 3 and observed['sourceFiles'] == 511
+    assert observed['publicationRestored'] is True and observed['captureExecuted'] is False
+    assert observed['benchmarkExecuted'] is False
+    results['node' + version] = observed
+summary_path = packet / 'summary.json'
+summary = json.loads(summary_path.read_text(encoding='utf-8'))
+assert 'publicationGate' not in summary
+summary['publicationGate'] = {'contractsPerNode': 3, 'finalAttempt': 2, 'final': results,
+    'failedAttemptPreserved': 'publication-node22.*',
+    'failedAttemptCause': 'El wrapper de Windows convirtió el argumento POSIX a WindowsPath; falló antes de leer o modificar la publicación. Se corrigió el argumento del wrapper.',
+    'logsOutsideArchive': True}
+summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+for name in ['probe-cold-publication.cjs', 'run-cold-publication-probe.py']:
+    target = packet / (name + '.txt')
+    assert not target.exists()
+    shutil.copyfile(repository / '.cache' / name, target)
+print(json.dumps(results))

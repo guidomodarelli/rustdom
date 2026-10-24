@@ -1,0 +1,79 @@
+name: Ownership con limpieza fría
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ownership-cold-cleanup-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.action == 'labeled' && github.event.label.name == 'ownership-cold-cleanup-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exigir una única activación y QA del SHA actual
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COLD_STUDY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/cold-study"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ownership-cold-cleanup-study.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/cold-study/existing-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/cold-study/existing-runs.txt" "$GITHUB_RUN_ID"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$COLD_STUDY_SOURCE_COMMIT/check-runs?per_page=100" --jq '.check_runs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/cold-study/existing-checks.tsv"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs');
+          const policy = require('./reports/benchmarks/native-class-ownership/cold-cleanup-study/constants/protocol.json');
+          const checks = fs.readFileSync(`${process.env.RUNNER_TEMP}/cold-study/existing-checks.tsv`, 'utf8').trim().split('\n').map((line) => line.split('\t'));
+          for (const name of policy.requiredChecks) assert.ok(checks.some(([actual, conclusion]) => actual === name && conclusion === 'success'), `Cold study: missing successful current check ${name}`);
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar Node 22
+        run: echo "COLD_STUDY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Conservar Node 24
+        run: echo "COLD_STUDY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Extraer solo la preparación exacta ya autenticada y calificada
+        run: python -B reports/benchmarks/native-class-ownership/cold-cleanup-transport/extract.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/transport" "$RUNNER_TEMP/cold-study/preparation" > "$RUNNER_TEMP/cold-study/preparation.json"
+      - name: Ejecutar una única secuencia completa en ambos Node
+        timeout-minutes: 175
+        env:
+          COLD_STUDY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          "$COLD_STUDY_NODE24" reports/benchmarks/native-class-ownership/cold-cleanup-study/study.cjs --capture "$RUNNER_TEMP/cold-study/preparation/cold-cleanup-preparation" "$RUNNER_TEMP/cold-study/capture" "$COLD_STUDY_SOURCE_COMMIT" "$COLD_STUDY_NODE22" "$COLD_STUDY_NODE24" > "$RUNNER_TEMP/cold-study/stdout.log" 2> "$RUNNER_TEMP/cold-study/stderr.log"
+          capture_status=$?
+          printf '%s\n' "$capture_status" > "$RUNNER_TEMP/cold-study/exit-code"
+          exit "$capture_status"
+      - name: Conservar todo el resultado y los parciales
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/cold-study" ]; then
+            tar -cJf "$RUNNER_TEMP/cold-study.tar.xz" -C "$RUNNER_TEMP" cold-study
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-cold-cleanup-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cold-study.tar.xz

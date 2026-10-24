@@ -1,0 +1,19 @@
+"""Create a real Linux Git checkout for method QA without modifying the Windows worktree."""
+from pathlib import Path
+import shutil
+import subprocess
+
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+working = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/home/guido/rustdom-validation/cold-study-method-4aba')
+assert not source.exists()
+subprocess.run(['git', 'clone', '--shared', '--no-checkout', str(primary), str(source)], check=True)
+patterns = ['/src/', '/scripts/', '/benchmarks/', '/third-party/', '/package.json', '/package-lock.json',
+    '/Cargo.toml', '/Cargo.lock', '/build.rs', '/.github/', '/tests/',
+    '/reports/benchmarks/native-class-ownership/', '/reports/validation/native-class-ownership/',
+    '!*.zip', '!*.tar.xz', '!*.tar.gz', '!*.part*']
+subprocess.run(['git', 'sparse-checkout', 'set', '--no-cone', '--stdin'], cwd=source, input='\n'.join(patterns) + '\n', text=True, check=True)
+subprocess.run(['git', 'checkout', '--detach', '4aba8018cb988e5df9f31d4fd782bc3fd2760a40'], cwd=source, check=True)
+relative = Path('reports/benchmarks/native-class-ownership/cold-cleanup-study')
+shutil.copytree(working / relative, source / relative)
+print(source)

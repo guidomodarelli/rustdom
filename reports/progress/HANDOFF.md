@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Método de limpieza fría preparado, sin activar — 2026-10-24
+
+Código y protocolo en reports/benchmarks/native-class-ownership/cold-cleanup-study/.
+QA en reports/validation/native-class-ownership/cold-cleanup-study-method/:
+17 contratos offline por Node 22.12.0/24.14.1 y Actionlint aprobados; review
+aislada final sin hallazgos. Se preservan los fallos de setup y del lector,
+sus recibos/hashes y todas las QA previas. El P2 del manifiesto canónico se
+cierra con pin independiente y recálculo de las 434 entradas. Hay protección
+probada contra pyc hostil, rechazos de ejecución local/intento 2 y reproducción
+exacta del rechazo histórico, sin datos falsos ni muestras nuevas.
+El control de publicación real pasa tres contratos adicionales por Node;
+se conservan el fallo inicial del wrapper de paths y sus dos ejecuciones
+corregidas. El CI general 40069648258 de la base 4aba8018 terminó en verde,
+incluida memoria nativa; eso no sustituye el QA del nuevo SHA del método.
+
+Los paquetes siguen siendo los del artifact 12549521134/B0a949. Se conserva
+el diseño original: 2048 procesos, 18432 duraciones, 6144 warmup, CPU 2,
+semillas 1..16, ocho filas y presupuestos ±2%/±5%. El step de captura fija
+175 minutos dentro del job de 180 minutos.
+Antes de pedir autorización independiente, comprobar QA del SHA publicado
+en ambos Node y la preparación autenticada. No aplicar la etiqueta
+ownership-cold-cleanup-v1 ni activar/repetir workflows todavía. No reutilizar
+las autorizaciones históricas consumidas. No tag/merge sin aceptación.
+El runtime sigue híbrido, el candidato no está integrado y la migración falta.
+
 ## Addon exacto de CI: suites completas en ambos Node — 2026-10-24
 
 La evidencia está en
