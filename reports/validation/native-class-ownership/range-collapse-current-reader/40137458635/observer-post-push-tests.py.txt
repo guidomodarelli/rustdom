@@ -1,0 +1,82 @@
+"""Exercise the owned selection boundary, not GitHub or a sampler; synthetic examples never serve as evidence."""
+import copy
+import importlib.util
+import json
+from pathlib import Path
+import shutil
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+specification = importlib.util.spec_from_file_location('range_observer', ROOT / '.cache/observe-range-capture-02291d6b.py')
+observer = importlib.util.module_from_spec(specification)
+specification.loader.exec_module(observer)
+ISSUED = '2026-10-24T22:00:00.987654+00:00'
+FIXTURE = {'syntheticFixture': True, 'created_at': '2026-10-24T22:00:00Z', 'head_sha': observer.HEAD,
+           'pull_requests': [{'number': 80, 'head': {'sha': observer.HEAD}}]}
+JOB = {'syntheticFixture': True, 'name': 'compare', 'status': 'in_progress', 'conclusion': None}
+
+
+class ObserverSelection(unittest.TestCase):
+    def test_started_capture_job_matches_the_owned_selector(self):
+        self.assertTrue(observer.eligible(FIXTURE, [JOB], ISSUED))
+
+    def test_pending_other_label_run_cannot_claim_a_pin(self):
+        for jobs in [[], [{**JOB, 'status': 'queued'}], [{**JOB, 'status': 'completed', 'conclusion': 'skipped'}]]:
+            with self.subTest(jobs=jobs):
+                self.assertFalse(observer.eligible(FIXTURE, jobs, ISSUED))
+
+    def test_other_pr_or_source_cannot_claim_the_capture(self):
+        self.assertFalse(observer.eligible({**FIXTURE, 'pull_requests': [{'number': 79}]}, [JOB], ISSUED))
+        self.assertFalse(observer.eligible({**FIXTURE, 'head_sha': '0' * 40}, [JOB], ISSUED))
+
+    def test_actual_capture_survives_the_moving_pull_reference_after_publication(self):
+        filename = sorted(observer.OBSERVATIONS.glob('*/run.json'))[-1]
+        run = json.loads(filename.read_bytes())
+        jobs = json.loads(filename.with_name('jobs.json').read_bytes())['jobs']
+        issued = json.loads((observer.JOURNAL / 'mutation-issued.json').read_bytes())['issuedAtUTC']
+        self.assertEqual(run['head_sha'], observer.HEAD)
+        pull = next(pull for pull in run['pull_requests'] if pull['number'] == 80)
+        self.assertNotEqual(pull['head']['sha'], run['head_sha'])
+        self.assertTrue(observer.eligible(run, jobs, issued))
+
+    def test_older_event_cannot_claim_the_capture(self):
+        self.assertFalse(observer.eligible({**FIXTURE, 'created_at': '2026-10-24T21:59:59Z'}, [JOB], ISSUED))
+
+    def test_multiple_or_different_jobs_are_not_this_workflow(self):
+        self.assertFalse(observer.eligible(FIXTURE, [JOB, JOB], ISSUED))
+        self.assertFalse(observer.eligible(FIXTURE, [{**JOB, 'name': 'different'}], ISSUED))
+
+    def test_terminal_rejection_is_preserved_as_a_valid_capture(self):
+        for conclusion in ['failure', 'success', 'timed_out', 'cancelled']:
+            self.assertTrue(observer.eligible(FIXTURE, [{**JOB, 'status': 'completed', 'conclusion': conclusion}], ISSUED))
+
+    def test_actual_method_jobs_cannot_be_mistaken_for_capture(self):
+        collection = ROOT / '.cache/range-method-ci-collection-40135020053'
+        run = json.loads((collection / 'run.json').read_bytes())
+        jobs = json.loads((collection / 'jobs.json').read_bytes())['jobs']
+        self.assertFalse(observer.eligible(run, jobs, run['created_at']))
+
+    def test_pin_is_idempotent_and_never_overwrites_a_different_identity(self):
+        parent = (ROOT / '.cache').resolve(strict=True)
+        directory = Path(tempfile.mkdtemp(prefix='range-observer-owned-test-', dir=parent)).resolve(strict=True)
+        try:
+            filename = directory / 'pin.json'
+            identity = {'syntheticFixture': True, 'runId': 123}
+            observer.pin(filename, identity)
+            original = filename.read_bytes()
+            observer.pin(filename, identity)
+            self.assertEqual(filename.read_bytes(), original)
+            with self.assertRaises(AssertionError):
+                observer.pin(filename, {**identity, 'runId': 124})
+            self.assertEqual(filename.read_bytes(), original)
+        finally:
+            self.assertEqual(directory.resolve(strict=True), directory)
+            self.assertEqual(directory.parent, parent)
+            self.assertTrue(directory.name.startswith('range-observer-owned-test-'))
+            self.assertFalse(directory.is_symlink())
+            shutil.rmtree(directory)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

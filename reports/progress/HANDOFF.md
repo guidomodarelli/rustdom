@@ -1,5 +1,27 @@
 # Continuar rustdom en otra máquina
 
+## Lector actual para seguir el mismo run — 2026-10-24
+
+Usar reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/collect.py
+con argumentos repositorio y colección propia, agregando --collect solo para
+conservar el archivo cuando termine. Fija run 40137458635/job 121001909695/intento 1,
+fuente 02291d6b. El push 9d97a2f0 publicó 145 archivos de activación/CI verificados
+remotamente; no cambió el método. GitHub actualiza pull_requests[].head.sha al
+avanzar el PR; esa referencia mutable NO redefine run.head_sha. El lector actual
+ya prueba esa regresión con la metadata real y no depende de scripts archivados.
+
+QA: Linux 8/8, Windows: 7 aprobados/1 omitido por privilegio de symlink, cubierto en
+Linux. Preserva snapshots/partiales, salidas ajenas y GH_REPO; no activa nada,
+no ejecuta DOM ni escribe el watch compartido. Evidencia y review sin hallazgos en
+reports/validation/native-class-ownership/range-collapse-current-reader/40137458635/.
+Recursos/límites: reports/memory/range-collapse-current-reader-40137458635.md.
+
+Los pins del artifact siguen null hasta autenticar el archivo real. No hay
+extracción/replay ni decisión de esta captura todavía. Mantener source 022 limpio
+para replay actual en Node 22.12.0/24.14.1. No relanzar ni completar muestras;
+no tag/merge sin aceptación íntegra e integración probada. La autorización
+permanente y la migración general siguen activas, sin preguntas operativas.
+
 ## Captura única de collapse activada — 2026-10-24
 
 SHA fuente 02291d6b; run 40137458635/job 121001909695/intento 1. Se aplicó
