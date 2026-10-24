@@ -1,5 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Diagnóstico nativo terminado y verificado — 2026-10-24
+
+El usuario autorizó una sola secuencia de native-mutation-telemetry-v1, ya consumida:
+run40051899308, job120746185254, intento1, fuente0211bba042e8f6d72dd303e8b23c53c68b32df92.
+Terminó success. No relanzar, reaplicar etiqueta ni agregar procesos/muestras.
+La autorización y el archivo íntegro están en `reports/benchmarks/native-class-ownership/native-mutation-telemetry-results/40051899308/`.
+Las secciones prospectivas de abajo conservan estados históricos anteriores.
+
+Ambos replays estrictos (Node22.12.0/24.14.1) son idénticos, SHA256
+`91b8c7b101a3a6020e3f6fd90c6173a20cb133cf1511bce27d3400619128ff46`:512 procesos,4608 medidas,1536warmup,
+6144 Window+6144 Document separados,211 primeras rondas no claras,1024 finales
+requeridas claras,256 CPU profiles y256 logs JIT. ZIP/tar preservados sin pérdida
+en46 partes; artifact12545165372, ZIP SHA57448f31f6256a9e696af544ed68369c8ca4ba6d740958e5572a376f2f50325d.
+Se conservaron los235deltas CPU negativos y todos los datos de warmup/perfiles/logs.
+
+Los siete exports finales coinciden entre ambos Node. Pasan14tests de transporte
+por plataforma,5contratos por Node y7oráculos sobre todos los registros exportados.
+Se corrigieron el OOM del lector derivado, ausencia convertida en cero y salida
+dentro del corpus. Historial y validaciones están en el paquete. Recursos y límites
+en reports/memory/native-mutation-telemetry-40051899308.{md,json}. Los contadores
+napiClasses son referencias a constructores, no asignaciones de instancias.
+
+**No acepta rendimiento**:performanceAccepted=null ygateReevaluated=false.
+Ambos rechazos históricos siguen vigentes; no tag ni merge. El runtime sigue
+híbrido y la migración completa está pendiente. No pasar a otro módulo antes de
+cerrar ownership. Usar estas observaciones para investigar el costo de las rutas
+muestreadas; no inferir causalidad solo por emisiones JIT o frames V8 y no repetir
+capturas sin una autorización distinta. El README detalla reproducción usando
+un checkout limpio real de0211bba0 y código actual, sin ejecutar scripts archivados.
+
+
 ## Timeout explícito del CI habitual — 2026-10-23
 
 `.github/workflows/ci.yml` ahora limita `validate` a 60 minutos por OS,
