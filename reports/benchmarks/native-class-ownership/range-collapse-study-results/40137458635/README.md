@@ -24,6 +24,21 @@ del artifact real. Los campos de artifact permanecen `null` mientras no exista.
 No ejecutar scripts del tar: usar lectores actuales del repositorio y el código
 revisado de la fuente `02291d6b` para `study.cjs --verify` en ambos Node fijados.
 
+El adaptador de extracción ya está preparado en `tools/extract.py`. Mientras
+los pins sean `null`, rechaza la operación antes de leer una colección o crear
+el destino. Después de autenticar el artifact real y fijar esos valores:
+
+```sh
+python -B reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/extract.py . .cache/range-study-collection-40137458635 /ruta/a/destino-nuevo
+```
+
+Pasó seis contratos en Linux. Windows pasó cinco y omitió el caso con enlaces
+tras una prueba real de privilegios. La prueba positiva usó el archivo histórico
+`40113188886` bajo su propio protocolo, manteniendo fuente `b63cf834` y rechazo:
+no son muestras nuevas ni una validación del artifact todavía pendiente de este
+run. Los archivos originales quedaron intactos. La QA está en
+`reports/validation/native-class-ownership/range-collapse-extraction-reader/40137458635/`.
+
 El adaptador reutiliza el lector Git actual ya revisado y verifica sus bytes
 antes de configurarlo para estos IDs. No carga código de ZIP/tar ni modifica el
 watch compartido. Conserva snapshots de todas las lecturas y parciales en una

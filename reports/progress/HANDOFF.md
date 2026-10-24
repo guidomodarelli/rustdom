@@ -1,5 +1,27 @@
 # Continuar rustdom en otra máquina
 
+## Extracción preparada, artifact nuevo pendiente — 2026-10-24
+
+Lector actual: reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/extract.py.
+El CLI queda cerrado mientras artifactId/zipSha256/tarSha256 sean null. Al terminar
+el MISMO run 40137458635/job 121001909695/intento 1, usar collect.py --collect,
+autenticar ID/run/fuente/intento/nombre/tamaño/digest y fijar los pins reales antes
+de extraer a un destino nuevo. No ejecutar código del archivo; mantener limpio
+el checkout Linux de 02291d6b para study.cjs --verify con ambos Node fijados.
+
+QA de extracción: Linux 6 aprobados; Windows 5 aprobados/1 omitido tras comprobar
+privilegio de enlaces ausente, caso realmente cubierto en Linux. La lectura
+positiva usa SOLO la referencia histórica 40113188886, protocolo b63cf834 y su
+rechazo original, sin relabel ni nueva medición. Los ZIP/tar originales siguen
+idénticos. Transporte se volvió a verificar: Linux 8, Windows 7/1 omitido.
+Evidencia: reports/validation/native-class-ownership/range-collapse-extraction-reader/40137458635/.
+Límites de recursos: reports/memory/range-collapse-extraction-reader-40137458635.md.
+
+La captura nueva continúa pendiente de resultados; no hay extracción/replay ni
+aceptación de ese run todavía. Método de 563 pins/511 históricos/arnés de 434
+archivos intactos; no repetir secuencia, completar muestras ni cambiar presupuestos.
+El runtime sigue híbrido, la migración general sigue activa y no se pide otro permiso.
+
 ## Lector actual para seguir el mismo run — 2026-10-24
 
 Usar reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/collect.py
