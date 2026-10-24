@@ -1,0 +1,49 @@
+"""Run current read-only readers and controlled corruptions; preserve every subprocess output."""
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Hosted evidence checking requires assertions enabled')
+
+repository = Path(__file__).resolve().parents[1]
+packet = repository / 'reports/validation/native-class-ownership/cold-cleanup-hosted-compatibility/40065437939'
+wsl_prefix = '/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom/.cache/'
+commands = [
+    ('verify-windows', [sys.executable, '-X', 'utf8', str(repository / '.cache/verify-cold-hosted-compatibility.py')]),
+    ('verify-linux', ['wsl', '-d', 'Ubuntu-22.04', '--', 'python3', '-X', 'utf8', wsl_prefix + 'verify-cold-hosted-compatibility.py']),
+    ('contracts-windows', [sys.executable, '-X', 'utf8', str(repository / '.cache/test-cold-hosted-compatibility.py')]),
+    ('contracts-linux', ['wsl', '-d', 'Ubuntu-22.04', '--', 'python3', '-X', 'utf8', wsl_prefix + 'test-cold-hosted-compatibility.py']),
+]
+receipts = {}
+assert not (packet / 'reader-tests.json').exists()
+readers = ['verify-cold-hosted-compatibility.py', 'test-cold-hosted-compatibility.py', 'run-cold-hosted-evidence-checks.py']
+for name in readers:
+    with (packet / (name + '.txt')).open('xb') as snapshot:
+        snapshot.write((repository / '.cache' / name).read_bytes())
+for label, command in commands:
+    with (packet / (label + '.stdout.log')).open('xb') as stdout, (packet / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(command, cwd=repository, stdout=stdout, stderr=stderr)
+    receipt = {'argv': command, 'exitCode': result.returncode, 'benchmarkExecuted': False}
+    if label.startswith('verify-') and result.returncode == 0:
+        (packet / (label + '.proof.json')).write_bytes((packet / 'verification.json').read_bytes())
+    if label.startswith('contracts-'):
+        content = (packet / (label + '.stderr.log')).read_bytes().replace(b'\r\n', b'\n')
+        count = re.search(rb'Ran (\d+) tests in ', content)
+        receipt['tests'] = int(count[1]) if count else None
+        receipt['okSummary'] = b'\nOK\n' in content
+    (packet / (label + '.command.json')).write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8', newline='\n')
+    receipts[label] = receipt
+    print(json.dumps({'phase': label, **receipt}), flush=True)
+    assert result.returncode == 0, label
+    if label.startswith('contracts-'):
+        assert receipt['tests'] == 8 and receipt['okSummary'], label
+assert (packet / 'verify-windows.stdout.log').read_bytes().strip() == (packet / 'verify-linux.stdout.log').read_bytes().strip()
+assert (packet / 'verify-windows.proof.json').read_bytes() == (packet / 'verify-linux.proof.json').read_bytes()
+for name in readers:
+    assert (packet / (name + '.txt')).read_bytes() == (repository / '.cache' / name).read_bytes()
+(packet / 'reader-tests.json').write_text(json.dumps({'commands': receipts, 'identicalProofs': True,
+    'acceptedReviewFindings': 1, 'fixedReviewFindings': 1, 'benchmarkExecuted': False}, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps({'readerProofsIdentical': True, 'contractsPerPlatform': 8}), flush=True)

@@ -1,0 +1,76 @@
+"""Exercise actual candidate/baseline addons and Rust tests without running a performance sampler."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+root = Path('/home/guido/rustdom-validation/ownership-cold-cleanup-prototype')
+source = root / 'source'
+logs = root / 'logs'
+operation = sys.argv[1]
+toolchain = Path('/home/guido/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin')
+environment = dict(os.environ, PATH=str(toolchain) + os.pathsep + os.environ.get('PATH', ''),
+    CARGO_HOME='/mnt/c/Users/guido/ghq/projects/rustdom/.tools/cargo', CARGO_TARGET_DIR=str(root / 'target'),
+    RUSTC=str(toolchain / 'rustc'), RUSTDOC=str(toolchain / 'rustdoc'), RUSTUP_TOOLCHAIN='1.99.1')
+tests = ['tests/native-class-construction.spec.cjs', 'tests/napi-lifecycle.spec.cjs', 'tests/native-initialization.spec.cjs']
+inputs = tests + ['tests/fixtures/native-class-construction-worker.cjs', 'tests/helpers/napi-class-worker.cjs',
+    'scripts/constants/native-class-memory.cjs']
+def run(label, argv, working_directory):
+    with (logs / (label + '.stdout.log')).open('xb') as stdout, (logs / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(argv, cwd=working_directory, env=environment, stdout=stdout, stderr=stderr)
+    (logs / (label + '.command.json')).write_text(json.dumps({'argv': list(map(str, argv)), 'exitCode': result.returncode,
+        'benchmarkExecuted': False, 'samplerExecuted': False}, indent=2) + '\n')
+    print(json.dumps({'phase': label, 'exitCode': result.returncode}), flush=True)
+    assert result.returncode == 0, label
+if operation == 'prepare-api':
+    for variant in ['baseline', 'cold-cleanup']:
+        destination = root / ('api-' + variant)
+        destination.mkdir()
+        for name in inputs:
+            target = destination / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source / name, target)
+        (destination / 'dist').mkdir()
+        shutil.copyfile(source / 'src/native.cjs', destination / 'dist/native.cjs')
+        shutil.copyfile(root / 'artifacts' / (variant + '.node'), destination / 'dist/rustdom.node')
+        expected = json.loads((root / 'artifacts' / (variant + '.json')).read_text())['binarySha256']
+        assert hashlib.sha256((destination / 'dist/rustdom.node').read_bytes()).hexdigest() == expected
+    print(json.dumps({'preparedActualAddons': 2, 'samplerExecuted': False}))
+elif operation == 'add-record-test':
+    origin = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom/.cache/native-mutation-record-cold-cleanup.spec.cjs')
+    for variant in ['baseline', 'cold-cleanup']:
+        destination = root / ('api-' + variant) / 'tests/native-mutation-record-cold-cleanup.spec.cjs'
+        with destination.open('xb') as output:
+            output.write(origin.read_bytes())
+    print(json.dumps({'addedRealAddonRegression': True, 'benchmarkExecuted': False}))
+elif operation in ['node22', 'node24', 'node22-record', 'node24-record']:
+    include_record = operation.endswith('-record')
+    label = operation.removesuffix('-record')
+    node = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools') / ('node-22' if label == 'node22' else 'node') / 'bin/node'
+    version = subprocess.check_output([node, '--version'], text=True).strip()
+    assert version == {'node22': 'v22.12.0', 'node24': 'v24.14.1'}[label]
+    for variant in ['baseline', 'cold-cleanup']:
+        destination = root / ('api-' + variant)
+        selected = tests + (['tests/native-mutation-record-cold-cleanup.spec.cjs'] if include_record else [])
+        run(variant + '-native-api-' + operation, [node, '--expose-gc', '--test', *selected], destination)
+elif operation == 'rust-tests':
+    run('cold-cleanup-rust-tests', [toolchain / 'cargo', 'test', '--release', '--locked', '--offline', '--lib'], source)
+elif operation == 'rust-lint':
+    run('cold-cleanup-rust-format', [toolchain / 'cargo', 'fmt', '--check'], source)
+    run('cold-cleanup-rust-clippy', [toolchain / 'cargo', 'clippy', '--all-targets', '--release', '--locked', '--offline', '--', '-D', 'warnings'], source)
+elif operation == 'memcheck':
+    valgrind_root = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/valgrind')
+    valgrind = valgrind_root / 'usr/bin/valgrind'
+    environment['VALGRIND_LIB'] = str(valgrind_root / 'usr/libexec/valgrind')
+    run('valgrind-version', [valgrind, '--version'], source)
+    for variant in ['baseline', 'cold-cleanup']:
+        run(variant + '-ownership-memcheck', [valgrind, '--tool=memcheck', '--leak-check=full', '--show-leak-kinds=all',
+            '--errors-for-leak-kinds=definite,indirect', '--track-origins=yes', '--error-exitcode=99',
+            '--extra-debuginfo-path=' + str(valgrind_root / 'usr/lib/debug'),
+            '--log-file=' + str(logs / (variant + '-ownership-memcheck.log')),
+            root / 'artifacts' / (variant + '-ownership-tests'), '--test-threads=1'], source)
+else:
+    raise ValueError('Unknown functional qualification operation')

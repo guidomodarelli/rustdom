@@ -18,6 +18,8 @@ export function domParserStatistics(): import('./index.cjs').DomParserStatistics
 
 /** Executes XMLSerializer control in Rust; helpers provide only scoped wrapper/property/factory bindings. */
 export function xmlSerializerOperation(owner: unknown, root: unknown, helpers: object): unknown;
+/** Reads object/function properties directly through N-API; helpers.property handles primitive receivers only. */
+export function xmlSerializerOperationWithNativeProperties(owner: unknown, root: unknown, helpers: object): unknown;
 /** Reports active calls and attempted exception conversions without retaining DOM owners. */
 export function xmlSerializerStatistics(): import('./index.cjs').XmlSerializerStatistics;
 

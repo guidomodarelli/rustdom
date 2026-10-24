@@ -1,0 +1,80 @@
+name: XMLSerializer performance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/xml-controller.yml'
+      - 'benchmarks/**'
+      - 'reports/benchmarks/xml-serializer-controller/**'
+      - 'src/dom/xml_serializer_controller.rs'
+      - 'src/dom/xml-serializer-controller.cjs'
+      - 'src/xml/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xml-controller-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  node24:
+    name: XMLSerializer Node 24
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
+      RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      XML_CONTROLLER_OUTPUT: reports/benchmarks/xml-controller-hosted-${{ github.run_id }}-${{ github.run_attempt }}
+      XML_CONTROLLER_ARCHIVE: reports/benchmarks/native-class-ownership/xml-validation/39697882498
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-066-reference-catalog
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Determinar si las fuentes y la receta conservan evidencia XML
+        id: history
+        run: node reports/benchmarks/native-class-ownership/xml-history.cjs --select .baseline "$XML_CONTROLLER_ARCHIVE" >> "$GITHUB_OUTPUT"
+      - name: Verificar los contratos de selección y la evidencia original
+        run: node --test reports/benchmarks/native-class-ownership/xml-history.spec.cjs
+      - name: Recalcular la evidencia XML conservada y respetar su decisión
+        if: steps.history.outputs.reuse == 'true'
+        run: node reports/benchmarks/native-class-ownership/xml-history.cjs --verify .baseline "$XML_CONTROLLER_ARCHIVE"
+      - uses: Swatinem/rust-cache@v2
+        if: steps.history.outputs.reuse != 'true'
+      - name: Preparar la referencia independiente
+        if: steps.history.outputs.reuse != 'true'
+        working-directory: .baseline
+        run: |
+          test "$(git rev-parse HEAD)" = 75db9bb095db8457a6ae567f219e2224a55b9f36
+          npm ci
+          npm run build
+      - name: Preparar el candidato
+        if: steps.history.outputs.reuse != 'true'
+        run: npm ci && npm run build
+      - name: Ejecutar los contratos del experimento
+        if: steps.history.outputs.reuse != 'true'
+        run: node --test tests/benchmarks/xml-controller-cli.spec.cjs tests/benchmarks/xml-serializer-controller.spec.cjs
+      - name: Seleccionar una CPU permitida y registrar el host
+        if: steps.history.outputs.reuse != 'true'
+        shell: bash
+        run: |
+          cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
+          echo "RUSTDOM_BENCHMARK_CPU=$cpu" >> "$GITHUB_ENV"
+          taskset -pc $$
+          node --version
+          rustc -Vv
+      - name: Calibrar y medir todas las filas
+        if: steps.history.outputs.reuse != 'true'
+        run: node benchmarks/xml-controller-experiment.cjs --baseline .baseline --output "$XML_CONTROLLER_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.history.outputs.reuse != 'true'
+        with:
+          name: xml-controller-node24-${{ github.event.pull_request.head.sha }}
+          path: ${{ env.XML_CONTROLLER_OUTPUT }}/

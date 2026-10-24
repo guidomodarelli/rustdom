@@ -79,10 +79,14 @@ Avance actual: CharacterData tiene estado canónico y operaciones de texto nativ
 
 ## Secuencia de la migración integral
 
-El hito actual es el controlador de XMLSerializer (PR 79): Node 22 local y
-Node 24 en CI pasaron sus controles; los artefactos están verificados. Requiere
-publicar la evidencia y cerrar CI/review del SHA final antes de integrarse.
-El controlador de fragmentos, WebIDL y
+El controlador de XMLSerializer está integrado por el PR 79 en
+`checkpoint-067-xml-serializer-controller`, con revisión y nueve checks del
+head final aprobados y el árbol del squash verificado. El hito actual es la
+corrección aislada de ownership de clases nativas, que libera asignaciones
+cuando falla un wrap o la creación se interrumpe al terminar un worker. Requiere
+completar su validación, benchmarks y publicación antes de integrarse. No
+incorpora las primitivas experimentales de atributos ni acredita nuevas APIs
+migradas. El controlador de fragmentos, WebIDL y
 DOMException conservan responsabilidades JavaScript pendientes. Este hito no
 completa la familia de serialización ni el módulo público.
 

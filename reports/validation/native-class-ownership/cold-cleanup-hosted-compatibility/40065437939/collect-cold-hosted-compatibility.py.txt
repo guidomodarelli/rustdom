@@ -1,0 +1,125 @@
+"""Preserve actual full-suite logs/reports for the authenticated hosted addon."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tarfile
+from cold_cleanup_summary import read_node_summaries, read_runner_count
+
+if sys.flags.optimize:
+    raise RuntimeError('Hosted functional collection requires assertions enabled')
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/home/guido/rustdom-validation/cold-cleanup-build-20261024-attempt1')
+source = root / 'B'
+raw = root / 'hosted-compatibility-40065437939'
+packet = repository / 'reports/validation/native-class-ownership/cold-cleanup-hosted-compatibility/40065437939'
+expected_binary = '0a949fb3441baca338c7ba2b383011bdc516ba63f164bc2e4e1152f124155776'
+assert not packet.exists()
+def digest(filename):
+    checksum = hashlib.sha256()
+    with filename.open('rb') as content:
+        for chunk in iter(lambda: content.read(1024 * 1024), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+def read(filename):
+    return json.loads(filename.read_text(encoding='utf-8'))
+def write(filename, value):
+    filename.write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+
+assert digest(source / 'dist/rustdom.node') == expected_binary
+regression = {'path': 'tests/native-mutation-record-construction.spec.cjs',
+    'sha256': 'abefee7528b0fccd331039182d25d1d2c97cd132016f85ad930166889b65516d'}
+assert digest(source / regression['path']) == regression['sha256'] == digest(repository / regression['path'])
+distribution = [{'path': filename.relative_to(source / 'dist').as_posix(), 'bytes': filename.stat().st_size, 'sha256': digest(filename)}
+    for filename in sorted((source / 'dist').rglob('*')) if filename.is_file()]
+assert distribution == read(raw / 'hosted-distribution.json')
+assert digest(raw / 'qualification-controller.py.txt') == digest(repository / '.cache/qualify-cold-hosted-full.py')
+node = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node')
+identity_code = "const {captureSourceIdentity}=require(process.argv[1]);process.stdout.write(JSON.stringify(captureSourceIdentity(process.argv[2])));"
+identity = json.loads(subprocess.check_output([node, '-e', identity_code, repository / 'benchmarks/sources.cjs', source]))
+assert identity['sourceHash'] == '5273aae0ea6efc9f1cc36ce1c76e8906abe055b3dfb11817f3a82c5939a67771'
+assert identity['sourceCommit'] == '8dba217bc46d601f8798ce89f6edc3c0b841454e'
+assert identity['sourceChanges'] == [' M third-party/napi/src/bindgen_runtime/class_ownership.rs']
+assert identity['sourceGitErrors'] == []
+write(raw / 'source-identity-after.json', identity)
+receipts = {}
+reports = {}
+resources = []
+for version in ['22', '24']:
+    prefix = 'node' + version + '-test-'
+    for suite in ['compat', 'jest', 'vitest', 'vm', 'corpus', 'wpt']:
+        label = prefix + suite
+        receipt = read(raw / (label + '.json'))
+        assert receipt['exitCode'] == 0, label
+        assert receipt['installedBinaryBeforeSha256'] == expected_binary == receipt['installedBinaryAfterSha256']
+        assert receipt['pythonOptimize'] == 0 and receipt['benchmarkExecuted'] is False and receipt['performanceAccepted'] is None
+        receipts[label] = receipt
+    totals = read_node_summaries((raw / (prefix + 'compat.stdout.log')).read_text(encoding='utf-8'))
+    assert len(totals) == 2
+    assert all(total[field] == 0 for total in totals for field in ['fail', 'cancelled', 'skipped', 'todo'])
+    corpus = read(raw / (prefix + 'corpus-reports/validation/html5lib.json'))
+    assert corpus['mismatches'] == [] and corpus['passed'] == corpus['total'] - corpus['excludedScriptOn']
+    wpt_files = list((raw / (prefix + 'wpt-reports/compatibility')).glob('*-wpt.json'))
+    assert len(wpt_files) == 1
+    wpt = read(wpt_files[0])
+    assert wpt['pass'] and all(row['pass'] for row in wpt['results'])
+    assert corpus['node'] == wpt['node'] == receipts[prefix + 'compat']['node']
+    for row in wpt['results']:
+        for role in ['reference', 'candidate']:
+            execution = row['execution'][role]
+            resources.append({'node': version, 'file': row['file'], 'role': role,
+                'engine': execution['engine'], 'exitCode': execution['exitCode'], 'signal': execution['signal'],
+                'memoryBefore': execution['memoryBefore'], 'memoryAfterClose': execution['memoryAfterClose']})
+    reports['node' + version] = {'compatibilitySummaries': totals,
+        'runnerTests': {suite: read_runner_count((raw / (prefix + suite + suffix)).read_text(encoding='utf-8'))
+            for suite, suffix in [('jest', '.stderr.log'), ('vitest', '.stdout.log'), ('vm', '.stdout.log')]},
+        'html5': {key: corpus[key] for key in ['total', 'passed', 'excludedScriptOn', 'mismatches', 'oracle', 'revision']},
+        'wpt': {'pass': wpt['pass'], 'complete': wpt['complete'], 'fixtures': len(wpt['results']),
+            'blockedSuites': wpt['blockedSuites'], 'excludedFixtures': wpt['excludedFixtures'],
+            'jsdom': wpt['jsdom'], 'revision': wpt['wptRevision'],
+            'assertions': sum(len(row['actual']['tests']) for row in wpt['results']),
+            'sharedNonPassingAssertions': sum(test['status'] != 0 for row in wpt['results'] for test in row['actual']['tests'])}}
+pins = {}
+for method in ['shared-fixture-study-method', 'native-telemetry-method']:
+    files = read(repository / ('reports/validation/native-class-ownership/' + method + '/review.json'))['files']
+    assert all(digest(repository / name) == expected for name, expected in files.items())
+    pins[method] = len(files)
+frozen = read(repository / 'reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json')['files']
+assert all(digest(repository / entry['path']) == entry['sha256'] for entry in frozen)
+assert pins == {'shared-fixture-study-method': 26, 'native-telemetry-method': 46} and len(frozen) == 434
+packet.mkdir(parents=True)
+members = []
+archive = packet / 'functional-results.tar.xz'
+with tarfile.open(archive, 'w:xz') as target:
+    for filename in sorted(raw.rglob('*')):
+        assert not filename.is_symlink()
+        if not filename.is_file():
+            continue
+        name = filename.relative_to(raw).as_posix()
+        members.append({'path': name, 'bytes': filename.stat().st_size, 'sha256': digest(filename)})
+        target.add(filename, arcname=name, recursive=False)
+write(packet / 'members.json', members)
+write(packet / 'distribution.json', distribution)
+write(packet / 'source-identity.json', identity)
+write(packet / 'summary.json', {'artifactRunId': 40065437939, 'artifactId': 12549521134,
+    'candidateBinarySha256': expected_binary, 'suiteCommands': receipts, 'reports': reports,
+    'promotedRegression': regression,
+    'linuxX64Only': True, 'distributionFilesUnchanged': len(distribution), 'candidateIntegrated': False,
+    'productionRuntimeChanged': False, 'benchmarkExecuted': False, 'performanceAccepted': None,
+    'pins': pins, 'frozenRuntimeFilesUnchanged': len(frozen),
+    'rawArchive': {'path': archive.name, 'bytes': archive.stat().st_size, 'sha256': digest(archive), 'regularFiles': len(members)}})
+write(repository / 'reports/memory/cold-cleanup-hosted-compatibility-40065437939.json', {
+    'scope': 'Snapshots de cada proceso WPT antes y después de close(), sin GC forzado; el proceso termina después.',
+    'candidateBinarySha256': expected_binary, 'platform': 'Linux x64', 'rows': resources,
+    'limits': ['No son memoria pico.', 'No observan Window y Document débiles por separado.',
+        'El heap posterior a close() puede contener objetos aún no recolectados; no demuestra fuga ni ausencia de fugas.',
+        'No permiten atribuir diferencias al atributo cold y no aprueban rendimiento.'],
+    'separateWeakOwnerProbes': 'reports/memory/cold-cleanup-build-40065437939.json',
+    'separateLocalMemcheck': 'reports/memory/cold-cleanup-candidate.json',
+    'benchmarkExecuted': False, 'performanceAccepted': None})
+for name in ['qualify-cold-hosted-full.py', 'collect-cold-hosted-compatibility.py', 'cold_cleanup_summary.py']:
+    shutil.copyfile(repository / '.cache' / name, packet / (name + '.txt'))
+print(json.dumps({'functionalCommands': len(receipts), 'archiveMembers': len(members),
+    'distributionFiles': len(distribution), 'fixtureProcesses': len(resources), 'reports': reports}), flush=True)

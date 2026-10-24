@@ -1,0 +1,107 @@
+"""Run the project's real compatibility commands against the isolated candidate."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Functional qualification requires Python assertions enabled; remove -O/PYTHONOPTIMIZE')
+
+root = Path('/home/guido/rustdom-validation/ownership-cold-cleanup-prototype')
+source = root / 'source'
+attempt = sys.argv[3] if len(sys.argv) > 3 else 'attempt1'
+output = root / ('full-compatibility' if attempt == 'attempt1' else 'full-compatibility-' + attempt)
+output.mkdir(exist_ok=True)
+tools = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+operation = sys.argv[1]
+version = sys.argv[2] if len(sys.argv) > 2 else '24'
+node_root = tools / ('node-22' if version == '22' else 'node')
+node = node_root / 'bin/node'
+assert subprocess.check_output([node, '--version'], text=True).strip() == {'22': 'v22.12.0', '24': 'v24.14.1'}[version]
+environment = dict(os.environ, PATH=str(node_root / 'bin') + os.pathsep + os.environ.get('PATH', ''))
+npm_entry = node_root / 'lib/node_modules/npm/bin/npm-cli.js'
+binary = root / 'artifacts/cold-cleanup.node'
+expected = '9bab7909799346eedf30f380b78eb9dcbda085e38bc6eb82df9fda12eb0d1f7e'
+assert hashlib.sha256(binary.read_bytes()).hexdigest() == expected
+suite_scripts = ['test:compat', 'test:jest', 'test:vitest', 'test:vm', 'test:corpus', 'test:wpt']
+
+def verify_suite_receipts():
+    selected = {script: json.loads((output / ('node' + version + '-' + script.replace(':', '-') + '.json')).read_text())
+        for script in suite_scripts}
+    passed = all(receipt['exitCode'] == 0 for receipt in selected.values())
+    print(json.dumps({'node': version, 'suiteReceipts': len(selected), 'allPassed': passed}), flush=True)
+    return 0 if passed else 1
+
+def run(label, command):
+    installed = source / 'dist/rustdom.node'
+    before_hash = hashlib.sha256(installed.read_bytes()).hexdigest() if installed.exists() else None
+    with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(command, cwd=source, env=environment, stdout=stdout, stderr=stderr)
+    after_hash = hashlib.sha256(installed.read_bytes()).hexdigest() if installed.exists() else None
+    receipt = {'argv': list(map(str, command)), 'node': version, 'exitCode': result.returncode,
+        'candidateSha256': expected, 'installedBinaryBeforeSha256': before_hash,
+        'installedBinaryAfterSha256': after_hash, 'pythonOptimize': sys.flags.optimize,
+        'benchmarkExecuted': False, 'performanceAccepted': None}
+    (output / (label + '.json')).write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps({'phase': label, 'exitCode': result.returncode}), flush=True)
+    if after_hash is not None and after_hash != expected:
+        raise RuntimeError('Functional qualification: installed addon changed during ' + label)
+    return result.returncode
+
+if operation == 'prepare':
+    assert not (source / 'node_modules').exists()
+    if run('npm-ci', [node, npm_entry, 'ci', '--no-audit', '--no-fund']) != 0:
+        sys.exit(1)
+    (source / 'dist').mkdir(exist_ok=True)
+    shutil.copyfile(binary, source / 'dist/rustdom.node')
+    sys.exit(run('build-js', [node, 'scripts/build.mjs']))
+elif operation == 'complete-build':
+    repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+    fixtures = [
+        'reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz',
+        'reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz',
+        'reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz',
+    ]
+    copied = []
+    for name in fixtures:
+        target = source / name
+        assert not target.exists()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(repository / name, target)
+        copied.append({'path': name, 'sha256': hashlib.sha256(target.read_bytes()).hexdigest()})
+    (output / 'recorded-test-fixtures.json').write_text(json.dumps(copied, indent=2) + '\n')
+    toolchain = Path('/home/guido/.rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin')
+    environment.update(PATH=str(toolchain) + os.pathsep + environment['PATH'],
+        CARGO_HOME=str(tools / 'cargo'), CARGO_TARGET_DIR=str(root / 'target'),
+        RUSTC=str(toolchain / 'rustc'), RUSTDOC=str(toolchain / 'rustdoc'), RUSTUP_TOOLCHAIN='1.99.1')
+    exit_code = run('complete-build-native', [node, 'scripts/build-native.mjs'])
+    assert exit_code == 0
+    assert hashlib.sha256((source / 'dist/rustdom.node').read_bytes()).hexdigest() == expected
+    sys.exit(run('complete-build-js', [node, 'scripts/build.mjs']))
+elif operation == 'suites':
+    assert hashlib.sha256((source / 'dist/rustdom.node').read_bytes()).hexdigest() == expected
+    for script in suite_scripts:
+        label = 'node' + version + '-' + script.replace(':', '-')
+        validation = source / 'reports'
+        before = {str(filename.relative_to(validation)): hashlib.sha256(filename.read_bytes()).hexdigest()
+            for filename in validation.rglob('*') if filename.is_file()}
+        exit_code = run(label, [node, npm_entry, 'run', script])
+        # Preserve failures and continue independent suites; never hide failures.
+        if validation.exists():
+            for filename in validation.rglob('*'):
+                if not filename.is_file():
+                    continue
+                name = str(filename.relative_to(validation))
+                if before.get(name) == hashlib.sha256(filename.read_bytes()).hexdigest():
+                    continue
+                target = output / (label + '-reports') / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(filename, target)
+    sys.exit(verify_suite_receipts())
+elif operation == 'verify-suites':
+    sys.exit(verify_suite_receipts())
+else:
+    raise ValueError('Unknown qualification operation: ' + operation)

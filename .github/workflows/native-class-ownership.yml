@@ -1,0 +1,92 @@
+name: Native class ownership performance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-class-ownership.yml'
+      - 'src/**'
+      - 'third-party/napi/**'
+      - 'reports/benchmarks/native-class-ownership/**'
+      - 'benchmarks/**'
+      - 'scripts/**'
+      - 'tests/integration/read-dom-file.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+      - '.npmrc'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - '.cargo/**'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-class-ownership-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Native class ownership Node ${{ matrix.node.major }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - {version: '22.12.0', major: 22}
+          - {version: '24.14.1', major: 24}
+    timeout-minutes: 20
+    env:
+      OWNERSHIP_PARTS: reports/benchmarks/native-class-ownership/row-isolation-results/2026-10-22
+      OWNERSHIP_CURRENT_PARTS: reports/benchmarks/native-class-ownership/current-source-results/39921160254
+      OWNERSHIP_FIXTURES: .cache/ownership-recorded-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-067-xml-serializer-controller
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node.version }}
+      - name: Verificar contratos históricos de la receta Node22
+        if: matrix.node.major == 22
+        run: node --test reports/benchmarks/native-class-ownership/hosted-experiment.spec.cjs reports/benchmarks/native-class-ownership/history.spec.cjs reports/benchmarks/native-class-ownership/source-preflight.spec.cjs reports/benchmarks/native-class-ownership/paired-main-evidence.spec.cjs reports/benchmarks/native-class-ownership/paired-study-configuration.spec.cjs reports/benchmarks/native-class-ownership/paired-inline.spec.cjs reports/benchmarks/native-class-ownership/ownership-evidence.spec.cjs
+      - name: Preparar fixtures desde los archivos originales sin nuevas mediciones
+        run: |
+          mkdir -p .cache
+          python3 -B reports/benchmarks/native-class-ownership/prepare-recorded-fixtures.py .baseline "$OWNERSHIP_PARTS" "$OWNERSHIP_FIXTURES"
+      - name: Verificar replay, transporte y CLI con datos completos
+        env:
+          RUSTDOM_RECORDED_EVIDENCE_FIXTURE: ${{ github.workspace }}/${{ env.OWNERSHIP_FIXTURES }}/evidence-fixture.json
+          RUSTDOM_RECORDED_ARCHIVE_FIXTURE: ${{ github.workspace }}/${{ env.OWNERSHIP_FIXTURES }}/archive-fixture.json
+        run: node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/recorded-evidence.spec.cjs reports/benchmarks/native-class-ownership/recorded-archive.spec.cjs reports/benchmarks/native-class-ownership/recorded-workflow.spec.cjs
+      - name: Validar y describir todas las muestras actuales sin nuevas mediciones
+        run: |
+          node --test reports/benchmarks/native-class-ownership/current-ownership-diagnostics.spec.cjs
+          node reports/benchmarks/native-class-ownership/current-ownership-diagnostics.cjs > ownership-trajectories.json
+      - name: Verificar el consumo de la captura actual y los rechazos de integridad
+        env:
+          RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_BASELINE: ${{ github.workspace }}/.baseline
+          RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_TEST_OUTPUT: ${{ github.workspace }}/.cache/ownership-current-evidence-contracts
+        run: |
+          mkdir -p "$RUSTDOM_CURRENT_OWNERSHIP_EVIDENCE_TEST_OUTPUT"
+          node --test reports/benchmarks/native-class-ownership/current-ownership-evidence.spec.cjs
+      - name: Recalcular la captura actual completa y exigir el presupuesto original
+        run: node reports/benchmarks/native-class-ownership/current-ownership-evidence.cjs .baseline "$OWNERSHIP_CURRENT_PARTS" > ownership-verification.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-class-ownership-evidence-node${{ matrix.node.major }}-${{ github.event.pull_request.head.sha }}
+          include-hidden-files: true
+          path: |
+            ownership-verification.json
+            ownership-trajectories.json
+            .cache/ownership-current-evidence-contracts/
+            .cache/ownership-recorded-ci/commands/
+            .cache/ownership-recorded-ci/evidence-output/
+            .cache/ownership-recorded-ci/transport-output/
+            .cache/ownership-recorded-ci/evidence-fixture.json
+            .cache/ownership-recorded-ci/archive-fixture.json

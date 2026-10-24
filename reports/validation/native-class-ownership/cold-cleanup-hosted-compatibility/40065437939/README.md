@@ -1,0 +1,99 @@
+# Calificación del addon exacto de CI
+
+Se ejecutaron los seis comandos completos del proyecto en Linux x64 sobre el
+candidato aislado de limpieza fría, con Node 22.12.0 y 24.14.1 fijados por versión
+y SHA256. El addon es el B del run 40065437939, artifact 12549521134:
+`0a949fb3441baca338c7ba2b383011bdc516ba63f164bc2e4e1152f124155776`.
+Los 568 archivos de `dist` coinciden con el índice autenticado de ese artifact
+antes y después de cada comando. No se reconstruyó el addon ni JavaScript.
+
+| Runtime | Compatibilidad + pruebas de procesos WPT | Jest | Vitest | VM | HTML comparados | Fixtures / aserciones WPT |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Node 22 | 3775 + 9 | 22 | 33 | 34 | 1784 | 240 / 83007 |
+| Node 24 | 3775 + 9 | 22 | 33 | 34 | 1784 | 240 / 83007 |
+
+Los doce comandos terminaron con exit 0. Los conteos se leen de los logs y
+reportes reales; describen dimensiones separadas y no un porcentaje de migración.
+La referencia independiente es jsdom 27.4.0. El runtime de rustdom sigue híbrido.
+
+HTML conserva ocho exclusiones `script-on`; compara serialización diferencial,
+sin certificar árboles normativos ni errores de parsing. WPT conserva los
+fallos compartidos con jsdom y los mensajes originales: no se convierten en
+cumplimiento del estándar. Las aserciones no aprobadas compartidas por versión
+son 1203 y 1203.
+El bloqueo `range-deletion` por bootstrap CDATA/HTML de la referencia y el caso
+excluido que necesita test_driver/layout permanecen: `complete=false`.
+
+## Procedencia
+
+La preparación completa de CI se conserva en
+`reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/`.
+Se usó un checkout Git Linux real de
+`8dba217bc46d601f8798ce89f6edc3c0b841454e`, con el patch publicado
+`d869ec4a1782866d0247531ac2af259faddddd360fdb346718d28bd1d9125792`.
+La identidad medida de fuentes es
+`5273aae0ea6efc9f1cc36ce1c76e8906abe055b3dfb11817f3a82c5939a67771`;
+la única modificación de esas fuentes es el guard. El test regular adicional
+de MutationRecord proviene de 8f8887b2 y conserva SHA256
+`abefee7528b0fccd331039182d25d1d2c97cd132016f85ad930166889b65516d`.
+`source-identity.json` conserva directamente `sourceCommit`, `sourceChanges`
+y `sourceGitErrors` de captureSourceIdentity. El campo `sourceChanges` de los
+recibos de comandos es otro diagnóstico: resume el árbol completo y el
+controlador eliminó espacios periféricos. Se conserva sin reescribirlo y no
+se usa como array canónico para autenticar las fuentes.
+
+Se preservó el `dist` local 9bab7909 en otro directorio propio de validación y
+se copió el `dist` autenticado de B. `npm ci --include=dev --no-audit --no-fund`
+instaló las dependencias del lockfile sin reconstruir esa distribución. Luego
+se ejecutaron `test:compat`, `test:jest`, `test:vitest`, `test:vm`, `test:corpus`
+y `test:wpt`, primero en Node 22 y luego en Node 24. El archivo conserva
+preparación, controlador ejecutado, recibos, stdout/stderr y todos los reportes
+nuevos o modificados, separados por comando para impedir sobrescrituras.
+
+La calificación anterior de `cold-cleanup-compatibility/` sigue correspondiendo
+al addon local 9bab7909. Este paquete acredita el addon distinto 0a949 de CI;
+no se atribuye causalidad a la diferencia de bytes entre ambos builds.
+
+## Recursos y límites
+
+Los 1920 snapshots de 960 procesos de fixtures WPT están en
+`reports/memory/cold-cleanup-hosted-compatibility-40065437939.json`, separados
+por motor y Node. Son endpoints antes y después de close(), sin GC forzado.
+No son memoria pico ni prueban ausencia de fugas; tampoco observan por separado
+Window y Document débiles. Las nueve pruebas de procesos por Node conservan sus
+logs separados; los endpoints que emiten no se suman al conteo de este informe.
+
+Los probes débiles separados del mismo addon de CI están en
+`reports/memory/cold-cleanup-build-40065437939.json`: 30 Window y 30 Document
+observados por separado, con 20 estados finales requeridos claros. El Memcheck
+de `cold-cleanup-candidate.json` corresponde a builds locales y conserva sus
+48 bytes posibles y 548 alcanzables de libtest/std; no se presenta como una
+medición Memcheck del binario de CI. Ninguna prueba finita garantiza ausencia
+universal de fugas.
+
+Esto califica los comandos ejecutados en Linux x64. No completa la migración
+ni acredita el candidato frío en Windows/macOS. El candidato sigue aislado,
+sin integrar en producción y sin rendimiento aceptado. No se ejecutó un
+benchmark ni se reutilizaron autorizaciones consumidas. No hay tag ni merge.
+El siguiente paso es preparar, probar, revisar y publicar un protocolo
+prospectivo separado antes de solicitar cualquier medición nueva.
+
+## Lectura y reproducción
+
+`functional-results.tar.xz` y `members.json` conservan todos los archivos crudos
+y sus hashes. `summary.json` y `verification.json` se contrastaron con los
+miembros y el índice independiente del artifact. Los proofs escritos por ambos
+Python son byte-idénticos. Pasaron ocho contratos en Windows y ocho en Linux,
+incluido el rechazo de metadatos coherentes de otro binario después de volver
+a sellar el archivo. Se cerró el hallazgo P2 de identidad contra el índice
+independiente; el resto de corruptelas y Python optimizado también se rechazan.
+Los snapshots `.py.txt` son
+procedencia para inspección; no ejecutar código desde el archivo de evidencia.
+
+Para repetir pruebas funcionales en una copia propia: usar el checkout fuente
+8dba217b y el patch publicado, instalar el lockfile, autenticar y extraer el
+artifact con los lectores actuales de `cold-cleanup-transport/`, copiar su
+`build/packages/B/dist` sin rebuild y el test regular fijado, y ejecutar los
+seis comandos anteriores con cada Node fijado. Verificar la identidad de los
+568 archivos después de cada comando. Esa repetición funcional no autoriza
+ejecutar samplers ni estudios históricos.

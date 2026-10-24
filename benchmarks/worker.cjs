@@ -34,13 +34,10 @@ const { ID_LOOKUP_WORKLOADS, ID_LOOKUP_DOCUMENT_HTML } = require('./constants/id
 const { attributeReadFixture } = require('./attribute-reads.cjs');
 const { ATTRIBUTE_READ_WORKLOADS, ATTRIBUTE_READ_DOCUMENT_HTML } = require('./constants/attribute-reads.cjs');
 const { readerFixture } = require('./file-reader.cjs');
-const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
-
-/** Select a real implementation, never a benchmark-specific stand-in. */
-const engine = process.argv[2];
-if (!['jsdom', 'rustdom'].includes(engine)) throw new Error('benchmark: engine must be jsdom or rustdom');
-/** Load dependencies before measurement; cold module startup is explicitly excluded. */
-const runtime = engine === 'jsdom' ? require('jsdom') : require(runtimeEntry);
+const ownershipOperations = require('./ownership-operations.cjs');
+const ownershipWarmup = require('./constants/ownership-warmup.cjs');
+const { warmOwnership } = require('./ownership-warmup.cjs');
+const { collectGarbage } = require('../scripts/memory-endpoint.cjs');
 /** Warm both JIT and parser before collecting independent samples. */
 const WARMUP_SAMPLES = 3;
 /** Keep raw samples so noise and distributions remain inspectable. */
@@ -290,11 +287,20 @@ function observerDeliveryFixture(document, size, name, roots) {
 
 /**
  * Measure one complete public operation; setup and assertions stay outside the timer.
+ * @param {object} runtime - Actual public implementation exports.
+ * @param {'jsdom'|'rustdom'} engine - Implementation whose native activation is checked.
+ * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
  * @param {string} name - Workload name, including its configuration.
  * @param {number} size - Fixture row count.
+ * @param {boolean} [trackRealms=false] - Return weak observers allocated outside timing.
+ * @param {boolean} [warmupCurrentRealm=false] - Warm ownership operations in each current window before timing.
+ * @param {'before-warmup'|'after-warmup'} [warmupGcOrder] - Explicit GC boundary; historical default is after warmup.
  * @returns {Promise<object>} Raw milliseconds and post-cleanup memory snapshots.
  */
-async function measure(name, size) {
+async function measure(runtime, engine, environmentEntry, name, size, trackRealms = false, warmupCurrentRealm = false,
+  warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup) {
+  const warmOwnershipRealm = warmupCurrentRealm && ownershipWarmup.workloads.includes(name);
+  const collectBeforeWarmup = warmOwnershipRealm && warmupGcOrder === ownershipWarmup.gcOrder.beforeWarmup;
   const measuresDocumentNames = NAME_QUERY_WORKLOADS.includes(name);
   const measuresFragmentIds = FRAGMENT_ID_WORKLOADS.includes(name);
   const measuresIdLookups = ID_LOOKUP_WORKLOADS.includes(name);
@@ -352,6 +358,7 @@ async function measure(name, size) {
       : (await import(environmentEntry)).default
     : null;
   const samplesMs = [];
+  const realmReferences = trackRealms ? { window: [], document: [] } : undefined;
   const memory = [];
   let measuredInputBytes = Buffer.byteLength(html);
   let outputHash;
@@ -546,8 +553,20 @@ async function measure(name, size) {
         }
       }
       if (namespaceNode) document.querySelector('table').setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:p', 'urn:benchmark');
+      if (collectBeforeWarmup) {
+        await collectGarbage();
+        global.gc();
+      }
+      if (warmOwnershipRealm) {
+        await warmOwnership({ name, window: dom.window, document, size, iterations: RANGE_STATE_ITERATIONS,
+          range: lastRange, comparisonMode: rangeComparisonMode, texts: stateTextNodes,
+          expectedLifecycle: expectedStateUnits * 3 + RANGE_STATE_ITERATIONS,
+          createMutationFixture: mutationRecordFixture, createDeliveryFixture: observerDeliveryFixture,
+          captureRecords: captureMutationRecords });
+        if (!collectBeforeWarmup) await collectGarbage();
+      }
       if (signalsSlotBurst || readsMutationRecords || deliversObservers) await new Promise((resolve) => setImmediate(resolve));
-      global.gc?.();
+      if (!collectBeforeWarmup) global.gc?.();
       observerDeliveryWork?.prepare();
       listenerWork?.prepare();
       xmlWork?.prepare();
@@ -680,28 +699,14 @@ async function measure(name, size) {
       } else if (contentOperation) {
         result = contentRange[contentOperation]();
       } else if (name === 'range-control-1000') {
-        result = 0;
-        for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
-          const copy = lastRange.cloneRange(); copy.collapse(iteration % 2 === 0);
-          result += copy.compareBoundaryPoints(rangeComparisonMode, lastRange);
-        }
+        result = ownershipOperations.control(lastRange, rangeComparisonMode, RANGE_STATE_ITERATIONS);
       } else if (name === 'range-state-read-1000') {
         result = 0;
         for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
           result += lastRange.startOffset + lastRange.endOffset + Number(lastRange.collapsed);
         }
       } else if (name === 'range-state-lifecycle-1000') {
-        result = 0;
-        for (let iteration = 0; iteration < RANGE_STATE_ITERATIONS; iteration++) {
-          const text = stateTextNodes[iteration % size];
-          const range = document.createRange(); range.selectNodeContents(text);
-          const clone = range.cloneRange();
-          const frozen = new dom.window.StaticRange({ startContainer: text, startOffset: 0,
-            endContainer: text, endOffset: text.length });
-          clone.setStart(text, 1);
-          result += range.endOffset + clone.endOffset + frozen.endOffset +
-            Number(range.startOffset === 0 && clone.startOffset === 1 && frozen.startOffset === 0);
-        }
+        result = ownershipOperations.lifecycle(dom.window, document, stateTextNodes, RANGE_STATE_ITERATIONS);
       } else if (name === 'range-boundaries-100') {
         result = 0;
         for (let iteration = 0; iteration < RANGE_BOUNDARY_ITERATIONS; iteration++) {
@@ -975,6 +980,11 @@ async function measure(name, size) {
     const checksum = createHash('sha256').update(dom.serialize()).update(fragmentOutput).update(insertionOutput).update(shadowOutput).update(xmlWork?.serialize() ?? '').update(collectionWork?.serialize?.() ?? '').digest('hex');
     if (outputHash) assert.equal(checksum, outputHash);
     outputHash = checksum;
+    // Observe real realms after timing and correctness checks; never keep strong targets.
+    if (realmReferences) {
+      realmReferences.window.push(new WeakRef(dom.window));
+      realmReferences.document.push(new WeakRef(dom.window.document));
+    }
     result = null;
     insertionDocument = null;
     if (eventHost) eventHost.removeEventListener('mouseover', eventListener);
@@ -1010,14 +1020,23 @@ async function measure(name, size) {
       memory.push(process.memoryUsage());
     }
   }
-  return { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
+  const report = { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
+  if (warmupCurrentRealm) report.withinRealmWarmupRounds = warmOwnershipRealm ? ownershipWarmup.rounds : 0;
+  if (collectBeforeWarmup) report.withinRealmWarmupGcOrder = warmupGcOrder;
+  if (realmReferences) report.realmReferences = realmReferences;
+  return report;
 }
 
 /**
  * Execute public workloads and prove the native route was exercised when expected.
+ * @param {object} runtime - Actual public implementation exports.
+ * @param {'jsdom'|'rustdom'} engine - Selected implementation.
+ * @param {string | undefined} environmentEntry - Rustdom Vitest environment URL.
+ * @param {boolean} [warmupCurrentRealm=false] - Explicit same-window operation warmup.
+ * @param {'before-warmup'|'after-warmup'} [warmupGcOrder] - Declared GC boundary for warmed ownership operations.
  * @returns {Promise<void>} Writes one structured result to stdout.
  */
-async function main() {
+async function main(runtime, engine, environmentEntry, warmupCurrentRealm = false, warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup) {
   const workloads = [];
   const plan = getBenchmarkPlan();
   const requested = new Set(process.argv.slice(3));
@@ -1027,7 +1046,7 @@ async function main() {
   assert.ok(selected.length > 0, 'Benchmark shard has no selected workloads');
   for (const { name, size } of selected) {
     process.stderr.write(`Benchmark ${engine}: starting ${name}/${size}\n`);
-    workloads.push(await measure(name, size));
+    workloads.push(await measure(runtime, engine, environmentEntry, name, size, false, warmupCurrentRealm, warmupGcOrder));
     process.stderr.write(`Benchmark ${engine}: completed ${name}/${size}\n`);
   }
   const parserStatistics = runtime.getParserStatistics?.();
@@ -1042,4 +1061,51 @@ async function main() {
     measuredSamples: MEASURED_SAMPLES, workloads, parserStatistics, nativeTreeStatistics }));
 }
 
-main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+/** Keep the CLI's invalid-engine error independent of runtime module loading. */
+function validateEngine(engine) {
+  if (!['jsdom', 'rustdom'].includes(engine)) throw new Error('benchmark: engine must be jsdom or rustdom');
+}
+
+/**
+ * Bind the original public workload implementation to one real runtime package.
+ * Existing fixtures, timers and assertions remain shared; same-window warmup is explicit opt-in.
+ * @param {object} options - Actual implementation and optional Vitest environment entry.
+ * @param {'jsdom'|'rustdom'} options.engine - Implementation whose activation is checked.
+ * @param {object} options.runtime - Real public package exports.
+ * @param {string} [options.environmentEntry] - Rustdom Vitest environment URL for environment workloads.
+ * @param {boolean} [options.trackRealms=false] - Return weak Window/Document observations from direct measurements, including warmups.
+ * @param {boolean} [options.warmupCurrentRealm=false] - Opt into three untimed operation rounds in each ownership window.
+ * @param {'before-warmup'|'after-warmup'} [options.warmupGcOrder] - GC boundary; before-warmup requires same-window warmup.
+ * @returns {object} Full workload measurement and the unchanged CLI plan executor.
+ */
+function createBenchmarkRunner({ engine, runtime, environmentEntry, trackRealms = false, warmupCurrentRealm = false,
+  warmupGcOrder = ownershipWarmup.gcOrder.afterWarmup }) {
+  validateEngine(engine);
+  assert.equal(typeof runtime?.JSDOM, 'function', 'BenchmarkRunner: a runtime.JSDOM constructor is required');
+  assert.equal(typeof trackRealms, 'boolean', 'BenchmarkRunner: trackRealms must be a boolean');
+  assert.equal(typeof warmupCurrentRealm, 'boolean', 'BenchmarkRunner: warmupCurrentRealm must be a boolean');
+  assert.ok(Object.values(ownershipWarmup.gcOrder).includes(warmupGcOrder), 'BenchmarkRunner: unknown warmupGcOrder');
+  assert.ok(warmupCurrentRealm || warmupGcOrder === ownershipWarmup.gcOrder.afterWarmup,
+    'BenchmarkRunner: GC before warmup requires warmupCurrentRealm');
+  if (warmupCurrentRealm) assert.equal(typeof global.gc, 'function', 'BenchmarkRunner: same-realm warmup requires --expose-gc');
+  const plan = getBenchmarkPlan();
+  return {
+    measureWorkload: (name, size) => {
+      assert.ok(plan.some((workload) => workload.name === name && workload.size === size),
+        `BenchmarkRunner: unknown workload or fixture size ${name}/${size}`);
+      return measure(runtime, engine, environmentEntry, name, size, trackRealms, warmupCurrentRealm, warmupGcOrder);
+    },
+    run: () => main(runtime, engine, environmentEntry, warmupCurrentRealm, warmupGcOrder),
+  };
+}
+
+/** Load the selected real package before timing, preserving the existing worker command. */
+async function runCli() {
+  const engine = process.argv[2]; validateEngine(engine);
+  const { runtimeEntry, environmentEntry } = require('./runtime.cjs');
+  const runtime = engine === 'jsdom' ? require('jsdom') : require(runtimeEntry);
+  await createBenchmarkRunner({ engine, runtime, environmentEntry }).run();
+}
+
+if (require.main === module) runCli().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });
+module.exports = { createBenchmarkRunner };

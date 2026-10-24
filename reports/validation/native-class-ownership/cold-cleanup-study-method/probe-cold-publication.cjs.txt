@@ -1,0 +1,25 @@
+/** @file Tests the real publication gate in the owned Linux QA checkout without invoking capture. */
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = process.argv[2];
+assert.equal(fs.realpathSync(root), '/home/guido/rustdom-validation/cold-study-method-4aba');
+const method = path.join(root, 'reports/benchmarks/native-class-ownership/cold-cleanup-study');
+const study = require(path.join(method, 'study.cjs'));
+const policy = require(path.join(method, 'constants/protocol.json'));
+const filename = path.join(root, policy.publicationReceipt);
+const original = fs.readFileSync(filename);
+try {
+  const approved = study.publication();
+  assert.equal(approved.actionableFindings, 0); assert.equal(Object.keys(approved.files).length, 511);
+  const unapproved = JSON.parse(original); unapproved.actionableFindings = 1;
+  fs.writeFileSync(filename, JSON.stringify(unapproved));
+  assert.throws(() => study.publication(), { code: 'ERR_ASSERTION' });
+  const altered = JSON.parse(original); altered.files[Object.keys(altered.files)[0]] = '0'.repeat(64);
+  fs.writeFileSync(filename, JSON.stringify(altered));
+  assert.throws(() => study.publication(), { code: 'ERR_ASSERTION' });
+} finally { fs.writeFileSync(filename, original); }
+assert.equal(Object.keys(study.publication().files).length, 511);
+console.log(JSON.stringify({ node: process.version, publicationContracts: 3, sourceFiles: 511,
+  benchmarkExecuted: false, captureExecuted: false, publicationRestored: true }));

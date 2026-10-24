@@ -1,6 +1,6 @@
 /** @module xml-serializer-controller Binds native XMLSerializer control to real IDL wrappers and exception realms. */
 'use strict';
-const { xmlSerializerOperation } = require('../../dist/native.cjs');
+const { xmlSerializerOperationWithNativeProperties } = require('../../dist/native.cjs');
 
 /**
  * Retain realm ownership as an ordinary collector-visible JS edge; all operation decisions run in Rust.
@@ -26,7 +26,7 @@ function createXmlSerializerImplementation({ DOMException, utils }) {
     /** @param {object} globalObject - Actual wrapper realm, retained only by this binding. */
     constructor(globalObject) { this._globalObject = globalObject; }
     /** @param {object} root - WebIDL-converted Node implementation. @returns {unknown} Serialized text or the original dynamic root result. */
-    serializeToString(root) { return xmlSerializerOperation(this, root, helpers); }
+    serializeToString(root) { return xmlSerializerOperationWithNativeProperties(this, root, helpers); }
   };
 }
 

@@ -1,0 +1,192 @@
+"""Preserve offline method QA, failures and current reviewed source identities without sampling."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tarfile
+from cold_cleanup_summary import read_node_summaries
+
+if sys.flags.optimize:
+    raise RuntimeError('Cold method QA preservation requires assertions enabled')
+working = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/home/guido/rustdom-validation/cold-study-method-4aba')
+raw = Path('/home/guido/rustdom-validation/cold-study-contracts-20261024')
+packet = working / 'reports/validation/native-class-ownership/cold-cleanup-study-method'
+method_name = Path('reports/benchmarks/native-class-ownership/cold-cleanup-study')
+node = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node')
+assert not packet.exists()
+def digest(filename):
+    return hashlib.sha256(filename.read_bytes()).hexdigest()
+def read(filename):
+    return json.loads(filename.read_text(encoding='utf-8'))
+def write(filename, value):
+    filename.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+current_method = {filename.relative_to(source).as_posix(): digest(filename)
+    for filename in sorted((source / method_name).rglob('*')) if filename.is_file() and '__pycache__' not in filename.parts}
+for name, expected in current_method.items():
+    assert digest(working / name) == expected
+final = {}
+for version in ['22', '24']:
+    filename = raw / 'attempt6' / ('node' + version)
+    receipt = read(filename.with_suffix('.command.json'))
+    assert receipt['exitCode'] == 0 and receipt['benchmarkExecuted'] is False and receipt['performanceAccepted'] is None
+    assert receipt['methodFiles'] == current_method
+    totals = read_node_summaries(filename.with_suffix('.stdout.log').read_text(encoding='utf-8'))
+    assert totals == [{'tests': 17, 'pass': 17, 'fail': 0, 'cancelled': 0, 'skipped': 0, 'todo': 0}]
+    final['node' + version] = {'receipt': receipt, 'totals': totals}
+code = 'const root=process.argv[1];const study=require(root+"/reports/benchmarks/native-class-ownership/cold-cleanup-study/study.cjs");const original=require(root+"/reports/benchmarks/native-class-ownership/current-ownership-experiment.cjs");console.log(JSON.stringify({files:study.sourceFiles(),harness:original.captureHarness()}));'
+snapshot = json.loads(subprocess.check_output([node, '-e', code, source]))
+assert snapshot['harness']['identity']['sourceGitErrors'] == []
+assert snapshot['harness']['identity']['sourceChanges'] == []
+assert snapshot['harness']['identity']['sourceCommit'] == '4aba8018cb988e5df9f31d4fd782bc3fd2760a40'
+assert len(snapshot['harness']['files']) == 434
+for name, expected in snapshot['files'].items():
+    assert digest(working / name) == expected, name
+packet.mkdir(parents=True)
+members = []
+archive = packet / 'offline-qa.tar.xz'
+with tarfile.open(archive, 'w:xz') as target:
+    for filename in sorted(raw.rglob('*')):
+        if not filename.is_file():
+            continue
+        name = filename.relative_to(raw).as_posix()
+        members.append({'path': name, 'bytes': filename.stat().st_size, 'sha256': digest(filename)})
+        target.add(filename, arcname=name, recursive=False)
+write(packet / 'members.json', members)
+write(packet / 'source-snapshot.json', snapshot)
+lint_command = ['/mnt/c/Users/guido/ghq/projects/rustdom/.tools/actionlint/actionlint',
+    '.github/workflows/ownership-cold-cleanup-study.yml', '.github/workflows/cold-cleanup-study-contracts.yml']
+lint = subprocess.run(lint_command, cwd=working, capture_output=True)
+(packet / 'actionlint.stdout.log').write_bytes(lint.stdout); (packet / 'actionlint.stderr.log').write_bytes(lint.stderr)
+assert lint.returncode == 0
+for name in ['setup-cold-study-source.py', 'run-cold-study-contracts.py', 'collect-cold-method-qa.py']:
+    shutil.copyfile(working / '.cache' / name, packet / (name + '.txt'))
+report = '''0 hallazgos accionables en el método completo, los dos workflows y el protocolo. El P2 del manifiesto permanece cerrado.
+
+Los logs del intento 6 ya muestran 17 contratos aprobados en ambos Node; sus hashes corresponden al código actual. La revisión cubrió activación única, QA, derivados, workers, replay, decisión y conservación de parciales.
+
+Esto no acredita una captura completa nueva ni autoriza activarla. No ejecuté DOM, sampler, benchmarks ni código archivado.'''
+review = {'revision': 'ownership-cold-cleanup-v1', 'provider': 'Codex', 'agent': '/root/review_ownership_closeout',
+    'actionableFindings': 0, 'acceptedFindings': 1, 'fixedFindings': 1,
+    'scope': 'Método prospectivo, contratos offline, dos workflows y protocolo; no aceptación de rendimiento ni todo el PR.',
+    'reviewedBaseCommit': snapshot['harness']['identity']['sourceCommit'], 'report': report, 'files': snapshot['files']}
+write(packet / 'review.json', review)
+summary = {'revision': review['revision'], 'testsPerNode': 17, 'finalAttempt': 6,
+    'sourceCommit': snapshot['harness']['identity']['sourceCommit'], 'methodCodePresentInBaseCommit': False,
+    'sourceFilesPinned': len(snapshot['files']), 'frozenHarnessFiles': 434, 'final': final,
+    'failedAttemptsPreserved': [1, 5], 'earlierSuccessfulAttemptsPreserved': [2, 3, 4],
+    'archive': {'path': archive.name, 'bytes': archive.stat().st_size, 'sha256': digest(archive), 'members': len(members)},
+    'actionlint': {'argv': lint_command, 'exitCode': lint.returncode},
+    'samplerInvoked': False, 'benchmarkExecuted': False, 'performanceAccepted': None, 'activationAuthorized': False,
+    'historicalGateReevaluated': False, 'productionRuntimeChanged': False, 'newFullCaptureTested': False}
+write(packet / 'summary.json', summary)
+(packet / '.gitattributes').write_text('*.tar.xz -text\n*.txt -text\n', encoding='utf-8')
+readme = '''# QA offline del método de limpieza fría
+
+El método ownership-cold-cleanup-v1 está implementado y revisado localmente,
+sin activar su workflow de captura. Los 17 contratos pasaron con Node 22.12.0
+y 24.14.1 fijados, sin ejecutar DOM ni tomar muestras nuevas. Actionlint
+aprobó ambos workflows. La revisión local aislada cerró sin hallazgos sobre
+este alcance; no abarca todo el PR ni acepta rendimiento.
+
+Se autentican los paquetes reales del artifact12549521134, la calificación
+4aba8018 del addon0a949, la derivación y sus productores actuales. Los
+contratos reproducen todos los valores del estimador sobre los 2048 procesos
+históricos rechazados, sin relabelar esos resultados como datos del candidato.
+También validan sus spans, counters y observaciones separadas de Window y
+Document. Las pruebas de ejecución se limitan a rechazos de contexto; el
+sampler nuevo y una captura íntegra nueva aún no se ejecutaron.
+
+La regresión del P2 modifica coherentemente ambas declaraciones canónicas:
+se rechaza porque ahora se fija el hash independiente del manifiesto y se
+recalcula el de sus 434 entradas. Otra regresión construye un cache `.pyc`
+hostil en un directorio propio: el control demuestra su ejecución con el
+loader normal, y la derivación nueva evita ese cache sin modificar fuentes
+ni caches reales. No se ejecutó código desde un archivo de evidencia.
+
+El código final conserva sus hashes en source-snapshot.json y review.json.
+El checkout de QA es un Git Linux real con HEAD4aba8018; los archivos nuevos
+del método se copiaron para probarlos antes de publicarlos. Por eso ese base
+commit aún no los contiene: no se presenta como commit publicado del método.
+El arnés medido conserva sourceChanges=[] y sourceGitErrors=[] reales.
+
+offline-qa.tar.xz preserva todos los logs y recibos generados, incluidos los
+fallos. El intento1 falló porque el sparse checkout omitía un test requerido
+por el arnés; se amplió /tests antes de continuar. El intento5 detectó una
+referencia a metadata fuera de alcance al extraer validateObservations; se
+movió el chequeo del sidecar a validateReport. El intento6 valida todas las
+observaciones históricas y pasa en ambos Node. Los intentos previos exitosos
+también se conservan. Los recibos guardan los hashes de cada versión probada;
+los snapshots .py.txt son herramientas actuales para inspección, no entrypoints
+para ejecutar desde el archivo.
+
+No se modificaron los 26/46 pins históricos ni las 434 fuentes congeladas.
+No hay aceptación, tag, merge ni autorización para una secuencia nueva. El
+siguiente paso es comprobar los contratos del SHA publicado en GitHub y su
+review antes de solicitar una única ejecución de2048procesos. El protocolo
+mantiene los presupuestos ±2%/±5% y fija175min de captura dentro de180min
+del job para reservar margen de archivo. Un fallo o rechazo no permite repetir.
+'''
+(packet / 'README.md').write_text(readme, encoding='utf-8')
+memory = working / 'reports/memory/cold-cleanup-study-method.md'
+memory.write_text('''# Recursos del método prospectivo de limpieza fría
+
+Esta revisión corresponde al tooling del estudio. No se ejecutó un nuevo
+benchmark ni se generaron mediciones nuevas de memoria del candidato.
+La implementación de producción de rustdom permanece sin cambios.
+
+El padre autentica archivos y guarda recibos/datos escalares; no carga las
+implementaciones DOM. Conserva como máximo la matriz fija de2048 entradas,
+nueve duraciones y tres probes RNG por entrada. No retiene objetos DOM,
+WeakRef de realms ni callbacks del addon. Los reportes completos se guardan
+en disco y sus buffers dejan de estar referenciados tras extraer escalares.
+Las descripciones de archivos stdout/stderr se cierran en finally. Cada
+worker usa un proceso propio y los inputs/output se exigen disjuntos.
+
+La captura futura conservaría24576 Window y24576 Document por separado,
+baselines nativos, tres rondas de cleanup y dos estados finales claros
+requeridos por proceso, además de tres snapshots del padre. Se conservarían
+también primeras rondas no claras y parciales. Esos números son el plan,
+no observaciones nuevas. Los17contratos leen recursos históricos y prueban
+rechazos de datos alterados; no demuestran la liberación de realms nuevos.
+
+Los probes existentes del addon exacto0a949 están en
+reports/memory/cold-cleanup-build-40065437939.json:30 Window/30 Document
+observados y20 estados finales requeridos claros. Las suites completas
+guardan sus1920snapshots de960procesos WPT en
+reports/memory/cold-cleanup-hosted-compatibility-40065437939.json, sin GC
+forzado en esos endpoints. Son evidencias separadas de esta revisión estática.
+Ninguna prueba finita ni estos snapshots prueban memoria pico o ausencia
+universal de fugas; la retención del allocator no se clasifica por sí sola
+como fuga. El runtime continúa híbrido y la migración está pendiente.
+''', encoding='utf-8')
+handoff = working / 'reports/progress/HANDOFF.md'
+text = handoff.read_text(encoding='utf-8'); title = '# Continuar rustdom en otra máquina\n\n'
+marker = '## Método de limpieza fría preparado, sin activar'
+assert text.startswith(title) and marker not in text
+section = marker + ''' — 2026-10-24
+
+Código y protocolo en reports/benchmarks/native-class-ownership/cold-cleanup-study/.
+QA en reports/validation/native-class-ownership/cold-cleanup-study-method/:
+17contratos offline por Node22.12.0/24.14.1 y Actionlint aprobados; review
+aislada final sin hallazgos. Se preservan los fallos de setup y del lector,
+sus recibos/hashes y todas las QA previas. El P2 del manifiesto canónico se
+cierra con pin independiente y recálculo de las434entradas. Hay protección
+probada contra pyc hostil, rechazos de ejecución local/intento2 y reproducción
+exacta del rechazo histórico, sin datos falsos ni muestras nuevas.
+
+Los paquetes siguen siendo los del artifact12549521134/B0a949. Se conserva
+el diseño original:2048procesos,18432duraciones,6144warmup,CPU2,semillas1..16,
+ochofilas y presupuestos±2%/±5%. El capturestep fija175min dentrojob180.
+Antes de pedir autorización independiente, comprobar QA del SHA publicado
+en ambos Node y la preparación autenticada. No aplicar la etiqueta
+ownership-cold-cleanup-v1 ni activar/repetir workflows todavía. No reutilizar
+las autorizaciones históricas consumidas. No tag/merge sin aceptación.
+El runtime sigue híbrido, el candidato no está integrado y la migración falta.
+
+'''
+handoff.write_text(title + section + text[len(title):], encoding='utf-8')
+print(json.dumps({'qaMembers': len(members), 'sourceFilesPinned': len(snapshot['files']), 'testsPerNode': 17,
+    'newStudyExecuted': False, 'performanceAccepted': None}), flush=True)

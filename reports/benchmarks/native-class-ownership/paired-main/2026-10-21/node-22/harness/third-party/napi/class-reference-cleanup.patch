@@ -1,0 +1,98 @@
+--- a/src/bindgen_runtime/module_register.rs
++++ b/src/bindgen_runtime/module_register.rs
+@@ -195,6 +195,51 @@
+       .as_ref()
+       .is_some_and(|cur| std::sync::Arc::ptr_eq(cur, handle))
+   })
++}
++
++// rustdom patch: each registration owns its constructor references until its env exits.
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++static CLASS_REFS_LIVE: AtomicUsize = AtomicUsize::new(0);
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++static CLASS_REFS_CREATED: AtomicUsize = AtomicUsize::new(0);
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++static CLASS_REFS_RELEASED: AtomicUsize = AtomicUsize::new(0);
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++static CLASS_REFS_CLEANUP_ERRORS: AtomicUsize = AtomicUsize::new(0);
++
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++struct ClassReferenceCleanup {
++  env: sys::napi_env,
++  references: Vec<sys::napi_ref>,
++}
++
++/// Native constructor-reference lifecycle diagnostics for the patched runtime.
++#[doc(hidden)]
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++pub fn class_reference_statistics() -> [usize; 4] {
++  [CLASS_REFS_LIVE.load(Ordering::Relaxed), CLASS_REFS_CREATED.load(Ordering::Relaxed),
++   CLASS_REFS_RELEASED.load(Ordering::Relaxed), CLASS_REFS_CLEANUP_ERRORS.load(Ordering::Relaxed)]
++}
++
++#[cfg(all(feature = "napi3", not(feature = "noop"), not(target_family = "wasm")))]
++unsafe extern "C" fn cleanup_class_references(data: *mut std::ffi::c_void) {
++  // SAFETY: this unique Box is installed once and called on its owning env's thread.
++  let cleanup = unsafe { Box::from_raw(data.cast::<ClassReferenceCleanup>()) };
++  let owned: HashSet<_, FxBuildHasher> = cleanup.references.iter().copied().collect();
++  REGISTERED_CLASSES.with(|cell| cell.borrow_mut(|classes| {
++    // A later registration may have replaced this thread's constructor map.
++    // Remove only references owned by this cleanup, never another env's refs.
++    classes.retain(|_, reference| !owned.contains(reference));
++  }));
++  for reference in cleanup.references {
++    // SAFETY: Node runs cleanup before destroying the env and its user-owned refs.
++    if unsafe { sys::napi_delete_reference(cleanup.env, reference) } == sys::Status::napi_ok {
++      CLASS_REFS_LIVE.fetch_sub(1, Ordering::Relaxed);
++      CLASS_REFS_RELEASED.fetch_add(1, Ordering::Relaxed);
++    } else {
++      CLASS_REFS_CLEANUP_ERRORS.fetch_add(1, Ordering::Relaxed);
++    }
++  }
+ }
+ 
+ type RegisteredClasses = PersistedPerInstanceHashMap<
+@@ -618,6 +663,8 @@
+   }
+ 
+   let mut registered_classes = HashMap::default();
++  #[cfg(all(feature = "napi3", not(target_family = "wasm")))]
++  let mut class_references = Vec::new();
+ 
+   MODULE_CLASS_PROPERTIES.borrow(|inner| {
+     inner.iter().for_each(|(_, js_mods)| {
+@@ -688,7 +735,14 @@
+           }
+ 
+           let mut ctor_ref = ptr::null_mut();
+-          sys::napi_create_reference(env, class_ptr, 1, &mut ctor_ref);
++          check_status_or_throw!(env, sys::napi_create_reference(env, class_ptr, 1, &mut ctor_ref),
++            "Failed to retain class `{}`", &js_name);
++          #[cfg(all(feature = "napi3", not(target_family = "wasm")))]
++          if !ctor_ref.is_null() {
++            class_references.push(ctor_ref);
++            CLASS_REFS_LIVE.fetch_add(1, Ordering::Relaxed);
++            CLASS_REFS_CREATED.fetch_add(1, Ordering::Relaxed);
++          }
+ 
+           registered_classes.insert(js_name.to_string(), ctor_ref);
+ 
+@@ -717,6 +771,18 @@
+       *map = registered_classes;
+     })
+   });
++
++  #[cfg(all(feature = "napi3", not(target_family = "wasm")))]
++  {
++    let cleanup = Box::into_raw(Box::new(ClassReferenceCleanup { env, references: class_references }));
++    let status = unsafe { sys::napi_add_env_cleanup_hook(env, Some(cleanup_class_references), cleanup.cast()) };
++    if status != sys::Status::napi_ok {
++      // Reclaim ownership immediately if Node did not accept the cleanup hook.
++      unsafe { cleanup_class_references(cleanup.cast()) };
++      check_status_or_throw!(env, status, "Failed to register constructor reference cleanup");
++    }
++  }
++
+ 
+   let module_register_hook_callback = MODULE_REGISTER_HOOK_CALLBACK
+     .read()

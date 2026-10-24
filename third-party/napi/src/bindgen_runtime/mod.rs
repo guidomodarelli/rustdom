@@ -19,6 +19,7 @@ pub mod async_iterator;
 pub use async_iterator::AsyncGenerator;
 mod callback_info;
 mod class_accessor;
+mod class_ownership;
 mod env;
 mod error;
 pub mod iterator;

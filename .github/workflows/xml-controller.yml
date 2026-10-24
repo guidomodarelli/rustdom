@@ -4,11 +4,33 @@ on:
   pull_request:
     paths:
       - '.github/workflows/xml-controller.yml'
+      - 'reports/benchmarks/native-class-ownership/xml-history*.cjs'
+      - 'reports/benchmarks/native-class-ownership/xml-history*.py'
+      - 'reports/benchmarks/native-class-ownership/constants/xml-history.json'
+      - 'reports/benchmarks/native-class-ownership/xml-native-properties-gate.cjs'
+      - 'reports/benchmarks/native-class-ownership/xml-native-properties-gate.spec.cjs'
+      - 'reports/benchmarks/native-class-ownership/verify-xml-*.py'
+      - 'reports/benchmarks/native-class-ownership/test-verify-xml-*.py'
+      - 'reports/benchmarks/native-class-ownership/constants/xml-observation-policy.json'
+      - 'reports/benchmarks/native-class-ownership/constants/xml-native-properties-gate.json'
+      - 'reports/benchmarks/native-class-ownership/xml-native-properties-results/**'
+      - 'reports/benchmarks/native-class-ownership/fixtures/xml-history-sources/**'
+      - 'reports/benchmarks/native-class-ownership/xml-validation/**'
       - 'benchmarks/**'
       - 'reports/benchmarks/xml-serializer-controller/**'
-      - 'src/dom/xml_serializer_controller.rs'
-      - 'src/dom/xml-serializer-controller.cjs'
-      - 'src/xml/**'
+      - 'src/**'
+      - 'scripts/**'
+      - 'third-party/napi/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+      - '.npmrc'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - '.cargo/**'
+      - 'rust-toolchain*'
+      - 'tests/integration/read-dom-file.cjs'
 
 permissions:
   contents: read
@@ -23,9 +45,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     env:
-      CARGO_TARGET_DIR: ${{ github.workspace }}/.native-target
-      RUSTDOM_BENCHMARK_REQUESTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      XML_CONTROLLER_OUTPUT: reports/benchmarks/xml-controller-hosted-${{ github.run_id }}-${{ github.run_attempt }}
+      XML_CONTROLLER_ARCHIVE: reports/benchmarks/native-class-ownership/xml-native-properties-results/39907233079
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -37,29 +57,13 @@ jobs:
           node-version: '24.14.1'
           cache: npm
       - uses: dtolnay/rust-toolchain@1.99.1
-      - uses: Swatinem/rust-cache@v2
-      - name: Preparar la referencia independiente
-        working-directory: .baseline
-        run: |
-          test "$(git rev-parse HEAD)" = 75db9bb095db8457a6ae567f219e2224a55b9f36
-          npm ci
-          npm run build
-      - name: Preparar el candidato
-        run: npm ci && npm run build
-      - name: Ejecutar los contratos del experimento
-        run: node --test tests/benchmarks/xml-controller-cli.spec.cjs tests/benchmarks/xml-serializer-controller.spec.cjs
-      - name: Seleccionar una CPU permitida y registrar el host
-        shell: bash
-        run: |
-          cpu=$(node -p "require('node:fs').readFileSync('/proc/self/status', 'utf8').match(/^Cpus_allowed_list:\s*(\d+)/m)[1]")
-          echo "RUSTDOM_BENCHMARK_CPU=$cpu" >> "$GITHUB_ENV"
-          taskset -pc $$
-          node --version
-          rustc -Vv
-      - name: Calibrar y medir todas las filas
-        run: node benchmarks/xml-controller-experiment.cjs --baseline .baseline --output "$XML_CONTROLLER_OUTPUT"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: xml-controller-node24-${{ github.event.pull_request.head.sha }}
-          path: ${{ env.XML_CONTROLLER_OUTPUT }}/
+      - name: Verificar los contratos de selección y la evidencia original
+        run: node --test reports/benchmarks/native-class-ownership/xml-history.spec.cjs
+      - name: Verificar el consumo del archivo completo y los rechazos de runtime
+        run: node --test reports/benchmarks/native-class-ownership/xml-native-properties-gate.spec.cjs
+      - name: Verificar el recálculo y el rechazo de Python optimizado
+        run: python3 -B reports/benchmarks/native-class-ownership/test-verify-xml-observations.py
+      - name: Exigir que las fuentes y la receta conserven evidencia XML
+        run: node reports/benchmarks/native-class-ownership/xml-native-properties-gate.cjs --select .baseline "$XML_CONTROLLER_ARCHIVE"
+      - name: Recalcular la evidencia XML conservada y respetar su decisión
+        run: node reports/benchmarks/native-class-ownership/xml-native-properties-gate.cjs --verify .baseline "$XML_CONTROLLER_ARCHIVE"

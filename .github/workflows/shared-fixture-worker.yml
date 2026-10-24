@@ -1,0 +1,58 @@
+name: Verificar integración archivada de fixtures
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/shared-fixture-worker.yml'
+      - 'reports/benchmarks/native-class-ownership/shared-fixture-worker/**'
+      - 'reports/validation/native-class-ownership/shared-fixture-worker/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: shared-fixture-worker-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    name: Integración archivada Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar y extraer datos sin ejecutar código archivado
+        run: |
+          mkdir "$RUNNER_TEMP/shared-worker"
+          python reports/validation/native-class-ownership/shared-fixture-worker/replay.py "$RUNNER_TEMP/shared-worker/raw"
+      - name: Verificar contratos reales y rechazos controlados en el lector actual
+        env:
+          SHARED_WORKER_EVIDENCE: ${{ runner.temp }}/shared-worker/raw/shared-worker-qualification
+        run: |
+          node reports/benchmarks/native-class-ownership/shared-fixture-worker/verify.cjs "$SHARED_WORKER_EVIDENCE" "$RUNNER_TEMP/shared-worker/replay.json" 2>&1 | tee "$RUNNER_TEMP/shared-worker/replay.log"
+          node --test reports/benchmarks/native-class-ownership/shared-fixture-worker/contracts.spec.cjs 2>&1 | tee "$RUNNER_TEMP/shared-worker/contracts.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-worker-replay-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/shared-worker/replay.json
+            ${{ runner.temp }}/shared-worker/replay.log
+            ${{ runner.temp }}/shared-worker/contracts.log
