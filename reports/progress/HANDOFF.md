@@ -1,5 +1,50 @@
 # Continuar rustdom en otra máquina
 
+## Candidato aislado: collapse nativo calificado localmente — 2026-10-24
+
+Código, patch, addon local y evidencia en
+`reports/benchmarks/native-class-ownership/range-collapse-candidate/`.
+El patch sobre b63cf834 añade RangeState::collapse, NativeRange.collapse,
+su tipo público y una ruta de una llamada cuando ambos owners son idénticos.
+Los nodos distintos conservan la ruta y el orden de referencias previos.
+No cambia el guard ni incorpora el patch frío. El runtime principal conserva
+sus511pins y sigue híbrido; la variante todavía no está integrada.
+
+Pasaron313tests Rust, formato, Clippy y51tests dirigidos en ambos Node.
+Las seis suites completas pasan en Node22.12.0/24.14.1:3780tests+9launcher,
+22Jest,33Vitest,34VM,1784casos HTML con8excluidos y240fixtures WPT con
+83007assertions/1203no aprobados compartidos. WPT complete=false conserva
+range-deletion bloqueado y el fixture test_driver/layout excluido.
+Los consumidores CJS/ESM compilaron y ejecutaron el addon real en ambos Node.
+
+El addon Linux local es26ba869062ae4226aa058c13edc43f582cfdfd3e1c519d7a1299bccab62239d3.
+El archivo raw-qa.tar.xz conserva245archivos/171574336bytes sin pérdida,
+con manifiesto y lectura completa verificados. Recursos específicos y límites
+en `reports/memory/range-collapse-candidate.{json,md}`:6Window/6Document por
+Node,384Range/384estados por Node,24endpoints finales claros entre ambos y
+24retenidos como controles negativos. Se preservan baselines y todos los datos.
+No memoria pico ni ausencia universal de fugas; no hay mejora temporal medida.
+
+El preparador y sus seis contratos reales pasan en Linux22/24 y Windows24.21;
+la fuente Git de WSL debe ser Linux real mediante RUSTDOM_RANGE_PREPARATION_SOURCE.
+El workflow range-collapse-candidate.yml califica seis combinaciones de OS/Node,
+con60minutos por job y activación por ownership-range-collapse-functional-v1.
+Después de publicar y revisar, aplicar esa etiqueta para calificar el SHA actual
+y registrar run/jobs en rangeCollapseCandidate del watch80. La autorización
+permanente ya cubre la activación; no volver a pedir permiso operativo.
+Autenticar sus artifacts y distinguirlos del26ba local antes del siguiente
+estudio prospectivo; conservar presupuestos±2%/±5% y rechazos históricos.
+No tag ni merge de ownership sin aceptación de rendimiento e integración probada.
+
+También se conservaron dos artifacts reales del CI40125948926 en
+`reports/validation/ci-report-transport-hosted/40125948926/`:unos177KB por
+shard frente a2GB anteriores, con diez reportes íntegros por artifact. Sus
+manifiestos registran el merge sintético fe01733f, vinculado al head6e1db099
+por logs y API; no normalizar sourceCommit. Esto demuestra reducción de payload,
+sin atribuir mejora causal de tiempo ni aceptar rendimiento del DOM.
+El CI40125948926 de6e1db099 terminó success en sus ocho jobs, incluidos
+Windows/macOS. final-run.json y final-jobs.json conservan esa consulta posterior.
+
 ## CI: alias Windows 8.3 corregido — 2026-10-24
 
 El CI40125425193 de1c3a041b falló en Windows/job120965695524 al comparar
