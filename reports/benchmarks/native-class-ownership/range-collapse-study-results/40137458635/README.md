@@ -61,3 +61,33 @@ claros por proceso, baselines y tres snapshots del padre. Son cantidades esperad
 no resultados ya observados. Presupuestos ±2%/±5%; captura de 175 minutos dentro
 de job de 180 minutos. Preservar también regresiones, rechazos y parciales.
 El runtime sigue híbrido y la migración general continúa pendiente.
+
+## Análisis offline preparado
+
+`tools/analyze.cjs` usa el script del checkout actual y recibe como primer
+argumento un checkout Linux separado, real y limpio de `02291d6b`. Autentica el
+recibo independiente, sus 563 archivos y el ejecutable Node antes de cargar el
+verificador. No usa código de `capture/method/` ni de `capture/derived/`.
+
+Después de autenticar y extraer el artifact real, ejecutar con **cada** Node
+fijado y un destino diferente:
+
+```sh
+/ruta/node-22.12.0 reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs /checkout-02291d6b /range-study/capture /analisis-node22-nuevo
+/ruta/node-24.14.1 reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs /checkout-02291d6b /range-study/capture /analisis-node24-nuevo
+```
+
+Los destinos deben quedar fuera de la captura y del checkout de fuente. El
+verificador congelado produce la decisión íntegra antes de crear salidas. Los
+exports conservan todas las duraciones, warmup, comparaciones, controles
+rechazados, primeras rondas no claras, baselines y snapshots del padre. Los
+rangos de memoria se agrupan por Node/fase/motor/paquete físico; no son memoria
+pico ni comparaciones causales. La aceptación no se recalcula en el exportador.
+
+Pasaron 12 contratos en cada Node fijado, usando la referencia histórica con
+su identidad y rechazo originales. Sus 24.576 filas coinciden exactamente con
+el CSV guardado; conserva los ocho controles desfavorables y una regresión
+numérica. Se guardan la expectativa inicial incorrecta de 16 grupos, su cierre
+con los 18 grupos reales y las comprobaciones de ambos controles A0/A1 en AB.
+El análisis positivo del artifact nuevo y la comparación de ambos exports
+completos siguen pendientes de ese resultado auténtico.

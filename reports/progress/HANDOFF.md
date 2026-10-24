@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Análisis offline preparado; resultado nuevo pendiente — 2026-10-24
+
+Analizador actual: reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs.
+Tras autenticar/extraer el MISMO run 40137458635/job 121001909695/intento 1, usar el
+script actual con argumento de fuente apuntando al checkout Linux real/limpio
+de 02291d6b. Autentica recibo 83ef y  563 archivos ANTES de cargar código, y Node
+versión/hash fijados. Ejecutar con Node 22.12.0 y 24.14.1 en destinos nuevos fuera
+de captura/fuente; preservar y comparar los cuatro exports. No ejecutar código
+archivado ni falsear sourceCommit/sourceChanges/sourceGitErrors.
+
+QA: 12 contratos por Node. Referencia 40113188886/b63 preserva identidad/rechazo,
+24576 filas CSV exactas, recursos y 32 comparaciones/8 controles desfavorables/
+1 regresión intactos. attempt1 conserva error de expectativa del test (16 frente a 18 grupos);
+el protocolo/datos no cambiaron. La fixture correcta conserva AB A0/A1 separados
+(64/64 más 128 B por Node). attempt3 autentica además todas las 563 fuentes.
+Evidencia: reports/validation/native-class-ownership/range-collapse-analysis-reader/40137458635/.
+Recursos/límites: reports/memory/range-collapse-analysis-reader-40137458635.md.
+
+El CLI positivo, decisión y comparación entre exports del artifact NUEVO siguen
+pendientes. No repetir captura, completar muestras ni cambiar método/budgets.
+Rendimiento sin aceptar, sin tag/merge; runtime híbrido y migración general activa.
+La autorización permanente cubre las acciones; no volver a pedir confirmaciones.
+
 ## Extracción preparada, artifact nuevo pendiente — 2026-10-24
 
 Lector actual: reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/extract.py.
