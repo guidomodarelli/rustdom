@@ -6,6 +6,13 @@
 - Mantener código, identificadores, paths, comandos y errores literales en su idioma original. Documentar APIs con los comentarios del lenguaje apropiados.
 - Avanzar autónomamente hasta completar el trabajo autorizado. No solicitar confirmaciones repetidas.
 
+## Autonomía y autorización permanente
+
+- El usuario autoriza de forma permanente todas las acciones necesarias para completar el objetivo de rustdom: implementar y refactorizar, instalar herramientas, probar, medir y analizar rendimiento y memoria, corregir CI, gestionar ramas y PRs, integrar cambios y publicar avances verificados.
+- No volver a pedir autorización, permiso ni confirmación para esas acciones, los estudios nuevos necesarios o las siguientes fases. Las cláusulas de autorización operativa de protocolos anteriores quedan cubiertas por esta instrucción; registrar el alcance de cada ejecución y avanzar sin otra pregunta.
+- Mantener los hooks de contexto de `.codex/hooks/`: recuerdan esta autorización al iniciar/retomar una sesión, recibir un mensaje y antes de usar herramientas. Instalarlos y registrar su confianza por las interfaces normales de Codex después de revisar y probar sus definiciones, sin solicitar otro permiso al usuario.
+- Mantener el rigor de las mediciones: fijar y revisar el método antes de ejecutarlo, conservar los estudios en curso sin cambios y publicar también rechazos y regresiones. No relanzar una secuencia consumida ni cambiar sus presupuestos o resultados para conseguir aceptación; una investigación posterior requiere un candidato o método nuevo técnicamente justificado, cubierto por la autorización permanente.
+
 ## Instalación y herramientas
 
 - El usuario autoriza instalar las herramientas, librerías y dependencias necesarias. **No preguntarle si se pueden instalar**; instalarlas directamente.
