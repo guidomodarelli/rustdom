@@ -1,5 +1,33 @@
 # Continuar rustdom en otra máquina
 
+## Paquetes de collapse preparados sin recompilar — 2026-10-24
+
+Preparador/identidades en reports/benchmarks/native-class-ownership/range-collapse-packages/.
+Evidencia íntegra en reports/validation/native-class-ownership/range-collapse-package-preparation/20261024/.
+B mantiene el ELF43410883 del artifact12574603695 y distribución569archivos/SHA0d2c0835.
+A0/A1/J0/J1 y dependencias3531archivos/149eb8f5 conservan los bytes calificados;
+package.json3c1570af y locke154f202 de B son idénticos a los originales. Sin
+reinstalar ni reconstruir Rust. Se preservan b63cf834+3src/hash8a del snapshot
+local y da0f4f80 del artifact hospedado como procedencias distintas.
+
+El tar preparado8c430f0ba568e6b3b48d98f5976cddee875e4d7e70525d3d5b5e8339e0f7b5d3
+conserva6981archivos/70441956bytes y6enlaces, en7880316bytes. Lectura íntegra,
+extracción segura con código actual y verificación offline en ambos Node pasan.
+Pasaron14contratos por Node, consumidores CJS/ESM y probes finitos corregidos:
+6Window/6Document y384Range/384NativeRange por Node,12endpoints negativos y12claros.
+Raw QA preserva41archivos, también la ronda initial anterior a los dos fixes.
+Review final0hallazgos tras cerrar los P2 de loader symlink y probe A0; el grafo
+independiente y los tipos regulares evitan cambiar el addon por resolución de Node.
+Recursos/límites en reports/memory/range-collapse-package-preparation.{json,md}.
+
+No se ejecutó un nuevo estudio ni se aceptó rendimiento. Siguiente acción:
+crear/congelar el método prospectivo de collapse usando este tar exacto, los
+434archivos de arnés/511pins históricos y sus nuevas dependencias transitivas,
+con pruebas y revisión del SHA antes de activar una única secuencia. Mantener
+presupuestos±2%/±5%, filas/semillas/warmup/estimador y rechazos históricos.
+La autorización permanente cubre las fases y herramientas: no pedir permiso.
+Runtime híbrido, migración pendiente; sin tag/merge de ownership todavía.
+
 ## Collapse nativo: seis combinaciones hospedadas verificadas — 2026-10-24
 
 El run40128890776, intento1, head da0f4f80, completó6/6success en
