@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Captura única de collapse activada — 2026-10-24
+
+SHA fuente 02291d6b; run 40137458635/job 121001909695/intento 1. Se aplicó
+UNA vez ownership-range-collapse-v1 después de los ocho checks aprobados.
+Evidencia operativa y CI: reports/validation/native-class-ownership/range-collapse-study-activation/02291d6b/.
+Método de 563 pins, incluidos 511 históricos y arnés de 434 archivos, intactos. No repetir secuencia,
+reaplicar etiqueta ni completar muestras. Captura de 175 min/job de 180 min/worker de 180000 ms,
+presupuestos ±2%/±5%; conservar íntegros resultados, rechazos y parciales.
+
+El journal exclusivo de activación y el sidecar watch-80.range-collapse-02291d6b.json
+son autoritativos para esta ejecución; los campos anteriores del watch compartido
+no se sobrescribieron para preservar autorizaciones y cambios concurrentes.
+Activador con 7 tests/observador con 8 tests y reviews aisladas sin hallazgos. Cuatro artifacts
+de contratos autenticados: 14 tests de paquetes/19 del método por Node 22.12.0/24.14.1. Checkout
+Linux real limpio de 022 preparado para replay actual, sin ejecutar código archivado.
+
+Próximo paso: observar solo este run/job. Al terminar autenticar ZIP/tar por
+ID/run/head/intento/nombre/tamaño/digest; preservar logs, manifiesto completo y
+todos los datos. Replay actual study.cjs --verify con los dos Node fijados.
+Plan de 2048 procesos/18432 medidas/6144 warmup, 24576 Window y 24576 Document separados,
+3 rondas/2 estados finales claros por proceso, baselines y 3 snapshots del padre.
+No hay resultado ni aceptación todavía; sin tag/merge hasta decisión íntegra e
+integración probada del gate. Autorización permanente, sin nuevas preguntas.
+Runtime híbrido; migración general pendiente; 48 entradas ajenas preservadas.
+
 ## Método prospectivo de collapse revisado antes de captura — 2026-10-24
 
 Código: reports/benchmarks/native-class-ownership/range-collapse-study/.
