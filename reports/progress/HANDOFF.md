@@ -1,5 +1,23 @@
 # Continuar rustdom en otra máquina
 
+## Candidato de ownership: suites completas en Linux — 2026-10-24
+
+La evidencia adicional está en
+`reports/validation/native-class-ownership/cold-cleanup-compatibility/`.
+Los seis comandos completos pasaron en Node22.12.0 y24.14.1 con el mismo
+addon9bab7909: compatibilidad, Jest, Vitest, VM, HTML y WPT. Los conteos y
+exclusiones reales están en summary.json/README; no equivalen a migración completa.
+Se conservan el intento con loader ausente, su interrupción, el error de conteo
+del controlador Node22 y las correcciones probadas, sin repetir las suites exitosas.
+Los snapshots finitos de recursos WPT están en
+`reports/memory/cold-cleanup-compatibility.json`; no son GC final ni memoria pico.
+
+El prototipo publicado antes en fb4bb26c sigue sin integrar, sin rendimiento
+medido y sin validación del candidato en Windows/macOS. Las secciones de abajo
+conservan el estado histórico previo a esta calificación Linux. No aceptar el
+gate, tag ni merge. Preparar un protocolo independiente revisado y publicado
+antes de solicitar una nueva ejecución; no reutilizar autorizaciones consumidas.
+
 ## Variante de ownership aislada, sin medir — 2026-10-24
 
 En reports/benchmarks/native-class-ownership/cold-cleanup-candidate/ hay un patch

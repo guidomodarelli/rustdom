@@ -1,0 +1,70 @@
+"""Authenticate the complete functional packet without executing archived code."""
+import hashlib
+import json
+from pathlib import Path
+import sys
+import tarfile
+
+if sys.flags.optimize:
+    raise RuntimeError('Functional packet verification requires assertions enabled; remove -O/PYTHONOPTIMIZE')
+
+repository = Path(__file__).resolve().parents[1]
+packet = repository / 'reports/validation/native-class-ownership/cold-cleanup-compatibility'
+summary = json.loads((packet / 'summary.json').read_text(encoding='utf-8'))
+digest = lambda filename: hashlib.sha256(filename.read_bytes()).hexdigest()
+archive = packet / summary['rawArchive']['path']
+assert archive.stat().st_size == summary['rawArchive']['bytes']
+assert digest(archive) == summary['rawArchive']['sha256']
+entries = json.loads((packet / 'members.json').read_text(encoding='utf-8'))
+expected = {entry['path']: entry for entry in entries}
+assert len(expected) == len(entries)
+observed = set()
+resource_rows = []
+with tarfile.open(archive, 'r:xz') as source:
+    for member in source:
+        assert member.isfile() and member.name in expected and member.name not in observed, member.name
+        entry = expected[member.name]
+        assert member.size == entry['bytes'], member.name
+        checksum = hashlib.sha256()
+        is_wpt_report = member.name.startswith('full-compatibility-attempt2/node') and '-test-wpt-reports/compatibility/' in member.name and member.name.endswith('-wpt.json')
+        report_chunks = []
+        with source.extractfile(member) as content:
+            for chunk in iter(lambda: content.read(1024 * 1024), b''):
+                checksum.update(chunk)
+                if is_wpt_report:
+                    report_chunks.append(chunk)
+        assert checksum.hexdigest() == entry['sha256'], member.name
+        if is_wpt_report:
+            report = json.loads(b''.join(report_chunks))
+            version = report['node'].removeprefix('v').split('.')[0]
+            for row in report['results']:
+                for role in ['reference', 'candidate']:
+                    execution = row['execution'][role]
+                    resource_rows.append({'node': version, 'file': row['file'], 'role': role,
+                        'engine': execution['engine'], 'exitCode': execution['exitCode'], 'signal': execution['signal'],
+                        'memoryBefore': execution['memoryBefore'], 'memoryAfterClose': execution['memoryAfterClose']})
+        observed.add(member.name)
+assert observed == set(expected)
+assert all(receipt['exitCode'] == 0 for receipt in summary['secondAttemptCommands'].values())
+assert len(summary['secondAttemptCommands']) == 12
+memory = json.loads((repository / 'reports/memory/cold-cleanup-compatibility.json').read_text(encoding='utf-8'))
+assert len(memory['rows']) == sum(report['wpt']['fixtures'] * 2 for report in summary['reports'].values())
+assert memory['rows'] == resource_rows
+pin_counts = {}
+for prefix in ['native-telemetry-method', 'shared-fixture-study-method']:
+    receipt = json.loads((repository / ('reports/validation/native-class-ownership/' + prefix + '/review.json')).read_text(encoding='utf-8'))
+    pin_counts[prefix] = len(receipt['files'])
+    for name, expected_hash in receipt['files'].items():
+        assert digest(repository / name) == expected_hash, name
+source_manifest = json.loads((repository / 'reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json').read_text(encoding='utf-8'))
+assert pin_counts == {'native-telemetry-method': 46, 'shared-fixture-study-method': 26}
+for entry in source_manifest['files']:
+    assert digest(repository / entry['path']) == entry['sha256'], entry['path']
+proof = {'archiveMembersAuthenticated': len(observed), 'successfulFunctionalCommands': 12,
+    'fixtureProcessesWithResourceSnapshots': len(memory['rows']), 'resourceSnapshots': len(memory['rows']) * 2,
+    'frozenRuntimeFilesUnchanged': len(source_manifest['files']),
+    'nativeMethodPinsUnchanged': pin_counts['native-telemetry-method'],
+    'sharedMethodPinsUnchanged': pin_counts['shared-fixture-study-method'],
+    'productionRuntimeChanged': False, 'benchmarkExecuted': False, 'performanceAccepted': None}
+(packet / 'verification.json').write_text(json.dumps(proof, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps(proof))
