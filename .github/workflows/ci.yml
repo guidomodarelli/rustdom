@@ -19,6 +19,8 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Probar recolección de reportes con Git y filesystem reales
+        run: node --test .github/scripts/collect-report-artifacts.spec.cjs
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -48,11 +50,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y valgrind
       - if: runner.os == 'Linux'
         run: npm run test:native-memory
+      - name: Recolectar reportes nuevos o modificados de validación
+        if: always()
+        run: node .github/scripts/collect-report-artifacts.cjs "${{ runner.temp }}/validation-reports"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: validation-${{ matrix.os }}
-          path: reports/
+          path: ${{ runner.temp }}/validation-reports/
 
   benchmark_shards:
     name: Benchmark shard ${{ matrix.shard }}
@@ -77,11 +82,14 @@ jobs:
       - run: npm run build
       - run: node --expose-gc --test tests/benchmarks/*.spec.cjs
       - run: npm run bench
+      - name: Recolectar reportes nuevos o modificados del shard
+        if: always()
+        run: node .github/scripts/collect-report-artifacts.cjs "${{ runner.temp }}/benchmark-reports" "reports/benchmarks"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: benchmark-linux-${{ matrix.shard }}
-          path: reports/benchmarks/
+          path: ${{ runner.temp }}/benchmark-reports/
 
   benchmarks:
     needs: benchmark_shards
