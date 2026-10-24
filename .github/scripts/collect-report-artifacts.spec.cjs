@@ -12,7 +12,7 @@ const settings = require('./constants/report-artifacts.json');
 
 /** @returns {object} Actual isolated Git checkout and its cleanup callback. */
 function fixture() {
-  const parent = fs.realpathSync(os.tmpdir());
+  const parent = fs.realpathSync.native(os.tmpdir());
   const directory = fs.mkdtempSync(path.join(parent, 'rustdom-reports-'));
   const repository = path.join(directory, 'repo'); fs.mkdirSync(repository);
   const git = (args) => execFileSync('git', ['-C', repository, ...args], { encoding: 'utf8' });
@@ -22,7 +22,7 @@ function fixture() {
   git(['add', '--', 'reports/history.bin', '.gitignore']);
   git(['-c', 'user.name=Artifact integration tests', '-c', 'user.email=artifacts@example.invalid', 'commit', '-qm', 'Fixture']);
   return { directory, repository, git,
-    cleanup() { assert.equal(path.dirname(directory), parent); assert.equal(fs.realpathSync(directory), directory);
+    cleanup() { assert.equal(path.dirname(directory), parent); assert.equal(fs.realpathSync.native(directory), directory);
       assert.ok(path.basename(directory).startsWith('rustdom-reports-')); fs.rmSync(directory, { recursive: true }); } };
 }
 
@@ -188,5 +188,28 @@ test('staged report changes are retained relative to the source commit without c
     assert.equal(fs.readFileSync(path.join(output, 'staged.json'), 'utf8'), 'new staged result\n');
     assert.equal(fs.readFileSync(path.join(output, 'history.bin'), 'utf8'), 'modified and staged\n');
     assert.equal(current.git(['diff', '--cached', '--name-only']), stagedBefore);
+  } finally { current.cleanup(); }
+});
+
+test('Windows short and long paths identify the same checkout and output parent', { skip: process.platform !== 'win32' }, async (context) => {
+  const current = fixture();
+  try {
+    // Query the real filesystem alias; do not emulate realpath or Git responses.
+    const shortDirectory = execFileSync('cmd.exe', ['/d', '/c', `for %I in ("${current.directory}") do @echo %~sI`],
+      { encoding: 'utf8', windowsVerbatimArguments: true }).trim();
+    if (shortDirectory.toLowerCase() === current.directory.toLowerCase()) {
+      assert.equal(os.tmpdir().includes('~'), false, 'The hosted short temporary path must exercise this regression');
+      context.skip('This filesystem provides no 8.3 alias for the owned fixture'); return;
+    }
+    assert.equal(fs.realpathSync.native(shortDirectory), current.directory);
+    fs.writeFileSync(path.join(current.repository, 'reports/current.json'), 'short path result\n');
+    const output = path.join(shortDirectory, 'output');
+    const result = await collect(path.join(shortDirectory, 'repo'), output);
+    assert.equal(result.complete, true); assert.equal(result.filesCopied, 1);
+    assert.equal(result.sourceCommit, current.git(['rev-parse', 'HEAD']).trim());
+    assert.equal(fs.readFileSync(path.join(output, 'current.json'), 'utf8'), 'short path result\n');
+    await assert.rejects(collect(path.join(shortDirectory, 'repo'), path.join(shortDirectory, 'repo/inside')),
+      { code: 'ERR_ASSERTION' });
+    assert.equal(fs.existsSync(path.join(current.repository, 'inside')), false);
   } finally { current.cleanup(); }
 });

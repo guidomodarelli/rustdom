@@ -29,13 +29,15 @@ async function digest(filename) {
  * @returns {Promise<object>} Exact uploaded-file digests and records for deletions and links.
  */
 async function collect(repository, destination, reportRoot = settings.reportsDirectory) {
-  repository = fs.realpathSync(repository);
+  // The native resolver expands Windows 8.3 aliases (for example RUNNER~1).
+  // Git reports the long path, so both inputs need the same OS identity.
+  repository = fs.realpathSync.native(repository);
   const git = (args) => execFileSync('git', ['-C', repository, ...args], {
     encoding: 'utf8', maxBuffer: settings.maximumGitOutputBytes });
-  assert.equal(fs.realpathSync(git(['rev-parse', '--show-toplevel']).trim()), repository,
+  assert.equal(fs.realpathSync.native(git(['rev-parse', '--show-toplevel']).trim()), repository,
     'Report collection requires the Git repository root');
   destination = path.resolve(destination);
-  destination = path.join(fs.realpathSync(path.dirname(destination)), path.basename(destination));
+  destination = path.join(fs.realpathSync.native(path.dirname(destination)), path.basename(destination));
   assert.ok(!within(repository, destination) && !within(destination, repository),
     'Report collection must preserve a disjoint source checkout');
   assert.ok(!fs.existsSync(destination), 'Report collection requires a fresh output directory');
@@ -66,7 +68,7 @@ async function collect(repository, destination, reportRoot = settings.reportsDir
       throw error;
     }
     if (stat.isSymbolicLink()) return { path: name, kind: 'symlink', target: fs.readlinkSync(filename) };
-    assert.ok(stat.isFile() && within(reports, fs.realpathSync(filename)),
+    assert.ok(stat.isFile() && within(reports, fs.realpathSync.native(filename)),
       'Report collection cannot read a file outside the owned reports directory');
     return { path: name, kind: 'file' };
   });

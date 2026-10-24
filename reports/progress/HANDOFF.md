@@ -1,5 +1,21 @@
 # Continuar rustdom en otra máquina
 
+## CI: alias Windows 8.3 corregido — 2026-10-24
+
+El CI40125425193 de1c3a041b falló en Windows/job120965695524 al comparar
+la ruta larga de Git runneradmin con el alias RUNNER~1 conservado por
+fs.realpathSync. El colector usa ahora fs.realpathSync.native en raíz,
+padre de salida y archivos, preservando límites y rutas originales.
+Evidencia en `reports/validation/ci-report-short-path/2026-10-24/`.
+
+La misma suite nueva reproduce el error en el colector previo obtenido de
+Git:11pass/1fail/1skip; el fix pasa12pass/0fail/1skip en Windows y ejerce
+un alias8.3 real. El skip corresponde al privilegio de symlink de archivo.
+Linux Node22.12.0/24.14.1 pasa12contratos y omite solo el caso Windows.
+Revisión aislada sin hallazgos; comprobar CI hospedado del nuevo SHA.
+Los511pins y la captura fría rechazada siguen intactos; no nueva captura,
+tag ni merge. La autorización permanente y la migración general siguen activas.
+
 ## Estudio frío completo y rechazado — 2026-10-24
 
 El run40113188886/job120928996128, intento1, del SHA b63cf834 terminó
