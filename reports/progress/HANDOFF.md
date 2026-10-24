@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Collapse nativo: seis combinaciones hospedadas verificadas — 2026-10-24
+
+El run40128890776, intento1, head da0f4f80, completó6/6success en
+Linux/macOS/Windows con Node22.12.0/24.14.1. La etiqueta funcional ya se
+aplicó UNA vez: no reaplicarla ni relanzar este run. ZIP/API/logs y manifiestos
+completos647archivos por artifact en
+`reports/validation/native-class-ownership/range-collapse-hosted/40128890776/`.
+Doce replays offline con los dos Node fijados son idénticos por perfil.
+El CI general40128791619 del mismo head terminó success8/8, incluida la
+validación nativa de memoria Linux; se conserva su API en el mismo packet.
+240fixtures/83007assertions WPT,1203no aprobados compartidos, complete=false;
+1784HTML/8excluidos, fallbacks preservados. Recursos y límites en
+`reports/memory/range-collapse-hosted-40128890776.{json,md}`:6Window y6Document
+separados por perfil,384Range/384NativeRange,12endpoints negativos y12finales
+claros por perfil. Son seis capturas leídas dos veces, no doce capturas.
+
+ELF Linux43410883b1fb21dfb3fa35dfefce2a0adc9eaa5fd4a45b684c37c39b344fbdb4
+idéntico en ambos Node y distinto del local26ba8690. macOS918667ff idéntico;
+Windows22e29a63db y24 53ec979d diferentes, ambos preservados. El perfil prospectivo
+linux-node24 se fijó antes de medir. Siguiente trabajo: preparar un método nuevo
+para este candidato, con presupuestos originales±2%/±5% y la dependencia/addon
+exactos calificados; ZIP sin node_modules, no reconstruir Rust. No repetir las
+secuencias consumidas. La autorización permanente cubre el método y las fases.
+performanceAccepted=null/gateReevaluated=false: funcional no acepta rendimiento.
+No tag/merge de ownership hasta aceptación e integración probada del gate.
+El runtime sigue híbrido; la migración general continúa pendiente.
+
 ## Candidato aislado: collapse nativo calificado localmente — 2026-10-24
 
 Código, patch, addon local y evidencia en
