@@ -1,0 +1,110 @@
+"""Run ordinary full suites using the authenticated hosted addon, without rebuilding it."""
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Hosted qualification requires assertions enabled')
+root = Path('/home/guido/rustdom-validation/cold-cleanup-build-20261024-attempt1')
+source = root / 'B'
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+output = root / 'hosted-compatibility-40065437939'
+hosted = Path('/home/guido/rustdom-validation/cold-preparation-40065437939/archive-current-reader/cold-cleanup-preparation/build/packages/B')
+expected_binary = '0a949fb3441baca338c7ba2b383011bdc516ba63f164bc2e4e1152f124155776'
+expected_local = '9bab7909799346eedf30f380b78eb9dcbda085e38bc6eb82df9fda12eb0d1f7e'
+expected_head = '8dba217bc46d601f8798ce89f6edc3c0b841454e'
+test_name = 'tests/native-mutation-record-construction.spec.cjs'
+tools = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+version = sys.argv[2] if len(sys.argv) > 2 else '24'
+node_root = tools / ('node-22' if version == '22' else 'node')
+node = node_root / 'bin/node'
+node_hashes = {'22': '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9',
+    '24': 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a'}
+versions = {'22': 'v22.12.0', '24': 'v24.14.1'}
+scripts = ['test:compat', 'test:jest', 'test:vitest', 'test:vm', 'test:corpus', 'test:wpt']
+
+def digest(filename):
+    return hashlib.file_digest(filename.open('rb'), 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else hashlib.sha256(filename.read_bytes()).hexdigest()
+
+def git(*arguments):
+    return subprocess.check_output(['git', *arguments], cwd=source, text=True).strip()
+
+assert git('rev-parse', 'HEAD') == expected_head
+assert digest(node) == node_hashes[version]
+assert subprocess.check_output([node, '--version'], text=True).strip() == versions[version]
+environment = dict(os.environ, PATH=str(node_root / 'bin') + os.pathsep + os.environ.get('PATH', ''))
+npm = [node, node_root / 'lib/node_modules/npm/bin/npm-cli.js']
+
+def distribution_manifest(directory):
+    return [{'path': filename.relative_to(directory).as_posix(), 'bytes': filename.stat().st_size, 'sha256': digest(filename)}
+        for filename in sorted(directory.rglob('*')) if filename.is_file()]
+
+def run(label, command):
+    installed = source / 'dist/rustdom.node'
+    assert digest(installed) == expected_binary
+    started = datetime.now(timezone.utc).isoformat()
+    with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(command, cwd=source, env=environment, stdout=stdout, stderr=stderr)
+    observed = digest(installed)
+    receipt = {'argv': list(map(str, command)), 'node': versions[version], 'nodeBinarySha256': node_hashes[version],
+        'startedAtUTC': started, 'completedAtUTC': datetime.now(timezone.utc).isoformat(), 'exitCode': result.returncode,
+        'installedBinaryBeforeSha256': expected_binary, 'installedBinaryAfterSha256': observed,
+        'head': git('rev-parse', 'HEAD'), 'sourceChanges': git('status', '--short'),
+        'pythonOptimize': sys.flags.optimize, 'benchmarkExecuted': False, 'performanceAccepted': None}
+    (output / (label + '.json')).write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps({'phase': label, 'exitCode': result.returncode}), flush=True)
+    assert observed == expected_binary, label
+    assert distribution_manifest(source / 'dist') == json.loads((output / 'hosted-distribution.json').read_text()), label
+    return result.returncode
+
+operation = sys.argv[1]
+if operation == 'prepare':
+    assert not output.exists()
+    assert git('status', '--short') == 'M third-party/napi/src/bindgen_runtime/class_ownership.rs'
+    assert digest(source / 'third-party/napi/src/bindgen_runtime/class_ownership.rs') == 'ee6a0045cc4e6ba5687344a7b3b67698a54dc1922b42efb3f65f9703fdc52490'
+    assert digest(source / 'dist/rustdom.node') == expected_local
+    assert digest(hosted / 'dist/rustdom.node') == expected_binary
+    preserved = root / 'preserved-dist-B-attempt2'
+    assert not preserved.exists()
+    assert (source / 'dist').resolve().is_relative_to(root.resolve())
+    assert preserved.parent.resolve() == root.resolve()
+    assert not (source / test_name).exists()
+    output.mkdir()
+    shutil.copyfile(__file__, output / 'qualification-controller.py.txt')
+    (output / 'before.json').write_text(json.dumps({'head': git('rev-parse', 'HEAD'), 'sourceChanges': git('status', '--short'),
+        'localDistribution': distribution_manifest(source / 'dist'), 'hostedRunId': 40065437939,
+        'hostedArtifactId': 12549521134, 'hostedBinarySha256': expected_binary, 'benchmarkExecuted': False}, indent=2) + '\n')
+    (source / 'dist').rename(preserved)
+    shutil.copytree(hosted / 'dist', source / 'dist')
+    (output / 'hosted-distribution.json').write_text(json.dumps(distribution_manifest(source / 'dist'), indent=2) + '\n')
+    shutil.copyfile(repository / test_name, source / test_name)
+    assert digest(source / test_name) == 'abefee7528b0fccd331039182d25d1d2c97cd132016f85ad930166889b65516d'
+    sys.exit(run('npm-ci-development', [*npm, 'ci', '--include=dev', '--no-audit', '--no-fund']))
+elif operation == 'suites':
+    assert output.exists()
+    for script in scripts:
+        label = 'node' + version + '-' + script.replace(':', '-')
+        reports = source / 'reports'
+        before = {filename.relative_to(reports).as_posix(): (filename.stat().st_size, filename.stat().st_mtime_ns)
+            for filename in reports.rglob('*') if filename.is_file()}
+        run(label, [*npm, 'run', script])
+        for filename in reports.rglob('*'):
+            if not filename.is_file():
+                continue
+            name = filename.relative_to(reports).as_posix()
+            if before.get(name) == (filename.stat().st_size, filename.stat().st_mtime_ns):
+                continue
+            target = output / (label + '-reports') / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(filename, target)
+    receipts = [json.loads((output / ('node' + version + '-' + script.replace(':', '-') + '.json')).read_text()) for script in scripts]
+    passed = all(receipt['exitCode'] == 0 for receipt in receipts)
+    print(json.dumps({'node': versions[version], 'suiteReceipts': len(receipts), 'allPassed': passed}), flush=True)
+    sys.exit(0 if passed else 1)
+else:
+    raise ValueError('Unknown qualification operation: ' + operation)

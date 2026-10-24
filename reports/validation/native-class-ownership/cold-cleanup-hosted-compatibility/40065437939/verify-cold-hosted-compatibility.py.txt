@@ -1,0 +1,98 @@
+"""Read/authenticate the full functional packet without executing archived code."""
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import sys
+import tarfile
+from cold_cleanup_summary import read_node_summaries, read_runner_count
+
+if sys.flags.optimize:
+    raise RuntimeError('Hosted packet verification requires assertions enabled')
+repository = Path(__file__).resolve().parents[1]
+packet = repository / 'reports/validation/native-class-ownership/cold-cleanup-hosted-compatibility/40065437939'
+read = lambda filename: json.loads(filename.read_text(encoding='utf-8'))
+summary = read(packet / 'summary.json')
+transport = read(repository / 'reports/benchmarks/native-class-ownership/cold-cleanup-transport/constants/transport.json')
+index_path = repository / 'reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/metadata/build-index.json'
+assert hashlib.sha256(index_path.read_bytes()).hexdigest() == transport['evidenceHashes']['build/index.json']
+hosted_index = read(index_path)
+hosted_binary = next(entry['sha256'] for entry in hosted_index['distributions']['B']['files'] if entry['path'] == 'dist/rustdom.node')
+assert summary['candidateBinarySha256'] == hosted_binary, 'Functional evidence declares a different addon from the authenticated CI artifact'
+assert summary['artifactRunId'] == transport['runId'] and summary['artifactId'] == transport['artifactId']
+archive = packet / summary['rawArchive']['path']
+assert archive.resolve().parent == packet.resolve() and not archive.is_symlink()
+assert archive.stat().st_size == summary['rawArchive']['bytes']
+assert hashlib.sha256(archive.read_bytes()).hexdigest() == summary['rawArchive']['sha256']
+entries = read(packet / 'members.json')
+expected = {entry['path']: entry for entry in entries}
+assert len(expected) == len(entries) == summary['rawArchive']['regularFiles']
+observed = set()
+selected = {}
+with tarfile.open(archive, 'r:xz') as source:
+    for member in source:
+        name = member.name
+        assert member.isfile() and name in expected and name not in observed
+        assert not PurePosixPath(name).is_absolute() and '..' not in PurePosixPath(name).parts
+        assert member.size == expected[name]['bytes']
+        content = source.extractfile(member).read()
+        assert hashlib.sha256(content).hexdigest() == expected[name]['sha256'], name
+        if name.endswith('.json') or name.endswith(('compat.stdout.log', 'jest.stderr.log', 'vitest.stdout.log', 'vm.stdout.log')):
+            selected[name] = content
+        observed.add(name)
+assert observed == set(expected)
+actual_resources = []
+for version in ['22', '24']:
+    prefix = 'node' + version + '-test-'
+    for suite in ['compat', 'jest', 'vitest', 'vm', 'corpus', 'wpt']:
+        label = prefix + suite
+        raw = json.loads(selected[label + '.json'])
+        assert summary['suiteCommands'][label] == raw
+        assert raw['exitCode'] == 0 and raw['installedBinaryBeforeSha256'] == summary['candidateBinarySha256'] == raw['installedBinaryAfterSha256']
+    report = summary['reports']['node' + version]
+    assert report['runnerTests'] == {suite: read_runner_count(selected[prefix + suite + suffix].decode('utf-8'))
+        for suite, suffix in [('jest', '.stderr.log'), ('vitest', '.stdout.log'), ('vm', '.stdout.log')]}
+    assert read_node_summaries(selected[prefix + 'compat.stdout.log'].decode('utf-8')) == report['compatibilitySummaries']
+    corpus = json.loads(selected[prefix + 'corpus-reports/validation/html5lib.json'])
+    assert report['html5'] == {key: corpus[key] for key in report['html5']}
+    wpt_names = [name for name in selected if name.startswith(prefix + 'wpt-reports/compatibility/') and name.endswith('-wpt.json')]
+    assert len(wpt_names) == 1
+    wpt = json.loads(selected[wpt_names[0]])
+    assert report['wpt'] == {'pass': wpt['pass'], 'complete': wpt['complete'], 'fixtures': len(wpt['results']),
+        'blockedSuites': wpt['blockedSuites'], 'excludedFixtures': wpt['excludedFixtures'], 'jsdom': wpt['jsdom'],
+        'revision': wpt['wptRevision'], 'assertions': sum(len(row['actual']['tests']) for row in wpt['results']),
+        'sharedNonPassingAssertions': sum(test['status'] != 0 for row in wpt['results'] for test in row['actual']['tests'])}
+    for row in wpt['results']:
+        for role in ['reference', 'candidate']:
+            execution = row['execution'][role]
+            actual_resources.append({'node': version, 'file': row['file'], 'role': role, 'engine': execution['engine'],
+                'exitCode': execution['exitCode'], 'signal': execution['signal'],
+                'memoryBefore': execution['memoryBefore'], 'memoryAfterClose': execution['memoryAfterClose']})
+assert len(summary['suiteCommands']) == 12
+memory = read(repository / 'reports/memory/cold-cleanup-hosted-compatibility-40065437939.json')
+assert memory['rows'] == actual_resources
+assert memory['candidateBinarySha256'] == summary['candidateBinarySha256']
+assert summary['performanceAccepted'] is None and summary['benchmarkExecuted'] is False
+assert summary['productionRuntimeChanged'] is False and summary['candidateIntegrated'] is False
+distribution = read(packet / 'distribution.json')
+actual = [{**entry, 'path': 'dist/' + entry['path']} for entry in distribution]
+assert actual == [entry for entry in hosted_index['distributions']['B']['files'] if entry['path'].startswith('dist/')]
+assert len(distribution) == summary['distributionFilesUnchanged'] == 568
+assert json.loads(selected['hosted-distribution.json']) == distribution
+assert json.loads(selected['source-identity-after.json']) == read(packet / 'source-identity.json')
+regression = summary['promotedRegression']
+assert hashlib.sha256((repository / regression['path']).read_bytes()).hexdigest() == regression['sha256']
+for method, count in summary['pins'].items():
+    files = read(repository / ('reports/validation/native-class-ownership/' + method + '/review.json'))['files']
+    assert len(files) == count
+    for name, expected_hash in files.items():
+        assert hashlib.sha256((repository / name).read_bytes()).hexdigest() == expected_hash
+frozen = read(repository / 'reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json')['files']
+assert len(frozen) == summary['frozenRuntimeFilesUnchanged'] == 434
+for entry in frozen:
+    assert hashlib.sha256((repository / entry['path']).read_bytes()).hexdigest() == entry['sha256']
+proof = {'archiveMembersAuthenticated': len(observed), 'successfulFunctionalCommands': 12,
+    'distributionFilesAuthenticated': len(distribution), 'fixtureProcessesWithResourceSnapshots': len(actual_resources),
+    'resourceSnapshots': len(actual_resources) * 2, 'pins': summary['pins'], 'frozenRuntimeFilesUnchanged': len(frozen),
+    'productionRuntimeChanged': False, 'benchmarkExecuted': False, 'performanceAccepted': None}
+(packet / 'verification.json').write_text(json.dumps(proof, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps(proof))

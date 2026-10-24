@@ -1,0 +1,31 @@
+"""Read observable summaries emitted by Node's TAP and spec reporters."""
+import re
+
+
+def read_node_summaries(output):
+    plain = re.sub(r'\x1b\[[0-9;]*m', '', output)
+    fields = ['tests', 'pass', 'fail', 'cancelled', 'skipped', 'todo']
+    rows = re.findall(r'^[#ℹ] (tests|pass|fail|cancelled|skipped|todo) (\d+)$', plain, re.M)
+    summaries = []
+    for name, value in rows:
+        if name == 'tests':
+            summaries.append({})
+        if not summaries or name in summaries[-1]:
+            raise ValueError('Node report has an unordered or duplicate summary field: ' + name)
+        summaries[-1][name] = int(value)
+    if not summaries or any(set(summary) != set(fields) for summary in summaries):
+        raise ValueError('Node report has no complete test summary')
+    return summaries
+
+
+def read_runner_count(output):
+    """Read the actual total/pass summary emitted by pinned Jest or Vitest."""
+    plain = re.sub(r'\x1b\[[0-9;]*m', '', output)
+    rows = re.findall(r'^\s*Tests:?\s+(\d+) passed(?:,\s+(\d+) total|\s+\((\d+)\))\s*$', plain, re.M)
+    if len(rows) != 1:
+        raise ValueError('Runner report has no unique successful test summary')
+    passed, jest_total, vitest_total = rows[0]
+    total = int(jest_total or vitest_total)
+    if int(passed) != total:
+        raise ValueError('Runner report has non-passing tests')
+    return total

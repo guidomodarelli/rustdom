@@ -1,5 +1,25 @@
 # Continuar rustdom en otra máquina
 
+## Addon exacto de CI: suites completas en ambos Node — 2026-10-24
+
+La evidencia está en
+`reports/validation/native-class-ownership/cold-cleanup-hosted-compatibility/40065437939/`.
+Los seis comandos completos aprobaron en Node22.12.0 y24.14.1 con el addon
+exacto0a949fb3 y los568archivos de dist autenticados del artifact12549521134.
+Compatibilidad, Jest, Vitest, VM, HTML y WPT conservan conteos, exclusiones y
+fallos compartidos reales en summary.json/README. No hubo rebuild ni benchmark.
+Los recursos finitos están en
+`reports/memory/cold-cleanup-hosted-compatibility-40065437939.json`.
+El lector ancla el SHA declarado al índice autenticado de CI; su regresión
+rechaza metadatos coherentes alterados y un archivo vuelto a sellar.
+
+El siguiente paso es preparar, probar, revisar y publicar un método prospectivo
+independiente que fije estos paquetes antes de pedir una ejecución nueva.
+Las autorizaciones previas siguen consumidas. Preservar26/46pins y434fuentes
+congeladas del árbol principal, rechazos históricos y48archivos ajenos.
+No tag ni merge sin aceptación de ownership. El candidato sigue aislado y
+el runtime sigue híbrido; Windows/macOS del candidato y la migración faltan.
+
 ## Preparación de CI autenticada:40065437939 — 2026-10-24
 
 El run40065437939/job120787588512,intento1,f559d37a terminó success.

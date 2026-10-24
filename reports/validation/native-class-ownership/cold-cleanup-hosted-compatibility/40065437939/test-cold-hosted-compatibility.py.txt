@@ -1,0 +1,132 @@
+"""Exercise current readers against actual functional evidence and resealed altered copies."""
+import hashlib
+import io
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import unittest
+
+if sys.flags.optimize:
+    raise RuntimeError('Hosted evidence contract checking requires assertions enabled')
+
+repository = Path(__file__).resolve().parents[1]
+packet_name = 'reports/validation/native-class-ownership/cold-cleanup-hosted-compatibility/40065437939'
+memory_name = 'reports/memory/cold-cleanup-hosted-compatibility-40065437939.json'
+index_name = 'reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/metadata/build-index.json'
+policy_name = 'reports/benchmarks/native-class-ownership/cold-cleanup-transport/constants/transport.json'
+read = lambda filename: json.loads(filename.read_text(encoding='utf-8'))
+def write(filename, value):
+    filename.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+
+class FunctionalEvidenceContracts(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='cold-hosted-contract-', dir=repository / '.cache')
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        assert self.root.resolve().parent == (repository / '.cache').resolve()
+        names = {index_name, policy_name, memory_name,
+            '.cache/verify-cold-hosted-compatibility.py', '.cache/cold_cleanup_summary.py'}
+        names.add(read(repository / packet_name / 'summary.json')['promotedRegression']['path'])
+        for method in ['shared-fixture-study-method', 'native-telemetry-method']:
+            name = 'reports/validation/native-class-ownership/' + method + '/review.json'
+            names.add(name)
+            names.update(read(repository / name)['files'])
+        frozen_name = 'reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json'
+        names.add(frozen_name)
+        names.update(entry['path'] for entry in read(repository / frozen_name)['files'])
+        for name in names:
+            target = self.root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(repository / name, target)
+        shutil.copytree(repository / packet_name, self.root / packet_name)
+        self.packet = self.root / packet_name
+
+    def invoke(self, success):
+        result = subprocess.run([sys.executable, str(self.root / '.cache/verify-cold-hosted-compatibility.py')],
+            cwd=self.root, capture_output=True, text=True)
+        self.assertEqual(result.returncode == 0, success, result.stdout + result.stderr)
+        return result
+
+    def test_actual_packet(self):
+        proof = json.loads(self.invoke(True).stdout)
+        self.assertEqual(proof['successfulFunctionalCommands'], 12)
+        self.assertEqual(proof['distributionFilesAuthenticated'], 568)
+        self.assertIsNone(proof['performanceAccepted'])
+
+    def test_optimization_rejected_before_reading_or_running_dom(self):
+        for name in ['qualify-cold-hosted-full.py', 'collect-cold-hosted-compatibility.py', 'verify-cold-hosted-compatibility.py',
+                'test-cold-hosted-compatibility.py', 'run-cold-hosted-evidence-checks.py', 'document-cold-hosted-compatibility.py']:
+            result = subprocess.run([sys.executable, '-O', str(repository / '.cache' / name)],
+                cwd=self.root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('requires assertions enabled', result.stderr)
+
+    def test_changed_archive_bytes(self):
+        summary = read(self.packet / 'summary.json')
+        archive = self.packet / summary['rawArchive']['path']
+        content = bytearray(archive.read_bytes())
+        content[-1] ^= 1
+        archive.write_bytes(content)
+        self.invoke(False)
+
+    def test_self_consistent_other_binary_rejected(self):
+        summary = read(self.packet / 'summary.json')
+        expected = summary['candidateBinarySha256']
+        other = '9bab7909799346eedf30f380b78eb9dcbda085e38bc6eb82df9fda12eb0d1f7e'
+        self.assertNotEqual(expected, other)
+        original = self.packet / summary['rawArchive']['path']
+        resealed = self.packet / 'resealed.tar.xz'
+        members = []
+        with tarfile.open(original, 'r:xz') as source, tarfile.open(resealed, 'w:xz') as target:
+            for member in source:
+                content = source.extractfile(member).read()
+                label = member.name.removesuffix('.json')
+                if label in summary['suiteCommands']:
+                    receipt = json.loads(content)
+                    receipt['installedBinaryBeforeSha256'] = other
+                    receipt['installedBinaryAfterSha256'] = other
+                    summary['suiteCommands'][label] = receipt
+                    content = (json.dumps(receipt, indent=2) + '\n').encode()
+                member.size = len(content)
+                target.addfile(member, io.BytesIO(content))
+                members.append({'path': member.name, 'bytes': len(content), 'sha256': hashlib.sha256(content).hexdigest()})
+        summary['candidateBinarySha256'] = other
+        summary['rawArchive'].update(path=resealed.name, bytes=resealed.stat().st_size,
+            sha256=hashlib.sha256(resealed.read_bytes()).hexdigest())
+        memory = read(self.root / memory_name)
+        memory['candidateBinarySha256'] = other
+        write(self.root / memory_name, memory)
+        write(self.packet / 'summary.json', summary)
+        write(self.packet / 'members.json', members)
+        result = self.invoke(False)
+        self.assertIn('different addon from the authenticated CI artifact', result.stderr)
+
+    def test_summary_receipt_must_match_raw(self):
+        summary = read(self.packet / 'summary.json')
+        summary['suiteCommands']['node22-test-jest']['exitCode'] = 99
+        write(self.packet / 'summary.json', summary)
+        self.invoke(False)
+
+    def test_runner_count_must_match_raw(self):
+        summary = read(self.packet / 'summary.json')
+        summary['reports']['node24']['runnerTests']['jest'] += 1
+        write(self.packet / 'summary.json', summary)
+        self.invoke(False)
+
+    def test_memory_rows_must_match_raw(self):
+        memory = read(self.root / memory_name)
+        memory['rows'][0]['memoryAfterClose']['rss'] += 1
+        write(self.root / memory_name, memory)
+        self.invoke(False)
+
+    def test_changed_hosted_index_rejected(self):
+        index = self.root / index_name
+        index.write_text(index.read_text(encoding='utf-8') + '\n', encoding='utf-8')
+        self.invoke(False)
+
+if __name__ == '__main__':
+    unittest.main()
