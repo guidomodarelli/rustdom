@@ -1,5 +1,37 @@
 # Continuar rustdom en otra máquina
 
+## Preparación fresca corregida: tag y commit — 2026-10-24
+
+`cold-cleanup-build/` reutiliza el productor existente y fija baseline067 más
+checkout8dba217b/patchd869ec4a. Localmente pasaron build, probes canónicos de15
+Window y15Document por Node22/24 y ocho contratos por versión, incluidos runtime
+real relocalizado, reseña de fuentes, identidades y endpoints adulterados.
+Archivo íntegro y recursos en
+`reports/validation/native-class-ownership/cold-cleanup-build-preparation/local-2026-10-24-attempt2/`
+y `reports/memory/cold-cleanup-build-local-2026-10-24-attempt2.json`.
+
+La preparación no es un sampler y su evidencia local no es un recibo autenticado
+de CI. Seguir el workflow nuevo de preparación, autenticar su artifact y preparar
+un método separado antes de solicitar una secuencia nueva. Mantener los rechazos,
+autorizaciones consumidas y el runtime principal. No tag/merge ni aceptación por
+un build/probe funcional. La migración completa permanece activa y pendiente.
+
+## Preparación fresca de paquetes para ownership — 2026-10-24
+
+`cold-cleanup-build/` reutiliza el productor existente y fija baseline067 más
+checkout8dba217b/patchd869ec4a. Localmente pasaron build, probes canónicos de15
+Window y15Document por Node22/24 y ocho contratos por versión, incluidos runtime
+real relocalizado, fuentes con hashes adulterados, identidades y endpoints alterados.
+Archivo íntegro y recursos en
+`reports/validation/native-class-ownership/cold-cleanup-build-preparation/local-2026-10-24/`
+y `reports/memory/cold-cleanup-build-local-2026-10-24.json`.
+
+La preparación no es un sampler y su evidencia local no es un recibo autenticado
+de CI. Seguir el workflow nuevo de preparación, autenticar su artifact y preparar
+un método separado antes de solicitar una secuencia nueva. Mantener los rechazos,
+autorizaciones consumidas y el runtime principal. No tag/merge ni aceptación por
+un build/probe funcional. La migración completa permanece activa y pendiente.
+
 ## Candidato de ownership: suites completas en Linux — 2026-10-24
 
 La evidencia adicional está en
