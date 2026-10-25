@@ -1,5 +1,56 @@
 # Continuar rustdom en otra máquina
 
+## Diagnóstico AA completo, preservado y reproducido — 2026-10-25
+
+Run40154725015/job121053535757/intento1 terminó success. Fuente d5ec4186;
+única secuencia consumida, no activar ni completar muestras. Artifact12585116890
+autenticado por ID/run/commit/intento/nombre/tamaño/digest: ZIP334895287B
+SHAa55d06f0..., tar334797896B SHAc523e4a2..., íntegros en26partes versionadas.
+Resultado: reports/benchmarks/native-class-ownership/range-control-telemetry-results/40154725015/.
+Conservar599pins, fuentes/paquetes históricos y48entradas ajenas.
+
+Replay estricto completo en checkout Git Linux real limpio d5ec4186, con
+Node22.12.0/24.14.1 autenticados:256procesos/2304medidas/768warmup,
+3072Window y3072Document separados,128CPU/128JIT, tres rondas por proceso,
+512estados finales claros y0primeros no claros, tres snapshots del padre.
+Ocho exports idénticos entre SDKs;273deltas CPU negativos conservados.
+Seis derivados descriptivos idénticos Windows/Linux. Conservar ausencia de
+baseline nativo en jsdom y todos los contadores/endpoints originales.
+
+Tabla AA íntegra en README/descriptive-aa.csv: jsdom CPU/Node22 +19.1964%
+entre copias; híbrido CPU/Node22 −0.4837%. Son medianas instrumentadas,
+sin decisión de equivalencia ni causalidad. LabelsA/B son copias AA, noB.
+Los ticks señalan wrappers cloneRangeData/collapseRange/compareRanges;
+V8 no garantiza stacks internos Rust. No adjudicar causas solo por correlación.
+
+Memoria:22constructores antes/final, sin altas; RangeStates7680000 altas/bajas,
+live0→0, contadores de proceso entero incluidos fixtures/warmup/teardown.
+Informe reports/memory/native-class-ownership-range-aa-40154725015.md.
+No afirmar memoria pico ni ausencia universal de fugas. performanceAccepted=null,
+gateReevaluated=false; rechazos históricos vigentes, sin tag/merge.
+
+QAreal:5contratos por Node, transporte8Linux/7Windows+1skip, reconstrucción7/7
+en ambos, artifact9/9, descripción5/5 en ambos. Calificación end-to-end con
+reconstrucción/extracción fresca y replay de ambos SDKs exit0; Actionlint0.
+CIprevio be675a21/run40156502665 aprobado, artifacts/logs incluidos. CI del
+commit de resultados pendiente tras push. Todos los intentos/fallos previos
+están en validation/evidence.zip, solo inspección; usar tools/ actuales.
+
+Narrativa del inventario corregida al catálogo real:531archivos/6auditados,
+4331APIs/32auditadas,7246anclas/1auditada. Ningún archivo Rust completo;
+una ancla Rust no equivale a un algoritmo normativo completo. Sin porcentaje.
+7contratos por Node pasan en checkout Linux limpio con código del inventario
+idéntico al actual; conservar timeout inicial de Node22 en volumen Windows y
+helper faltante del primer checkout. No se alteró ningún timeout del producto.
+
+Siguiente: publicar este paquete y verificar CI/revisión del SHA final; después
+investigar fronteras Range y preparar un candidato nuevo con método prospectivo.
+La autorización permanente y hooks siguen activos: no pedirla de nuevo.
+No repetir esta captura ni alterar sus599pins. No integrar aún StaticRange.
+El objetivo general sigue activo, híbrido e incompleto. Mantener sidecar propio
+y preservar el watch compartido; no usar Engram sin registro de identidad.
+
+
 ## Exportador de recursos completo preparado — 2026-10-25
 
 La captura AA sigue vinculada únicamente a40154725015/121053535757/intento1,
