@@ -1,5 +1,58 @@
 # Continuar rustdom en otra máquina
 
+## Estudio combinado en curso: no volver a activarlo — 2026-10-25
+
+La única secuencia `ownership-combined-process-means-v1` ya está activa:
+run **40184510898**, job **121142337986**, intento **1**, fuente inmutable
+**95e64bd20711975b08864cf1bef1dee362b79663**, PR80 de guidomodarelli/rustdom.
+La etiqueta se aplicó una vez a las 10:22:27 UTC. No reaplicarla, relanzar workflows,
+añadir muestras ni modificar método, paquete, filas, seeds, warmup o presupuestos.
+La autorización permanente está concedida: no volver a pedirla para seguir.
+
+GitHub confirmó el paso de captura activo tras aprobar activación, fuente y
+preparación. Son 2.048 procesos previstos; el progreso por proceso todavía no está
+disponible en el artifact, por lo que no se afirma cuántos terminaron. Límites:
+captura 175 min, job 201 min. La última observación preservada y su fecha están en
+reports/validation/combined-process-study/active-run-40184510898/latest.json.
+
+El CI previo 40183945744 aprobó ambos SDK: 36 contratos Node y 14 Python por SDK.
+Sus artifacts 12595711108/12594784595, metadata y logs completos autenticados están
+en reports/validation/combined-process-study/40183945744/. La revisión confirmó
+los 51 blobs publicados y los 724 archivos del recibo. Digest del método 9f49b150…;
+SHA del recibo 0e616a96f2ac3ff64200c600d1b01d6512316d1f3b0ac741021c5025f3e049c9.
+
+El binding independiente previo al artifact está versionado en
+reports/validation/combined-process-study/active-run-40184510898/binding.activation.json.
+No modificarlo: al terminar crear binding.results.json con ID/tamaño/SHA reales
+del artifact, ZIP y TAR, conservando todos sus campos inmutables. El intent registra
+2.048 como plan prospectivo, no como conteo observado. La evidencia de activación,
+intención, revisión y observaciones originales está preservada; los scripts del ZIP
+son solo auditoría, nunca deben ejecutarse ni utilizarse para otra activación.
+
+Seguir únicamente el run, job e intento anteriores. Para transporte usar el lector
+actual del repo combined-process-study/transport.py: --observe o --collect con
+repositorio, binding.activation.json y una colección nueva/propia. Conserva cada
+observación ylos parciales; no ejecuta DOM. Ante un fallo transitorio de lectura,
+consultar el mismo handle: no implica que terminó ni permite reiniciar.
+
+Al terminar, preservar ZIP/TAR, metadata API, logs, manifiesto completo y muestras
+aun si se rechaza o queda parcial. Autenticar por ID/run/commit/intento/nombre/
+tamaño/digest. Completar binding.results.json desde esos datos independientes y
+ejecutar decision.cjs con cada SDK oficial y destinos nuevos; genera extracción
+autenticada yreplay íntegro, sin ejecutar código archivado. Nunca interpretar
+los 64 funcionales como 2.048 científicos ni sustituir/normalizar identidades Git.
+
+Hay un Git Linux real, limpio y solo para lectura en WSL Rustdom-Validation-20261025:
+/home/guido/rustdom-validation/combined-process-source-95e64bd2, HEAD 95e64bd2,
+723 dependencias y 599 pins verificados. En otra máquina crear un checkout Git real
+del SHA fuente; no usar gitfile Windows desde Git WSL. SDKs fijados 22.12.0/24.14.1.
+El VHD Ubuntu anterior sigue conservado; no se reparó destructivamente.
+
+Registrar resultados y recursos incluso negativos, revisar lectores/replays y
+publicar con commit/push sin tocar los 48 cambios ajenos ni el watch compartido.
+Sin tag/merge de ownership antes de aceptación íntegra e integración probada.
+Los rechazos históricos permanecen; la migración general sigue activa e incompleta.
+
 ## Método combinado completo habilitado para CI — 2026-10-25
 
 Base publicada3735c616. CI40182447893/intento1 aprobó2/2:29Node+14Python porSDK,
