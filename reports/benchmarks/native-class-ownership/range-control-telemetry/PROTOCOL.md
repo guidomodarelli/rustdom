@@ -61,9 +61,17 @@ históricos y las 434 fuentes permanecen intactos. `sampler-entry.cjs --inspect`
 expone la configuración real sin cargar paquetes DOM ni ejecutar el sampler.
 El wrapper de profiling rechaza `captureImplemented=false` antes de observar.
 
-Faltan el colector/replay del nuevo método, sus controles de historial único,
-workflows de ejecución/contratos y publicación final de mapas/recibo. Ninguna
-etiqueta se aplica ni se permite captura con este estado de preparación.
+El colector y replay están implementados en módulos separados de contexto,
+mapas derivados, observaciones, comandos y readiness. Registran argv/root
+originales, fuentes reales, todas las páginas de historial/checks y un recibo
+exclusivo por run/attempt. El check más reciente debe aprobar; un éxito anterior
+no oculta un fallo posterior. Un fallo conserva el prefijo y nunca lo completa.
+El replay completo rechaza parciales; los análisis por proceso y crudos ya
+persistidos permiten analizar lo disponible, sin interpretar ausencias como cero.
+
+Faltan workflows de ejecución/contratos, revisión/CI íntegros y registro final
+de mapas con capacidad habilitada. Los mapas de esta etapa no autorizan captura.
+Ninguna etiqueta se aplica ni se permite captura con este estado deshabilitado.
 Al completar estos componentes se exige revisión íntegra y CI del SHA exacto,
 registrar una única activación y no relanzar, ampliar o cambiar la secuencia.
 

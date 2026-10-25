@@ -1,5 +1,43 @@
 # Continuar rustdom en otra máquina
 
+## Colector y replay AA implementados, sin captura — 2026-10-25
+
+Componentes en reports/benchmarks/native-class-ownership/range-control-telemetry/:
+context/derived/observations/commands/readiness/capture/replay/run. Grafo590,
+incluidos563pins históricos y recibo83ef; mapas893por modo. Registran argv/root
+originales y fuente real, rechazan extras/recibos reescritos, comprueban checks
+recientes, run vivo e historial completo y consumen un recibo exclusivo por run.
+Budget55min comprobado antes del worker entero y tras análisis/verificación.
+Captura sigue FALSE y workflowSources vacío: no aplicar etiqueta ni ejecutar.
+No es autorización pendiente; la autorización permanente ya cubre el trabajo.
+
+QA: reports/validation/native-class-ownership/range-control-telemetry-components/20261025/.
+Final17contratos por Node22.12.0/24.14.1 y seis Python; planes/preflights
+byteidénticos. ZIPd00ff4d4/5436miembros y818da320/1813miembros preservan todas
+las baterías/fuentes/comandos; conteos16/16/17 anteriores se solapan.
+QAfinalGitLinux955f3beb es privado/limpio sobre254d0e9f, no un SHA publicado
+ni runtime compilado. Los ocho procesos históricos40051899308 conservan96spans,
+identidad MutationRecord y hashes; no se presentan como datos de Range y se
+rechazan como captura nueva. No hay replay positivo de un run nuevo aún inexistente.
+No se ejecutó DOM, profiling o medición nuevos. No ejecutar código archivado.
+
+Siguiente: integrar workflows y CI del método completo, materializar fixtures
+portables auténticas para los ocho procesos históricos sin relabelar el índice,
+conservar hashes/ordinals y dejar claro que es un subset de regresión del lector.
+Reutilizar el transporte actual; no ejecutar scripts del archivo ni extraer
+muestras nuevas. Completar registro final de mapas, actualizar guards/tests al
+habilitar capacidad, revisión íntegra y checks exactos del SHA antes de una
+única activación nueva. Mantener budgets, fila, semillas, warmup y256planificados.
+
+El CIgeneral de la base254d0e9f (40148166722) aprobó8jobs, incluido ValgrindLinux;
+no es CI del código nuevo ni aceptación de rendimiento. Sus dos checks offline
+también aprobaron. Los CIgenerales obsoletos5f/0dd se cancelaron sin reintentos;
+el estudio40137458635 no se tocó y sigue completo/rechazado/consumido.
+El futuro diagnóstico mantiene performanceAccepted=null/gateReevaluated=false;
+no tag/merge de ownership ni integrar StaticRange todavía. La migración general
+sigue activa e incompleta. Preservados563pins y48entradas ajenas; usar sidecar
+propio/journal y no sobrescribir watch-80.json compartido.
+
 ## Preparación AA de Range, captura deshabilitada — 2026-10-25
 
 Implementados agenda y productor en

@@ -87,7 +87,7 @@ def prepare(repository, manifest, output, mode):
     binding = {'samplerRevision': policy['samplerRevision'], 'distributionHashes': identity['distributions'],
                'inspectOperation': policy['inspectOperation']}
     (output / policy['samplerBinding']).write_bytes((json.dumps(binding, indent=2) + '\n').encode())
-    (output / 'protocol.json').write_bytes((json.dumps({**policy, 'mode': mode}, indent=2) + '\n').encode())
+    (output / 'protocol.json').write_bytes((json.dumps({**policy, 'mode': mode}, ensure_ascii=False, indent=2) + '\n').encode())
     receipt = {'revision': policy['revision'], 'mode': mode, 'captureImplemented': policy['captureImplemented'],
                'sourceCommit': head, 'sourceChanges': changes, 'sourceGitErrors': [], 'sourceManifestSha256': digest(manifest),
                'measurementExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False,

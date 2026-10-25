@@ -1,6 +1,6 @@
 # Preparación revisable del diagnóstico AA de Range
 
-Estado: preparación y agenda implementadas; **captura deshabilitada**.
+Estado: preparación, agenda, colector y replay implementados; **captura deshabilitada**.
 No se aplicó una etiqueta ni se ejecutaron DOM, samplers o profiling nuevos.
 El objetivo de migración sigue pendiente; esto no añade APIs Rust completas.
 
@@ -53,8 +53,43 @@ node reports/benchmarks/native-class-ownership/range-control-telemetry/model.cjs
 python3 -B reports/benchmarks/native-class-ownership/range-control-telemetry/prepare.py /checkout /manifest-real.json /destino-nuevo cpu
 ```
 
-Faltan colector y replay nuevos, registro independiente de mapas ejecutables,
-controles de historial único, workflows y revisión/CI completos antes de
-habilitar la captura. La autorización permanente ya cubre esos pasos. No
+El colector/replay nuevo autentica mapas independientes, conserva argv y
+root originales, valida los checks recientes y todo el historial antes de
+ejecutar. Un recibo exclusivo por run impide reiniciar en otro destino.
+Los datos históricos usados para probar el lector mantienen identidad y
+fila originales; no constituyen observaciones de Range ni una captura nueva.
+
+Faltan workflows, revisión/CI completos y registro final de los mapas con la
+capacidad habilitada antes de capturar. La autorización permanente ya cubre esos pasos. No
 pedir permiso adicional ni activar métodos antiguos. No tag/merge de ownership.
 Recursos y límites en reports/memory/range-control-telemetry-preparation-20261025.md.
+
+## Validación de colector y replay
+
+La etapa posterior está en
+reports/validation/native-class-ownership/range-control-telemetry-components/20261025/.
+Conserva cuatro snapshots locales de QA sobre la base254d0e9f. El final es
+955f3beb, un commit privado real y limpio; no es un SHA publicado o compilado
+de rustdom. Los snapshots anteriores y las correcciones de entorno permanecen
+en el ZIP. Solo esos commits privados de QA usaron signing deshabilitado por
+invocación; la configuración de publicación no cambió.
+
+Pasaron 17 contratos por Node22.12.0/24.14.1 y seis Python. Los planes y
+preflights son byteidénticos. El grafo tiene590archivos, incluidos los563pins
+y su recibo independiente, y los mapas derivados mantienen893por modo.
+Las baterías preliminares16/16/17 se solapan y no se suman al conteo final.
+La última centralizó rutas y etapas en el protocolo sin cambiar sus valores;
+qa-final.zip conserva ese estado y qa.zip mantiene las tres anteriores.
+
+El lector comparó ocho procesos auténticos de40051899308 (ambos Node/modos/
+motores), con96spans y hashes completos. Esos datos siguen siendo MutationRecord,
+con revisión/identidad originales: la validación de Range los rechaza como
+captura nueva. No se prueba un replay positivo de un run nuevo que todavía
+no existe. Las fixtures de headers y eventos solo ejercitan guards de metadata;
+no se presentan como observaciones o ejecuciones reales.
+
+Se probaron preservación de argv/root, mapas/archivos extra, recibos reescritos,
+consumo exclusivo, checks recientes, historial, run vivo, budgets antes/después
+del trabajo y formato Git porcelain real. Las guardas siguen cerradas con la
+capacidad deshabilitada. Los workflows y la revisión/CI completos continúan
+pendientes; no aplicar etiqueta ni ejecutar otro método consumido.
