@@ -1,5 +1,38 @@
 # Continuar rustdom en otra máquina
 
+## Evidencia de CI y benchmarks preparada para publicación conjunta — 2026-10-25
+
+El CI general 40191262985 aprobó sus ocho jobs sobre d265390e: Linux/Windows/macOS,
+cuatro shards y agregador. Se autenticaron y conservaron diez artifacts y todos
+los logs en reports/validation/general-ci/40191262985/. Los datos nuevos de esta
+sección están preparados en el árbol de trabajo para agruparlos con el resultado
+de la captura científica; no modifican el runtime ni sus métodos congelados.
+
+Los cuatro shards ordinarios cubren 332 comparaciones y 11.952 duraciones, con
+outputs iguales entre engines. rustdom tuvo mayor mediana en 215 casos y menor
+en 117, sin índice global ni inferencia causal. Conservar todos los casos y los
+veinte reportes de contratos, incluidos ocho errores intencionales del runner.
+Node real: 24.21.0; fuente observada: f0904eb9…, merge con árbol idéntico a d265390e.
+No reemplazar esa identidad por el HEAD ni confundir el ELF 221d5b65… con el
+candidato científico 567f6bff…. Esta evidencia no acepta rendimiento de ownership.
+
+Datos, CSV/JSONL, método y límites: reports/benchmarks/ci-validation/40191262985/.
+El lector offline pasó en Python Windows 3.12/Linux 3.10, con exportaciones idénticas,
+rechazo de bytes alterados y preservación de inputs. La regresión del lector rechaza
+symlinks en Linux y junctions reales en Windows antes de crear una salida; solo
+copia los treinta archivos físicos autenticados.
+El arnés ordinario no conservó duraciones crudas de warmup. Sus endpoints no son
+memoria pico ni prueba general de recolección separada de Window y Document.
+
+La captura 40184510898/job121142337986/intento 1/fuente 95e64bd2 sigue activa según
+API a las 13:02:00 UTC. La sesión local 25126 observa solo ese run y recoge su transporte
+cuando termine. No repetir secuencias ni añadir muestras. El binding y los dos
+readers de decisión/recurso permanecen fijados y listos; conservar también un
+resultado negativo o parcial. Los checks de ownership del run 40191262896 verificaron
+la captura histórica con accepted=false y measurementExecuted=false; conservar
+esos rechazos hasta una decisión nueva íntegra y su integración probada. El objetivo
+general continúa activo.
+
 ## CI del lector aprobado e inventario ampliado — 2026-10-25
 
 El CI 40188827176, intento 1, aprobó ambos SDK sobre fc99401e: tres contratos por SDK,
