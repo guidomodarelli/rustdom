@@ -20,16 +20,55 @@ receipt = {'contracts': [], 'measurementExecuted': False, 'DOMExecuted': False,
            'toolingPolicySha256': hashlib.sha256((packet / 'tools/constants/tooling.json').read_bytes()).hexdigest()}
 
 
+def git(operation, arguments, source=None, payload=None):
+    """Run real Git with bounded execution, retaining diagnostics before raising a setup failure."""
+    command = ['git', *arguments]
+    try:
+        child = subprocess.run(command, cwd=source, input=payload, capture_output=True,
+                               timeout=policy['gitCommandTimeoutSeconds'])
+    except subprocess.TimeoutExpired as error:
+        (root / (operation + '.stdout.log')).write_bytes(error.stdout or b'')
+        (root / (operation + '.stderr.log')).write_bytes(error.stderr or b'')
+        receipt['setupFailure'] = {'operation': operation, 'timedOut': True,
+                                   'timeoutSeconds': policy['gitCommandTimeoutSeconds'],
+                                   'stdoutFile': operation + '.stdout.log',
+                                   'stderrFile': operation + '.stderr.log'}
+        (root / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+        raise RuntimeError('Owner-pair preparation Git ' + operation + ' timed out; see ' +
+                           str(root / (operation + '.stderr.log'))) from error
+    (root / (operation + '.stdout.log')).write_bytes(child.stdout)
+    (root / (operation + '.stderr.log')).write_bytes(child.stderr)
+    if child.returncode:
+        receipt['setupFailure'] = {'operation': operation, 'exitCode': child.returncode,
+                                   'stdoutFile': operation + '.stdout.log',
+                                   'stderrFile': operation + '.stderr.log'}
+        (root / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+        error = subprocess.CalledProcessError(child.returncode, command, child.stdout, child.stderr)
+        raise RuntimeError('Owner-pair preparation Git ' + operation + ' failed; see ' +
+                           str(root / (operation + '.stderr.log'))) from error
+    return child.stdout
+
+
 def clone(name):
-    """Create a real clean Git checkout of the pinned base, with only consumed source paths materialized."""
+    """Create an isolated Git index over the caller's object store without cloning a shallow transport."""
     source = root / name
-    subprocess.run(['git', 'clone', '--shared', '--no-checkout', str(baseline), str(source)], check=True, capture_output=True)
-    subprocess.run(['git', 'sparse-checkout', 'init', '--no-cone'], cwd=source, check=True, capture_output=True)
-    patterns = ['/*', '!/*/'] + ['/' + name for name in manifest['sources']]
-    subprocess.run(['git', 'sparse-checkout', 'set', '--no-cone', '--stdin'], cwd=source,
-                   input='\n'.join(patterns) + '\n', text=True, check=True, capture_output=True)
-    subprocess.run(['git', 'checkout', '--detach', manifest['baseCommit']], cwd=source, check=True, capture_output=True)
-    assert not subprocess.check_output(['git', 'status', '--porcelain'], cwd=source)
+    origin_git = baseline if (baseline / 'objects').is_dir() else baseline / '.git'
+    assert origin_git.is_dir() and (origin_git / 'objects').is_dir(), 'Expected a real Git object store'
+    git(name + '-init', ['init', str(source)])
+    # clone --shared can invoke upload-pack for shallow sources. No transport is needed for these fixtures.
+    (source / '.git/objects/info/alternates').write_text(
+        (origin_git / 'objects').as_posix() + '\n', encoding='utf-8', newline='\n')
+    if (origin_git / 'shallow').exists():
+        shutil.copyfile(origin_git / 'shallow', source / '.git/shallow')
+    git(name + '-autocrlf', ['config', 'core.autocrlf', 'false'], source)
+    git(name + '-sparse-init', ['sparse-checkout', 'init', '--no-cone'], source)
+    patterns = ['/*', '!/*/'] + ['/' + filename for filename in manifest['sources']]
+    git(name + '-sparse-set', ['sparse-checkout', 'set', '--no-cone', '--stdin'], source,
+        ('\n'.join(patterns) + '\n').encode('utf-8'))
+    git(name + '-checkout', ['checkout', '--detach', manifest['baseCommit']], source)
+    assert not git(name + '-status', ['status', '--porcelain'], source)
+    if (origin_git / 'shallow').exists():
+        assert (source / '.git/shallow').read_bytes() == (origin_git / 'shallow').read_bytes()
     return source
 
 

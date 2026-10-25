@@ -79,7 +79,7 @@ jobs:
           components: rustfmt, clippy
       - name: Probar preparación real y protección de cambios ajenos
         run: |
-          python -B "$CANDIDATE_TOOLS/prepare.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-prepare-contracts" > "$RUNNER_TEMP/owner-pair-prepare.stdout.log" 2> "$RUNNER_TEMP/owner-pair-prepare.stderr.log"
+          python -B "$CANDIDATE_TOOLS/prepare-platform.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-prepare-contracts" > "$RUNNER_TEMP/owner-pair-prepare.stdout.log" 2> "$RUNNER_TEMP/owner-pair-prepare.stderr.log"
           python -B reports/implementation/range-combined-candidate/tools/command.spec.py > "$RUNNER_TEMP/owner-pair-command.stdout.log" 2> "$RUNNER_TEMP/owner-pair-command.stderr.log"
       - name: Aplicar el candidato y verificar todas sus fuentes
         run: python -B "$CANDIDATE_TOOLS/candidate.py" --prepare "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-proof" > "$RUNNER_TEMP/owner-pair-apply.stdout.log" 2> "$RUNNER_TEMP/owner-pair-apply.stderr.log"

@@ -84,3 +84,24 @@ No hay tag ni merge de ownership ni aceptación de rendimiento. El próximo estu
 necesita un método y paquete nuevos técnicamente justificados y revisados antes de
 ejecutarse, preservando los presupuestos originales y todos los rechazos históricos.
 La autorización permanente permite continuar sin otra pregunta.
+
+## Corrección de preparación en runners shallow
+
+El primer CI 40204293701 del SHA c331cc84 falló en macOS y Windows antes del
+build: `git clone --shared` devolvió 128 en las fixtures. El stderr hijo no quedó
+conservado, por lo que no se afirma una causa Git interna concreta. Los cuatro
+artifacts completos, sus digests y el log original quedan preservados en
+reports/validation/static-range-owner-batch-ci-preparation/20261025/.
+
+Las fixtures ahora crean un índice Git independiente y leen el object store
+mediante alternates, copiando la frontera shallow si existe. Es el mismo enfoque
+de preparación ya usado por el candidato anterior. Evita el transporte de clone
+sin cambiar la fuente, su HEAD ni el patch. Cada comando Git conserva stdout,
+stderr y un error con contexto; los límites están en la configuración del tooling.
+
+CI ejecuta prepare-platform.spec.py: cuatro contratos sobre la fuente original,
+cuatro sobre una fixture shallow explícita y uno con una frontera inválida para
+comprobar que el error Git real quede conservado. Linux y Windows aprobaron los
+nueve. El wrapper utiliza el ejecutor fijado por SHA, con timeout y limpieza del
+grupo de procesos. El workflow pasó actionlint. La corrección no cambia el addon,
+la semántica DOM ni su aceptación; la nueva matriz remota sigue pendiente.

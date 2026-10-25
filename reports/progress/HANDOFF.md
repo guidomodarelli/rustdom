@@ -1,5 +1,23 @@
 # Continuar rustdom en otra máquina
 
+## Preparación CI shallow corregida localmente — 2026-10-25
+
+El candidato y su QA se publicaron en c331cc84. CI 40204293701 falló en el primer
+git clone --shared de las fixtures en macOS/Windows, antes del build. Se conservan
+sus cuatro artifacts íntegros y la falta de stderr original: no afirmar una causa
+Git interna concreta. Las fixtures usan ahora índices Git separados y alternates,
+con frontera shallow preservada y logs por operación. El wrapper CI prueba nueve
+contratos reales en vez de cuatro, incluidos shallow explícito y error Git real;
+los nueve pasaron tanto en Windows como en Linux. El executor fijado por SHA
+limpia el grupo de procesos ante timeout. Workflow validado con actionlint.
+
+Evidencia: reports/validation/static-range-owner-batch-ci-preparation/20261025/.
+El patch cb784c2f, source.json 2b8b221a y addon no cambian; no repetir el estudio
+40184510898 ni confundir esta corrección de transporte con aceptación numérica.
+Publicar la corrección revisada y seguir sus seis jobs de CI. Mantener autorización
+permanente, fuentes 599/724/738, 48 cambios ajenos y watch compartido. Sin tag/merge
+de ownership antes de aceptación e integración probadas. La migración sigue activa.
+
 ## Candidato Rust de owners agrupados: validación local terminada — 2026-10-25
 
 Nuevo paquete: reports/implementation/static-range-owner-batch-candidate/. Git base
