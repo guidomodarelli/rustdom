@@ -1,5 +1,33 @@
 # Continuar rustdom en otra máquina
 
+## StaticRange en Rust, candidato aislado calificado — 2026-10-25
+
+Patch y fuentes en reports/implementation/static-range-candidate/.
+Base 4ea7de1a, patch 4f3a2d80 (aplicar con --unidiff-zero solo tras verificar
+sourceBefore), ELF Linux b9ad0d91. El roundtrip reproduce nueve fuentes exactas.
+Rust decide tipos, cortocircuito, errores y estado numérico; JS conserva WebIDL,
+factories del realm y aristas GC. Dos callbacks síncronos resuelven handles.
+No afirmar mejora temporal: no se midió rendimiento de este candidato.
+
+Evidencia en reports/validation/static-range-candidate/20261024/:
+313 tests Rust/fmt/Clippy; por Node 22.12.0/24.14.1, 3775 contratos y 9 del launcher,
+22 Jest, 33 Vitest y 34 VM, 69 Range existentes y seis públicos finales. Los 74 casos
+dirigidos anteriores se solapan y no se suman. HTML: 1784 comparados y 8 excluidos;
+WPT: 240 fixtures, 83007 assertions y 1203 fallos compartidos/complete=false, StaticRange 17/17.
+Se conservan fallos iniciales y las tres fixtures históricas restauradas
+exactamente del mismo commit; el run final de compatibilidad pasa en ambos Node.
+
+Memoria: reports/memory/static-range-candidate-20261024/.
+Por Node seis Window/Document separados, 774 estados creados/liberados y 768
+rechazos sin estados nuevos; controles retenidos y dos estados finales claros.
+Snapshots finitos, sin pico ni garantía universal de ausencia de fugas.
+
+Sigue SIN integrar y sin calificación Windows/macOS o rendimiento. No acreditar
+el prototipo al catálogo de producción ni mezclar su ELF con el del estudio.
+El estudio 40137458635 ya terminó completo/rechazado y su publicación detallada
+sigue en curso. No repetir la captura ni tag/merge de ownership.
+La auditoría canónica de Range ya está integrada; migración general activa.
+
 ## Auditoría Range integrada y premisa corregida — 2026-10-25
 
 El catálogo canónico contiene seis módulos y 32 APIs auditadas: 28 APIs híbridas
