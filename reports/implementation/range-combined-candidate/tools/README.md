@@ -56,3 +56,19 @@ El calificador deja sourceChangesRaw intacto y no convierte fallos de Git en
 una aprobación. qualification.json solo indica calificación funcional, nunca
 aceptación de rendimiento ni conformidad completa de estándares; las exclusiones
 y fallos compartidos de WPT/HTML permanecen en los reportes crudos.
+
+## Checkout anidado de Actions
+
+El checkout auxiliar excluye su Cargo.toml del árbol sparse. Cargo examina
+manifests en los directorios superiores incluso cuando se invoca dentro de
+un crate independiente; un manifest auxiliar sin src/lib.rs provoca un error
+antes de compilar. La exclusión afecta solo la copia auxiliar del workflow;
+el Cargo.toml del candidato conserva todos sus bytes y su hash autenticado.
+Se conservó el fallo de los seis jobs de f2c449e6/run40165248396 y se reprodujo
+con Cargo real en la estructura anidada antes/después de corregir el sparse.
+
+Los artifacts nuevos incluyen dist, types, fuentes y manifests del candidato,
+además de los logs y reportes. Esto permite autenticar el paquete exacto que
+pasó las suites antes de preparar una futura medición; conservar un binario
+por sí solo no fija la distribución JavaScript ni sus tipos. No se ejecutan
+archivos archivados para analizar resultados ni se modifica el gate histórico.

@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Fix del checkout anidado del CI — 2026-10-25
+
+Run40165248396/f2c449e6/intento1 terminó failure6/6: cargo fmt descubre el
+Cargo.toml del checkout auxiliar sparse sin src/lib.rs. Los seis preparadores
+pasaron; el fallo ocurre antes de compilar. Se preservaron seis artifacts
+íntegros autenticados y el ZIP de logs (90 miembros) en el packet
+reports/validation/range-combined-ci/20261025-nested-layout-fix/.
+
+Fix propuesto: excluir solo !/Cargo.toml del primer checkout. No modifica el
+manifest ni fuentes del candidato. La reproducción con dos Git reales anidados
+confirma Cargo falla1 antes y pasa0 después, ambos árboles limpios. Pasaron
+315 Rust, build/Clippy, tipos, consumidores y 84 dirigidos. La entrada completa
+continúa EN VIVO en sesión96801; antes de reiniciar o darla por terminada,
+consultar el mismo handle y /home/guido/rustdom-validation/
+combined-ci-nested-layout-20261025/proof/qualification.json. No repetirla.
+
+El workflow ampliará el upload a dist/types/src/manifests íntegros para fijar
+el paquete de la futura medición. No se ha activado otro estudio ni elegido un
+artifact por rendimiento. Siguiente: publicar el fix probado/revisado, verificar
+los seis jobs nuevos y conservar la calificación local final cuando termine.
+Mantener599pins/48ajenos/rechazo histórico, sin tag/merge. Autorización permanente;
+objetivo general activo, runtime híbrido y migración incompleta.
+
 ## CI funcional del candidato combinado preparado — 2026-10-25
 
 Workflow combined-range-candidate.yml: seis jobs Linux/Windows/macOS por
