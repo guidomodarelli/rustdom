@@ -1,93 +1,69 @@
-# Captura de collapse: resultados pendientes
+# Estudio de collapse completo y rechazado
 
-Único run autorizado y activado: `40137458635`, job `121001909695`, intento 1,
-fuente `02291d6b7a234a26ffaf364a1f377766e2338e7a`. Mientras siga vivo, consultar
-solo esos IDs. No reaplicar etiquetas, relanzar workflows, agregar muestras ni
-ejecutar el sampler. No hay aceptación de rendimiento ni reevaluación del gate.
+Run 40137458635, job 121001909695, intento 1, fuente
+02291d6b7a234a26ffaf364a1f377766e2338e7a. La secuencia única terminó
+completa. El replay íntegro con el código congelado en Node 22.12.0 y 24.14.1
+devuelve verified=true y accepted=false. Sus cuatro exports son byteidénticos
+entre ambos ejecutables. No se repitieron procesos, muestras ni mediciones.
 
-El lector actual de transporte fija la identidad inmutable `run.head_sha`.
-GitHub actualiza `pull_requests[].head.sha` cuando avanza el PR; esa referencia
-mutable no redefine la fuente del run. El push `9d97a2f0` permitió observar y
-probar esta diferencia con la metadata real, sin repetir ninguna medición.
+Se verifican 2048 procesos, 18432 duraciones medidas, 6144 warmup, 24576 Window
+y 24576 Document separados, tres rondas y 4096 estados finales claros.
+Se conservan las 253 primeras rondas no claras, baselines nativos y los tres
+snapshots del padre. Los 18 grupos de recursos mantienen Node/fase/motor/paquete
+físico separados; no agregan efectos causales entre esos grupos.
 
-Desde un checkout del proyecto con Python y GitHub CLI autenticado:
+## Decisión íntegra
 
-```sh
-python -c "from pathlib import Path; Path('.cache').mkdir(exist_ok=True)"
-python -B reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/collect.py . .cache/range-study-collection-40137458635
-```
+17 de las 32 comparaciones tienen controles jsdom fuera de ±2%. La calibración
+AA Rust de Node 22 en range-control-1000/1000 difiere -11,44239282177505%,
+fuera de ±5%; corresponde a comparar copias del baseline. Se rechazan diez
+filas AA y siete AB. Los recuentos se solapan y no se suman como fallos distintos.
+Ninguna fila AB excede el límite numérico Rust de +5%, pero la decisión global
+sigue rechazada por calibración. No atribuir una causa única ni aceptar solo
+las filas favorables. comparisons.md/CSV y analysis.json conservan las 32 filas.
 
-Al terminar el mismo run, agregar `--collect` conserva log, metadata, ZIP y tar,
-también ante fallo o rechazo. El transporte autentica nombre, run, fuente, intento,
-tamaño, digest y CRC; la extracción y el replay requieren fijar primero los pins
-del artifact real. Los campos de artifact permanecen `null` mientras no exista.
-No ejecutar scripts del tar: usar lectores actuales del repositorio y el código
-revisado de la fuente `02291d6b` para `study.cjs --verify` en ambos Node fijados.
+La captura duró aproximadamente 99 min 25 s, dentro de los 175 min declarados
+y del job de 180 min. El exit code 1 corresponde al rechazo de la decisión;
+el archivo está completo y no hay un timeout de captura. Los presupuestos,
+warmup, filas, semillas, estimador e instrumentación permanecen originales.
+Los rechazos históricos se conservan; historicalGateReevaluated=false.
+No tag ni merge de ownership con este resultado y no relanzar la secuencia.
 
-El adaptador de extracción ya está preparado en `tools/extract.py`. Mientras
-los pins sean `null`, rechaza la operación antes de leer una colección o crear
-el destino. Después de autenticar el artifact real y fijar esos valores:
+## Archivo y autenticación
 
-```sh
-python -B reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/extract.py . .cache/range-study-collection-40137458635 /ruta/a/destino-nuevo
-```
+Artifact 12579853745, del mismo run/fuente/intento/nombre. ZIP de 22879400 bytes,
+SHA256 0c6d63bacf8cd4e5822f54d5844d336170ff37b99757ee03837bf12d66e5ed07;
+tar de 22933868 bytes, SHA256
+f76e90effe94b26d24e59ec3e76eb440ab5ff539f8faeb424bdfc2b49cabc3a7.
+transport/ conserva ambos archivos, metadata API, logs y todas las observaciones.
+archive-members.json.gz enumera 19214 miembros, 16203 archivos regulares,
+1404005115 bytes regulares y seis enlaces. La extracción usó únicamente lectores
+actuales autenticados; no se ejecutó código extraído del archivo.
 
-Pasó seis contratos en Linux. Windows pasó cinco y omitió el caso con enlaces
-tras una prueba real de privilegios. La prueba positiva usó el archivo histórico
-`40113188886` bajo su propio protocolo, manteniendo fuente `b63cf834` y rechazo:
-no son muestras nuevas ni una validación del artifact todavía pendiente de este
-run. Los archivos originales quedaron intactos. La QA está en
-`reports/validation/native-class-ownership/range-collapse-extraction-reader/40137458635/`.
+original-index/manifest/source-manifest conservan los datos del capture original.
+spans.csv contiene las 24576 duraciones, incluidos todos los warmup.
+capture.stdout.log.gz conserva el stdout íntegro; capture.stderr.log y
+capture-exit-code conservan las otras salidas. replay/ guarda ambas ejecuciones,
+sus versiones/hashes, contexto Git real y salidas; qualification.json fija sus
+digests y los cuatro exports comunes, sin reetiquetar identidades o errores Git.
 
-El adaptador reutiliza el lector Git actual ya revisado y verifica sus bytes
-antes de configurarlo para estos IDs. No carga código de ZIP/tar ni modifica el
-watch compartido. Conserva snapshots de todas las lecturas y parciales en una
-colección propia; rechaza salidas ajenas o enlaces y restaura `GH_REPO`.
+## Validación y límites
 
-Contratos con metadata y filesystem reales, sin mocks ni nuevas capturas:
+Linux pasó seis contratos de extracción y ocho de transporte. Windows pasó
+cinco y siete, con un omitido por suite tras probar el privilegio real de enlaces;
+esos casos sí se ejercieron en Linux. La invocación inicial de extracción recibió
+una ruta de cache incorrecta y produjo tres errores de input; la corrección usó
+la colección histórica original sin modificarla. El CLI positivo también extrae
+y autentica el archivo real de este run. Los logs finales y la corrección de
+la invocación quedan registrados; la primera invocación errónea se documenta
+en qualification.json y no tiene un archivo de log separado.
 
-```sh
-python -B reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/transport.spec.py . .cache/range-study-collection-40137458635
-```
+El rechazo de políticas sin pins se prueba ahora con una política explícitamente
+no calificada; la política publicada ya fija el artifact auténtico terminado.
+Las pruebas históricas mantienen su identidad y rechazo originales.
 
-Windows pasó siete casos y omitió únicamente el enlace de directorio por
-`WinError 1314`; Linux pasó los ocho, incluido ese enlace real. Una segunda
-lectura conservó exactamente los cuatro archivos del snapshot original. La
-evidencia y los límites están en `reports/validation/native-class-ownership/range-collapse-current-reader/40137458635/`.
-
-Plan inalterado: 2048 procesos, 18432 duraciones medidas, 6144 warmup,
-24576 Window y 24576 Document separados, tres rondas y dos estados finales
-claros por proceso, baselines y tres snapshots del padre. Son cantidades esperadas,
-no resultados ya observados. Presupuestos ±2%/±5%; captura de 175 minutos dentro
-de job de 180 minutos. Preservar también regresiones, rechazos y parciales.
-El runtime sigue híbrido y la migración general continúa pendiente.
-
-## Análisis offline preparado
-
-`tools/analyze.cjs` usa el script del checkout actual y recibe como primer
-argumento un checkout Linux separado, real y limpio de `02291d6b`. Autentica el
-recibo independiente, sus 563 archivos y el ejecutable Node antes de cargar el
-verificador. No usa código de `capture/method/` ni de `capture/derived/`.
-
-Después de autenticar y extraer el artifact real, ejecutar con **cada** Node
-fijado y un destino diferente:
-
-```sh
-/ruta/node-22.12.0 reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs /checkout-02291d6b /range-study/capture /analisis-node22-nuevo
-/ruta/node-24.14.1 reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/tools/analyze.cjs /checkout-02291d6b /range-study/capture /analisis-node24-nuevo
-```
-
-Los destinos deben quedar fuera de la captura y del checkout de fuente. El
-verificador congelado produce la decisión íntegra antes de crear salidas. Los
-exports conservan todas las duraciones, warmup, comparaciones, controles
-rechazados, primeras rondas no claras, baselines y snapshots del padre. Los
-rangos de memoria se agrupan por Node/fase/motor/paquete físico; no son memoria
-pico ni comparaciones causales. La aceptación no se recalcula en el exportador.
-
-Pasaron 12 contratos en cada Node fijado, usando la referencia histórica con
-su identidad y rechazo originales. Sus 24.576 filas coinciden exactamente con
-el CSV guardado; conserva los ocho controles desfavorables y una regresión
-numérica. Se guardan la expectativa inicial incorrecta de 16 grupos, su cierre
-con los 18 grupos reales y las comprobaciones de ambos controles A0/A1 en AB.
-El análisis positivo del artifact nuevo y la comparación de ambos exports
-completos siguen pendientes de ese resultado auténtico.
+Los recursos están en reports/memory/range-collapse-study-40137458635.*.
+Los snapshots no miden memoria pico ni demuestran ausencia universal de fugas.
+El runtime sigue híbrido y la migración general permanece pendiente.
+PREPARATION.md conserva el documento previo a disponer de resultados; sus
+afirmaciones de espera son históricas. El estado vigente es el de esta página.

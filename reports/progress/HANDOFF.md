@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Resultado de collapse íntegro y rechazado — 2026-10-25
+
+Estado vigente: run 40137458635/job 121001909695/intento 1/fuente 02291d6b
+terminó completo; verified=true, accepted=false con Node 22.12.0 y 24.14.1.
+No timeout: captura de aproximadamente 99 min 25 s dentro de 175 min/job180.
+La secuencia está consumida: no relanzar, relabelar, completar muestras ni
+cambiar presupuestos. Las secciones antiguas de espera son historia.
+
+Resultado íntegro en reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/.
+Artifact12579853745; ZIP0c6d63ba/tarf76e90ef, metadata API, logs y manifiesto
+19214 miembros/16203 archivos/6 enlaces. 2048 procesos, 18432 medidas,
+6144 warmup, 24576 Window y 24576 Document separados, tres rondas y
+4096 estados finales claros; se preservan las 253 primeras rondas no claras.
+Los cuatro exports offline son byteidénticos entre ambos Node. Solo se
+ejecutaron lectores actuales y el código revisado del checkout Linux real
+y limpio de 02291d6b; nunca scripts archivados ni DOM durante el replay.
+
+17 controles jsdom fuera de ±2%; diez calibraciones AA y siete decisiones AB
+fallan. Esos recuentos se solapan. La única desviación numérica Rust es AA
+Node22 range-control-1000/1000, -11,44239282177505%, entre copias del baseline.
+Cero filas AB Rust exceden +5%; eso no acepta la decisión global. Publicar
+todas las filas y rechazos históricos, sin una atribución causal única.
+
+Recursos en reports/memory/range-collapse-study-40137458635.*: 18 grupos,
+baseline nativo Rust22→22 y tres snapshots del padre. No son memoria pico ni
+una garantía universal de ausencia de fugas. Lectores: Linux6+8 contratos;
+Windows5+7 y un skip por suite por privilegio de enlaces, cubiertos en Linux.
+La primera invocación recibió un path incorrecto y se documenta sin log separado;
+las ejecuciones finales preservan sus logs completos y pasan.
+
+No tag/merge de ownership: rendimiento no aceptado; no se reevalúa el gate
+histórico. El inventario Range ya está integrado (6 módulos/32 APIs auditados,
+ninguna nueva aprobación Rust completa); StaticRange es un prototipo aislado,
+funcionalmente calificado en Linux, pendiente de integrar y medir. Continuar
+la migración y analizar los datos existentes antes de justificar un método o
+candidato nuevo. La autorización permanente sigue vigente sin otra pregunta.
+No sobrescribir watch-80.json compartido; conservar sus autorizaciones y WIP,
+usar el journal privado y el sidecar propio. Los 563 pins y 48 entradas ajenas
+permanecen intactos. La migración general sigue activa e incompleta.
+
 ## StaticRange en Rust, candidato aislado calificado — 2026-10-25
 
 Patch y fuentes en reports/implementation/static-range-candidate/.
@@ -24,8 +64,8 @@ Snapshots finitos, sin pico ni garantía universal de ausencia de fugas.
 
 Sigue SIN integrar y sin calificación Windows/macOS o rendimiento. No acreditar
 el prototipo al catálogo de producción ni mezclar su ELF con el del estudio.
-El estudio 40137458635 ya terminó completo/rechazado y su publicación detallada
-sigue en curso. No repetir la captura ni tag/merge de ownership.
+El estudio 40137458635 terminó completo/rechazado; el archivo y su análisis
+íntegro están preservados en la sección vigente de resultados. No repetir la captura ni tag/merge de ownership.
 La auditoría canónica de Range ya está integrada; migración general activa.
 
 ## Auditoría Range integrada y premisa corregida — 2026-10-25
@@ -46,7 +86,7 @@ reports/validation/inventory-range-integration/20261024/.
 Los 563 archivos del estudio y las 48 entradas ajenas permanecen intactos.
 
 El estudio 40137458635 terminó completo y rechazado; ya fue autenticado y
-reproducido sin DOM en ambos Node. Su publicación detallada sigue en preparación.
+reproducido sin DOM en ambos Node. El archivo y análisis íntegros están preservados.
 No relanzarlo ni cambiar presupuestos. El candidato StaticRange está aislado,
 sin integrar ni medir rendimiento; no acreditarlo al catálogo de producción.
 La migración general sigue activa y la autorización permanente está vigente.

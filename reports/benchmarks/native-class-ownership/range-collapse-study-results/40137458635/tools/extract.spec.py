@@ -1,4 +1,4 @@
-"""Test qualified historical transport without relabeling it, and reject the unqualified new artifact before writes."""
+"""Test qualified historical transport without relabeling it, and reject any policy lacking real artifact pins."""
 from contextlib import contextmanager
 import json
 import os
@@ -32,7 +32,9 @@ class RangeExtraction(unittest.TestCase):
         with owned_directory() as directory:
             output = directory / 'not-created'
             with self.assertRaises(RuntimeError):
-                adapter.extract(repository, directory / 'nonexistent-input', output)
+                unqualified = dict(adapter.POLICY, artifactId=None, zipSha256=None, tarSha256=None)
+                reader = adapter.current_extractor(repository, unqualified)
+                reader.extract(repository, directory / 'nonexistent-input', output)
             self.assertFalse(output.exists())
 
     def test_qualified_historical_archive_keeps_its_actual_identity_and_rejection(self):
