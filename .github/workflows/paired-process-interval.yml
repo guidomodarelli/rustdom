@@ -1,0 +1,47 @@
+name: Intervalos de procesos pareados
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/paired-process-interval.yml'
+      - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/paired-process-interval.yml'
+      - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
+
+permissions:
+  contents: read
+
+jobs:
+  numerical:
+    name: Intervalos por proceso Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/range-combined-study/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verificar intervalos numéricos sin ejecutar DOM
+        run: |
+          node --version > "$RUNNER_TEMP/paired-interval.node.log"
+          node --test reports/benchmarks/native-class-ownership/range-combined-study/paired-interval.spec.cjs > "$RUNNER_TEMP/paired-interval.stdout.log" 2> "$RUNNER_TEMP/paired-interval.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paired-interval-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/paired-interval.*.log
+          if-no-files-found: error

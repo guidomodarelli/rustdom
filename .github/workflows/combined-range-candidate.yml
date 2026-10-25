@@ -55,7 +55,7 @@ jobs:
         with:
           ref: f781c3b7549a86b6aa8b5a34d2bbb32038c315b7
           fetch-depth: 2
-          path: .cache/combined-range-source
+          path: artifacts/combined-range-source
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /*
@@ -82,13 +82,13 @@ jobs:
           components: rustfmt, clippy
       - name: Probar preparación y terminación de procesos reales
         run: |
-          python -B "$CANDIDATE_TOOLS/prepare.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.cache/combined-range-source" > "$RUNNER_TEMP/combined-prepare.stdout.log" 2> "$RUNNER_TEMP/combined-prepare.stderr.log"
+          python -B "$CANDIDATE_TOOLS/prepare.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/combined-range-source" > "$RUNNER_TEMP/combined-prepare.stdout.log" 2> "$RUNNER_TEMP/combined-prepare.stderr.log"
           python -B "$CANDIDATE_TOOLS/command.spec.py" > "$RUNNER_TEMP/combined-command.stdout.log" 2> "$RUNNER_TEMP/combined-command.stderr.log"
       - name: Aplicar el patch y verificar identidades de fuentes
-        run: python -B "$CANDIDATE_TOOLS/prepare.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.cache/combined-range-source" "$RUNNER_TEMP/combined-range-proof" > "$RUNNER_TEMP/combined-apply.stdout.log" 2> "$RUNNER_TEMP/combined-apply.stderr.log"
+        run: python -B "$CANDIDATE_TOOLS/prepare.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/combined-range-source" "$RUNNER_TEMP/combined-range-proof" > "$RUNNER_TEMP/combined-apply.stdout.log" 2> "$RUNNER_TEMP/combined-apply.stderr.log"
       - name: Construir y probar el candidato real
         timeout-minutes: 40
-        run: python -B "$CANDIDATE_TOOLS/qualify.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.cache/combined-range-source" "$RUNNER_TEMP/combined-range-proof" "$(node -p 'process.execPath')" > "$RUNNER_TEMP/combined-qualify.stdout.log" 2> "$RUNNER_TEMP/combined-qualify.stderr.log"
+        run: python -B "$CANDIDATE_TOOLS/qualify.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/combined-range-source" "$RUNNER_TEMP/combined-range-proof" "$(node -p 'process.execPath')" > "$RUNNER_TEMP/combined-qualify.stdout.log" 2> "$RUNNER_TEMP/combined-qualify.stderr.log"
       - uses: actions/upload-artifact@v4
         if: always()
         timeout-minutes: 5
@@ -97,12 +97,12 @@ jobs:
           path: |
             ${{ runner.temp }}/combined-*.log
             ${{ runner.temp }}/combined-range-proof/
-            .cache/combined-range-source/dist/
-            .cache/combined-range-source/types/
-            .cache/combined-range-source/src/
-            .cache/combined-range-source/Cargo.toml
-            .cache/combined-range-source/Cargo.lock
-            .cache/combined-range-source/build.rs
-            .cache/combined-range-source/package.json
-            .cache/combined-range-source/package-lock.json
+            artifacts/combined-range-source/dist/
+            artifacts/combined-range-source/types/
+            artifacts/combined-range-source/src/
+            artifacts/combined-range-source/Cargo.toml
+            artifacts/combined-range-source/Cargo.lock
+            artifacts/combined-range-source/build.rs
+            artifacts/combined-range-source/package.json
+            artifacts/combined-range-source/package-lock.json
           if-no-files-found: error

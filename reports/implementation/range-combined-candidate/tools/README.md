@@ -72,3 +72,12 @@ además de los logs y reportes. Esto permite autenticar el paquete exacto que
 pasó las suites antes de preparar una futura medición; conservar un binario
 por sí solo no fija la distribución JavaScript ni sus tipos. No se ejecutan
 archivos archivados para analizar resultados ni se modifica el gate histórico.
+
+El checkout del candidato se ubica en artifacts/combined-range-source. En
+Windows, el normalizador de globs de Jest conserva la barra anterior a un
+componente que empieza con punto: el root bajo .cache genera un testMatch que
+no descubre tests. La ruta sin ese componente fue probada con el DLL hospedado,
+Node 22.12.0/24.14.1 y dependencias propias instaladas desde el lockfile fijado:
+la ruta anterior descubre cero tests, y la nueva ejecuta los 22 tests Jest,
+además de las suites Vitest y VM. No se modifican patrones ni se permite una
+suite vacía; el candidato, la configuración de Jest y el calificador son iguales.

@@ -1,5 +1,39 @@
 # Continuar rustdom en otra máquina
 
+## Validación anidada completa y fix de Jest Windows — 2026-10-25
+
+Sesión 96801 TERMINAL exit0:22 comandos de prepare/qualify completos,315 Rust,
+84 dirigidos,3784 contratos+9 de proceso,22 Jest/33 Vitest/34 VM,HTML 1784+8 excluidos,
+WPT 240/83007 con1203 fallos compartidos/complete=false; dos probes finitos0.
+QA 200 miembros y ELFce91c742 en reports/validation/range-combined-ci/
+20261025-nested-layout-complete/; JSONs en reports/memory/. No reiniciar96801.
+
+Run40165972204/b6146131 TERMINAL failure: Linux y macOS aprobaron ambos Node;
+Windows 22/24 fallaron al descubrir Jest bajo el root .cache. Los seis artifacts,
+API, manifiestos y logs completos (98 miembros) están autenticados/preservados en
+reports/validation/range-combined-ci/40165972204/. Colección81031 terminal0;
+no quedan jobs vivos en ese run y no debe relanzarse.
+ReproWindows95563 TERMINAL 0 (73646 primer preflight terminó1 y está preservado):
+ambosNode 22.12.0/24.14.1, DLL hospedado 12588507573+dependencias npm ci propias.
+Antes NoTestsFound→después22 Jest/33 Vitest/34 VM por SDK. Se moverá el checkout del
+workflow a artifacts/combined-range-source. No se cambia Jest/config/qualifier ni
+se tolera una suite vacía. QA 73 miembros en20261025-windows-jest-root/.
+
+Nuevo componente numérico en reports/benchmarks/native-class-ownership/
+range-combined-study/: Fieller emparejado sobre medias por proceso,14 contratos
+por SDK contra referencia SciPy1.15.3/NumPy2.2.6 y3 contratos del productor Windows.
+Dos P2 numéricos detectados/corregidos antes de publicación, con regresiones y
+código/evidencia anteriores conservados; revisión aislada actual0 pendientes.
+NO define sampler, activador, paquete ni tamaño de estudio;48 pares son fixtures
+sintéticos. No acepta rendimiento ni reevalúa datos históricos. Método prospectivo
+completo todavía debe fijarse/revisarse después de calificar la matriz/paquete.
+
+Siguiente: publicar fix de ruta probado y componente numérico revisado con QA;
+seguir seis jobs nuevos del SHA y 2 contratos numéricos. Autenticar los artifacts
+completos al terminar40165972204 aun con rechazo; no ejecutar archivados.
+Conservar599 pins/48 ajenos ywatch compartido. Sin tag/merge mientras el rendimiento de ownership
+no esté aceptado. Autorización permanente; objetivo general activo/incompleto, híbrido.
+
 ## Fix del checkout anidado del CI — 2026-10-25
 
 Run40165248396/f2c449e6/intento1 terminó failure6/6: cargo fmt descubre el

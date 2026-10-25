@@ -1,0 +1,69 @@
+{
+  "reviewer": "review_ownership_closeout",
+  "reviewedScopeSha256": "7979c8837fc2adf6ed93ee5f2b047e94ee7e978a418dc0cf62d2475cf16c1b5b",
+  "finding": {
+    "priority": "P2",
+    "operation": "pairedInterval extreme finite positive durations",
+    "reproductions": [
+      {
+        "pairs": 4,
+        "baselineMeanMs": 2e-162,
+        "candidateMeanMs": 1,
+        "criticalValue": 2,
+        "oldBoundedInterval": [
+          5.000000000000001e+161,
+          4.048045066146212e+161
+        ]
+      },
+      {
+        "pairs": 4,
+        "baselineMeanMs": 1,
+        "candidateMeanMs": 2e-162,
+        "criticalValue": 2,
+        "oldBoundedInterval": [
+          2.470328229206233e-162,
+          2e-162
+        ]
+      },
+      {
+        "pairs": 2,
+        "baselineMeanMs": "Number.MAX_VALUE",
+        "candidateMeanMs": "Number.MIN_VALUE",
+        "criticalValue": 2,
+        "oldBoundedInterval": [
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "resolution": "Scale each duration series separately; preserve actual means; reject unrepresentable ratios/percentages and inconsistent bounds. Add regressions for both representable extreme directions and candidate underflow.",
+  "resolutionStatus": "closed-by-isolated-review",
+  "nodeTestsAfterFixPerSdk": 14,
+  "documentationRepair": "Restore UTF-8 Spanish text; state the exact 64*EPS relative tolerance instead of ULP count.",
+  "domExecuted": false,
+  "benchmarkExecuted": false,
+  "performanceAccepted": null,
+  "gateReevaluated": false,
+  "preReviewArchiveSha256": "7eb341f62a8a84385d5d1680ad14c70423021fec143860bba9b41c2a2e6aa9b3",
+  "closedScopeSha256": "c722b3a65adef8f505985b8b5fca8660d9568accc16f1e4c5d68e15c2179920a",
+  "secondFinding": {
+    "priority": "P2",
+    "reason": "Cancellation in upper root with negative center and near-zero denominator",
+    "pairs": [
+      [
+        1,
+        1
+      ],
+      [
+        1.170849566108771,
+        100
+      ]
+    ],
+    "criticalValue": 12.706204736432095,
+    "oldUpper": 312.7864158370677,
+    "decimal100Upper": 312.9913491294245,
+    "resolution": "Choose root numerator by center sign; return not-estimable at a relative denominator magnitude <=sqrt(EPSILON).",
+    "status": "closed-by-isolated-review"
+  }
+}
