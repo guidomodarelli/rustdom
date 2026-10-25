@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Núcleo del método por proceso y CI acotado — 2026-10-25
+
+Base publicada135f9d62. Nuevo directorio combined-process-study/:declaración
+prospectiva de2048procesos/16pares por comparación,8filas,3warmup/9medidos y
+presupuestos originales. El modelo conserva los tuples del estudio anterior.
+Una media por proceso entra a Fieller emparejado;64intervalos puntuales al95%
+con t15=2.131449545559323,verificado SciPy1.15.3/NumPy2.2.6. Criterios completos,
+sin tolerancia en budgets ni aceptación desde fixtures o datos históricos.
+Todo compare() conserva captureAuthenticated=false/performanceAccepted=null.
+
+No confundir este núcleo con un estudio ejecutable:executionReady=false.
+Faltan capturador,replay integral yworkflow de captura,con publicación/revisión
+de su grafo completo ycontratos antes de activar una secuencia. La autorización
+permanente ya está concedida;no pedir permiso. No se activó otro estudio.
+PROTOCOL.md documenta factores,incertidumbre,supuestos,alcance ypendientes.
+
+Pasaron9contratos numéricos+1preparación real por Node22.12.0/24.14.1. La vista
+del sampler conserva570archivos runtime B,contrastados conZIP externo;el paquete
+completo sigue cubriendo577archivos,fuentes,tipos,locks ydependencias. Mantener
+separados Git del compilador ysnapshots con sourceCommit=null/errores128.
+
+Workflow nuevo combined-process-study-contracts.yml:dos jobs Ubuntu22.04,
+solo contratos,sin sampler,20min job/5min por paso y3min upload. Se reprodujo
+en Git Linux real HEAD135f con overlay WIP explícito,no declarado limpio:
+/home/guido/rustdom-validation/combined-process-contract-ci-20261025-attempt2/.
+Seis comandos aprobaron(sparse679dependencias/599pins,extracción,SDK ytests
+ambosNode). Primer intento conservado:omitía reference.json del test. Se corrigió
+el catálogo yreverificó la versión final del YAML/filtros conactionlint0.
+Sesiones10475 y32677 TERMINALES0;no reiniciar. QA151miembros yfallos iniciales en
+reports/validation/combined-process-study/20261025-core/. No ejecutar archivados.
+
+Siguiente tras publicar este núcleo:verificar ambos jobs remotos sobre su SHA,
+completar wrapper/derivación/captura/replay yworkflow de estudio sobre el paquete
+5b67fcc6 ya calificado. No activar con executionReady=false. No cambiar434fuentes
+históricas/599pins ni completar/repetir capturas consumidas. Preservar48entradas
+ajenas yautorizaciones;watch compartido no se sobrescribe. Recursos del núcleo
+en reports/memory/combined-process-study/20261025-core/:sin DOM/N-API nuevo,
+no mide pico ni demuestra ausencia universal de fugas. Runtime híbrido,
+migración general activa/incompleta,sin porcentaje defendible ni tag/merge ownership.
+
 ## Candidato calificado, materializado y probado — 2026-10-25
 
 Turno anterior publicado3fc67f65. Run40168321423/intento1/SHA7d977513 TERMINAL

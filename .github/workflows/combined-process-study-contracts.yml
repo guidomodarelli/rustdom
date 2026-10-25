@@ -1,0 +1,69 @@
+name: Núcleo prospectivo por proceso
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/combined-process-study-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/combined-process-study/**'
+      - 'reports/benchmarks/native-class-ownership/range-combined-packages/**'
+      - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/combined-process-study-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/combined-process-study/**'
+      - 'reports/benchmarks/native-class-ownership/range-combined-packages/**'
+      - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Contratos prospectivos Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/combined-process-study
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /reports/benchmarks/native-class-ownership/combined-process-study/
+      - name: Autenticar dependencias acotadas
+        timeout-minutes: 5
+        run: |
+          proof_directory="$RUNNER_TEMP/combined-process-contracts"
+          mkdir -p "$proof_directory"
+          printf 'PROOF=%s\n' "$proof_directory" >> "$GITHUB_ENV"
+          printf 'RUSTDOM_COMBINED_PACKAGE_ROOT=%s/combined-process-package/combined-range-packages\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          python3 -B "$METHOD/tools/configure-checkout.py" "$GITHUB_WORKSPACE" > "$proof_directory/checkout.stdout.log" 2> "$proof_directory/checkout.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verificar SDK y extraer el paquete fijo
+        timeout-minutes: 5
+        run: |
+          node "$METHOD/tools/runtime.cjs" '${{ matrix.node }}' > "$PROOF/runtime.json"
+          python3 -B reports/benchmarks/native-class-ownership/range-combined-packages/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/combined-process-package" > "$PROOF/extraction.stdout.log" 2> "$PROOF/extraction.stderr.log"
+      - name: Probar criterios y preparación real sin muestrear
+        timeout-minutes: 5
+        run: |
+          set +e
+          node --test "$METHOD/compare.spec.cjs" "$METHOD/preparation.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
+          validation_status=$?
+          printf '%s\n' "$validation_status" > "$PROOF/tests.exit-code"
+          exit "$validation_status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: combined-process-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/combined-process-contracts
+          if-no-files-found: error
