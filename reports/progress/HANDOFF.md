@@ -1,5 +1,31 @@
 # Continuar rustdom en otra máquina
 
+## Exportador de recursos completo preparado — 2026-10-25
+
+La captura AA sigue vinculada únicamente a40154725015/121053535757/intento1,
+fuente d5ec4186. No volver a activar ni completar muestras. El código/fixtures/QA
+portable de su análisis están en reports/validation/native-class-ownership/
+range-control-telemetry-analysis/20261025/. No se modificaron los599pins.
+
+El exportador añade resources-native.jsonl: baselines, owners, nueve endpoints
+y todas las rondas/nativeTree sin seleccionar familias. Sus pins del resultado
+nuevo siguen null: artifact, autenticación y replay completo aún pendientes.
+Cuatro contratos por Node22.12.0/24.14.1 pasan con128reportes AA Range históricos
+y UN control MutationRecord histórico separado para primera ronda no clara.
+La fixture conserva los bytes originales, con tamaño/hash/offset contra el
+índice versionado. Código archivado en evidence.zip es solo inspección.
+
+QA completa con política histórica40051899308:512procesos/1536snapshots y211
+primeras rondas no claras. Siete exports anteriores idénticos al repositorio;
+ocho incluyendo JSONL idénticos entre ambos Node. Cinco contratos previos por
+Node también pasan. No son resultados nuevos de Range. Se conservan errores
+iniciales de fixtures/test y sus correcciones sin cambiar mediciones. Actionlint
+aprueba el workflow nuevo de cuatro contratos por Node, timeout10/subida5min;
+CI remoto del commit nuevo pendiente. Windows no se ejecutó para esta ampliación.
+performanceAccepted=null/gateReevaluated=false; ownership rechazado, sin tag/merge.
+Preservar48entradas ajenas/watch y seguir con la misma captura. El objetivo general
+sigue activo, híbrido e incompleto.
+
 ## Diagnóstico AA activado una vez — 2026-10-25
 
 Seguir únicamente run40154725015/job121053535757/intento1 de guidomodarelli/rustdom,
