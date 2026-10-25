@@ -1,4 +1,4 @@
-"""Exercise real complete derivations, configuration and the disabled capture boundary."""
+"""Exercise real complete derivations and hosted-context guards without starting observers."""
 import hashlib
 import importlib.util
 import json
@@ -42,7 +42,7 @@ class RealPreparation(unittest.TestCase):
             self.assertEqual(receipt['sourceCommit'], head)
             self.assertEqual(receipt['sourceChanges'], changes)
             self.assertEqual(receipt['sourceGitErrors'], [])
-            self.assertFalse(receipt['captureImplemented'])
+            self.assertTrue(receipt['captureImplemented'])
             self.assertFalse(receipt['measurementExecuted'])
             self.assertIsNone(receipt['performanceAccepted'])
             self.assertFalse(receipt['gateReevaluated'])
@@ -66,17 +66,25 @@ class RealPreparation(unittest.TestCase):
                 self.assertEqual(inspected['settings']['measuredSamples'], 9)
                 self.assertEqual(inspected['workerArguments'], [['--expose-gc', f'--random-seed={seed}', f'--hash-seed={seed}'] for seed in range(1, 17)])
 
-    def test_disabled_capture_exits_before_observers_or_reports(self):
+    def test_worker_context_rejects_before_observers_or_reports(self):
+        cases = [
+            ({'GITHUB_ACTIONS': 'false', 'GITHUB_RUN_ATTEMPT': '1'}, b'requires the declared hosted runner'),
+            ({'GITHUB_ACTIONS': 'true', 'GITHUB_RUN_ATTEMPT': '2'}, b'repeated attempts are forbidden'),
+            ({'GITHUB_ACTIONS': 'true', 'GITHUB_RUN_ATTEMPT': '1'}, b'missing hosted run identity'),
+            ({'GITHUB_ACTIONS': 'true', 'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_RUN_ID': '1'}, b'missing source commit')]
         for mode in policy['modes']:
             for node in nodes:
-                output = self.directory / f'not-created-{mode}-{node.parent.parent.name}.json'
-                environment = dict(os.environ, GITHUB_ACTIONS='true', GITHUB_RUN_ATTEMPT='1')
-                result = subprocess.run([node, self.directory / mode / 'worker.cjs', manifest, 'AA', 'rustdom', '0', 'A', output, '4'],
-                    capture_output=True, env=environment)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(b'capture capability is not implemented', result.stderr)
-                self.assertFalse(output.exists())
-                self.assertFalse(Path(str(output) + '.telemetry.json').exists())
+                for ordinal, (overrides, expected_error) in enumerate(cases):
+                    output = self.directory / f'not-created-{mode}-{node.parent.parent.name}-{ordinal}.json'
+                    environment = dict(os.environ, GITHUB_RUN_ID='', NATIVE_TELEMETRY_SOURCE_COMMIT='')
+                    environment.update(overrides)
+                    result = subprocess.run([node, self.directory / mode / 'worker.cjs', manifest, 'AA', 'rustdom', '0', 'A', output, '4'],
+                        capture_output=True, env=environment)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(expected_error, result.stderr)
+                    self.assertFalse(output.exists())
+                    self.assertFalse(Path(str(output) + '.telemetry.json').exists())
+                    self.assertFalse(Path(str(output) + '.source.json').exists())
 
     def test_invalid_mode_and_existing_destination_preserved(self):
         target = self.directory / 'new-target'

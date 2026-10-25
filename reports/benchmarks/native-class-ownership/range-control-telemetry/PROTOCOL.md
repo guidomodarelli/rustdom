@@ -1,9 +1,9 @@
 # Preparación de diagnóstico de calibración de Range
 
 Revisión `range-control-aa-telemetry-v1`. La autorización permanente del usuario
-cubre este trabajo sin otra pregunta. La captura permanece deshabilitada hasta
-que el método íntegro, los lectores, sus mapas derivados y los workflows estén
-implementados, publicados, probados y revisados. La preparación no ejecuta DOM.
+cubre este trabajo sin otra pregunta. La capacidad está implementada y habilitada
+en la configuración final. Ejecutar requiere además publicación/revisión íntegra,
+seis checks del SHA exacto y una sola activación nueva. La preparación no ejecuta DOM.
 
 ## Pregunta y procedencia
 
@@ -59,7 +59,8 @@ El reporte mantiene fuentes, Git y fechas reales; no normalizar errores o HEAD.
 `prepare.py` produce un árbol nuevo/disjunto con mapas completos. Los 563 pins
 históricos y las 434 fuentes permanecen intactos. `sampler-entry.cjs --inspect`
 expone la configuración real sin cargar paquetes DOM ni ejecutar el sampler.
-El wrapper de profiling rechaza `captureImplemented=false` antes de observar.
+El wrapper de profiling exige host/intento/run/commit declarados antes de observar;
+la capacidad habilitada no permite ejecutarlo fuera de ese contexto.
 
 El colector y replay están implementados en módulos separados de contexto,
 mapas derivados, observaciones, comandos y readiness. Registran argv/root
@@ -77,11 +78,12 @@ no ejecutan workers DOM. El subconjunto de regresión incluye ocho procesos
 de MutationRecord con bytes originales y el índice completo sin relabelar.
 No es captura nueva ni replay positivo de Range.
 
-Faltan revisión/CI íntegros y registro final de mapas con capacidad habilitada.
-Los mapas de esta etapa no autorizan captura.
-Ninguna etiqueta se aplica ni se permite captura con este estado deshabilitado.
-Al completar estos componentes se exige revisión íntegra y CI del SHA exacto,
-registrar una única activación y no relanzar, ampliar o cambiar la secuencia.
+Los mapas finales incluyen la capacidad habilitada. El recibo publicado de revisión
+debe cubrir el grafo actual completo y cero hallazgos. La implementación no ejecuta
+por habilitar el flag: exige el contexto hospedado declarado, el recibo exacto,
+el historial completo sin otro run no omitido y los seis checks recientes aprobados
+del mismo SHA. Registrar una única activación después de esas comprobaciones.
+Nunca relanzar, ampliar o cambiar la secuencia, aun si falla o queda parcial.
 
 performanceAccepted=null y gateReevaluated=false siempre. El estudio anterior
 continúa rechazado; no se repite ni se acepta por este diagnóstico. No tag/merge

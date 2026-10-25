@@ -34,8 +34,8 @@ test('Cada par original conserva adyacencia y orden, sin otra fila o fase', () =
   }
 });
 
-test('La preparación no habilita captura ni redefine aceptación o presupuestos', () => {
-  assert.equal(policy.captureImplemented, false);
+test('La capacidad implementada conserva el carácter diagnóstico y los presupuestos', () => {
+  assert.equal(policy.captureImplemented, true);
   assert.equal(policy.diagnosticOnly, true);
   assert.equal(policy.performanceAccepted, null); assert.equal(policy.gateReevaluated, false);
   assert.deepEqual(policy.plannedTotals, { processes: 256, warmupSpans: 768, measuredSpans: 2304,

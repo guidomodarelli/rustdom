@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test } = require('node:test');
 const context = require('./context.cjs');
 const { policy, read, hash } = context;
@@ -13,7 +13,7 @@ const { validateIndex } = require('./replay.cjs');
 const { commandFor } = require('./commands.cjs');
 const { plan } = require('./model.cjs');
 const { validateChecks, validateActivation } = require('./readiness.cjs');
-const { captureContext, consume, requireBudget } = require('./capture.cjs');
+const { consume, requireBudget } = require('./capture.cjs');
 const { analyzeEvidence, validateProcess } = require('./observations.cjs');
 const fixtures = require('./constants/fixtures.json');
 const qa = process.env.RANGE_TELEMETRY_QA;
@@ -37,7 +37,7 @@ test('Los mapas independientes validan los árboles reales CPU/JIT completos', (
     assert.deepEqual(read(path.join(context.repository, policy.codeMaps[mode])), expectedMap(mode));
     const receipt = verifyDerived(path.join(qa, policy.paths.derivedPrefix + mode), mode, sourceManifest, hash(path.join(qa, policy.paths.sourceManifest)));
     assert.equal(Object.keys(receipt.derivedFiles).length, 893);
-    assert.equal(receipt.captureImplemented, false);
+    assert.equal(receipt.captureImplemented, true);
   }
 });
 
@@ -83,9 +83,37 @@ test('El consumo exclusivo conserva el primer recibo ante una segunda invocació
   }
 });
 
-test('El boundary del colector permanece cerrado antes de APIs u observadores', () => {
-  assert.equal(policy.captureImplemented, false);
-  assert.throws(() => captureContext('0'.repeat(40)), /not implemented\/enabled/);
+test('El contexto acepta un evento declarado sobre Git real y rechaza eventos y hosts ajenos sin APIs', () => {
+  assert.equal(policy.captureImplemented, true);
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'range-aa-context-'));
+  try {
+    const eventFile = path.join(directory, 'event.json');
+    const sourceCommit = context.sourceContext().sourceCommit;
+    const event = { action: 'labeled', label: { name: policy.label }, pull_request: { number: policy.pullRequestNumber, head: { sha: sourceCommit } } };
+    const environment = { ...process.env, GITHUB_ACTIONS: 'true', GITHUB_RUN_ATTEMPT: '1',
+      GITHUB_REPOSITORY: policy.apiRepository, GITHUB_WORKFLOW: policy.workflowName, GITHUB_RUN_ID: '1',
+      NATIVE_TELEMETRY_SOURCE_COMMIT: sourceCommit, GITHUB_EVENT_PATH: eventFile };
+    fs.writeFileSync(eventFile, JSON.stringify(event));
+    // This invokes only the real context reader, never run(), readReadiness() or a profiler.
+    const invoke = (overrides = {}) => spawnSync(process.execPath,
+      ['-e', 'console.log(JSON.stringify(require(process.argv[1]).captureContext(process.argv[2])))', path.join(__dirname, 'capture.cjs'), sourceCommit],
+      { encoding: 'utf8', env: { ...environment, ...overrides } });
+    const accepted = invoke(); assert.equal(accepted.status, 0, accepted.stderr);
+    assert.deepEqual(JSON.parse(accepted.stdout), event);
+    for (const invalid of [{ GITHUB_ACTIONS: 'false' }, { GITHUB_RUN_ATTEMPT: '2' }, { GITHUB_REPOSITORY: 'other/repository' },
+      { GITHUB_WORKFLOW: 'other-workflow' }, { GITHUB_RUN_ID: '' }, { NATIVE_TELEMETRY_SOURCE_COMMIT: '0'.repeat(40) }]) {
+      assert.notEqual(invoke(invalid).status, 0);
+    }
+    for (const invalid of [{ ...event, action: 'synchronize' }, { ...event, label: { name: 'other-label' } },
+      { ...event, pull_request: { ...event.pull_request, number: 1 } },
+      { ...event, pull_request: { ...event.pull_request, head: { sha: '0'.repeat(40) } } }]) {
+      fs.writeFileSync(eventFile, JSON.stringify(invalid)); assert.notEqual(invoke().status, 0);
+    }
+    assert.deepEqual(fs.readdirSync(directory), ['event.json']);
+  } finally {
+    assert.ok(fs.realpathSync(directory).startsWith(fs.realpathSync(os.tmpdir()) + path.sep));
+    fs.rmSync(directory, { recursive: true });
+  }
 });
 
 test('El presupuesto reserva el worker entero y también limita el procesamiento final', () => {

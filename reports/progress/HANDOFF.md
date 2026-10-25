@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Método AA con capacidad configurada — 2026-10-25
+
+range-control-telemetry conserva el mismo plan256 y presupuestos55/65/90/15/10.
+captureImplemented=true y mapas finales893por modo. Habilitar el flag no
+ejecuta: se exige recibo de revisión íntegra, contexto hospedado exacto, historial
+sin otro run no omitido y los seis checks recientes aprobados del SHA publicado
+antes de aplicar UNA etiqueta ownership-range-control-aa-telemetry-v1 al PR80.
+La autorización permanente ya cubre este diagnóstico, sin otra pregunta.
+No se aplicó etiqueta ni se ejecutaron DOM/profiling nuevos en esta QA.
+
+QArealLinux privada limpia55842ac1 sobree61dceac: grafo599/563pins conservados,
+17contratos porNode22.12.0/24.14.1, seisPython de derivación y seisreaderLinux.
+Planes/preflights byteidénticos, Actionlint0. El contexto válido del colector
+usa Git real y evento fixture sin APIs ni run(); diez casos inválidos se
+rechazan. El worker rechaza host/intento/run/commit inválidos antes de sidecar,
+reporte, fuente u observadores en ambos Node/modos. No simular muestras nuevas.
+
+Evidencia reports/validation/native-class-ownership/range-control-telemetry-enabled/20261025/:
+ZIP3af44fc0/19928523bytes/2421miembros, fuentes/derivaciones/contextos/logs.
+Paquetes y datos históricos se enlazan íntegros por hash sin duplicarlos.
+Windowsreader intacto usa QAprevia5pass1skip por symlink, cubierto enLinux;
+no contar esa batería como repetida. No ejecutar código archivado ni normalizar
+sourceCommit/sourceChanges/sourceGitErrors. Los commits privados no se publican.
+
+Recibo íntegro registrado en
+reports/validation/native-class-ownership/range-control-telemetry-method/review.json,
+SHA bdab7f46, grafo599 y revisión aislada cero hallazgos sobre601paths.
+publication-proof/ conserva una aceptación y cuatro rechazos por Node del
+lector real: privada bb48a085 sobre55842ac1 añade solo el recibo. Se conservan
+los ` M` reales de las mutaciones; finally restaura el recibo y Git limpio.
+Nunca se alteró el recibo canónico de primary. No APIs/DOM/profiles nuevos.
+
+Siguiente: publicar el método y su recibo, comprobar CI del SHA final y
+activar UNA vez solo si se cumplen. No relanzar ni completar un run parcial;
+conservar ZIP/tar/API/logs/manifiesto/muestras/warmup y verificar offline con
+fuente real limpia del SHA capturado en ambos Node fijados. Aún no existe replay
+positivo nuevo. performanceAccepted=null/gateReevaluated=false, ownership sigue
+rechazado, sin tag/merge ni integrar StaticRange. Preservar48entradas ajenas y
+watch compartido con sidecar propio. La migración general sigue pendiente.
+
 ## Contratos portables y workflows AA — 2026-10-25
 
 El método range-control-telemetry ya tiene workflows de contratos y captura,

@@ -1,6 +1,7 @@
 # Preparación revisable del diagnóstico AA de Range
 
-Estado: preparación, agenda, colector y replay implementados; **captura deshabilitada**.
+Estado: método implementado y capacidad habilitada en configuración, con ejecución
+condicionada a revisión íntegra, CI del SHA final y una sola activación hospedada.
 No se aplicó una etiqueta ni se ejecutaron DOM, samplers o profiling nuevos.
 El objetivo de migración sigue pendiente; esto no añade APIs Rust completas.
 
@@ -59,8 +60,8 @@ ejecutar. Un recibo exclusivo por run impide reiniciar en otro destino.
 Los datos históricos usados para probar el lector mantienen identidad y
 fila originales; no constituyen observaciones de Range ni una captura nueva.
 
-Faltan revisión/CI completos y registro final de los mapas con la
-capacidad habilitada antes de capturar. La autorización permanente ya cubre esos pasos. No
+La etapa actual registra los mapas con capacidad habilitada; antes de capturar
+se exigen revisión/CI completos del SHA final. La autorización permanente ya cubre esos pasos. No
 pedir permiso adicional ni activar métodos antiguos. No tag/merge de ownership.
 Recursos y límites en reports/memory/range-control-telemetry-preparation-20261025.md.
 
@@ -91,7 +92,7 @@ no se presentan como observaciones o ejecuciones reales.
 Se probaron preservación de argv/root, mapas/archivos extra, recibos reescritos,
 consumo exclusivo, checks recientes, historial, run vivo, budgets antes/después
 del trabajo y formato Git porcelain real. Las guardas siguen cerradas con la
-capacidad deshabilitada. La revisión/CI completos continúan pendientes;
+capacidad deshabilitada en aquella QA histórica. La revisión/CI completos del estado actual se exigen antes de ejecutar;
 no aplicar etiqueta ni ejecutar otro método consumido.
 
 ## Integración portable de contratos
@@ -114,8 +115,9 @@ Los workflows nuevos son `range-control-telemetry-contracts.yml` y
 contratos con timeout de 20 minutos. La futura captura exige seis checks del
 SHA exacto y conserva los límites de 55 minutos de captura, 65 de step,
 90 de job, 15 de archivo y 10 de subida. El segundo workflow solo responde a
-su etiqueta específica/intento 1; mantiene la capacidad deshabilitada en esta
-etapa. La autorización permanente ya está concedida.
+su etiqueta específica/intento 1. La capacidad final está habilitada, pero la
+ejecución exige el recibo de revisión, historial y checks exactos antes de observar.
+La autorización permanente ya está concedida.
 
 Reproducir con fuentes actuales en un checkout Git Linux real limpio, salida
 nueva disjunta y ambos ejecutables originales autenticados:
@@ -125,8 +127,8 @@ python3 -B reports/benchmarks/native-class-ownership/range-control-telemetry/qua
 ```
 
 El transporte portable y los workflows no aceptan rendimiento ni reemplazan
-los estudios consumidos. Falta habilitar capacidad con mapas/revisión íntegros
-y CI del SHA final antes de una única activación nueva.
+los estudios consumidos. La configuración habilitada requiere mapas/revisión
+íntegros y CI del SHA final antes de una única activación nueva.
 
 La evidencia ejecutada está en
 reports/validation/native-class-ownership/range-control-telemetry-portable/20261025/:
@@ -136,3 +138,32 @@ Linux. Actionlint aprobó ambos workflows. El ZIP de QA conserva2424miembros,
 fuentes/comandos/logs/derivaciones, y referencia los inputs originales ya
 versionados sin duplicarlos. QAprivadaLinux cfa6f167 es real/limpia sobre7b6fca9d;
 no es un SHA publicado ni un runtime nuevo. No hubo DOM ni profiling nuevo.
+
+## Capacidad final y ejecución única
+
+La QA final de la configuración habilitada está en
+reports/validation/native-class-ownership/range-control-telemetry-enabled/20261025/:
+GitLinux privado limpio55842ac1 sobree61dceac, grafo599,17contratos por Node,
+seisPython de derivación y seisdellectorLinux, mapas893por modo y Actionlint0.
+El contexto positivo usa Git real y un evento fixture sin invocar run(), APIs,
+observadores o DOM. Se rechazan diez contextos del colector y cuatro del worker
+por Node/modo antes de reportar/observar. La fixture no es una captura real.
+
+El recibo en reports/validation/native-class-ownership/range-control-telemetry-method/review.json
+debe corresponder al grafo actual íntegro y cero hallazgos de revisión. La
+ejecución hospedada valida además el evento, HEAD real limpio, ambas versiones/
+hashes, las seis comprobaciones recientes del SHA exacto y el historial entero
+sin otra ejecución no omitida. Un recibo exclusivo por run impide reiniciar.
+No reusar etiquetas o autorizaciones consumidas de métodos anteriores.
+
+La configuración habilitada no ejecuta por sí sola. Falta observar CI aprobado
+del commit publicado antes de activar una vez la secuencia nueva, cubierta por
+autorización permanente. Un fallo o resultado parcial se conserva sin completar
+muestras. El replay completo nuevo se comprobará cuando exista esa captura.
+
+La revisión íntegra cerró cero hallazgos sobre el grafo599 y registró el recibo
+canónico. Una prueba adicional en ambos Node acepta ese recibo y rechaza cuatro
+mutaciones, restaurando Git limpio. Los logs preservan los cambios Git reales
+de las variantes inválidas; el commit privado de esa comprobación es bb48a085
+sobre55842ac1. La evidencia está en publication-proof/ junto a la QA anterior.
+Estas comprobaciones no sustituyen el CI del SHA final ni ejecutan captura.
