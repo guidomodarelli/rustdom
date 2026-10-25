@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Controles físicos, lector y hooks verificados — 2026-10-25
+
+Publicado previamente7d977513. CI numérico40168321461 TERMINAL success:14 contratos
+por Node22.12.0/24.14.1; ambos artifacts y logs completos autenticados en
+reports/validation/paired-process-interval/40168321461/. No repite DOM ni mediciones.
+
+Preparación de controles TERMINAL0: A0/A1/J0/J1 y dependencias originales copiados
+en /home/guido/rustdom-validation/range-combined-baselines-20261025. No contiene B.
+Se conserva snapshotSourceCommit=null/errores128 reales, separado de la procedencia
+del compilador3d37f899/tagc869f3c0. Seis contratos reales por Node22/24 aprobados y
+verify final0 en ambos. El P2 aislado de hardlinks quedó cerrado con nlink===1 y
+regresión de inodo compartido. QA original5 y corregida6 se conservan intactas en
+reports/validation/range-combined-packages/baselines/20261025/.
+
+Lector artifact.py:seis contratos Python aprobados Windows/Linux; solo transporte,
+sin ejecutar código archivado/DOM. Fixture12588139466 de matriz histórica fallida,
+NO candidato nuevo. constants/artifact-binding.json continúa complete=false:
+el CLI no califica ni materializa un paquete sin binding externo de la matriz
+completa preseleccionada. Selección prospectiva40168321423/Linuxx64/Node24.14.1;
+no elegir otro perfil ni reconstruir paquetes. Método/sampler nuevos aún pendientes.
+
+Hooks SessionStart/UserPromptSubmit/PreToolUse instalados y de confianza:15 tests
+Linux/14 Windows pasaron, un symlink omitido Windows por privilegios pasó Linux.
+Dos fallos de setup(glob zsh,tomli ausentePython3.10) preservados y resueltos con
+runner y venv local fijado; sesión61551 TERMINAL0. QA final sesión99946 TERMINAL0:
+hooks,lectores y verificación controles. No reiniciar24169/3570/56238/61551/99946.
+QA37miembros en reports/validation/range-combined-packages/reader/20261025/.
+
+ObservaciónCI 2026-10-25T06:39:16.024581+00:00:run40168321423/intento1/SHA7d977513 sigue in_progress; 4/6 jobs aprobados.
+Consultar ese mismo run; al terminar preservar todos los artifacts aun si falla,
+autenticarlos y fijar binding externo solo si los seis califican. No reiniciar por
+espera/transporte. La nueva publicación de estos lectores puede generar checks de
+contrato adicionales; no reutilizarlos para sustituir el perfil ya elegido.
+
+Recursos revisados en reports/memory/range-combined-packages/20261025/:no DOM ni
+referencias N-API nuevas; no se midió pico ni se garantiza ausencia universal de
+fugas. Conservados599pins/48entradas ajenas y autorizaciones; watch compartido
+no se sobrescribe. Sin integración/tag/merge ni aceptación de ownership. Objetivo
+general activo/incompleto,runtime híbrido,porcentaje aún no defendible.
+
 ## Validación anidada completa y fix de Jest Windows — 2026-10-25
 
 Sesión 96801 TERMINAL exit0:22 comandos de prepare/qualify completos,315 Rust,
