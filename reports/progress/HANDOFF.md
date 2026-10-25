@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## Diseño de la siguiente medición: diagnóstico offline — 2026-10-25
+
+Prioridad actual tras el mensaje del usuario: cerrar los dos checks rojos de
+Native class ownership Node 22/24. Sus logs del run 40205225981 confirman código 1
+por presupuesto rechazado; no son fallos del preparador ni de contratos. La
+corrección db348de1 es parcial hasta validar rendimiento. Conservar ese gate real;
+continuar con el candidato medido y no sustituir su aceptación por este diagnóstico.
+
+La corrección de preparación está publicada en db348de1. El run 40205226009 sigue
+siendo la matriz a consultar; ya superaron preparación Linux/Windows de ambos SDK
+antes de este update. Verificar sus seis jobs reales y guardar artifacts finales.
+La selección prospectiva de futuro paquete es Ubuntu/Node 22, job 121204608098,
+solo después de matriz 6/6, con autentificación completa; no sustituir por ELF local.
+
+Nuevo diagnóstico sin DOM/muestras: owner-batch-method-design/ sobre el resultado
+40184510898. Se verificaron los 2048 procesos y 24576 duraciones originales en
+Node 22/24, con nueve contratos por SDK y doce Python por Windows/Linux. Variación
+jsdom: CV interno mediano 23,316%, CV de medias 6,869%, intervalo mediano 9,516 pp.
+63/128 contrastes firmados negativos permanecen; no son componentes causales.
+Evidencia: reports/validation/owner-batch-design-diagnostic/20261025/.
+
+DRAFT.md fija una propuesta de 16 tareas frescas por bloque, timers individuales,
+las mismas 8 filas, inferencia por proceso/16 pares y ±2%/±5%. Dos jobs del mismo run,
+uno por SDK, con captura 170 min/job 200 min. Faltan sampler, lectores, calificación,
+paquete autenticado y revisión integral: executionReady=false. No activar el
+borrador ni repetir estudios consumidos; la autorización permanente ya cubre el
+trabajo necesario. Runtime híbrido, inventario sin crédito nuevo de producción.
+
+Se recuperaron 341130963 bytes retirando solo la descarga Ubuntu descartable,
+checksum 1483cc5c…; distribución y evidencia conservadas. C sigue con poco espacio.
+El nuevo keeper del tmpfs es PID 27489, sesión 56373, iniciado 15:24 UTC por dos horas;
+no depender de la RAM como evidencia única. Código y QA anteriores están publicados.
+Preservar 48 cambios ajenos, watch compartido y fuentes 599/724/738. Engram sin identidad.
+La migración general permanece activa; no hay tag/merge sin aceptación.
+
 ## Preparación CI shallow corregida localmente — 2026-10-25
 
 El candidato y su QA se publicaron en c331cc84. CI 40204293701 falló en el primer
@@ -510,7 +545,7 @@ reports/validation/paired-process-interval/40168321461/. No repite DOM ni medici
 Preparación de controles TERMINAL0: A0/A1/J0/J1 y dependencias originales copiados
 en /home/guido/rustdom-validation/range-combined-baselines-20261025. No contiene B.
 Se conserva snapshotSourceCommit=null/errores128 reales, separado de la procedencia
-del compilador3d37f899/tagc869f3c0. Seis contratos reales por Node22/24 aprobados y
+del compilador3d37f899/tagc869f3c0. Seis contratos reales por Node 22/24 aprobados y
 verify final0 en ambos. El P2 aislado de hardlinks quedó cerrado con nlink===1 y
 regresión de inodo compartido. QA original5 y corregida6 se conservan intactas en
 reports/validation/range-combined-packages/baselines/20261025/.
@@ -1461,7 +1496,7 @@ El run40065437939/job120787588512,intento1,f559d37a terminó success.
 Archivo íntegro autenticado: artifact12549521134; evidencia en
 `reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/`.
 ZIP21a79f0d/tar045d0035,7889miembros,7043regulares,6links. Lectura offline
-idéntica en Node22/24, SHA4b807020. Pasan17tests de transporte por plataforma
+idéntica en Node 22/24, SHA4b807020. Pasan17tests de transporte por plataforma
 y5de replay por Node, sin DOM;17incluye sustitución de bytecode cache real.
 
 El addon de CI es0a949fb3, distinto del9bablocal. Pasaron14pruebas nativas por
@@ -1478,7 +1513,7 @@ No tag/merge. Mantener el runtime principal y el trabajo ajeno intactos.
 
 `cold-cleanup-build/` reutiliza el productor existente y fija baseline067 más
 checkout8dba217b/patchd869ec4a. Localmente pasaron build, probes canónicos de15
-Window y15Document por Node22/24 y ocho contratos por versión, incluidos runtime
+Window y15Document por Node 22/24 y ocho contratos por versión, incluidos runtime
 real relocalizado, reseña de fuentes, identidades y endpoints adulterados.
 Archivo íntegro y recursos en
 `reports/validation/native-class-ownership/cold-cleanup-build-preparation/local-2026-10-24-attempt2/`
@@ -1494,7 +1529,7 @@ un build/probe funcional. La migración completa permanece activa y pendiente.
 
 `cold-cleanup-build/` reutiliza el productor existente y fija baseline067 más
 checkout8dba217b/patchd869ec4a. Localmente pasaron build, probes canónicos de15
-Window y15Document por Node22/24 y ocho contratos por versión, incluidos runtime
+Window y15Document por Node 22/24 y ocho contratos por versión, incluidos runtime
 real relocalizado, fuentes con hashes adulterados, identidades y endpoints alterados.
 Archivo íntegro y recursos en
 `reports/validation/native-class-ownership/cold-cleanup-build-preparation/local-2026-10-24/`
@@ -1856,20 +1891,20 @@ ni merge. El objetivo de migración completa sigue pendiente.
 ## Diagnóstico adicional autorizado el 23 de octubre de 2026
 
 El usuario respondió «Autorizar el diagnóstico nuevo» a la pregunta sobre un
-experimento separado de CPU/GC/JIT de jsdom en Node22/24. Ya no está pendiente
+experimento separado de CPU/GC/JIT de jsdom en Node 22/24. Ya no está pendiente
 esa decisión. La autorización no acepta el estudio rechazado ni cambia sus
 presupuestos. El CI general de c71ede39 terminó con sus ocho jobs aprobados,
 incluido Linux con Valgrind, Windows, macOS y shards/aggregate; XML aprobó.
 
 El método nuevo está en `reports/benchmarks/native-class-ownership/jsdom-telemetry/`.
 Fija 64 procesos jsdom-only, ocho cargas, posiciones0/15, ambas etiquetas y
-Node22/24. CPU+GC y JIT+GC se observan en procesos separados porque V8 desactiva
+Node 22/24. CPU+GC y JIT+GC se observan en procesos separados porque V8 desactiva
 su file logger mientras Inspector tiene activo el CPU profiler. El sampler
 productivo, la fuente5ef y el estudio39921160254 siguen intactos.
 
 La herramienta completó 32 procesos de calificación y 384 intervalos, con
 384 Window y 384 Document por tipo y 64 endpoints finales claros; también
-conserva tres primeros endpoints no claros. Pasaron 12 contratos por Node22/24
+conserva tres primeros endpoints no claros. Pasaron 12 contratos por Node 22/24
 con los datos originales y trasladados. Se preservan los dos parciales previos
 y la recuperación del lector, sin repetir los cuatro children ya completados:
 los 14 deltas negativos siguen firmados. El P2 de identidad quedó corregido y
@@ -1965,21 +2000,21 @@ identidad runtime registrada; no inventar una sesión ni usar otra memoria.
 ## Candidato actual: protocolo de ownership pendiente de ejecutar
 
 El check XML de113a1aec aprobó en GitHub (`39917369584`). Los35contratos
-de ownership pasaron por Node22/24 también en CI; el gate final sigue
+de ownership pasaron por Node 22/24 también en CI; el gate final sigue
 rechazando las fuentes actuales antes de consumir el archivo histórico.
 No confundir ese rechazo de identidad con una nueva regresión funcional.
 
 La preparación oficial39906777389/artifact12481226791 corresponde al runtime
 actuala5a1379d/fuente5ef668c4, no al antiguo candidatoB0d67. Se autenticó su
 ZIP completo y se verificaron fuentes, inputs de raíz, distribuciones completas,
-dependencias y probes públicos de Node22/24. Sus datos están en
+dependencias y probes públicos de Node 22/24. Sus datos están en
 `reports/validation/native-class-ownership/current-source-preparation/39906777389/`.
 
 `CURRENT-OWNERSHIP-PROTOCOL.md` declara una sola secuencia para este runtime
 ya cambiado, con etiqueta exclusiva `ownership-current-source-v1` y workflow
 `ownership-current-source.yml`. Reutiliza row-isolation: ocho cargas, dos fases,
 16posiciones, semillas1..16, mismos warmups, nueve muestras y mediana agrupada;
-jsdom±2%, RustAA±5%, RustAB+5%. Son1024procesos por Node22/24. El ensayo no se
+jsdom±2%, RustAA±5%, RustAB+5%. Son1024procesos por Node 22/24. El ensayo no se
 ha lanzado al redactar esta sección: consultar el workflow antes de actuar.
 No repetirlo ni repetir estudios anteriores si el resultado no calibra.
 
@@ -1987,7 +2022,7 @@ La factory existente admite una preparación explícita sin alterar su default
 histórico. La revisión detectó y cerró dos P2 antes de medir: repetir la etiqueta
 ya no evita el guard de historial de runs, y el hash del arnés incluye todas las
 dependencias de la preparación actual. Los dos contratos nuevos pasaron por
-Node22/24. También pasaron12tests públicos por Node, con40workers por perfil,
+Node 22/24. También pasaron12tests públicos por Node, con40workers por perfil,
 las cinco copias reales, las ocho cargas y liberación de Window/Document.
 Estos tiempos de calificación no aceptan presupuesto ni seleccionan muestras.
 
@@ -2027,7 +2062,7 @@ El review ampliado encontró un bypass de integridad con Python -O. Se
 reprodujo sobre una copia alterada y ambos lectores ahora rechazan -O, -OO
 y PYTHONOPTIMIZE antes de consumir entradas. Once tests de observaciones
 pasaron en Python Linux3.10/Windows3.12; cuatro tests de la CLI completa
-pasaron por Node22/24, con ocho variantes optimizadas rechazadas por perfil.
+pasaron por Node 22/24, con ocho variantes optimizadas rechazadas por perfil.
 La salida numérica normal conserva las observaciones originales.
 
 Ownership: el test de replay del CI de a5a1379d esperaba exit1 sobre datos
@@ -2036,7 +2071,7 @@ devuelve exit2 por fuentes diferentes. Ahora el replay usa la copia física
 medida, y una regresión comprueba el rechazo de una implementación cambiada.
 Esto no acepta el presupuesto: los siete controles históricos rechazados
 siguen rechazados y el gate final sobre las fuentes actuales sigue pendiente.
-Los 35 contratos de replay/transporte/CLI pasaron por Node22/24 con `TMPDIR`
+Los 35 contratos de replay/transporte/CLI pasaron por Node 22/24 con `TMPDIR`
 separado por perfil. El CLI real sobre el checkout actual conserva exit2
 por fuentes diferentes. Los resultados, intentos iniciales y límites están en
 `reports/validation/native-class-ownership/recorded-workflow-current-source/`.
@@ -2258,7 +2293,7 @@ no se ejecutaron suites, addon, generador, GC ni benchmarks en esa auditoría.
 Siete anclas propuestas ya eran Rust; no hay implementación nueva ni filas
 incorporadas al ledger. Revisión estática sin hallazgos; ver su HANDOFF y
 reports/validation/inventory-dom-token-list-audit/ para fuentes y límites.
-Validar comportamiento y catálogo en Node22/24 después del estudio activo,
+Validar comportamiento y catálogo en Node 22/24 después del estudio activo,
 antes de incorporar; no abrir otro PR ni migrar runtime hasta cerrar ownership.
 
 ## Inicio histórico del estudio de afinidad auxiliar original
@@ -2273,7 +2308,7 @@ Se lanzó UNA secuencia nueva después de esa publicación, ahora terminada y
 rechazada como consta al inicio de este documento. Session19732,
 driverPID692, raíz persistente /home/guido/rustdom-validation/background-affinity-study-k98_55yo,
 Node22 padrePID955. El preflight confirmó ambos ejecutables exactos antes del
-primer worker y guardó hashes. Al observar, había12entradas de1024 en Node22,
+primer worker y guardó hashes. Al observar, había12entradas de1024 en Node 22,
 la última aún activa; no hay decisión de aceptación parcial. Node24 se ejecutará
 después por el mismo coordinador. Revalidar handle19732,/proc y execution.json
 para obtener el estado actual. Una ausencia de salida no autoriza reiniciar.
@@ -2701,7 +2736,7 @@ solo el hash de esa política; xml-history.spec.cjs agrega regresiones CLI reale
 para fuentes/build inputs distintos y ejercita la selección positiva original
 con el workflow actual. No se cambió el archivo de mediciones fijado ni presupuestos.
 Actionlint1.7.12 pasa y la revisión estática quedó sin hallazgos. Faltan los
-contratos/CLI Node22/24 y la revisión final; no commitear sin esas pruebas.
+contratos/CLI Node 22/24 y la revisión final; no commitear sin esas pruebas.
 Debe detener el CI ante evidencia incompatible, no volverlo verde
 sin sustento. No toca el método de ownership que sigue ejecutándose en Node24.
 
@@ -2717,7 +2752,7 @@ y fue confirmado vivo al registrar este estado. Node22 PID671904 ya terminó.
 No reiniciar ni omitir Node24 por el negativo anterior. No ejecutar CPU intensiva
 ni cambiar fuentes medidas. Esperar ambos resultados y verificación del conjunto
 antes de archivar/revisar/publicar el ensayo; todavía no está completo.
-Dos lectores offline de .cache conservan todos los grupos y filas de Node22,
+Dos lectores offline de .cache conservan todos los grupos y filas de Node 22,
 sin modificar aceptación, en seeded-pre-gc-node22-*-diagnostics.json. La propuesta
 reports/progress/ownership-row-isolation-proposal.md es WIP solo documental:
 no está implementada, calificada ni medida. No aplicar otro método hasta terminar
@@ -2767,7 +2802,7 @@ actuar. `reports/progress/seeded-pre-gc-start.json` guarda el momento.
 El marcador `.cache/seeded-pre-gc-study.started.json` está consumido.
 NO reiniciar por silencio, timeout de observación o un lock. Esperar el mismo
 handle/PID si está vivo. No ejecutar tareas CPU intensivas ni modificar fuentes
-medidas mientras corre. Node24 debe seguir al finalizar Node22, incluso si
+medidas mientras corre. Node24 debe seguir al finalizar Node 22, incluso si
 rechaza presupuestos. Un fallo de integridad detiene y conserva lo parcial.
 Guardar todos los crudos y la decisión del conjunto completo, también negativos.
 Todavía no hay una aceptación o mejora nueva ni autorización de merge/tag.
@@ -2862,7 +2897,7 @@ que siga activo al leerlo después. El marcador exclusivo
 `.cache/pre-gc-warmup-study.started.json` está consumido. NO relanzar.
 
 Consultar primero el handle y los procesos reales, archivos process.json e
-índices Node22/24 de esa raíz. Esperar la secuencia existente si sigue activa.
+índices Node 22/24 de esa raíz. Esperar la secuencia existente si sigue activa.
 No confundir silencio o timeout de observación con terminación. Completar ambos
 Node y guardar íntegros crudos y rechazos; fallo de integridad detiene la
 secuencia conservando lo parcial. No modificar código ni ejecutar tareas CPU
@@ -2881,7 +2916,7 @@ ventana actual. No fuerza GC entre warmup y reloj; GC natural y asignaciones
 temporales siguen formando parte del método. Defaults frío y warmup anterior
 conservados. No hay cambio de algoritmos Rust ni causa de variación demostrada.
 
-Node22/24:23 tests por versión pasan, con las cinco copias oficiales, ambos
+Node 22/24:23 tests por versión pasan, con las cinco copias oficiales, ambos
 órdenes, ocho hashes públicos, CLI/Vitest/VM y endpoints Window/Document/nativos.
 Evidencia en `reports/validation/native-class-ownership/pre-gc-warmup-method/`:
 491 crudos/fuentes,403 fuentes del método autenticadas, fallos de preparación
@@ -2903,7 +2938,7 @@ CPU intensivas locales mientras mida. Sin aceptación, merge/tag ni crédito Rus
 El productor de CI ya no intenta aceptar fuentes actuales con la huella de
 tiempos históricos. La preparación v2 registra su propia identidad; v1 conserva
 los pins originales y ambos lectores rechazan intercambiar sus archivos.
-Builds reales A/B, 14 contratos actuales + 17 históricos por Node22/24 y los
+Builds reales A/B, 14 contratos actuales + 17 históricos por Node 22/24 y los
 workers reales pasan. Seis contratos de inputs pasan también en Windows24.
 Actionlint con shellcheck pasa. Código y evidencia están en
 `reports/validation/native-class-ownership/current-build/`. Después de calificar
@@ -2955,7 +2990,7 @@ El nuevo método opt-in está en REALM-WARMUP-PROTOCOL.md: tres rondas de
 operaciones fuera del reloj en la misma ventana; temporales removidas y GC
 antes de medir. No es el costo de primer uso ni cambia los rechazos anteriores.
 
-Node22/24:23 tests por versión pasan, con cinco paquetes oficiales, hashes
+Node 22/24:23 tests por versión pasan, con cinco paquetes oficiales, hashes
 públicos históricos y liberación separada de Window/Document y baseline nativo.
 El test inicialmente fallido confundía rangeClones con rangeStates: corregido
 y conservado el fallo en el histórico. Evidencia completa en
@@ -2990,7 +3025,7 @@ conserva presupuestos y declara su alcance de operaciones calientes.
 ## Histórico: launcher calificado antes de la captura (superado)
 
 `reports/benchmarks/native-class-ownership/optimization-log/` conserva el
-launcher, settings y contratos. Ocho tests pasaron en Linux con Node22/24
+launcher, settings y contratos. Ocho tests pasaron en Linux con Node 22/24
 y Windows con Node24. El preflight completo de ambos Node pasó, verificó
 las387 fuentes originales y preparación antes/después, sin ejecutar DOM o
 tracing ni consumir el marker. Fuente original y sampler permanecen intactos. El hashing es por bloques
@@ -3041,7 +3076,7 @@ abierto, sin merge/tag ni integración del inventario separado.
 La única captura de la receta publicada en `a10e7a04` terminó con exit0:
 342 CLIs, 54 warmups y 288 mediciones, 10.602 ejecuciones de tests, doce filas
 aceptadas con A/A calibrado en Node22.12.0 y24.14.1. Los verificadores congelados
-Linux Node22/24 y Windows Node24 coinciden; el recálculo Python independiente
+Linux Node 22/24 y Windows Node24 coinciden; el recálculo Python independiente
 también, en Windows/Linux. Diez contratos del lector (cinco por plataforma)
 rechazan checksum, ledger, decisión e inventario de fuentes alterados sobre
 copias conservadas.
@@ -3237,7 +3272,7 @@ versiones Node y los diez tratamientos, preserva logs/índice/error y se detiene
 sin reintentos. Copia fuentes/recibo y revalida fuentes y preparación tras cada
 Node. La autenticación remota no se deduce de un JSON ni de verifySources solo.
 
-Seis casos por Node22/24 pasan, incluidos procesos reales exit7 y JSON inválido
+Seis casos por Node 22/24 pasan, incluidos procesos reales exit7 y JSON inválido
 tras exit0, sin mocks; no ejecutan DOM. Con el comando compartido pasaron cuatro
 procesos DOM/32 cargas/384 spans. Las tres fuentes de comando permanecen iguales;
 se reutiliza esa evidencia después del delta de documentación/copia/revalidación
@@ -3253,7 +3288,7 @@ Sin nuevas suites de producto ni builds porque no cambia el runtime.
 Paso histórico ya ejecutado (no repetir): publicar/cotejar los seis archivos del método y generar
 recibo `{commit, files}` con hashes relativos al directorio compilation-diagnostics;
 invocar una sola vez el CLI del protocolo con copia instrumentada verificada,
-preparación oficial, recibo, output nuevo y binarios Node22/24. Conservar el
+preparación oficial, recibo, output nuevo y binarios Node 22/24. Conservar el
 proceso vivo por su handle, no relanzar por silencio/timeouts de observación.
 La captura de diez procesos terminó parcialmente; consultar el encabezado. No repetir capturas previas.
 Ownership sin aceptación; inventario `4c09d1bd` separado, sin merge ni checkpoint.
@@ -3356,7 +3391,7 @@ Deriva una copia autenticada de las 387 fuentes, registra warmups e intervalos
 después de detener el reloj y observa GC externo. No modifica el arnés de
 aceptación `6904db29…` ni paquetes oficiales, presupuestos o crédito Rust.
 
-Los contratos finales pasaron en Node22/24: cuatro procesos funcionales, 32
+Los contratos finales pasaron en Node 22/24: cuatro procesos funcionales, 32
 cargas, 384 intervalos y outputs públicos idénticos al archivo original. Hubo
 1.434 eventos GC escalares, 384 referencias por tipo Window/Document, 96
 observaciones de cleanup y las 64 finales exigidas claras; cuatro observaciones
@@ -3390,7 +3425,7 @@ ZIP SHA-256 `0ee75c12464aa8cfee9f3ac3b42ba81a01dd54a9ed0c15faddfedbcf4ea2f2a5`.
 Tar SHA-256 `928e17bfd676264bab0e2bf30f8dfe7267831752dbc3a254cb86c5abece76756`.
 Extracción verificada: `/tmp/rustdom-ownership-results-m7jq3638/independent-order`.
 Las 387 fuentes por Node coinciden con el commit publicado, arnés `6904db29…`.
-Los verificadores congelados y preparación completa pasan offline en Node22/24;
+Los verificadores congelados y preparación completa pasan offline en Node 22/24;
 conservan `verified=true, accepted=false`. El lector independiente reproduce
 32 filas, 2.048 medianas de lotes y la misma decisión.
 
@@ -3471,7 +3506,7 @@ Tar SHA-256 `c8d8395855f057e3b60024fd0a87ac76694c2a34d8c6340213c9f82cfe4b171a`.
 Extracción verificada: `/tmp/rustdom-ownership-results-0yjp1eeo/single-package`.
 Los 380 archivos por Node coinciden con el commit publicado; arnés `fc25f0b6…`.
 Los verificadores congelados y la preparación completa pasaron offline en
-Node22/24 y conservaron `accepted=false`, sin nuevas mediciones.
+Node 22/24 y conservaron `accepted=false`, sin nuevas mediciones.
 
 Calibración A/A y A/B: Node22 6/8 y 6/8; Node24 5/8 y 6/8. Todos los puntos
 Rust A/A están dentro de ±5% y los A/B no superan +5%, pero jsdom no calibra
@@ -3644,7 +3679,7 @@ configuración externa de Cargo, rutas ambiguas y enlaces no portables.
 
 Validación local final terminada: build11075 exit0, root
 `/tmp/rustdom-hosted-build-links-00612sdr`; validación48980 exit0. No reiniciar.
-17 contratos por Linux Node22/24 y cuatro workers reales, incluyendo traslado:
+17 contratos por Linux Node 22/24 y cuatro workers reales, incluyendo traslado:
 60 observaciones Window/Document por tipo y 40 estados finales claros exigidos.
 El tar se extrajo y verificó con ambos Node sin usar los roots originales.
 Las distribuciones reconstruidas son bit-idénticas a A/C/jsdom congelados.
@@ -3696,7 +3731,7 @@ quedar publicados antes de continuar. Consultar siempre el head remoto real.
 La secuencia aislada sigue terminada, publicada en `5da6a90d`; no reiniciarla.
 Se publicó `RUNNER-SHARING-CONTEXT-PROTOCOL.md` en `8cc47053` para observar las ocho filas
 originales en posiciones0/4, manteniendo física J0/J1 y cargaA/B, con modos
-shared/independent en orden ABBA. Son ocho procesos entre Node22/24 y 1.152
+shared/independent en orden ABBA. Son ocho procesos entre Node 22/24 y 1.152
 duraciones medidas. La única secuencia terminó con exit0 en ocho workers y
 ambos drivers, Node22 antes de Node24. Root original
 `/tmp/rustdom-runner-context-study-alwnuvvp`, sesión96791 terminal: no reiniciar.
@@ -3714,7 +3749,7 @@ entorno de ejecución y procedencia de fuentes, compilados y herramientas.
 
 Los controladores compartidos aceptan esa receta explícita y conservan los
 defaults aislados. Los checksums ahora se comparan por cada una de las ocho
-filas. Cuatro contratos pasaron por Linux Node22/24; la validación incluye ocho
+filas. Cuatro contratos pasaron por Linux Node 22/24; la validación incluye ocho
 workers funcionales, 648 duraciones y 288 comprobaciones finales de recursos.
 La revisión local del código cerró sin hallazgos. Fuentes y evidencia en
 `reports/validation/native-class-ownership/runner-sharing-context/`.
@@ -3754,7 +3789,7 @@ la espera acotada canónica existente de 12 rondas/10 segundos, siempre con dos
 endpoints claros y baselines nativos exactos. La regresión retiene Document
 reales durante tres observaciones y exige liberación posterior. No altera el
 runtime, helper de GC, ni las tres rondas de los samplers de rendimiento.
-Dos contratos del nuevo diagnóstico y seis de recursos aprobaron por Node22/24;
+Dos contratos del nuevo diagnóstico y seis de recursos aprobaron por Node 22/24;
 evidencia en `reports/validation/native-class-ownership/runner-sharing/`.
 
 Se preparó `RUNNER-SHARING-PROTOCOL.md`, en el directorio de benchmarks de
@@ -3816,7 +3851,7 @@ La selección válida recalcula las 14.976 observaciones originales sin remedir;
 un dato faltante/alterado falla, y false/null no acepta presupuesto.
 Los filtros del workflow cubren ese grafo de dependencias.
 
-Validación local de este gate: 20 contratos en Linux Node22/24, 16 en Windows
+Validación local de este gate: 20 contratos en Linux Node 22/24, 16 en Windows
 Node24 y cuatro casos Linux omitidos explícitamente. CLI actual select/verify
 con referencia real restaurada de Git: reuse=true y exit0. actionlint aprobado.
 Fuente/pins/fixture/verificador revisados sin hallazgos tras cuatro fixes de
@@ -3855,7 +3890,7 @@ Congela 357 fuentes y conserva todas las cargas, umbrales y estimador anteriores
 Sus cuatro workers funcionales completaron 576 duraciones, 768 Window y 768
 Document observados y 256 endpoints finales claros; no son aceptación.
 Los 23 contratos pasaron por Linux Node 22/24 y 20 por Windows Node24 con tres
-preflight Linux omitidos. El comando CI ampliado aprobó 29 por Linux Node22/24.
+preflight Linux omitidos. El comando CI ampliado aprobó 29 por Linux Node 22/24.
 
 La secuencia C de la sesión 93464 terminó con exit 1: los 64 procesos terminaron
 con exit 0, 9.216 duraciones, `complete=true` y `accepted=false` en ambos Nodes.
@@ -3863,7 +3898,7 @@ No reiniciarla. Root original: `/home/guido/rustdom-paired-inline-study-1fjgji8z
 Archivo completo: `reports/benchmarks/native-class-ownership/paired-inline/2026-10-22/`,
 931 archivos más manifest, con 357 fuentes congeladas por Node y procedencia del
 SHA revisado antes de medir. El CLI real reprodujo el resultado completo en Linux
-Node22/24 y Windows Node24. A y jsdom conservan sus pins; B representa C.
+Node 22/24 y Windows Node24. A y jsdom conservan sus pins; B representa C.
 
 Node22 calibró 4/8 A/A y 4/8 A/B; esas cuatro A/B quedaron dentro del presupuesto.
 Node24 calibró 5/8 A/A y 5/8 A/B; esas cinco A/B quedaron dentro. Todas las filas
