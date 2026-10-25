@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## CI del lector aprobado e inventario ampliado — 2026-10-25
+
+El CI 40188827176, intento 1, aprobó ambos SDK sobre fc99401e: tres contratos por SDK,
+738 fuentes y 599 pins verificados. Artifacts 12597289381/12597588750, ZIP, metadata,
+manifiestos y logs íntegros están en reports/validation/combined-process-exports/40188827176/.
+El lector no acepta rendimiento ni altera el productor científico 95e64bd2.
+
+Se integró la auditoría de DOMImplementation: un módulo híbrido, cinco APIs y cinco
+anclas. Solo el cuerpo hasFeature se acredita como ancla Rust; los métodos públicos
+conservan WebIDL y factories híbridas. Totales auditados: 7/531 módulos, 37/4331 APIs,
+6/7246 anclas. Son dimensiones separadas; scopeClosed=false y migrationPercent=null.
+No se suman y no prueban que se haya implementado nuevo código Rust en esta entrega.
+
+Pasaron 164 contratos de DOMImplementation, doce ciclos de recursos y siete contratos
+del inventario por Node 22.12.0/24.14.1. El SUT fue A0 auténtico con cuatro fuentes
+auditadas idénticas; no califica el guard ni el candidato nuevo. Tras integrar,
+ambos SDK reprodujeron el ledger con siete contratos y CLI canónico. Quedaron
+conservados la interrupción del escaneo Windows y los errores del setup Linux,
+incluido el 6/7 corregido al materializar inventory-memory.cjs sin cambiar assertions.
+QA y replay: reports/validation/inventory-document-implementation/20261025/.
+Recursos: reports/memory/inventory-document-implementation/20261025/.
+
+La captura única 40184510898/job121142337986/intento1 sigue activa según API a las 11:53:50 UTC,
+fuente 95e64bd20711975b08864cf1bef1dee362b79663. No reiniciar ni añadir muestras.
+La sesión 11519 terminó correctamente al recoger el CI del lector; ya no observa
+la ciencia. Para el estudio usar el observador actual y su mismo run/job. Colección
+de transporte propia: .cache/combined-science-collection-40184510898. El colector
+actual prepara binding.results.json solo desde metadata y bytes reales terminales,
+sin modificar binding.activation.json. El objetivo general sigue activo.
+
 ## Lector de recursos verificado sin cambiar la captura — 2026-10-25
 
 Se agregó combined-process-exports fuera del método congelado. Reutiliza cinco
