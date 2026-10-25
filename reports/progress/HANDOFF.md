@@ -1,5 +1,54 @@
 # Continuar rustdom en otra máquina
 
+## Capturador preparado y lectura portable — 2026-10-25
+
+Base publicada: d1494117. Su CI 40176086547/intento1 terminó success 2/2,
+con 17 contratos por Node 22.12.0/24.14.1. Artifacts 12592871157/12593255393,
+ZIPs, metadata y logs íntegros autenticados en reports/validation/
+combined-process-study/40176086547/. No relanzar ese run.
+
+Código nuevo: study.cjs prepara y conserva una secuencia, verifica payload,
+publicación, fuentes, paquete, derivación, comandos, SDKs, inventario y criterios.
+processes.cjs lee reportes desde otra ubicación manteniendo sus rutas originales.
+manifest.cjs solo reubica copies/roots/dependencies; Git real permanece íntegro.
+No se ejecuta código archivado. Un payload verificado aún deja
+captureAuthenticated=false/performanceAccepted=null hasta autenticación externa.
+
+Pasaron 29 contratos por SDK y 11 comandos de CI reproducido en Git Linux real
+d149 con overlay WIP explícito: 700 dependencias, 599 pins, grafo 434 y 701 archivos
+del snapshot incluyendo catálogo. Se releen los mismos 64 procesos funcionales;
+no hay nuevas mediciones. La preparación dedicada conserva 1.162 archivos en
+cinco ZIPs con hashes completos. La revisión detectó una omisión de ruta larga
+UNC en Windows: se preservaron los cuatro ZIP iniciales y se agregó el quinto
+con el miembro faltante; cobertura final exacta contra el inventario Linux. Sus descriptores fueron 23 antes y 23 después;
+32 rechazos de lectura por SDK no aumentaron el conteo observable. No es prueba
+de ausencia universal de fugas ni memoria pico. Los baselines DOM siguen intactos.
+
+El primer intento detectó que el SDK excede el límite JSON de 16 MiB. Se corrigió
+el hash del ejecutable con bloques de 1 MiB y límite de 256 MiB. La revisión halló
+que job 180 podía cortar la conservación al agotar captura 175. Se corrigió el
+job nuevo a 200: setup 13 + captura 175 + archivo 4 + upload 3 + margen 5.
+Presupuestos ±2%/±5%, filas, semillas y warmup intactos; workflows históricos
+sin cambios. La derivación funcional anterior sigue verificable por sus cuatro
+controles/HEAD8eb/SHA de recibo fijados, sin admitirse en modo científico actual.
+
+QA de tres intentos: reports/validation/combined-process-study/
+20261025-capture-preparation/ (2.497 miembros). Snapshot completo:
+reports/benchmarks/native-class-ownership/combined-capture-preparation/20261025/.
+Recursos: reports/memory/combined-process-study/20261025-capture-preparation/.
+No importar ni ejecutar scripts contenidos en esas partes.
+
+Siguiente: verificar CI del SHA nuevo, completar/autenticar transporte externo,
+cerrar los contratos de activación y el recibo revisado completo, comprobar sus
+checks sobre el SHA habilitado y recién entonces activar una secuencia nueva.
+La autorización permanente está vigente; no volver a preguntar. executionReady
+sigue false y el recibo de activación aún no existe. No hubo captura nueva de
+2048 ni replay positivo integral científico: los 64 funcionales no la sustituyen.
+Sin integración/tag/merge de ownership antes de aceptación íntegra. Conservar
+599 pins, grafo 434, 48 entradas ajenas, autorizaciones, rechazos históricos y
+watch compartido. Migración general activa e incompleta; runtime híbrido y
+auditoría del inventario pendiente, sin porcentaje defendible.
+
 ## Worker combinado calificado y lectores corregidos — 2026-10-25
 
 Base publicada8eb2f9b3. Calificación funcional TERMINAL0:64procesos(32porNode),

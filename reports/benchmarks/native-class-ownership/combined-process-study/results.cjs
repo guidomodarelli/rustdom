@@ -11,8 +11,9 @@ const { estimatorView } = require('../shared-fixture-study/study.cjs');
 const read = (filename) => JSON.parse(fs.readFileSync(filename, 'utf8'));
 const hash = (filename) => createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
 
-/** @param {string} directory - Data tree, never a module root for offline execution. @param {object} harness - Independently authenticated source graph. @param {string} sourceCommit - Actual method Git commit. @returns {object} Verified derivation receipt. */
-function verifyDerived(directory, harness, sourceCommit) {
+/** @param {string} directory - Data tree, never a module root for offline execution. @param {object} harness - Independently authenticated source graph. @param {string} sourceCommit - Actual method Git commit. @param {boolean} qualifiedFunctional - Only the independently pinned original functional derivation, never a scientific capture. @returns {object} Verified derivation receipt. */
+function verifyDerived(directory, harness, sourceCommit, qualifiedFunctional = false) {
+  assert.equal(typeof qualifiedFunctional, 'boolean');
   assert.equal(harness.sha256, policy.sourceHarnessSha256); assert.equal(harness.files.length, policy.sourceHarnessFiles);
   const root = fs.realpathSync.native(directory);
   const receipt = read(path.join(root, 'preparation.json'));
@@ -32,7 +33,17 @@ function verifyDerived(directory, harness, sourceCommit) {
   assert.deepEqual(read(manifest), { commit: sourceCommit, harnessSha256: harness.sha256, files: harness.files });
   assert.equal(hash(manifest), receipt.sourceManifestSha256);
   assert.equal(hash(manifest), hash(path.join(base, 'source-manifest.json')));
-  const controls = Object.fromEntries(policy.derivation.controlFiles.map((name) => [name, hash(path.join(__dirname, name))]));
+  let controls;
+  if (qualifiedFunctional) {
+    const qualified = require('./constants/functional-qualification.json');
+    assert.equal(qualified.purpose, policy.functionalQualification.purpose);
+    assert.equal(qualified.performanceAccepted, null); assert.equal(qualified.gateReevaluated, false);
+    assert.equal(sourceCommit, qualified.sourceCommit); assert.equal(harness.sha256, qualified.harnessSha256);
+    assert.equal(hash(path.join(root, 'preparation.json')), qualified.derivationSha256);
+    const method = path.relative(path.resolve(__dirname, '../../../..'), __dirname).split(path.sep).join('/');
+    controls = Object.fromEntries(policy.derivation.controlFiles.map((name) => [name, qualified.files[method + '/' + name]]));
+    for (const expected of Object.values(controls)) assert.match(expected, /^[a-f0-9]{64}$/);
+  } else controls = Object.fromEntries(policy.derivation.controlFiles.map((name) => [name, hash(path.join(__dirname, name))]));
   assert.deepEqual(receipt.controlFiles, controls, 'Combined results: derived controls differ from current independently reviewed sources');
   const names = [];
   /** @param {string} current - Owned control directory. @returns {void} Require regular physical files and no unlisted control code. */

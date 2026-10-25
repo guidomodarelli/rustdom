@@ -39,6 +39,9 @@ const binding = require('../../range-combined-packages/constants/artifact-bindin
 for (const name of Object.keys(binding.collectionFiles)) names.add(binding.collectionDirectory + '/' + name);
 names.add('reports/implementation/range-combined-candidate/source.json');
 names.add(require('../constants/protocol.json').derivation.canonicalManifest);
+const portable = require('../constants/portable.json');
+names.add(portable.qualificationArchive.path); names.add(portable.qualificationManifest.path);
+names.add(require('../constants/capture.json').workflow);
 const policy = { methodDirectory, checkoutTimeoutSeconds: 300, historicalPins: 599,
   contractScope: 'numerical-and-read-only-real-package-preparation', samplerInvoked: false,
   files: Object.fromEntries([...names].sort().map((name) => [name, sha(name)])) };

@@ -1,0 +1,94 @@
+name: Ownership con medias por proceso
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ownership-combined-process-means-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.action == 'labeled' && github.event.label.name == 'ownership-combined-process-means-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 200
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/combined-process-study
+    steps:
+      - uses: actions/checkout@v4
+        timeout-minutes: 2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verificar activación única y contratos del SHA actual
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMBINED_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/combined-process-study"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ownership-combined-process-study.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/combined-process-study/existing-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/combined-process-study/existing-runs.txt" "$GITHUB_RUN_ID"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$COMBINED_SOURCE_COMMIT/check-runs?per_page=100" --jq '.check_runs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/combined-process-study/existing-checks.tsv"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs');
+          const policy = require('./reports/benchmarks/native-class-ownership/combined-process-study/constants/protocol.json');
+          const capture = require('./reports/benchmarks/native-class-ownership/combined-process-study/constants/capture.json');
+          assert.equal(policy.executionReady, true, 'Combined capture: method publication is not enabled');
+          const checks = fs.readFileSync(`${process.env.RUNNER_TEMP}/combined-process-study/existing-checks.tsv`, 'utf8').trim().split('\n').map((line) => line.split('\t'));
+          for (const name of capture.requiredChecks) assert.ok(checks.some(([actual, conclusion]) => actual === name && conclusion === 'success'), `Combined capture: missing successful current check ${name}`);
+          JS
+      - uses: actions/setup-node@v4
+        timeout-minutes: 2
+        with:
+          node-version: '22.12.0'
+      - name: Conservar SDK 22
+        timeout-minutes: 1
+        run: echo "COMBINED_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        timeout-minutes: 2
+        with:
+          node-version: '24.14.1'
+      - uses: actions/setup-python@v5
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - name: Conservar SDK 24
+        timeout-minutes: 1
+        run: echo "COMBINED_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Extraer únicamente el paquete calificado fijo
+        timeout-minutes: 2
+        run: python3 -B reports/benchmarks/native-class-ownership/range-combined-packages/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/combined-process-study/preparation" > "$RUNNER_TEMP/combined-process-study/preparation.stdout.log" 2> "$RUNNER_TEMP/combined-process-study/preparation.stderr.log"
+      - name: Ejecutar una secuencia completa, sin reintentos
+        timeout-minutes: 175
+        env:
+          COMBINED_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          "$COMBINED_NODE24" "$METHOD/study.cjs" --capture "$RUNNER_TEMP/combined-process-study/preparation/combined-range-packages" "$RUNNER_TEMP/combined-process-study/capture" "$COMBINED_SOURCE_COMMIT" "$COMBINED_NODE22" "$COMBINED_NODE24" > "$RUNNER_TEMP/combined-process-study/stdout.log" 2> "$RUNNER_TEMP/combined-process-study/stderr.log"
+          capture_status=$?
+          printf '%s\n' "$capture_status" > "$RUNNER_TEMP/combined-process-study/exit-code"
+          exit "$capture_status"
+      - name: Conservar íntegros resultados y parciales
+        if: always()
+        timeout-minutes: 4
+        run: |
+          if [ -d "$RUNNER_TEMP/combined-process-study" ]; then
+            XZ_OPT=-1 tar -cJf "$RUNNER_TEMP/combined-process-study.tar.xz" -C "$RUNNER_TEMP" combined-process-study
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: ownership-combined-process-means-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/combined-process-study.tar.xz
+          if-no-files-found: error

@@ -54,7 +54,8 @@ function verify(directory) {
   assert.equal(index.complete, true); assert.equal(index.failure, undefined);
   assert.equal(index.revision, policy.revision); assert.equal(index.purpose, policy.functionalQualification.purpose);
   assert.equal(index.functionalOnly, true); assert.equal(index.performanceAccepted, null); assert.equal(index.gateReevaluated, false);
-  if (!require('node:util').isDeepStrictEqual(index.sourceFiles, sourceFiles())) {
+  const originalQualification = !require('node:util').isDeepStrictEqual(index.sourceFiles, sourceFiles());
+  if (originalQualification) {
     // Independently pinned producer bytes let current readers replay the existing
     // functional qualification after a reader-only repair, without editing raw data.
     const qualified = require('./constants/functional-qualification.json');
@@ -68,7 +69,7 @@ function verify(directory) {
   const harness = source.captureHarness();
   assert.equal(index.harness.sha256, harness.sha256); assert.deepEqual(index.harness.files, harness.files);
   assert.equal(index.sourceCommit, harness.identity.sourceCommit);
-  const receipt = results.verifyDerived(index.derivedDirectory, harness, index.sourceCommit);
+  const receipt = results.verifyDerived(index.derivedDirectory, harness, index.sourceCommit, originalQualification);
   assert.equal(hash(path.join(index.derivedDirectory, 'preparation.json')), index.derivationSha256);
   assert.equal(receipt.complete, true);
   assert.deepEqual(index.manifest, preparation.createManifest(index.preparedDirectory));

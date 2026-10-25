@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/combined-process-study-contracts.yml'
+      - '.github/workflows/ownership-combined-process-study.yml'
       - 'reports/benchmarks/native-class-ownership/combined-process-study/**'
       - 'reports/benchmarks/native-class-ownership/range-combined-packages/**'
       - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/combined-process-study-contracts.yml'
+      - '.github/workflows/ownership-combined-process-study.yml'
       - 'reports/benchmarks/native-class-ownership/combined-process-study/**'
       - 'reports/benchmarks/native-class-ownership/range-combined-packages/**'
       - 'reports/benchmarks/native-class-ownership/range-combined-study/**'
@@ -62,7 +64,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set +e
-          node --test "$METHOD/compare.spec.cjs" "$METHOD/preparation.spec.cjs" "$METHOD/worker.spec.cjs" "$METHOD/results.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
+          node --test "$METHOD/compare.spec.cjs" "$METHOD/preparation.spec.cjs" "$METHOD/worker.spec.cjs" "$METHOD/results.spec.cjs" "$METHOD/portable.spec.cjs" "$METHOD/study.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
           validation_status=$?
           printf '%s\n' "$validation_status" > "$PROOF/tests.exit-code"
           exit "$validation_status"

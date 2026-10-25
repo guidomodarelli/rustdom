@@ -1,8 +1,9 @@
 # Método prospectivo con unidades por proceso
 
 Esta declaración prepara el estudio `ownership-combined-process-means-v1`.
-El núcleo numérico y el manifiesto están implementados; el capturador, replay y
-workflow de captura todavía deben completarse, probarse y revisarse.
+El núcleo numérico, manifiesto, capturador y lector de payload están implementados.
+La preparación y lectura portable se prueban sin nuevas mediciones. Todavía faltan
+la autenticación externa del transporte, revisión final y CI del método habilitado.
 `executionReady=false` impide presentar esta fase como estudio ejecutable o aceptado.
 La autorización permanente ya está concedida; el límite actual es técnico.
 
@@ -38,8 +39,13 @@ rondas de cleanup y exige dos estados finales claros, con baselines nativos.
 Se guardan también las primeras rondas no claras y tres snapshots del padre.
 No se añaden procesos o muestras tras ver resultados, ni se filtran outliers.
 
-Para la futura captura quedan declarados los límites originales: 180 segundos
-por worker, 175 minutos de captura y 180 minutos de job. Una secuencia parcial,
+Para la futura captura quedan declarados 180 segundos por worker y 175 minutos
+de captura. Antes de activar, se corrigió prospectivamente el límite global del
+job de 180 a 200 minutos: 13 para los pasos de setup acotados, 175 de captura,
+4 de archivo, 3 de upload y 5 de margen. La revisión detectó que el primer límite
+podía cancelar la conservación de la única secuencia al agotar sus 175 minutos.
+No se recorta ese tiempo científico ni se amplían los presupuestos ±2%/±5%.
+Los workflows históricos y sus límites permanecen intactos. Una secuencia parcial,
 rechazada o con timeout se conserva íntegra y no autoriza repetirla.
 El run histórico de 2048 procesos tardó 5963,541 segundos; se usa solo como
 observación de costo, sin reinterpretar su rechazo ni garantizar el tiempo futuro.
@@ -116,6 +122,25 @@ originales; no se declara que ese overlay sea un checkout limpio ni portable.
 `fixtures/functional-worker.json` conserva un proceso real de ese archivo para
 probar cambios de executable, worker, flags, commit y propósito sin ejecutar DOM.
 
+El capturador registra la ubicación original del paquete y de la captura. El lector
+portable conserva los comandos con esas rutas y lee los archivos desde la nueva
+ubicación, sin exigir que existan las rutas originales. Solo se reubican los campos
+`copies`, `roots` y `dependencies` del manifiesto mediante reglas explícitas;
+todo el resto se compara íntegro con el paquete independiente ya calificado.
+Nunca se normalizan sourceCommit, sourceChanges ni sourceGitErrors.
+
+El materializador extrae únicamente datos autenticados del archivo funcional;
+su modo `--derived` permite copiar los 456 miembros de la derivación original
+para verificar sus bytes con lectores actuales, sin ejecutar ese código. Esta
+derivación sigue fijada por su SHA, HEAD y cuatro controles originales. El modo
+científico exige los controles actuales y no admite ese modo funcional histórico.
+
+Los reportes JSON tienen un límite de lectura de 16 MiB. El ejecutable Node se
+verifica por separado con bloques reutilizables de 1 MiB y límite de 256 MiB,
+sin cargarlo entero ni confundirlo con un reporte. El inventario conserva todos
+los archivos y directorios, rechaza enlaces y verifica los datos sin importar
+módulos desde la captura. Los parciales se guardan aun si falla su inventario.
+
 Los fixtures son sintéticos y no son capturas de rendimiento. Los contratos ejercen
 la matriz completa, incertidumbre entre procesos, medias sin overflow, presupuestos,
 rechazo de tuples incompletos/duplicados/reordenados y salidas divergentes.
@@ -127,5 +152,10 @@ Este núcleo no incorpora objetos DOM/N-API, caches de observaciones globales o
 callbacks persistentes. Guarda acumuladores y resultados acotados por la matriz.
 La evidencia de memoria real del candidato sigue separada en
 `reports/memory/range-combined-packages/20261025-assembly/`; no demuestra memoria
-pico ni ausencia universal de fugas. Captura, replay integral y su activación siguen
-pendientes; sin integración, tag o merge de ownership antes de aceptar rendimiento.
+pico ni ausencia universal de fugas. El lector portable autentica bytes y conserva
+las rutas originales; jamás ejecuta scripts del archivo. La verificación de payload
+mantiene captureAuthenticated=false y performanceAccepted=null: falta vincularla
+al artifact, run, intento, SHA y digest externos con lectores probados.
+La prueba positiva integral de 2048 procesos requiere la futura captura completa;
+64 procesos funcionales no pueden sustituirla. Sin integración, tag o merge de
+ownership antes de aceptar rendimiento. executionReady sigue siendo false.
