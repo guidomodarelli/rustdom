@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Calibración desglosada con los datos existentes — 2026-10-25
+
+Código, protocolo, las 64 filas, 1024 pares y QA en
+reports/benchmarks/native-class-ownership/range-collapse-calibration/40137458635/.
+Autentica tres exports del resultado 5f7765c4; reproduce exactamente las
+128 medianas combinadas oficiales sin ejecutar DOM, archivados o muestras nuevas.
+Siete contratos reales por OS (Python3.10/Linux y3.12/Windows) pasan y ambos
+exports son byteidénticos. El workflow range-calibration-contracts.yml agrega
+dos checks offline, con timeout de diez minutos; no activa ningún estudio.
+
+AA Rust Node22 range-control/1000 mantiene -11,442393% oficial. Sus razones
+por pares van de -29,342345% a +12,880155%; los segmentos dentro de procesos
+varían también entre copias del baseline. Son descripciones, no regresión
+del candidato ni estimador alternativo. Posición/semilla/factores están ligados:
+no inferir causalidad ni seleccionar una partición para aceptar rendimiento.
+
+No aporta justificación para repetir la secuencia consumida ni cambiar el
+estimador. Antes de otra captura, inspeccionar la procedencia de los perfiles
+Range históricos y determinar qué incógnita sigue sin datos CPU/GC/JIT de esta
+ruta. Cualquier diagnóstico nuevo requiere método/cantidad/límites fijos y
+revisión; la autorización permanente ya cubre el trabajo sin otra pregunta.
+El resultado completo 40137458635 continúa rejected y los anteriores intactos.
+No tag/merge de ownership, no integrar StaticRange todavía. La migración
+general sigue activa. Los 563 pins y 48 entradas ajenas están preservados.
+
 ## Resultado de collapse íntegro y rechazado — 2026-10-25
 
 Estado vigente: run 40137458635/job 121001909695/intento 1/fuente 02291d6b

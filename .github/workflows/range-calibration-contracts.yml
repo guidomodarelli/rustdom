@@ -1,0 +1,58 @@
+name: Contratos del diagnóstico offline de calibración
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/range-calibration-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-calibration/40137458635/**'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/original-index.json'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/analysis.json'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/spans.csv'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/range-calibration-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-calibration/40137458635/**'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/original-index.json'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/analysis.json'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635/spans.csv'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Calibración offline en ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            python: '3.10'
+          - os: windows-latest
+            python: '3.12'
+    env:
+      CALIBRATION_SOURCE: reports/benchmarks/native-class-ownership/range-collapse-study-results/40137458635
+      CALIBRATION_TOOLS: reports/benchmarks/native-class-ownership/range-collapse-calibration/40137458635
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Declarar destino temporal de esta ejecución
+        run: echo "CALIBRATION_OUTPUT=$RUNNER_TEMP/range-calibration-export" >> "$GITHUB_ENV"
+      - name: Probar los exports reales y la protección de entradas y destinos
+        run: python -B "$CALIBRATION_TOOLS/test_calibration.py" "$CALIBRATION_SOURCE" -v
+      - name: Reproducir todos los pares sin DOM ni muestras nuevas
+        run: python -B "$CALIBRATION_TOOLS/run.py" "$CALIBRATION_SOURCE" "$CALIBRATION_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: range-calibration-${{ matrix.os }}-python-${{ matrix.python }}
+          path: ${{ env.CALIBRATION_OUTPUT }}
+          if-no-files-found: ignore
