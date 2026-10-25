@@ -1,0 +1,42 @@
+"""Independently check all paired Fieller calculations and publish every favorable and unfavorable criterion from the authenticated decisions."""
+import csv,hashlib,json,math
+from pathlib import Path
+repository=Path.cwd(); root=repository/'reports/benchmarks/native-class-ownership/combined-process-study-results/40184510898'
+left=json.loads((root/'replay/node22/decision.json').read_bytes());right=json.loads((root/'replay/node24/decision.json').read_bytes())
+assert left['complete'] and right['complete'] and left['payload']==right['payload']
+assert left['captureAuthenticated'] and right['captureAuthenticated'] and left['performanceAccepted'] is False and right['performanceAccepted'] is False
+policy=json.loads((repository/'reports/benchmarks/native-class-ownership/combined-process-study/constants/protocol.json').read_bytes())
+results=left['payload']['comparison']['results'];assert len(results)==policy['comparisons']
+rows=[];groups={}
+for result in results:
+ pairs=result['processPairs'];count=len(pairs);assert count==policy['pairsPerComparison']
+ baseline=[pair['baselineMeanMs'] for pair in pairs];candidate=[pair['candidateMeanMs'] for pair in pairs]
+ baseline_mean=sum(baseline)/count;candidate_mean=sum(candidate)/count
+ variance_baseline=sum((value-baseline_mean)**2 for value in baseline)/(count-1)
+ variance_candidate=sum((value-candidate_mean)**2 for value in candidate)/(count-1)
+ covariance=sum((first-baseline_mean)*(second-candidate_mean) for first,second in zip(baseline,candidate))/(count-1)
+ squared_critical=policy['criticalValue']**2
+ coefficient_quadratic=baseline_mean**2-squared_critical*variance_baseline/count
+ coefficient_linear=-2*(baseline_mean*candidate_mean-squared_critical*covariance/count)
+ coefficient_constant=candidate_mean**2-squared_critical*variance_candidate/count
+ discriminant=coefficient_linear**2-4*coefficient_quadratic*coefficient_constant
+ assert coefficient_quadratic>0 and discriminant>0
+ independent=[(-coefficient_linear-math.sqrt(discriminant))/(2*coefficient_quadratic),(-coefficient_linear+math.sqrt(discriminant))/(2*coefficient_quadratic)]
+ interval=result['interval']
+ assert math.isclose(baseline_mean,interval['baselineMeanMs'],rel_tol=1e-12)
+ assert math.isclose(candidate_mean,interval['candidateMeanMs'],rel_tol=1e-12)
+ for calculated,saved in zip(independent,interval['intervalRatio']):assert math.isclose(calculated,saved,rel_tol=1e-12,abs_tol=1e-12)
+ bounds=result['ratioBounds'];passes=(bounds[0] is None or independent[0]>=bounds[0]) and (bounds[1] is None or independent[1]<=bounds[1])
+ assert passes==result['passesBudget']
+ row={'node':result['node'],'phase':result['phase'],'engine':result['engine'],'row':result['key'],'role':result['role'],'baselineMeanMs':interval['baselineMeanMs'],'candidateMeanMs':interval['candidateMeanMs'],'pointChangePercent':interval['changePercent'],'lowerChangePercent':interval['intervalChangePercent'][0],'upperChangePercent':interval['intervalChangePercent'][1],'budgetLowerRatio':bounds[0],'budgetUpperRatio':bounds[1],'passesBudget':passes,'reason':result['reason']}
+ rows.append(row)
+ key='/'.join([result['node'],result['phase'],result['engine']]);group=groups.setdefault(key,{'passed':0,'failed':0});group['passed' if passes else 'failed']+=1
+assert not all(row['passesBudget'] for row in rows)
+summary={'runId':40184510898,'jobId':121142337986,'attempt':1,'sourceCommit':left['payload']['sourceCommit'],'artifactId':12600097415,'complete':True,'captureAuthenticated':True,'performanceAccepted':False,'gateReevaluated':True,'archivedCodeExecuted':False,'measurementExecuted':False,'processes':left['payload']['processes'],'measuredDurations':left['payload']['measuredDurations'],'warmupDurations':left['payload']['warmupDurations'],'windows':left['payload']['windows'],'documents':left['payload']['documents'],'comparisons':len(rows),'passed':sum(row['passesBudget'] for row in rows),'failed':sum(not row['passesBudget'] for row in rows),'groups':groups,'independentFormulaVerification':{'method':'paired-process-fieller-interval-v1','criticalValue':policy['criticalValue'],'degreesOfFreedom':policy['degreesOfFreedom'],'all64Recomputed':True,'toleranceRelative':1e-12,'toleranceAbsolute':1e-12},'results':rows,'limits':['Los controles rechazados impiden atribuir causalmente a un cambio Rust las diferencias observadas.','Los intervalos son puntuales por criterio; no se afirma cobertura simultánea del 95%.','No se repite la secuencia consumida ni se añaden muestras; se conservan los rechazos históricos.']}
+(root/'analysis.json').write_text(json.dumps(summary,indent=2,ensure_ascii=False)+'\n',encoding='utf-8',newline='\n')
+with (root/'criteria.csv').open('w',encoding='utf-8',newline='') as output:
+ writer=csv.DictWriter(output,fieldnames=list(rows[0]),lineterminator='\n');writer.writeheader();writer.writerows(rows)
+lines=['# Los 64 criterios completos','', 'Cambios porcentuales B/A, con intervalos Fieller puntuales del 95%. Los datos completos conservan precisión en criteria.csv y replay/.','', '| Node | Fase | Engine | Fila | Punto % | Intervalo % | Cumple |','| --- | --- | --- | --- | ---: | ---: | --- |']
+for row in rows:lines.append(f"| {row['node']} | {row['phase']} | {row['engine']} | {row['row']} | {row['pointChangePercent']:.6f} | [{row['lowerChangePercent']:.6f}, {row['upperChangePercent']:.6f}] | {'sí' if row['passesBudget'] else 'no'} |")
+(root/'criteria.md').write_text('\n'.join(lines)+'\n',encoding='utf-8',newline='\n')
+print(json.dumps({'comparisons':len(rows),'passed':summary['passed'],'failed':summary['failed'],'independent64Recomputed':True,'performanceAccepted':False}))

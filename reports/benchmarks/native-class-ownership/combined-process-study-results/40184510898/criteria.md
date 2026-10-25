@@ -1,0 +1,70 @@
+# Los 64 criterios completos
+
+Cambios porcentuales B/A, con intervalos Fieller puntuales del 95%. Los datos completos conservan precisión en criteria.csv y replay/.
+
+| Node | Fase | Engine | Fila | Punto % | Intervalo % | Cumple |
+| --- | --- | --- | --- | ---: | ---: | --- |
+| v22.12.0 | AA | jsdom | mutation-records-collect/100 | 0.998706 | [-4.431786, 6.543844] | no |
+| v22.12.0 | AA | rustdom | mutation-records-collect/100 | -3.499514 | [-7.057147, 0.240682] | no |
+| v22.12.0 | AB | jsdom | mutation-records-collect/100 | -2.057339 | [-7.869400, 4.076761] | no |
+| v22.12.0 | AB | rustdom | mutation-records-collect/100 | 2.296548 | [-0.704620, 5.444440] | no |
+| v22.12.0 | AA | jsdom | mutation-records-collect/1000 | -3.895404 | [-8.412317, 0.956402] | no |
+| v22.12.0 | AA | rustdom | mutation-records-collect/1000 | -0.332011 | [-1.696418, 1.052527] | sí |
+| v22.12.0 | AB | jsdom | mutation-records-collect/1000 | -0.326805 | [-5.892410, 5.531117] | no |
+| v22.12.0 | AB | rustdom | mutation-records-collect/1000 | 0.655416 | [-0.334381, 1.652866] | sí |
+| v22.12.0 | AA | jsdom | observer-delivery-records/100 | -4.244538 | [-22.203753, 18.043292] | no |
+| v22.12.0 | AA | rustdom | observer-delivery-records/100 | 3.203358 | [-7.587317, 14.516089] | no |
+| v22.12.0 | AB | jsdom | observer-delivery-records/100 | 2.119347 | [-9.545156, 13.994806] | no |
+| v22.12.0 | AB | rustdom | observer-delivery-records/100 | 1.548311 | [-11.293453, 15.868453] | no |
+| v22.12.0 | AA | jsdom | observer-delivery-records/1000 | 1.117246 | [-2.681614, 4.989748] | no |
+| v22.12.0 | AA | rustdom | observer-delivery-records/1000 | -1.282198 | [-5.107497, 2.712238] | no |
+| v22.12.0 | AB | jsdom | observer-delivery-records/1000 | -0.052116 | [-3.093357, 3.066763] | no |
+| v22.12.0 | AB | rustdom | observer-delivery-records/1000 | 0.367460 | [-1.943164, 2.744286] | sí |
+| v22.12.0 | AA | jsdom | range-control-1000/1000 | 0.521159 | [-8.049121, 9.232321] | no |
+| v22.12.0 | AA | rustdom | range-control-1000/1000 | -1.224371 | [-4.075171, 1.706126] | sí |
+| v22.12.0 | AB | jsdom | range-control-1000/1000 | 3.291786 | [-3.813932, 11.012898] | no |
+| v22.12.0 | AB | rustdom | range-control-1000/1000 | -23.302202 | [-26.778665, -19.643170] | sí |
+| v22.12.0 | AA | jsdom | range-control-1000/250 | -4.127522 | [-11.576279, 3.785914] | no |
+| v22.12.0 | AA | rustdom | range-control-1000/250 | -4.353970 | [-8.785538, 0.323933] | no |
+| v22.12.0 | AB | jsdom | range-control-1000/250 | -9.131123 | [-13.904513, -4.153101] | no |
+| v22.12.0 | AB | rustdom | range-control-1000/250 | -21.900052 | [-25.367646, -18.315482] | sí |
+| v22.12.0 | AA | jsdom | range-state-lifecycle-1000/1000 | -0.802048 | [-6.841742, 5.509200] | no |
+| v22.12.0 | AA | rustdom | range-state-lifecycle-1000/1000 | 0.226761 | [-1.028926, 1.502686] | sí |
+| v22.12.0 | AB | jsdom | range-state-lifecycle-1000/1000 | 0.894561 | [-3.573923, 5.500632] | no |
+| v22.12.0 | AB | rustdom | range-state-lifecycle-1000/1000 | 5.498388 | [3.606746, 7.429522] | no |
+| v22.12.0 | AA | jsdom | range-state-lifecycle-1000/250 | 0.813490 | [-4.227036, 6.055119] | no |
+| v22.12.0 | AA | rustdom | range-state-lifecycle-1000/250 | -0.293598 | [-1.623972, 1.063751] | sí |
+| v22.12.0 | AB | jsdom | range-state-lifecycle-1000/250 | -3.078708 | [-9.331848, 3.794238] | no |
+| v22.12.0 | AB | rustdom | range-state-lifecycle-1000/250 | 6.032522 | [4.777414, 7.303626] | no |
+| v24.14.1 | AA | jsdom | mutation-records-collect/100 | 1.373816 | [-4.775097, 7.762382] | no |
+| v24.14.1 | AA | rustdom | mutation-records-collect/100 | 0.361295 | [-1.540053, 2.304396] | sí |
+| v24.14.1 | AB | jsdom | mutation-records-collect/100 | 0.102555 | [-3.663829, 4.024496] | no |
+| v24.14.1 | AB | rustdom | mutation-records-collect/100 | 0.624910 | [-1.097461, 2.364555] | sí |
+| v24.14.1 | AA | jsdom | mutation-records-collect/1000 | -0.036896 | [-3.296834, 3.365725] | no |
+| v24.14.1 | AA | rustdom | mutation-records-collect/1000 | 0.416745 | [-1.318975, 2.195534] | sí |
+| v24.14.1 | AB | jsdom | mutation-records-collect/1000 | 2.811350 | [-0.992429, 6.735630] | no |
+| v24.14.1 | AB | rustdom | mutation-records-collect/1000 | 1.075615 | [-0.379759, 2.540751] | sí |
+| v24.14.1 | AA | jsdom | observer-delivery-records/100 | -0.595245 | [-2.639163, 1.531345] | no |
+| v24.14.1 | AA | rustdom | observer-delivery-records/100 | 0.212973 | [-1.001404, 1.442692] | sí |
+| v24.14.1 | AB | jsdom | observer-delivery-records/100 | 0.394320 | [-1.891992, 2.722738] | no |
+| v24.14.1 | AB | rustdom | observer-delivery-records/100 | -1.601461 | [-4.778030, 1.803478] | sí |
+| v24.14.1 | AA | jsdom | observer-delivery-records/1000 | -2.437561 | [-6.548762, 2.019998] | no |
+| v24.14.1 | AA | rustdom | observer-delivery-records/1000 | 1.997565 | [-1.106740, 5.190303] | no |
+| v24.14.1 | AB | jsdom | observer-delivery-records/1000 | 0.648877 | [-0.411647, 1.717353] | sí |
+| v24.14.1 | AB | rustdom | observer-delivery-records/1000 | -1.207434 | [-2.782534, 0.394320] | sí |
+| v24.14.1 | AA | jsdom | range-control-1000/1000 | 1.662964 | [-1.208009, 4.614793] | no |
+| v24.14.1 | AA | rustdom | range-control-1000/1000 | 1.494979 | [-3.743772, 7.049631] | no |
+| v24.14.1 | AB | jsdom | range-control-1000/1000 | 2.557460 | [0.019612, 5.142520] | no |
+| v24.14.1 | AB | rustdom | range-control-1000/1000 | -22.481065 | [-26.332564, -18.444481] | sí |
+| v24.14.1 | AA | jsdom | range-control-1000/250 | -2.959376 | [-5.847441, 0.033702] | no |
+| v24.14.1 | AA | rustdom | range-control-1000/250 | 1.447155 | [-3.450573, 6.612408] | no |
+| v24.14.1 | AB | jsdom | range-control-1000/250 | -1.321882 | [-4.465644, 1.970135] | no |
+| v24.14.1 | AB | rustdom | range-control-1000/250 | -26.015480 | [-31.894607, -19.777295] | sí |
+| v24.14.1 | AA | jsdom | range-state-lifecycle-1000/1000 | -4.697169 | [-8.865682, -0.317022] | no |
+| v24.14.1 | AA | rustdom | range-state-lifecycle-1000/1000 | 0.904867 | [-2.032929, 3.913526] | sí |
+| v24.14.1 | AB | jsdom | range-state-lifecycle-1000/1000 | -3.292765 | [-10.008070, 4.020308] | no |
+| v24.14.1 | AB | rustdom | range-state-lifecycle-1000/1000 | 5.582783 | [3.812928, 7.382819] | no |
+| v24.14.1 | AA | jsdom | range-state-lifecycle-1000/250 | 2.466948 | [-2.284028, 7.379341] | no |
+| v24.14.1 | AA | rustdom | range-state-lifecycle-1000/250 | 0.326230 | [-1.469270, 2.155786] | sí |
+| v24.14.1 | AB | jsdom | range-state-lifecycle-1000/250 | -5.633163 | [-10.945544, -0.088388] | no |
+| v24.14.1 | AB | rustdom | range-state-lifecycle-1000/250 | 6.296074 | [2.883981, 9.871606] | no |

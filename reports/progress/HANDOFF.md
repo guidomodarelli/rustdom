@@ -1,12 +1,51 @@
 # Continuar rustdom en otra máquina
 
-## Evidencia de CI y benchmarks preparada para publicación conjunta — 2026-10-25
+## Estudio combinado completo rechazado — 2026-10-25
+
+La única secuencia 40184510898/job121142337986/intento1/fuente95e64bd2 terminó a
+las 13:11:43 UTC con failure, código de captura 1, sin timeout. Artifact12600097415
+quedó autenticado por ID, run, SHA, intento, nombre, tamaño y digest. ZIP133107653B
+SHA252f261b… y tar133079044B SHA01f15507… se conservan íntegros en ocho partes;
+metadatos, logs, bindings, muestras, warmup y manifiestos completos están en
+reports/benchmarks/native-class-ownership/combined-process-study-results/40184510898/.
+
+Los lectores revisados en checkouts Git Linux reales de95e/fc y ambos SDK oficiales
+reprodujeron un payload idéntico:2048 procesos,18432 medidas,6144 warmup,24576 Window
+más24576 Document separados,3rondas y2estados finales claros por proceso.
+Decisión completa: performanceAccepted=false, gateReevaluated=true. No repetir la
+secuencia, completar muestras ni modificar presupuestos; conservar rechazos previos.
+20 de64 criterios aprobaron;44 rechazaron, incluidos31/32 controles jsdom,7/16 RustAA
+y6/16 RustAB. Range/control observó mejoras puntuales de21.9–26.0%; Range/lifecycle
+mostró aumentos de5.5–6.3%, rechazados en ambos SDK. No atribuir causalidad a esos
+cambios con controles rechazados. Publicar los64 criterios, no solo los favorables.
+
+El exportador actual produjo CSV y JSONL idénticos entre SDKs y mantiene su propia
+aceptación null. Recursos en reports/memory/native-class-ownership/combined-process-study/40184510898/:
+228 primeras rondas no claras y4096 estados finales claros; snapshots no son pico
+ni garantía universal de ausencia de fugas. Materialización real:6contratos por
+Windows/Linux, corrupción/destinos/enlaces y bytes originales verificados.
+La QA final cierra el P2 de .pyc: solo se compilan bytes SHA autenticados y tres configs transitivas fijadas.
+La QA final repitió nueve contratos por sistema más el control real de cache;
+rechaza redirección de helper antes de ejecutar código o crear salida.
+
+Sin tag/merge ni integración del candidato como aceptado. El siguiente trabajo es
+investigar el costo de Range/lifecycle y la calibración a partir de estos datos,
+definir un cambio técnicamente justificado y sus pruebas antes de cualquier estudio
+nuevo; autorización permanente vigente, sin pedir permiso. El objetivo general
+sigue activo e incompleto y el runtime híbrido. La sesión observadora25126 terminó;
+no tratarla como estudio vivo ni activar de nuevo este método. El seguimiento viejo
+seguir-estudio-de-rustdom permanece PAUSED; no hay automatización nueva de este run.
+Preservar los599/724/738 históricos, sus bytes y los48 cambios ajenos. Los futuros
+cambios de runtime usarán una rama/candidato nuevo; los replays históricos deben
+seguir usando el checkout preservado95e y sus fuentes inmutables.
+
+## Evidencia de CI y benchmarks publicada en 2885557b — 2026-10-25
 
 El CI general 40191262985 aprobó sus ocho jobs sobre d265390e: Linux/Windows/macOS,
 cuatro shards y agregador. Se autenticaron y conservaron diez artifacts y todos
-los logs en reports/validation/general-ci/40191262985/. Los datos nuevos de esta
-sección están preparados en el árbol de trabajo para agruparlos con el resultado
-de la captura científica; no modifican el runtime ni sus métodos congelados.
+los logs en reports/validation/general-ci/40191262985/. Los datos de esta sección
+quedaron publicados en 2885557b junto con su lector y revisión aislada final;
+no modifican el runtime ni los métodos congelados.
 
 Los cuatro shards ordinarios cubren 332 comparaciones y 11.952 duraciones, con
 outputs iguales entre engines. rustdom tuvo mayor mediana en 215 casos y menor
@@ -24,9 +63,9 @@ copia los treinta archivos físicos autenticados.
 El arnés ordinario no conservó duraciones crudas de warmup. Sus endpoints no son
 memoria pico ni prueba general de recolección separada de Window y Document.
 
-La captura 40184510898/job121142337986/intento 1/fuente 95e64bd2 sigue activa según
-API a las 13:02:00 UTC. La sesión local 25126 observa solo ese run y recoge su transporte
-cuando termine. No repetir secuencias ni añadir muestras. El binding y los dos
+Al publicar 2885557b, la captura 40184510898/job121142337986/intento1/fuente95e64bd2
+seguía activa según API de13:02 UTC. Después terminó rechazada; el cierre actual
+está al inicio de este HANDOFF. La sesión25126 recogió su transporte y terminó. No repetir secuencias ni añadir muestras. El binding y los dos
 readers de decisión/recurso permanecen fijados y listos; conservar también un
 resultado negativo o parcial. Los checks de ownership del run 40191262896 verificaron
 la captura histórica con accepted=false y measurementExecuted=false; conservar
