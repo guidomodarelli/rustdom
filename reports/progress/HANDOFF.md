@@ -1,5 +1,48 @@
 # Continuar rustdom en otra máquina
 
+## Candidato Rust de owners agrupados: validación local terminada — 2026-10-25
+
+Nuevo paquete: reports/implementation/static-range-owner-batch-candidate/. Git base
+f781c3b7 y diez fuentes reproducidas exactamente por el patch cb784c2f. La ruta
+initializeStaticRangeWithOwners conserva decisiones y validaciones en Rust,
+errores y reentrada; identifica ambos owners con un callback. La API legacy sigue
+igual. El array temporal agrega un costo que debe medirse: no afirmar mejoras
+solo por reducir callbacks.
+
+Linux pasó 315 tests Rust, fmt, Clippy y build. Ambos SDK oficiales pasaron seis
+contratos nuevos, 84 dirigidos, 3784+9 de compatibilidad, 22 Jest, 33 Vitest,
+34 VM y 1784 casos HTML, conservando ocho exclusiones. WPT: 240 fixtures y 83007
+assertions, con 1203 fallos compartidos, una exclusión, una suite bloqueada y
+complete=false. Los consumidores tipados CJS/ESM construyeron estados reales.
+Memoria: seis ciclos StaticRange y seis de collapse por SDK, con Window/Document
+separados y controles retenidos. NativeRange: 774 creados/liberados y live=0.
+No son memoria pico ni garantía universal de ausencia de fugas.
+
+Evidencia: reports/validation/static-range-owner-batch/20261025/. ZIP primario de
+288 miembros y ZIP del comando público de 150, con manifiestos y logs íntegros.
+El comando --qualify usado por CI aprobó sus 24 comandos en Node 24 desde una
+preparación Git real; obtuvo el mismo ELF f8c8af92. Los cuatro contratos reales
+de preparación pasaron en Windows y Linux: fuentes sucias y salidas protegidas,
+configuraciones alteradas rechazadas antes de aplicar. Helpers actuales fijados
+por SHA y compilados sin pyc. La matriz remota Linux/Windows/macOS × 22/24 sigue
+pendiente; no presentarla como ejecutada hasta verificar sus jobs reales.
+
+El candidato continúa aislado y el runtime híbrido. El inventario acreditado no
+cambia por este prototipo. performanceAccepted=null y gateReevaluated=false de
+esta variante; no se ejecutaron benchmarks nuevos. El estudio 40184510898 anterior
+permanece completo, rechazado y consumido: no repetirlo. Próximos pasos: revisión
+final, commit/push del candidato, seguir CI y definir un método/paquete nuevos
+justificados antes de medir, con la autorización permanente ya concedida.
+Sin tag ni merge de ownership antes de aceptación e integración probadas.
+
+El build temporal usa /dev/shm/rustdom-static-range-owner-batch. El keeper PID 294,
+sesión 81654, lo mantiene; expira a las dos horas y la RAM se pierde al apagar WSL.
+Código y QA están preservados en archivos del repositorio: no depender de la RAM
+para retomar. El disco C tiene poco espacio. No reconstruir sobre el VHD ni borrar
+las copias QA cuya limpieza rechazó la revisión automática. Mantener los 48 cambios
+ajenos y el watch compartido. Engram continúa sin identidad registrada.
+El objetivo general sigue activo e incompleto.
+
 ## Estudio combinado completo rechazado — 2026-10-25
 
 La única secuencia 40184510898/job121142337986/intento1/fuente95e64bd2 terminó a
