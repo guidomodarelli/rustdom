@@ -1,5 +1,34 @@
 # Continuar rustdom en otra máquina
 
+## CI funcional del candidato combinado preparado — 2026-10-25
+
+Workflow combined-range-candidate.yml: seis jobs Linux/Windows/macOS por
+Node 22.12.0/24.14.1, Rust 1.99.1. Base Git real f781c3b7, patch autenticado,
+producción/599 pins/48 entradas ajenas intactos. Jobs remotos específicos
+pendientes de esta publicación; CI general 2f9275ad/run40163238026 success en
+las tres plataformas. No confundir ese CI con la calificación del candidato.
+
+Entrada pública prepare.py + qualify.py completa en Linux/Node 24: 22 comandos
+exit 0, 315 Rust, 84 dirigidos, 3784 contratos + 9 de proceso, consumidores,
+22 Jest/33 Vitest/34 VM, HTML 1784 y 8 excluidos; WPT 240 fixtures/83007 assertions,
+1203 fallos compartidos/complete=false. Ambos probes finitos aprobados;
+ELF reconstruido idéntico ce91c742. QA íntegra y fuentes en
+reports/validation/range-combined-ci/20261025/; recursos en reports/memory/.
+
+Preparación 8/8 por Windows/Linux y origen shallow depth 2; comandos 5/5 por
+Windows/Linux, Actionlint 0. La prueba auxiliar shallow inicial se detuvo porque
+clone transportaba historial completo; se preservan parciales/código/árbol.
+Setup corregido con objetos compartidos y boundary real pasó sus ocho casos.
+La entrada completa no se interrumpió. Sin mocks ni nuevas capturas históricas.
+
+Límites: job 60 min, qualify 40 min, upload 5 min; comando 20 min y cleanup 30 s.
+Artifact lector 2f9275ad/run40163238037/id12587437390 autenticado íntegro.
+Ownership/run40163238098 sigue rechazado; no aceptación, tag, integración ni merge.
+Siguiente: publicar esta CI, seguir los seis jobs del SHA nuevo y corregir fallos
+reales. Después fijar/revisar calificación prospectiva del candidato combinado.
+Autorización permanente ya registrada y hooks activos; no pedirla nuevamente.
+Objetivo general activo/incompleto, runtime híbrido, sin porcentaje defendible.
+
 ## Candidato combinado StaticRange/colapso validado localmente — 2026-10-25
 
 Se publicó exploración en f781c3b7. CI lector09b/run40160504234 y
