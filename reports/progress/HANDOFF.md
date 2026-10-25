@@ -1,5 +1,33 @@
 # Continuar rustdom en otra máquina
 
+## Lector de recursos verificado sin cambiar la captura — 2026-10-25
+
+Se agregó combined-process-exports fuera del método congelado. Reutiliza cinco
+helpers actuales fijados por SHA256 y exporta todas las duraciones, warmup,
+familias nativas, rondas, Window/Document y snapshots; nunca ejecuta código
+archivado ni DOM. Preserva performanceAccepted=null y gateReevaluated=false.
+
+Pasaron tres contratos por Node oficial 22.12.0/24.14.1 y actionlint. El checkout
+de CI propio usa 738 dependencias y conserva las 724 fuentes científicas y 599 pins.
+Los 64 procesos funcionales originales producen CSV/JSONL idénticos entre SDKs:
+192 warmup, 576 duraciones, 768 Window y Document por separado, ocho primeras
+rondas no claras y 128 estados finales claros. Ocho errores EFBIG reales por SDK
+conservaron 22 descriptores; no se afirma ausencia universal de fugas ni memoria pico.
+
+QA íntegra y hashes: reports/validation/combined-process-exports/20261025/.
+Datos exportados: reports/benchmarks/native-class-ownership/combined-process-export-qualification/20261025/.
+Análisis de recursos: reports/memory/combined-process-exports/20261025/.
+El workflow combined-resource-exports.yml es independiente; falta su resultado
+remoto. La captura científica única continúa en run40184510898/job121142337986,
+fuente95e64bd2, intento1; API confirmó captura activa a las 11:23:14 UTC.
+No hay conteo observado de procesos todavía. No reiniciar ni cambiar el método.
+
+En esta máquina el VHD de la distribución nueva Rustdom-Validation-20261025 reside
+en .cache/wsl-transport-environment/distribution/ del worktree de ownership.
+Conservarlo o trasladarlo correctamente antes de archivar ese worktree; no borrar
+el backing store ni reparar destructivamente el VHD anterior. Es infraestructura
+local, no un archivo que deba commitearse.
+
 ## Estudio combinado en curso: no volver a activarlo — 2026-10-25
 
 La única secuencia `ownership-combined-process-means-v1` ya está activa:
