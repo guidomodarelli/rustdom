@@ -1,5 +1,21 @@
 # Continuar rustdom en otra máquina
 
+## CI del núcleo prospectivo aprobado — 2026-10-25
+
+Núcleo publicado c6cf340e. Run40173536771/intento1 TERMINAL success2/2:
+jobs121109287703(Node22) y121109287870(Node24),10contratos por SDK.
+Ambos artifacts ylogs completos autenticados/preservados en
+reports/validation/combined-process-study/40173536771/. Lectores de transporte
+solo lectura,sin DOM,sampler o código archivado. No relanzar ese run.
+
+Siguiente:completar derivación/wrapper,capturador,replay integral yworkflow de
+captura del método combinado. Mantener executionReady=false hasta probar/revisar
+todo el método y sus checks sobre el SHA de activación. Paquete5b67fcc6 ya
+calificado;no reconstruir ni cambiar factores/filas/semillas/budgets para aceptar.
+Autorización permanente concedida;no hay captura nueva activada. Conservar599pins,
+grafo434,48ajenos yrechazos históricos. Goal activo,incompleto,runtime híbrido,
+sin tag/merge de ownership hasta aceptación íntegra de rendimiento.
+
 ## Núcleo del método por proceso y CI acotado — 2026-10-25
 
 Base publicada135f9d62. Nuevo directorio combined-process-study/:declaración
