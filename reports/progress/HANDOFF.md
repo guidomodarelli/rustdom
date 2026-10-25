@@ -1,5 +1,38 @@
 # Continuar rustdom en otra máquina
 
+## Candidato funcional 6/6 y sampler secuencial implementado — 2026-10-25
+
+CI 40205226009 terminó success: los seis jobs aprobaron Linux/Windows/macOS ×
+Node 22.12.0/24.14.1, con 24 comandos por job. Los seis ZIP originales, metadatos y
+manifiestos están en reports/validation/static-range-owner-batch-ci/40205226009/.
+Selección prospectiva ya posible: artifact 12604810857, fuente db348de1, job
+121204608098, ZIP5987246B SHA4e8be7c8…, ELF4b52a84d…. No sustituirlo por f8 local.
+
+Nuevo código en owner-batch-study/batches.cjs: 16 tareas secuenciales por bloque,
+3 bloques warmup +9 medidos, con timers/validación originales y solo inputs Range
+inmutables compartidos. Pasaron 22 contratos reales por SDK con el ELF local f8,
+448 tareas funcionales y 23 probes de recursos por SDK. Todas las salidas igualan
+los ocho hashes originales; se conservan errores Symbol/undefined, retención y
+liberación de Window/Document separadas, baselines y tres rondas. Evidencia en
+reports/validation/owner-batch-sampler/20261025/ y reports/memory/owner-batch-sampler/20261025/.
+No son aceptación de rendimiento ni una prueba del ELF remoto.
+
+Prioridad del usuario: resolver los dos checks rojos de ownership. El CI funcional
+está corregido, pero ambos gates de rendimiento siguen rechazados por la captura
+histórica. Falta armar/verificar el paquete remoto, completar worker/capturador/
+lector de dos jobs y calificar/revisar el método integral antes de una captura
+nueva. executionReady=false: no activar todavía; no falta autorización.
+No repetir estudios consumidos ni alterar ±2%/±5%. Mantener el rechazo histórico,
+los 48 cambios ajenos, watch compartido y fuentes 599/724/738. Sin tag/merge hasta
+aceptación e integración probadas. El runtime continúa híbrido y el goal activo.
+
+El archivo de controles 5b67fcc6 se extrajo con el lector actual a
+/dev/shm/owner-batch-package-input/combined-range-packages, sin ejecutar runtime.
+B del CI todavía no fue ensamblado. scripts/build.mjs falta bajo el checkout compilador del artifact; hay dos copias
+en fixtures positive-source y una en el paquete anterior, todas hash 4621ca5c….
+Fijar el origen canónico sin atribuir las fixtures al checkout compilador.
+El keeper de RAM sigue PID27489/sesión56373; todo lo importante debe publicarse.
+
 ## Diseño de la siguiente medición: diagnóstico offline — 2026-10-25
 
 Prioridad actual tras el mensaje del usuario: cerrar los dos checks rojos de
