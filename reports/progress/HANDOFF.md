@@ -1,5 +1,44 @@
 # Continuar rustdom en otra máquina
 
+## Preparación AA de Range, captura deshabilitada — 2026-10-25
+
+Implementados agenda y productor en
+reports/benchmarks/native-class-ownership/range-control-telemetry/.
+Revisión range-control-aa-telemetry-v1: 256 procesos planificados (AA-only,
+Range1000/1000,16 posiciones,ambos Node/motores/labels/modos CPU-JIT). Son
+cantidades declaradas, no ejecutadas. La autorización permanente cubre el
+trabajo sin otra pregunta; captureImplemented=false refleja implementación
+incompleta, no un permiso pendiente. No aplicar ninguna etiqueta ahora.
+
+Procedencia contrastada: profiles/v2 tiene fuente A675 igual a la referencia
+actual, pero otros ELF/worker/contexto y solo Node22; fuente B833 distinta.
+Sus Git null/errores permanecen originales. Compilación4e1 es parcial/WSL y
+40051899308 solo MutationRecord/100. No tratar esos perfiles como datos CPU
+del run40137458635 ni descartarlos dentro de su alcance histórico.
+
+El productor autentica563pins y los mapas nativos registrados, conserva el
+wrapper/sampler instrumentados y cambia solo el binding revisión/fingerprints.
+Evidencia íntegra en reports/validation/native-class-ownership/range-control-telemetry-preparation/20261025/:
+ZIPec5e39bc/2711miembros, dos mapas de893archivos. Cinco contratos por Node22.12.0
+y24.14.1 y seis Python reales pasan. Planes byteidénticos. Las guardas rechazan
+captura antes de observadores/reportes; no se ejecutó DOM ni profiling.
+Git realLinux HEAD0dd82141+ocho archivos untracked, registrado literalmente;
+no presentarlo como HEAD nuevo/checkout limpio. No normalizar metadatos Git.
+
+Siguiente: implementar colector y replay con autenticación completa, registro
+independiente de mapas, guard de historial/activación única y workflows de
+contratos/ejecución. Revisar/probar/publicar el método íntegro y CI del SHA
+exacto antes de habilitar o consumir una única secuencia nueva. Reutilizar los
+lectores/teardown revisados, conservar todos los parciales, clocks inciertos,
+deltas negativos y recursos separados. No ejecutar código archivado.
+
+El diagnóstico será siempre performanceAccepted=null/gateReevaluated=false;
+no acepta rendimiento. Run40137458635 sigue completo/rechazado y consumido,
+sin relanzar. No tag/merge de ownership ni integrar StaticRange todavía.
+Los dos contratos CI offline de0dd aprobaron (40147135442); el CI general
+40147135396 seguía vivo al observarlo. No confundirlos con checks del futuro
+diagnóstico. Los563pins/48entradas ajenas permanecen intactos; goal general activo.
+
 ## Calibración desglosada con los datos existentes — 2026-10-25
 
 Código, protocolo, las 64 filas, 1024 pares y QA en
