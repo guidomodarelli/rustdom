@@ -1,0 +1,396 @@
+diff --git a/scripts/build.mjs b/scripts/build.mjs
+index 4fd5a1a1..f0c035d3 100644
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -82,6 +82,9 @@ await cp('src/dom/data-bridge.cjs', 'dist/data-bridge.cjs');
+ await cp('src/dom/collection-queries.cjs', 'dist/collection-queries.cjs');
+ await cp('src/dom/host-unicode.cjs', 'dist/host-unicode.cjs');
+ await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
++const staticRangeAdapter = await readFile('src/dom/static-range.cjs', 'utf8');
++await writeFile('dist/static-range.cjs', substituteOnce(staticRangeAdapter,
++  "require('../../dist/native.cjs')", "require('./native.cjs')"));
+ await cp('src/dom/range-errors.cjs', 'dist/range-errors.cjs');
+ await cp('src/dom/mutation-record.cjs', 'dist/mutation-record.cjs');
+ const documentImplementationAdapter = await readFile('src/dom/document-implementation.cjs', 'utf8');
+@@ -584,6 +587,13 @@ await writeFile(abstractRangePath, '"use strict";\n' +
+   'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
+   'const { createAbstractRange } = require("../../../../../range-state.cjs");\n' +
+   'module.exports = { implementation: createAbstractRange(domSymbolTree) };\n');
++const staticRangePath = resolve(destination, 'lib/jsdom/living/range/StaticRange-impl.js');
++await writeFile(staticRangePath, '"use strict";\n' +
++  'const { implementation: AbstractRange } = require("./AbstractRange-impl");\n' +
++  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
++  'const DOMException = require("../generated/DOMException");\n' +
++  'const { createStaticRange } = require("../../../../../static-range.cjs");\n' +
++  'module.exports = { implementation: createStaticRange(AbstractRange, domSymbolTree, DOMException) };\n');
+ const rangePath = resolve(destination, 'lib/jsdom/living/range/Range-impl.js');
+ let rangeSource = await readFile(rangePath, 'utf8');
+ rangeSource = substituteOnce(rangeSource, '    this._weakRef = new WeakRef(this);',
+diff --git a/src/dom/constants.rs b/src/dom/constants.rs
+index b327944d..57129a43 100644
+--- a/src/dom/constants.rs
++++ b/src/dom/constants.rs
+@@ -10,6 +10,10 @@ pub const XMLNS_NAMESPACE: &str = "http://www.w3.org/2000/xmlns/";
+ pub const XMLNS_NAME: &str = "xmlns";
+ pub const ELEMENT_NODE: u16 = 1;
+ pub const ATTRIBUTE_NODE: u16 = 2;
++/// Pinned jsdom StaticRange constructor diagnostic.
++pub const STATIC_RANGE_INVALID_NODE_MESSAGE: &str = "The supplied node is incorrect.";
++/// Internal diagnostic while preserving an already pending original exception.
++pub const STATIC_RANGE_OPERATION_FAILURE: &str = "StaticRange native construction failed";
+ pub const TEXT_NODE: u16 = 3;
+ pub const CDATA_SECTION_NODE: u16 = 4;
+ pub const PROCESSING_INSTRUCTION_NODE: u16 = 7;
+diff --git a/src/dom/mod.rs b/src/dom/mod.rs
+index 332f1819..c971a0b8 100644
+--- a/src/dom/mod.rs
++++ b/src/dom/mod.rs
+@@ -99,6 +99,8 @@ mod slot_flatten;
+ mod slot_signals;
+ mod slotable_names;
+ mod slots;
++#[cfg_attr(test, allow(dead_code))]
++mod static_range_controller;
+ mod store;
+ mod string_map;
+ mod string_map_binding;
+diff --git a/src/dom/native-tree.cjs b/src/dom/native-tree.cjs
+index da7cc979..4efcb095 100644
+--- a/src/dom/native-tree.cjs
++++ b/src/dom/native-tree.cjs
+@@ -221,6 +221,12 @@ class NativeSymbolTree extends SymbolTree {
+   }
+   /** @param {object} range - Live Range implementation. @param {boolean} toStart - Public converted direction. @returns {void} Applies the native collapse decision to the correct ownership edge. */
+   collapseRange(range, toStart) {
++    // Equal owner identities require no change to V8 edges or weak registrations.
++    // Rust still selects and updates the offsets; the binding only avoids replaying unchanged edges.
++    if (range._rangeStartNode === range._rangeEndNode) {
++      range._nativeRange.collapse(Boolean(toStart));
++      return;
++    }
+     const plan = range._nativeRange.collapsePlan(Boolean(toStart));
+     const node = this._object(plan.node);
+     if (plan.updateStart) range._setLiveRangeStart(node, plan.offset);
+diff --git a/src/dom/range_state.rs b/src/dom/range_state.rs
+index c6072506..291550ea 100644
+--- a/src/dom/range_state.rs
++++ b/src/dom/range_state.rs
+@@ -17,6 +17,18 @@ pub(crate) struct RangeState {
+ }
+ 
+ impl RangeState {
++    /// Construct both numeric endpoints without imposing live-Range boundary constraints.
++    pub(super) fn from_endpoints(
++        start_node: f64,
++        start_offset: f64,
++        end_node: f64,
++        end_offset: f64,
++    ) -> Result<Self> {
++        let mut state = Self::default();
++        state.set_start(start_node, start_offset)?;
++        state.set_end(end_node, end_offset)?;
++        Ok(state)
++    }
+     /// Apply a validated native decision without changing any host-owned node reference.
+     pub(super) fn apply_point(&mut self, start: bool, point: BoundaryPoint) {
+         if start {
+@@ -55,6 +67,14 @@ impl RangeState {
+         let (start, end) = self.points()?;
+         Ok(start.node == end.node && start.offset == end.offset)
+     }
++    /// Collapse both numeric endpoints in one native operation.
++    /// Returns the host edge selected by the existing plan, preserving errors atomically.
++    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
++        let (point, update_start) = self.collapse_plan(to_start)?;
++        self.apply_point(update_start, point);
++        Ok(update_start)
++    }
++
+     /// Select the retained point and which host ownership edge must be moved.
+     pub fn collapse_plan(&self, to_start: bool) -> Result<(BoundaryPoint, bool)> {
+         let (start, end) = self.points()?;
+@@ -80,6 +100,37 @@ pub(super) fn query_offset(offset: f64) -> u32 {
+ mod tests {
+     use super::*;
+     #[test]
++    fn should_construct_static_endpoints_without_live_range_constraints() {
++        let state = RangeState::from_endpoints(2.0, -0.0, 1.0, 9999.0).unwrap();
++        assert_eq!(state.start().unwrap().node, 2);
++        assert_eq!(state.end().unwrap().node, 1);
++        assert_eq!(
++            state.start().unwrap().offset.to_bits(),
++            (-0.0_f64).to_bits()
++        );
++        assert_eq!(state.end().unwrap().offset, 9999.0);
++        assert!(!state.collapsed().unwrap());
++        assert!(
++            RangeState::from_endpoints(1.0, 4.0, 1.0, 4.0)
++                .unwrap()
++                .collapsed()
++                .unwrap()
++        );
++    }
++    #[test]
++    fn should_reject_invalid_endpoint_handles_without_returning_partial_state() {
++        for invalid in [0.0, -1.0, 1.5, f64::NAN, f64::INFINITY] {
++            assert!(matches!(
++                RangeState::from_endpoints(invalid, 0.0, 1.0, 0.0),
++                Err(TreeError::InvalidHandle)
++            ));
++            assert!(matches!(
++                RangeState::from_endpoints(1.0, 0.0, invalid, 0.0),
++                Err(TreeError::InvalidHandle)
++            ));
++        }
++    }
++    #[test]
+     fn should_clone_independently_and_plan_collapse_without_changing_either_state() {
+         let mut original = RangeState::default();
+         original.set_start(1.0, -0.0).unwrap();
+@@ -102,6 +153,51 @@ mod tests {
+         assert_eq!(clone.start().unwrap().offset, 3.0);
+         assert!(RangeState::default().collapse_plan(true).is_err());
+     }
++    #[test]
++    fn should_collapse_both_directions_without_changing_an_independent_copy() {
++        let mut original = RangeState::default();
++        original.set_start(1.0, -0.0).unwrap();
++        original.set_end(2.0, 7.5).unwrap();
++        for to_start in [true, false] {
++            let mut copy = original.clone();
++            let retained = if to_start {
++                original.start().unwrap()
++            } else {
++                original.end().unwrap()
++            };
++            assert_eq!(copy.collapse(to_start).unwrap(), !to_start);
++            let (start, end) = copy.points().unwrap();
++            assert_eq!(start.node, retained.node);
++            assert_eq!(end.node, retained.node);
++            assert_eq!(start.offset.to_bits(), retained.offset.to_bits());
++            assert_eq!(end.offset.to_bits(), retained.offset.to_bits());
++            assert!(copy.collapsed().unwrap());
++        }
++        assert_eq!(original.start().unwrap().node, 1);
++        assert_eq!(original.end().unwrap().node, 2);
++    }
++
++    #[test]
++    fn should_preserve_partial_state_when_native_collapse_rejects_it() {
++        for (has_start, has_end) in [(false, false), (true, false), (false, true)] {
++            let mut state = RangeState::default();
++            if has_start {
++                state.set_start(1.0, 2.0).unwrap();
++            }
++            if has_end {
++                state.set_end(2.0, 3.0).unwrap();
++            }
++            let before = (state.start(), state.end());
++            for to_start in [true, false] {
++                assert!(matches!(
++                    state.collapse(to_start),
++                    Err(TreeError::UninitializedRange)
++                ));
++                assert_eq!((state.start(), state.end()), before);
++            }
++        }
++    }
++
+     #[test]
+     fn should_preserve_independent_endpoint_snapshots_and_collapsed_state() {
+         let mut state = RangeState::default();
+diff --git a/src/dom/range_state_binding.rs b/src/dom/range_state_binding.rs
+index 5da5e0c9..e06b65c5 100644
+--- a/src/dom/range_state_binding.rs
++++ b/src/dom/range_state_binding.rs
+@@ -116,7 +116,7 @@ impl Drop for NativeRange {
+ }
+ 
+ impl NativeRange {
+-    fn with_state(state: RangeState) -> Self {
++    pub(super) fn with_state(state: RangeState) -> Self {
+         CREATED_RANGES.fetch_add(1, Ordering::Relaxed);
+         LIVE_RANGES.fetch_add(1, Ordering::Relaxed);
+         Self { state }
+@@ -147,6 +147,11 @@ impl NativeRange {
+     pub fn copy(&self) -> Self {
+         Self::with_state(self.state.clone())
+     }
++    /// Apply collapse without transporting a point object back through JavaScript.
++    #[napi]
++    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
++        self.state.collapse(to_start).map_err(to_napi_error)
++    }
+     #[napi]
+     pub fn collapse_plan(&self, to_start: bool) -> Result<NativeCollapsePlan> {
+         let (point, update_start) = self.state.collapse_plan(to_start).map_err(to_napi_error)?;
+diff --git a/src/dom/static-range.cjs b/src/dom/static-range.cjs
+new file mode 100644
+index 00000000..b01dda86
+--- /dev/null
++++ b/src/dom/static-range.cjs
+@@ -0,0 +1,27 @@
++/** @file Keeps realm factories and GC-visible endpoints while Rust constructs StaticRange state. */
++'use strict';
++const { initializeStaticRange } = require('../../dist/native.cjs');
++
++/**
++ * Bind native StaticRange construction to the existing realm and tree adapters.
++ * @param {Function} AbstractRange - Existing base implementation with traced node references.
++ * @param {object} tree - Private NativeSymbolTree instance.
++ * @param {object} exceptionFactory - Original DOMException namespace.
++ * @returns {Function} StaticRange implementation consumed by the real WebIDL wrapper.
++ */
++function createStaticRange(AbstractRange, tree, exceptionFactory) {
++  const helpers = {
++    nodeId(node) { return tree._ensure(node); },
++    exception(globalObject, message, name) { return exceptionFactory.create(globalObject, [message, name]); },
++  };
++  return class StaticRangeImpl extends AbstractRange {
++    /** @param {object} globalObject - Owning realm. @param {object[]} args - Converted WebIDL arguments. */
++    constructor(globalObject, args) {
++      const { startContainer, startOffset, endContainer, endOffset } = args[0];
++      const nativeCopy = initializeStaticRange(globalObject, startContainer, startOffset, endContainer, endOffset, helpers);
++      super(globalObject, [], { nativeCopy, startNode: startContainer, endNode: endContainer });
++    }
++  };
++}
++
++module.exports = { createStaticRange };
+diff --git a/src/dom/static_range_controller.rs b/src/dom/static_range_controller.rs
+new file mode 100644
+index 00000000..d7f16f1e
+--- /dev/null
++++ b/src/dom/static_range_controller.rs
+@@ -0,0 +1,92 @@
++//! StaticRange construction decisions with scoped host references and numeric native ownership.
++use super::{
++    constants::{
++        ATTRIBUTE_NODE, DOCUMENT_TYPE_NODE, STATIC_RANGE_INVALID_NODE_MESSAGE,
++        STATIC_RANGE_OPERATION_FAILURE,
++    },
++    napi_error::capture_pending_error,
++    range_state::RangeState,
++    range_state_binding::NativeRange,
++};
++use napi::{
++    Env, Error, JsValue, Result, Status, ValueType,
++    bindgen_prelude::{FnArgs, Function, JsObjectValue, Unknown},
++};
++use napi_derive::napi;
++
++fn has_kind(node: Unknown<'_>, kind: u16) -> Result<bool> {
++    let value: Unknown = node.coerce_to_object()?.get_c_named_property(c"nodeType")?;
++    // Strict equality does not coerce strings, objects, bigint or other host values.
++    Ok(value.get_type()? == ValueType::Number
++        && value.coerce_to_number()?.get_double()? == f64::from(kind))
++}
++
++fn invalid_node(node: Unknown<'_>) -> Result<bool> {
++    // Match the reference's repeated property reads and short-circuit ordering.
++    Ok(has_kind(node, DOCUMENT_TYPE_NODE)? || has_kind(node, ATTRIBUTE_NODE)?)
++}
++
++fn construct<'env>(
++    global: Unknown<'env>,
++    start_node: Unknown<'env>,
++    start_offset: f64,
++    end_node: Unknown<'env>,
++    end_offset: f64,
++    helpers: Unknown<'env>,
++) -> Result<NativeRange> {
++    let host = helpers.coerce_to_object()?;
++    if invalid_node(start_node)? || invalid_node(end_node)? {
++        let reject: Function<FnArgs<(Unknown, String, String)>, Unknown> =
++            host.get_c_named_property(c"exception")?;
++        let exception = reject.apply(
++            helpers,
++            (
++                global,
++                STATIC_RANGE_INVALID_NODE_MESSAGE.to_owned(),
++                "InvalidNodeTypeError".to_owned(),
++            )
++                .into(),
++        )?;
++        return Err(Error::from_unknown_without_coercion(exception));
++    }
++    // No TreeStore borrow or native box exists when either host callback runs.
++    let identify: Function<Unknown, f64> = host.get_c_named_property(c"nodeId")?;
++    let start = identify.apply(helpers, start_node)?;
++    let end = identify.apply(helpers, end_node)?;
++    let state = RangeState::from_endpoints(start, start_offset, end, end_offset)
++        .map_err(super::napi_error::to_napi_error)?;
++    Ok(NativeRange::with_state(state))
++}
++
++/// Validate the converted StaticRange nodes and create one numeric state after all host reads.
++/// Host callbacks are synchronous; no JavaScript reference escapes this invocation.
++#[napi]
++pub fn initialize_static_range<'env>(
++    env: &'env Env,
++    global: Unknown<'env>,
++    start_node: Unknown<'env>,
++    start_offset: f64,
++    end_node: Unknown<'env>,
++    end_offset: f64,
++    helpers: Unknown<'env>,
++) -> Result<NativeRange> {
++    match construct(
++        global,
++        start_node,
++        start_offset,
++        end_node,
++        end_offset,
++        helpers,
++    ) {
++        Ok(state) => Ok(state),
++        Err(error) => {
++            // The generic native error wrapper reconstructs Error; throw the original
++            // value explicitly, as the existing XMLSerializer controller does.
++            env.throw(capture_pending_error(env, error))?;
++            Err(Error::new(
++                Status::PendingException,
++                STATIC_RANGE_OPERATION_FAILURE,
++            ))
++        }
++    }
++}
+diff --git a/src/native.mjs b/src/native.mjs
+index de41508d..1f4f1aa3 100644
+--- a/src/native.mjs
++++ b/src/native.mjs
+@@ -2,7 +2,7 @@
+ import native from './native.cjs';
+ /** Reexport the canonical addon objects without allocating native instances or duplicating enum values. */
+ export const {
+-  NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, NodeTextWriteAction, NodeInsertionStatus,
++  initializeStaticRange, NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, NodeTextWriteAction, NodeInsertionStatus,
+   RangePointRelation, RangeBoundaryMode, RangeBoundaryAction, RangeComparison, RangeDeletionKind, RangeSurroundStatus,
+   RangeMutationKind, RangeEndpoint,
+   NativeRangeClone, RangeCloneAction,
+diff --git a/types/native.d.cts b/types/native.d.cts
+index 758e2cd4..d172b912 100644
+--- a/types/native.d.cts
++++ b/types/native.d.cts
+@@ -360,6 +360,12 @@ export const RangeSurroundStatus: { readonly Ready: 0; readonly PartialNonText:
+ /** Initial insertion geometry, before hierarchy checks and host mutation hooks; zero reference means append. */
+ export interface RangeInsertionPlan { startNode: number; startOffset: number; parent: number; reference: number; splitText: boolean; }
+ /** V8-finalized native endpoint state. Numeric handles do not own DOM nodes; host bindings retain node references. */
++/** Construct native StaticRange state after converted-node validation in Rust. */
++export function initializeStaticRange(globalObject: object, startNode: object, startOffset: number,
++  endNode: object, endOffset: number, helpers: {
++    nodeId(node: object): number;
++    exception(globalObject: object, message: string, name: string): unknown;
++  }): NativeRange;
+ export class NativeRange {
+   constructor();
+   static statistics(): NativeRangeStatistics;
+@@ -371,6 +377,8 @@ export class NativeRange {
+   setStart(node: number, offset: number): void;
+   setEnd(node: number, offset: number): void;
+   copy(): NativeRange;
++  /** Collapse numeric endpoints; returns whether the start edge was selected for update. */
++  collapse(toStart: boolean): boolean;
+   collapsePlan(toStart: boolean): NativeCollapsePlan;
+   /** Mutation inputs come from the host's validated DOM operation. Handles must be positive safe integers; no tree is owned or consulted. */
+   characterDataPlan(node: number, offset: number, count: number, insertedLength: number): NativeRangeUpdate[];

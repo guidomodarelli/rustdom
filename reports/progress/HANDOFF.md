@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## Candidato combinado StaticRange/colapso validado localmente — 2026-10-25
+
+Se publicó exploración en f781c3b7. CI lector09b/run40160504234 y
+f781/run40161044874 aprobaron; artifacts12585808707 y12586648557 autenticados.
+Ambos son lectores offline, no validación del runtime candidato. Captura40154725015
+consumida, completa y publicada: no relanzar ni completar muestras.
+
+Nuevo candidato en reports/implementation/range-combined-candidate/; fuente
+basef781c3b7 y10preimages/outputs fijados. Combina StaticRange4f3a2d80 con
+collapse07edaa89; patch7fe5ec80. ELF Linux nuevoce91c742, conservado completo.
+No cambia producción ni paquetes A0/A1/J0/J1/B. Runtime sigue híbrido.
+
+Checkout real Linux privado range-combined-candidate-20261025-f781: source y
+roundtrip para suites separadas. Se verificaron los10archivos idénticos y ELF.
+315Rust1.99.1 +fmt/clippy0; porNode22.12.0/24.14.1:84dirigidos,3784contratos
++9deprocesoWPT,22Jest/33Vitest/34VM, consumidores CJS/ESM y dos probes de memoria.
+HTML1784/1792,8excluidos; WPT240fixtures/83007assertions,1203fallos compartidos,
+completefalse y exclusiones/bloqueos íntegros. Ambas suites completas exit0.
+
+Memoria porNode:6ciclos StaticRange,774altas/bajas y768rechazos;6ciclos de
+clones/colapso/mutación,384altas/bajas. Window/Document separados, controles
+retenidos y22constructores estables. No memoria pico ni garantía universal.
+QA/comandos/reportes/fuentes y errores iniciales de preflight/empaquetado en
+reports/validation/range-combined-candidate/20261025/. Probes completos en
+reports/memory/range-combined-candidate/20261025/. Usar fuentes actuales+patch,
+no ejecutar archivados. Revisión inicial código0; cierre integral según recibo.
+
+Siguiente: publicar esta preparación comprobada y verificar CI/revisión del SHA;
+preparar CI funcional del candidato y calificación prospectiva de rendimiento,
+con procesos/observaciones repetidas/warmup explícitos. No aceptar desde el
+análisis post hoc, repetir secuencias históricas ni tocar599pins/48ajenos.
+Sin tag/merge ni crédito al inventario hasta aceptación e integración. No pedir
+otra autorización; objetivo general activo e incompleto. Preservar watch compartido.
+
+
 ## Variación entre pares y dentro de cada proceso AA — 2026-10-25
 
 El resultado completo se publicó en09b86d33; su CI lector40160504234/job121070864546
