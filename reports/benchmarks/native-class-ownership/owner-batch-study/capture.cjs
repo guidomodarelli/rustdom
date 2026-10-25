@@ -20,6 +20,8 @@ const { failureView } = require('./batches.cjs');
 const { filesDigest } = require('./binding.cjs');
 const { readJSON, writeJSON, hashFile } = require('./io.cjs');
 const source = require('./source.cjs');
+const { verifyQualification } = require('./tools/qualification.cjs');
+const { verifyFirstCapture } = require('./tools/once.cjs');
 const executableHashes = require('../constants/current-ownership.json').runtimeExecutableHashes;
 
 /** @param {'functional'|'capture'} mode - Full fixed capture or its fixed qualification subset. @returns {object[]} Exact tuples; capture has no row/subset option. */
@@ -112,6 +114,22 @@ async function run(mode, prepared, destination) {
     Object.assign(index, { sourceCommit: checked.sourceCommit, sourceChangesRaw: checked.sourceChangesRaw,
       sourceGitErrors: checked.sourceGitErrors, sourceFiles: checked.files });
     if (hosted) assert.equal(hosted.eventHead, checked.sourceCommit);
+    if (mode === 'capture') {
+      const filename = process.env[policy.qualificationEnvironment];
+      assert.equal(typeof filename, 'string', 'Owner batch capture: exact-source CI qualification is required');
+      const qualification = readJSON(filename);
+      index.sourceQualification = verifyQualification(checked.sourceCommit, qualification.run, qualification.jobs);
+      const copied = path.join(destination, policy.qualificationFile);
+      fs.copyFileSync(filename, copied, fs.constants.COPYFILE_EXCL);
+      index.sourceQualificationSha256 = hashFile(copied);
+      const consumedFile = process.env[policy.consumptionEnvironment];
+      assert.equal(typeof consumedFile, 'string', 'Owner batch capture: one-time history proof is required');
+      const consumed = readJSON(consumedFile); assert.equal(consumed.probeOnly, false);
+      index.sourceConsumption = verifyFirstCapture(checked.sourceCommit, Number(hosted.runId), consumed.current, consumed.pages, consumed.firstJobs);
+      const consumedCopy = path.join(destination, policy.consumptionFile);
+      fs.copyFileSync(consumedFile, consumedCopy, fs.constants.COPYFILE_EXCL);
+      index.sourceConsumptionSha256 = hashFile(consumedCopy);
+    }
     if (checked.publication) {
       index.publicationSha256 = hashFile(path.join(source.repository, policy.publication));
       fs.copyFileSync(path.join(source.repository, policy.publication), path.join(destination, 'publication.json'), fs.constants.COPYFILE_EXCL);

@@ -1,5 +1,49 @@
 # Continuar rustdom en otra máquina
 
+## Propuesta lista para CI de habilitación — 2026-10-25
+
+El CI de lectores df5dfff8005a683b514c903d7fe9b007e2f06cc3, run40227003272,
+aprobó los cuatro jobs. Solo siguen rojos los dos gates históricos de rendimiento
+de ownership. Esto NO significa rendimiento aceptado ni CI global verde.
+
+La propuesta nueva exige revisión integral de786 archivos, fuente limpia, cuatro
+checks aprobados del mismo SHA y una prueba global de que este método no se haya
+consumido en otro commit. Concurrencia global sin cancelar, historial paginado del
+repositorio e intento1 evitan relabel/retry. La creación del único run debe ser
+anterior a2026-10-26T00:00Z; no interrumpe un run ya admitido. Se conservan
+170min de captura por SDK, job200min, ±2%/±5% y todos los rechazos históricos.
+No aplicar la etiqueta antes del CI aprobado del SHA final. Autorización permanente
+ya concedida: no preguntar ni activar métodos históricos.
+
+Se corrigió una carrera real de teardown: SIGKILL podía volver antes de terminar
+un descendiente. execute espera estados ausentes/Z/X del grupo propio, límite5s,
+y guarda las observaciones. Los seis contratos reales pasan en ambos Node.
+Los fallos de preparación local por fixture/metadata faltantes se conservan;
+se repitieron solo sus casos afectados, usando código actual. No se alteraron
+muestras ni metadata de estudios. Paquete ELF4b52, sin reconstrucción de Rust.
+
+Evidencia nueva en reports/validation/owner-batch-enabled-qualification/20261025/.
+Los ZIP/API/tar/logs de40227003272 están íntegros en
+reports/validation/owner-batch-integral-ci/40227003272/ y fueron reproducidos con
+ambos SDK actuales:64 workers funcionales,9216medidas,3072warmup,768Window y
+768Document,6snapshots parentales. Cinco primeras rondas no claras se publican,
+con dos finales claras por proceso. Memoria en
+reports/memory/owner-batch-hosted-controller/40227003272/; no demuestra memoria
+pico ni ausencia universal de fugas. No hubo captura científica de este método.
+
+WSL de la tarea Rustdom-Validation-20261025 está sano. Keeper nuevoPID4988,
+sesión54667, iniciado~20:38UTC por4h; comprobar antes de usar RAM. Git nativo real
+f781+WIP en /dev/shm/owner-batch-current-method-functional-source; no presentarlo
+como fuente publicada limpia ni usar GitWSL sobre gitfileWindows. TMPDIR de QA
+en /dev/shm; C~1GB libre. No borrar carpetas cuyo borrado fue rechazado.
+
+La migración general permanece activa y el runtime híbrido. Sin tag ni merge
+hasta aceptación del rendimiento e integración probada. Preservar599/724/738,
+las48 entradas ajenas de native-collection-queries y el watch compartido.
+
+Las secciones siguientes son registros históricos: las instrucciones operativas
+de esta sección prevalecen sobre sus estados anteriores.
+
 ## Transporte, decisión y CI integral aprobado — 2026-10-25
 
 Publicado e7895fb0daeb7858ba99805cff21a07f5767241f, CI40224283558 **4/4 aprobado**.

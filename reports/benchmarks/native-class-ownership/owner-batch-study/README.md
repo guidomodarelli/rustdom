@@ -1,4 +1,11 @@
-# Sampler de tareas secuenciales: componente funcional
+# Sampler de tareas secuenciales y captura única
+
+El controlador funcional y los lectores autenticados aprobaron los cuatro jobs
+del CI df5dfff8 (40227003272). La propuesta actual agrega recibo integral, exigencia
+de CI del mismo SHA y una guarda global que impide repetir el estudio, incluso
+desde otro commit. La captura requiere el CI de esa propuesta publicada; el
+resultado de rendimiento sigue pendiente y los rechazos históricos se conservan.
+Ver PROTOCOL.md y reports/validation/owner-batch-enabled-qualification/20261025/.
 
 batches.cjs implementa un bloque de 16 tareas públicas y una fila de doce bloques:
 tres warmup y nueve medidos, con tres rondas internas de warmup por realm. Reutiliza
@@ -16,13 +23,14 @@ hashes del estudio original, para ambos engines y SDKs.
 El bloque conserva tiempos individuales y progreso escalar, nunca nodos fuertes
 ni MutationRecord en el reporte. Los errores de progreso mantienen el valor
 original, incluso Symbol y undefined, y el realm se cierra en finally. Los fallos
-de cleanup se registran sin reemplazar el error previo. La captura formal está
-bloqueada por executionReady=false antes de crear un realm. worker.cjs ya integra
+de cleanup se registran sin reemplazar el error previo. La captura formal exige
+fuente limpia, revisión integral, CI exacto y prueba de ejecución única antes de
+crear un realm. worker.cjs ya integra
 procesos nuevos y compare.cjs reduce las 144 tareas medidas a una media por proceso.
 El capturador por SDK y el replay de partes ya están implementados y calificados
-localmente en modo funcional. Falta terminar la autenticación externa de los dos
-artifacts científicos y su decisión, validar el SHA limpio en CI y cerrar la
-revisión/publicación íntegra antes de habilitar una nueva secuencia.
+localmente y en CI en modo funcional. La autenticación externa de dos artifacts
+y su decisión se probaron con datos funcionales reales, en ambos Node, sin elevar
+esa evidencia a aceptación de rendimiento.
 
 Pasaron 22 contratos reales por Node 22.12.0 y 24.14.1. Cada SDK ejecutó 448 tareas
 cronometradas para validar el sampler, dieciséis casos de bloque, una fila completa,

@@ -109,10 +109,10 @@ for (const retainedKind of ['window', 'document']) test('a retained ' + retained
   released(await endpoint(runtime, owners, baseline, 'released/' + retainedKind));
 });
 
-test('capture is rejected before creating a realm while the development method is disabled', async () => {
+test('an unsupported measurement purpose is rejected before creating a realm', async () => {
   const owners = { window: [], document: [] };
   await assert.rejects(sampler.measureBlock({ runtime: runtimes.rustdom, engine: 'rustdom', key: policy.rows[0],
-    stage: policy.stages.measured, blockIndex: 0, purpose: policy.purposes.capture, owners }));
+    stage: policy.stages.measured, blockIndex: 0, purpose: 'unsupported-purpose', owners }));
   assert.equal(owners.window.length, 0); assert.equal(owners.document.length, 0);
 });
 

@@ -1,9 +1,10 @@
 # Prototipo del controlador secuencial
 
-Estado: captura científica deshabilitada. Capturador, binding de procesos y replay
-están implementados y calificados localmente como flujo funcional. Falta terminar
-y probar la autenticación externa de los dos artifacts científicos, la decisión
-íntegra y el recibo/revisión del método antes de habilitarlo. No aplicar la etiqueta.
+Estado: propuesta de habilitación con tres flags coherentes. Solo permite una
+captura desde un SHA limpio con recibo de revisión integral y los cuatro checks
+del mismo SHA aprobados. El CI funcional df5dfff8 aprobó 4/4; la habilitación nueva
+requiere su propio CI antes de aplicar la etiqueta. No hubo captura científica
+de este método ni aceptación de rendimiento.
 
 ## Operación y unidades
 
@@ -41,8 +42,11 @@ real, sin normalizar sourceCommit/sourceChangesRaw/sourceGitErrors ni presentarl
 como un checkout publicado limpio.
 
 El ejecutor usa un grupo de procesos propio, deadline y cancelación acotados,
-con stdout/stderr y metadata reales. Termina residuos de hijos y los reporta como
-fallo del contrato. No reintenta workers. El límite por worker es180s y cada SDK
+con stdout/stderr y metadata reales. Detecta y termina residuos de hijos, y espera
+observar todos los miembros del grupo ausentes o terminales (Z/X) antes de devolver
+éxito. SIGKILL no garantiza terminación síncrona: esta espera tiene límite de cinco
+segundos y registra los estados observados; un grupo activo al vencerlo rechaza
+el contrato. No reintenta workers. El límite por worker es180s y cada SDK
 tiene170min de colección dentro de un job200min. Setup10min, archivo10min,
 upload5min y margen5min mantienen el presupuesto; el uptime real del job se exige
 antes del primer worker. El archivo completo o parcial siempre se conserva.
@@ -76,5 +80,31 @@ La evidencia local está en reports/validation/owner-batch-integral/20261025/.
 Sus dos partes completas se produjeron desde Git f781c3b7 con WIP real de método;
 no son un estudio científico ni QA del futuro SHA limpio hospedado. El CI4/4 del
 componente anterior corresponde exclusivamente a564f0f55. El workflow ampliado
-deberá aprobar el SHA nuevo antes de cualquier habilitación. Se conservan todos
+deberá aprobar el SHA nuevo antes de cualquier activación. Los CI e7895fb0 y
+df5dfff8 aprobaron 4/4 y sus ZIP/API/tar/logs íntegros están publicados en
+reports/validation/owner-batch-integral-ci/. La lectura actual de ambos SDK conserva
+la separación entre productor y lector y nunca ejecuta scripts archivados.
+Se conservan todos
 los rechazos históricos. No tag/merge de ownership sin aceptación e integración.
+
+## Activación única y calificación de fuente
+
+qualification.cjs lee el CI del mismo SHA, intento1, workflow exacto y sus cuatro
+jobs sin duplicados. El capturador conserva las respuestas y liga sus hashes al
+índice; el replay las valida nuevamente. El CI prueba el acceso real a la API
+con un run histórico exitoso fijado, sin otorgarle aceptación científica.
+
+once.cjs pagina el historial de TODO el repositorio desde 2026-10-25T18:00Z
+(antes de existir este workflow), entre todas las ramas e IDs de workflow. Exige
+cobertura íntegra inferior a1000runs y examina los jobs del intento1 de cualquier
+otro run del método. Solo un primer intento concluyentemente omitido no consume
+la secuencia. Un retry posterior omitido no oculta una captura original fallida.
+La concurrencia global serializa el workflow sin cancelar el run activo. Un run
+posterior completamente en cola no bloquea al anterior que mantiene el grupo;
+un run anterior consumido o posterior ya terminado sí impide otra captura.
+
+La creación de la única ejecución debe ocurrir antes de2026-10-26T00:00Z; ese
+límite no interrumpe una captura ya admitida ni cambia sus170/200min. No extender
+esta ventana para repetir una secuencia consumida. La prueba de consumo se copia,
+hashea y reproduce offline; la decisión contrasta también runId/runNumber con
+metadata API externa. Ninguna autorización operativa adicional es necesaria.

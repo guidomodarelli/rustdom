@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { hashFile } = require('../combined-process-study/io.cjs');
 const { readJSON: read } = require('./io.cjs');
 const policy = require('./constants/capture.json');
+const { filesDigest } = require('./binding.cjs');
 const repository = path.resolve(__dirname, '../../../..');
 
 /** @param {string} root - Actual native Git checkout, never a Windows gitfile read by WSL Git. @returns {object} Raw Git identity; failures are retained instead of normalized. */
@@ -72,6 +73,8 @@ function producer(requirePublication) {
   if (requirePublication) {
     publication = read(path.join(repository, policy.publication));
     assert.equal(publication.revision, policy.revision); assert.equal(publication.actionableFindings, 0);
+    assert.equal(publication.completeMethodReview, true);
+    assert.equal(publication.methodFilesSha256, filesDigest(files));
     assert.equal(publication.executionReady, true); assert.deepEqual(publication.files, files);
     assert.equal(publication.performanceAccepted, null); assert.equal(publication.gateReevaluated, false);
   }

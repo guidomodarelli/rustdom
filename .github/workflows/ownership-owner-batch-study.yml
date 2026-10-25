@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: ownership-owner-batch-serial-v1
+  cancel-in-progress: false
 
 jobs:
   capture:
@@ -50,6 +55,18 @@ jobs:
         timeout-minutes: 2
         with:
           python-version: '3.12'
+      - name: Exigir los cuatro checks aprobados del mismo commit antes de capturar
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUSTDOM_OWNER_BATCH_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node "$STUDY/tools/qualification.cjs" "$RUSTDOM_OWNER_BATCH_EXPECTED_HEAD" > "$RUNNER_TEMP/owner-batch-run/source-qualification.json"
+      - name: Impedir globalmente una segunda captura de este método en cualquier commit
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUSTDOM_OWNER_BATCH_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node "$STUDY/tools/once.cjs" "$RUSTDOM_OWNER_BATCH_EXPECTED_HEAD" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/owner-batch-run/capture-consumption.json"
       - name: Autenticar y extraer el mismo paquete fijado
         timeout-minutes: 2
         run: |
@@ -59,6 +76,8 @@ jobs:
         run: |
           set -o pipefail
           export RUSTDOM_OWNER_BATCH_JOB_STARTED_UPTIME="$(cat "$RUNNER_TEMP/owner-batch-run/job-started-uptime.txt")"
+          export RUSTDOM_OWNER_BATCH_QUALIFICATION="$RUNNER_TEMP/owner-batch-run/source-qualification.json"
+          export RUSTDOM_OWNER_BATCH_CONSUMPTION="$RUNNER_TEMP/owner-batch-run/capture-consumption.json"
           node --expose-gc "$STUDY/capture.cjs" --capture "$RUNNER_TEMP/owner-batch-package" "$RUNNER_TEMP/owner-batch-run/capture" \
             2> >(tee "$RUNNER_TEMP/owner-batch-run/driver.stderr.log" >&2) | tee "$RUNNER_TEMP/owner-batch-run/driver.stdout.log"
       - name: Archivar datos completos o parciales sin ejecutar sus scripts

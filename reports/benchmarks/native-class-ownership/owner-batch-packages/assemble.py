@@ -6,8 +6,13 @@ import stat
 import subprocess
 import sys
 import zipfile
+import runpy
 
-from artifact import digest, inspect_collection
+# Execute the current reviewed source file directly; -B alone can still read a stale timestamp-valid pyc.
+ARTIFACT_SOURCE = Path(__file__).with_name('artifact.py')
+assert ARTIFACT_SOURCE.is_file() and not ARTIFACT_SOURCE.is_symlink()
+CURRENT_ARTIFACT = runpy.run_path(str(ARTIFACT_SOURCE))
+digest, inspect_collection = CURRENT_ARTIFACT['digest'], CURRENT_ARTIFACT['inspect_collection']
 
 if sys.flags.optimize:
     raise RuntimeError('Owner batch assembly requires non-optimized Python')

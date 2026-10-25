@@ -4,8 +4,11 @@ import json
 from pathlib import Path, PurePosixPath
 import sys
 import tarfile
+import runpy
 
-from artifact import digest
+ARTIFACT_SOURCE = Path(__file__).with_name('artifact.py')
+assert ARTIFACT_SOURCE.is_file() and not ARTIFACT_SOURCE.is_symlink()
+digest = runpy.run_path(str(ARTIFACT_SOURCE))['digest']
 
 if sys.flags.optimize:
     raise RuntimeError('Owner batch transport requires non-optimized Python')

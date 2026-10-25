@@ -10,6 +10,7 @@ const { readJSON, writeJSON } = require('./io.cjs');
 const source = require('./source.cjs');
 const { plan, executionContext } = require('./capture.cjs');
 const { validate: validateBinding } = require('./binding.cjs');
+const { preflight } = require('./tools/preflight.cjs');
 const policy = require('./constants/capture.json');
 const model = require('../combined-process-study/model.cjs');
 const artifact = require('../owner-batch-packages/constants/artifact.json');
@@ -88,9 +89,26 @@ test('a functional binding cannot be promoted through a synthetic role or public
   assert.throws(() => validateBinding({ ...binding, mode: 'capture' }, expected));
   assert.throws(() => validateBinding({ ...binding, publicationSha256: '0'.repeat(64) }, expected));
 });
-test('the unpublished capture remains blocked before resolving any package or creating a worker', () => {
+test('a scientific capture requires its specific reviewed hosted context before resolving any package or creating a worker', () => {
   assert.throws(() => executionContext('capture'));
   assert.equal(executionContext('functional'), null);
+});
+
+test('publication preflight preserves actual Git identity and requires clean reviewed source when enabled', () => {
+  const actual = source.gitIdentity();
+  if (policy.executionReady && actual.sourceChangesRaw !== '') {
+    assert.throws(() => preflight());
+  } else {
+    const result = preflight();
+    for (const field of ['sourceCommit', 'sourceChangesRaw', 'sourceGitErrors']) assert.deepEqual(result[field], actual[field]);
+    assert.equal(result.methodFlagsEnabled, policy.executionReady); assert.equal(result.DOMExecuted, false);
+    assert.equal(result.scientificCaptureExecuted, false); assert.equal(result.labelApplied, false);
+    assert.equal(result.performanceAccepted, null); assert.equal(result.gateReevaluated, false);
+    if (policy.executionReady) {
+      assert.equal(result.sourceChangesRaw, ''); assert.equal(result.publication.completeMethodReview, true);
+      assert.equal(result.methodFilesSha256, result.publication.methodFilesSha256);
+    }
+  }
 });
 after(() => fs.writeFileSync(path.join(root, 'observations.json'), JSON.stringify({ node: process.version,
   actualFunctionalPart: part, actualSourceCommit: index.sourceCommit, actualSourceChangesRaw: index.sourceChangesRaw,

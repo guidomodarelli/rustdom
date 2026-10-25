@@ -167,7 +167,7 @@ def verify_collection(binding, collection, require_completed=True):
         summaries.append({'node': entry['node'], 'jobId': entry['job']['id'], 'artifactId': entry['artifact']['id'],
                           'artifactDigest': entry['artifact']['digest'], 'members': len(members), 'jobConclusion': entry['job']['conclusion']})
     return {'transportAuthenticated': True, 'mode': binding['mode'], 'runId': binding['runId'], 'head': binding['head'],
-            'attempt': binding['attempt'], 'runConclusion': run['conclusion'], 'artifacts': summaries, 'archivedCodeExecuted': False,
+            'attempt': binding['attempt'], 'runNumber': run['run_number'], 'runConclusion': run['conclusion'], 'artifacts': summaries, 'archivedCodeExecuted': False,
             'producerProfile': producer, 'DOMExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
 
 

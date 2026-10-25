@@ -95,7 +95,7 @@ for (const [index, input] of inputs.entries()) test('fresh ' + input.engine + '/
   observations.push({ ...input, observation: report });
 });
 
-test('the unpublished capture is rejected before creating evidence or a realm', () => {
+test('a scientific worker without its reviewed parent binding is rejected before creating evidence or a realm', () => {
   const { entry, reportPath } = invoke('capture-disabled', inputs[0], { capture: true });
   assert.equal(entry.exitCode, policy.failureExitCode); assert.equal(fs.existsSync(reportPath), false);
 });

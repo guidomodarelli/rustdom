@@ -18,6 +18,8 @@ const { readJSON, writeNewJSON, hashFile } = require('./io.cjs');
 const { failureView } = require('./batches.cjs');
 const source = require('./source.cjs');
 const executableHashes = require('../constants/current-ownership.json').runtimeExecutableHashes;
+const { verifyQualification } = require('./tools/qualification.cjs');
+const { verifyFirstCapture } = require('./tools/once.cjs');
 
 /** @param {object[]} snapshots - Three actual parent endpoints. @param {number} workers - Complete fixed part count. @param {number} parentPid - Observed parent. @returns {void} Verify positions, types and actual process identity, without deriving peak memory. */
 function verifyParent(snapshots, workers, parentPid) {
@@ -61,6 +63,13 @@ function verifyPart(directory, mode = 'capture', producerProfile = null) {
     assert.equal(index.publicationSha256, hashFile(path.join(root, 'publication.json')));
     assert.deepEqual(readJSON(path.join(root, 'publication.json')), publication);
     assert.equal(index.hosted.eventHead, index.sourceCommit);
+    const qualification = readJSON(path.join(root, policy.qualificationFile));
+    assert.equal(index.sourceQualificationSha256, hashFile(path.join(root, policy.qualificationFile)));
+    assert.deepEqual(index.sourceQualification, verifyQualification(index.sourceCommit, qualification.run, qualification.jobs));
+    const consumed = readJSON(path.join(root, policy.consumptionFile)); assert.equal(consumed.probeOnly, false);
+    assert.equal(index.sourceConsumptionSha256, hashFile(path.join(root, policy.consumptionFile)));
+    assert.deepEqual(index.sourceConsumption, verifyFirstCapture(index.sourceCommit, Number(index.hosted.runId),
+      consumed.current, consumed.pages, consumed.firstJobs));
     assert.ok(Number.isFinite(index.setupElapsedSeconds) && index.setupElapsedSeconds >= 0 && index.setupElapsedSeconds <= policy.setupBudgetMinutes * 60);
   } else {
     const declared = readJSON(path.join(source.repository, policy.catalog));
@@ -77,6 +86,8 @@ function verifyPart(directory, mode = 'capture', producerProfile = null) {
       files = index.sourceFiles;
     }
     assert.equal(index.publicationSha256, undefined); assert.equal(index.hosted, null);
+    assert.equal(index.sourceQualification, undefined); assert.equal(index.sourceQualificationSha256, undefined);
+    assert.equal(index.sourceConsumption, undefined); assert.equal(index.sourceConsumptionSha256, undefined);
   }
   if (producerProfile !== null) {
     assert.equal(producerProfile.sourceCommit, index.sourceCommit);
@@ -146,7 +157,8 @@ function verifyPart(directory, mode = 'capture', producerProfile = null) {
   const readerIdentity = source.gitIdentity(); assert.deepEqual(readerIdentity.sourceGitErrors, []);
   return { verified: true, payloadComplete: true, mode, functionalOnly: mode === 'functional', revision: policy.revision,
     sourceCommit: index.sourceCommit, sourceChangesRaw: index.sourceChangesRaw, sourceGitErrors: index.sourceGitErrors,
-    hosted: index.hosted, methodBinding: binding, methodBindingSha256: index.methodBindingSha256,
+    hosted: index.hosted, sourceQualification: index.sourceQualification ?? null, sourceConsumption: index.sourceConsumption ?? null,
+    methodBinding: binding, methodBindingSha256: index.methodBindingSha256,
     publicationSha256: index.publicationSha256 ?? null, sourceFiles: files, runtime: index.runtime,
     readerIdentity, readerSourceFiles: source.readerFiles(), processes: inputs.length, measuredDurations: measured, warmupDurations: warmup,
     windows, documents, parentSnapshots: index.parentMemory.length, entries,
@@ -157,7 +169,7 @@ function verifyPart(directory, mode = 'capture', producerProfile = null) {
 function combine(parts) {
   assert.deepEqual(parts.map((part) => part.runtime.node), model.settings.nodeVersions);
   for (const part of parts) { assert.equal(part.verified, true); assert.equal(part.payloadComplete, true); assert.equal(part.mode, 'capture'); assert.equal(part.processes, 1024); }
-  for (const field of ['sourceCommit', 'sourceChangesRaw', 'sourceGitErrors', 'hosted', 'publicationSha256', 'sourceFiles']) assert.deepEqual(parts[0][field], parts[1][field]);
+  for (const field of ['sourceCommit', 'sourceChangesRaw', 'sourceGitErrors', 'hosted', 'sourceQualification', 'sourceConsumption', 'publicationSha256', 'sourceFiles']) assert.deepEqual(parts[0][field], parts[1][field]);
   const comparison = compare(parts.map((part) => ({ node: part.runtime.node, entries: part.entries })));
   return { revision: policy.revision, processes: parts.reduce((sum, part) => sum + part.processes, 0),
     measuredDurations: parts.reduce((sum, part) => sum + part.measuredDurations, 0),

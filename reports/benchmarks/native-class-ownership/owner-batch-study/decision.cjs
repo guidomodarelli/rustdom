@@ -65,6 +65,8 @@ function decide(bindingFile, collection, destination, mode = 'capture') {
       if (mode === 'capture') {
         assert.equal(part.hosted.runId, String(binding.runId)); assert.equal(part.hosted.attempt, binding.attempt);
         assert.equal(part.hosted.repository, binding.repository); assert.equal(part.hosted.jobKey, capture.jobKey);
+        assert.equal(part.sourceConsumption.currentRunId, binding.runId);
+        assert.equal(part.sourceConsumption.currentRunNumber, transport.runNumber);
       }
       const filename = path.join(destination, 'part-' + entry.node + '.json'); writeNewJSON(filename, part);
       result.parts.push({ node: entry.node, processes: part.processes, measuredDurations: part.measuredDurations,

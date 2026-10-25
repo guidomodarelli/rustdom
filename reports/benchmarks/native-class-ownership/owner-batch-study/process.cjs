@@ -8,6 +8,35 @@ const { performance } = require('node:perf_hooks');
 const { failureView } = require('./batches.cjs');
 const policy = require('./constants/process.json');
 
+/** @param {number} group - Group created exclusively by this invocation. @returns {object[]} Actual surviving group members, including terminal zombies. */
+function groupMembers(group) {
+  const members = [];
+  for (const name of fs.readdirSync('/proc')) {
+    if (!/^\d+$/.test(name)) continue;
+    let raw;
+    try { raw = fs.readFileSync('/proc/' + name + '/stat', 'utf8'); }
+    catch (error) { if (error.code === 'ENOENT' || error.code === 'ESRCH') continue; throw error; }
+    const fields = raw.slice(raw.lastIndexOf(')') + 2).split(' ');
+    if (Number(fields[2]) === group) members.push({ pid: Number(name), state: fields[0] });
+  }
+  return members;
+}
+
+/** SIGKILL delivery is asynchronous: observe every owned member reaching a terminal state before returning. */
+async function awaitGroupTermination(record) {
+  const deadline = performance.now() + policy.cleanupTimeoutMs;
+  while (true) {
+    const members = groupMembers(record.pid);
+    record.observedProcessGroupMembers = members;
+    if (members.every((member) => ['Z', 'X'].includes(member.state))) {
+      record.processGroupTerminationObserved = true;
+      return;
+    }
+    assert.ok(performance.now() < deadline, 'Owner batch process: owned group remained active after SIGKILL: ' + JSON.stringify(members));
+    await new Promise((resolve) => setTimeout(resolve, policy.cleanupPollIntervalMs));
+  }
+}
+
 /**
  * Execute one declared process without retries. Its whole new process group is terminated on deadline or caller cancellation.
  * @param {string[]} argv - Actual executable and fixed arguments, never a shell command string.
@@ -53,7 +82,7 @@ async function execute(argv, directory, { timeoutMs, signal, cwd = process.cwd()
     timer = setTimeout(() => terminate('timeout'), timeoutMs);
     signal?.addEventListener('abort', abort, { once: true });
     if (signal?.aborted) abort();
-    await completion; record.complete = true;
+    await completion;
     if (record.pid !== null && !record.processGroupTerminationAttempted) {
       try {
         process.kill(-record.pid, 0);
@@ -65,6 +94,8 @@ async function execute(argv, directory, { timeoutMs, signal, cwd = process.cwd()
         if (error.code !== 'ESRCH') throw error;
       }
     }
+    if (record.pid !== null && record.processGroupTerminationAttempted) await awaitGroupTermination(record);
+    record.complete = true;
   } catch (error) {
     failed = true; originalFailure = error; record.failure = failureView(error);
     terminate('cancelled');

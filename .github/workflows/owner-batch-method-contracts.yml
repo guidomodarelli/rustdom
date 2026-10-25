@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   transport:
@@ -46,6 +47,7 @@ jobs:
         run: |
           python -B -m unittest discover -s "$TOOLS" -p test_artifact.py
           python -B -m unittest discover -s "$TOOLS" -p test_transport.py
+          python -B -m unittest discover -s "$TOOLS" -p test_current_sources.py
           python -B -m unittest discover -s reports/benchmarks/native-class-ownership/owner-batch-study -p 'test_*.py'
   qualify:
     name: Procesos secuenciales Node ${{ matrix.node }}
@@ -76,6 +78,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verificar recibo integral e identidad real sin ejecutar DOM
+        run: |
+          mkdir -p artifacts/owner-batch-method
+          node "$STUDY/tools/preflight.cjs" > artifacts/owner-batch-method/source-publication.json
+      - name: Comprobar acceso real a la API con un CI histórico fijado sin capturar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$STUDY/tools/qualification.cjs" --contract > artifacts/owner-batch-method/source-qualification-contract.json
+      - name: Probar lectura paginada del historial global sin activar una captura
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$STUDY/tools/once.cjs" --probe > artifacts/owner-batch-method/consumption-history-probe.json
       - name: Verificar paquete y preparar manifiesto fuera del checkout
         run: |
           mkdir -p artifacts/owner-batch-method
@@ -91,6 +105,8 @@ jobs:
         run: |
           node --test "$STUDY/compare.spec.cjs"
           node --test "$STUDY/results.spec.cjs" "$STUDY/process.spec.cjs"
+          node --test "$STUDY/qualification.spec.cjs"
+          node --test "$STUDY/once.spec.cjs"
       - name: Probar procesos reales, semillas, errores y endpoints
         env:
           RUSTDOM_OWNER_BATCH_WORKER_MANIFEST: ${{ runner.temp }}/owner-batch-manifest.json

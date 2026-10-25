@@ -71,7 +71,7 @@ class ExtractionContracts(unittest.TestCase):
             poison = ('from pathlib import Path\nPath(' + repr(str(marker)) + ').write_text("cache executed")\n').encode()
             assert len(poison) < len(trusted)
             target.write_bytes(poison + b' ' * (len(trusted) - len(poison))); os.utime(target, (timestamp, timestamp))
-            py_compile.compile(str(target), doraise=True)
+            py_compile.compile(str(target), doraise=True, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)
             target.write_bytes(trusted); os.utime(target, (timestamp, timestamp))
             control = subprocess.run([sys.executable, '-B', '-c', 'import transport'], cwd=root, capture_output=True)
             self.assertEqual(control.returncode, 0, control.stderr); self.assertTrue(marker.exists()); marker.unlink()

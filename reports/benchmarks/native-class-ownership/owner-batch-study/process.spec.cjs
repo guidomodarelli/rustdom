@@ -54,6 +54,8 @@ test('cancellation terminates both genuinely started members of the owned proces
   try { assert.ok(fs.existsSync(ready), 'The genuine process tree never signaled readiness'); }
   finally { controller.abort(); }
   const record = await running; records.push(record); assert.equal(record.cancelled, true);
+  assert.equal(record.processGroupTerminationObserved, true);
+  assert.ok(record.observedProcessGroupMembers.every((member) => ['Z', 'X'].includes(member.state)));
   const members = read(ready); assert.equal(members.parent, record.pid);
   for (const pid of Object.values(members)) assert.ok(['absent', 'Z', 'X'].includes(state(pid)), 'Owned child is still running: ' + pid);
   record.observedTerminalStates = Object.fromEntries(Object.values(members).map((pid) => [pid, state(pid)]));
@@ -70,6 +72,7 @@ test('a successful parent cannot leave a genuinely running grandchild behind', a
     path.join(root, 'orphan-cleanup'), { timeoutMs: policy.abortTestTimeoutMs });
   records.push(record); assert.equal(record.exitCode, 0); assert.equal(record.leftoverProcessGroupDetected, true);
   assert.equal(record.processGroupTerminationSucceeded, true);
+  assert.equal(record.processGroupTerminationObserved, true);
   const members = read(ready); assert.equal(members.parent, record.pid);
   assert.ok(['absent', 'Z', 'X'].includes(state(members.child)));
 });
