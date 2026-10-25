@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import shutil
 
 SOURCE = Path(__file__).resolve().parent
 REPOSITORY = SOURCE.parents[3]
@@ -93,6 +94,37 @@ class ArtifactContracts(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b'Combined artifact reader:', result.stderr)
         self.assertFalse(result.stdout)
+
+    @unittest.skipUnless(READER.BINDING['complete'], 'Selected matrix has no independently published binding yet')
+    def test_public_cli_reads_the_complete_selected_matrix(self):
+        collection = REPOSITORY / READER.BINDING['collectionDirectory']
+        result = subprocess.run([sys.executable, '-B', str(SOURCE / 'artifact.py'), str(REPOSITORY), str(collection)], capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        selected = json.loads(result.stdout)
+        self.assertTrue(selected['matrixQualified'])
+        self.assertEqual(selected['artifactId'], READER.BINDING['artifactId'])
+        self.assertEqual(selected['binarySha256'], READER.BINDING['binarySha256'])
+
+    @unittest.skipUnless(READER.BINDING['complete'], 'Selected matrix has no independently published binding yet')
+    def test_rejects_a_resealed_local_collection_against_external_binding(self):
+        original = REPOSITORY / READER.BINDING['collectionDirectory']
+        with tempfile.TemporaryDirectory(prefix='rustdom-collection-reader-') as temporary:
+            copied = Path(temporary) / 'collection'
+            shutil.copytree(original, copied)
+            artifact_id = READER.BINDING['artifactId']
+            archive_path = copied / ('artifact-' + str(artifact_id)) / 'artifact.zip'
+            with zipfile.ZipFile(archive_path, 'a') as archive:
+                archive.writestr('extra-runtime-file', b'changed')
+            local_digest = 'sha256:' + READER.digest(archive_path)
+            metadata_path = copied / ('artifact-' + str(artifact_id)) / 'metadata.json'
+            metadata = json.loads(metadata_path.read_bytes())
+            metadata.update(digest=local_digest, size_in_bytes=archive_path.stat().st_size)
+            metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
+            artifacts = json.loads((copied / 'artifacts.json').read_bytes())
+            next(entry for entry in artifacts['artifacts'] if entry['id'] == artifact_id).update(metadata)
+            (copied / 'artifacts.json').write_text(json.dumps(artifacts), encoding='utf-8')
+            with self.assertRaisesRegex(AssertionError, 'changed authenticated receipt'):
+                READER.inspect_collection(REPOSITORY, copied)
 
     @classmethod
     def tearDownClass(cls):

@@ -1,5 +1,48 @@
 # Continuar rustdom en otra máquina
 
+## Candidato calificado, materializado y probado — 2026-10-25
+
+Turno anterior publicado3fc67f65. Run40168321423/intento1/SHA7d977513 TERMINAL
+success6/6:Linux/macOS/Windows en Node22.12.0/24.14.1,22comandos porjob.
+Transporte íntegro autenticado de seis artifacts y102miembros de logs en
+reports/validation/range-combined-ci/40168321423/. No relanzar ese run.
+
+Artifact preseleccionado12589402298,4593107bytes/ZIP811f4fed/ELF567f6bff;
+binding externo completo de24archivos. Paquete real en /home/guido/rustdom-validation/
+combined-range-packages-20261025:controls(A0/A1/J0/J1),candidate577archivos,
+candidate-sources346archivos/338medidos. Git compilador realf781c3b7+patch7fe5ec80,
+sourceHashd071dff3;preservado aparte de snapshots sourceCommit=null/errores128.
+Fuente Git real en combined-range-package-source-20261025-f781,solo lectura.
+No se instalaron dependencias ni se reconstruyeron paquetes.
+
+Sesiones TERMINALES0:20988fuentes,88286colección,20499ensamblado,39503contratos,
+4022archivo y84766roundtrip. No reiniciarlas. Pasaron8contratos lector por Python
+Windows/Linux,8ensamblado por SDK y3extractor por Windows/Linux. Archive completo
+en reports/validation/range-combined-packages/assembly/20261025/:7313440bytes,
+SHA5b67fcc6,7824miembros,6enlaces;QA81miembros. Extractor actual revisado porhash,
+sin ejecutar código archivado;verificación íntegra en ambos Node.
+
+Roundtrip en /home/guido/rustdom-validation/combined-range-package-roundtrip-20261025/
+combined-range-packages. CJS/ESM coinciden con jsdom en los casos ejercidos antes y
+después del transporte. Cuatro reportes crudos de recursos en reports/memory/
+range-combined-packages/20261025-assembly/:6ciclos por proceso,774estados nativos
+adicionales creados/liberados en los ciclos(4previos de consumidores,778totales),
+Window/Document separados,controles retenidos y2estados finales
+claros consecutivos. Alcance finito,sin memoria pico o garantía universal de fugas.
+
+P2 de revisión corregido:directorios completos ymetadatos deben ser físicos,
+internos e independientes;regresión de aliases porbytesidénticos aprobó ambos SDK.
+Sesiones40943(8contratos porNode) y60806(reverificaciónroundtrip) TERMINALES0.
+QA81original preservada yQAposterior separada. No repetir esas verificaciones.
+
+Siguiente tras esta publicación:fijar/revisar
+el protocolo científico completo con unidades independientes por proceso e
+intervalos emparejados,presupuestos originales ylímites explícitos antes de medir.
+No hay captura nueva activada. Autorización permanente;no volver a pedir permisos.
+Preservar599pins ygrafo histórico434,48entradas ajenas,autorizaciones yrechazos.
+Runtime híbrido,no integrado,sin aceptación de rendimiento/tag/merge de ownership.
+Objetivo general activo/incompleto;el inventario aún no permite porcentaje defendible.
+
 ## Controles físicos, lector y hooks verificados — 2026-10-25
 
 Publicado previamente7d977513. CI numérico40168321461 TERMINAL success:14 contratos
