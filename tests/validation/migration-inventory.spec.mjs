@@ -67,9 +67,20 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 3);
+  assert.equal(audited.summary.counts.files.states.hybrid, 6);
   assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 1);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 28);
+  assert.equal(audited.summary.counts.apis.audited, 32);
+  for (const id of ['api:Window.AbstractRange', 'api:Window.AbstractRange.prototype.startContainer',
+    'api:Window.AbstractRange.prototype.endContainer', 'api:Window.Range.prototype.detach']) {
+    const entry = audited.classification.find((candidate) => candidate.id === id);
+    assert.equal(entry.auditComplete, true, id);
+    assert.equal(entry.status, 'pending', id);
+    assert.ok(entry.pending.length > 0, id);
+  }
+  const staticRange = audited.classification.find((entry) => entry.id === 'api:Window.StaticRange');
+  assert.equal(staticRange.status, 'hybrid');
+  assert.ok(staticRange.pending.length > 0, 'An isolated native candidate does not complete the published constructor');
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
   const serializerApi = audited.classification.find((entry) => entry.id === 'api:Window.XMLSerializer.prototype.serializeToString');
   assert.equal(serializerAlgorithm.status, 'rust-complete');

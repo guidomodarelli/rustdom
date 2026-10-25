@@ -12,8 +12,8 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.331 | Descriptores propios de objetos públicos, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 3 | Node-impl, Element-impl y XMLSerializer-impl: híbridos, con rutas Rust y JavaScript, pruebas y pendientes |
-| APIs con clasificación revisada | 1 | XMLSerializer.serializeToString mantiene WebIDL y la factory de excepciones en el host |
+| Módulos con clasificación revisada | 6 | Node-impl, Element-impl, XMLSerializer-impl, AbstractRange-impl, Range-impl y StaticRange-impl: híbridos, con pruebas y pendientes |
+| APIs con clasificación revisada | 32 | XMLSerializer y 31 entradas de Range: 28 híbridas y cuatro pendientes; no acreditan candidatos aislados |
 | Anclas con clasificación revisada | 1 | El control del método serializeToString se ejecuta en Rust; no acredita sus dependencias pendientes |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan

@@ -1,10 +1,12 @@
-# Auditoría propuesta de Range
+# Auditoría de Range
 
 Se revisan tres módulos y 31 APIs de jsdom 27.4.0, sin agregar aprobaciones
 Rust completas ni cambiar el denominador. Las clasificaciones propuestas están
-en `reports/progress/inventory/range-audit-20261024/`. El catálogo canónico y
-sus contratos permanecen intactos mientras el estudio de ownership conserva
-sus 563 archivos fijados. Esta propuesta todavía no está integrada.
+en `reports/progress/inventory/range-audit-20261024/`. La auditoría se integró en el catálogo canónico con su contrato actualizado.
+La premisa inicial sobre el congelamiento del test era incorrecta: su path no
+está en los 563 pins. La lista exacta y los bytes congelados se comprobaron
+antes de integrar. Ver reports/validation/inventory-range-integration/20261024/;
+los catálogos y logs iniciales de qa.zip se conservan sin modificaciones.
 
 La auditoría separa el estado y las decisiones Rust de los getters de identidad,
 constructores, WebIDL, factories, drivers y efectos JavaScript. Los valores

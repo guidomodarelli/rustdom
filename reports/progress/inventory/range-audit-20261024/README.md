@@ -1,10 +1,11 @@
-# Propuesta de clasificación de Range
+# Clasificación integrada de Range
 
 Esta entrega audita tres módulos y 31 entradas de API de la referencia fijada
-jsdom 27.4.0. Es una propuesta separada: **no modifica el catálogo canónico**.
-Su prueba actual fija tres módulos híbridos y está incluida en los 563 archivos
-del estudio en curso; integrar la propuesta requiere actualizar ese contrato
-cuando termine la captura, probarlo y revisar el cambio.
+jsdom 27.4.0. Se integró en el catálogo canónico junto con su prueba de conteos.
+La documentación inicial afirmó incorrectamente que esa prueba estaba entre
+los 563 archivos congelados. La consulta de la lista canónica confirmó que no
+lo está; el conjunto completo se conserva intacto. El historial inicial y la
+corrección están en reports/validation/inventory-range-integration/20261024/.
 
 | Dimensión propuesta | Híbrido | Pendiente | Rust completo |
 | --- | ---: | ---: | ---: |

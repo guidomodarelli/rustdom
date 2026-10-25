@@ -1,13 +1,36 @@
 # Continuar rustdom en otra máquina
 
+## Auditoría Range integrada y premisa corregida — 2026-10-25
+
+El catálogo canónico contiene seis módulos y 32 APIs auditadas: 28 APIs híbridas
+y cuatro pendientes. Cero aprobaciones Rust completas nuevas; denominadores
+531/4331/7246 separados, alcance abierto y migrationPercent=null.
+
+La documentación de 4ea7de1a afirmaba incorrectamente que el test de conteos
+estaba congelado. Se consultó el recibo real: tests/validation/migration-inventory.spec.mjs
+y los siete paths del catálogo están FUERA de los 563 pins. Se integró la
+auditoría y su contrato, con siete tests y CLI DEFAULT aprobados en ambos Node
+fijados. Los tres catálogos de referencia/superficie/anclas mantienen sus bytes.
+No repetir esa premisa; comprobar la membresía exacta antes de aplazar trabajo.
+
+Evidencia, historial original y corrección verificable:
+reports/validation/inventory-range-integration/20261024/.
+Los 563 archivos del estudio y las 48 entradas ajenas permanecen intactos.
+
+El estudio 40137458635 terminó completo y rechazado; ya fue autenticado y
+reproducido sin DOM en ambos Node. Su publicación detallada sigue en preparación.
+No relanzarlo ni cambiar presupuestos. El candidato StaticRange está aislado,
+sin integrar ni medir rendimiento; no acreditarlo al catálogo de producción.
+La migración general sigue activa y la autorización permanente está vigente.
+
 ## Propuesta auditada de Range, sin cambiar el método — 2026-10-24
 
 Clasificación propuesta en reports/progress/inventory/range-audit-20261024/:
 3 módulos híbridos y 31 APIs (27 híbridas/4 pendientes), cero aprobaciones Rust
 completas nuevas. No duplica herencia ni cambia denominadores o porcentajes.
-El catálogo canónico permanece intacto: su prueba de conteos está entre los
-563 pins del estudio. Integrar esta propuesta y actualizar ese contrato con
-tests/review después de terminar la captura; todavía no está integrada.
+La premisa inicial sobre el test congelado era incorrecta: ese path NO está
+en los 563 pins. Se integró la auditoría con su contrato y pruebas; ver la
+sección de integración y su evidencia. Los archivos del estudio no cambiaron.
 
 QA y archivos íntegros en reports/validation/inventory-range-audit/20261024/.
 Node 22.12.0 y 24.14.1 pasan 70 contratos Range, siete del catálogo canónico
