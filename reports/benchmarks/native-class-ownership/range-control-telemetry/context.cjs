@@ -43,8 +43,10 @@ function sourceFiles() {
   for (const [name, expected] of Object.entries(provenance.references)) {
     assert.equal(hash(path.join(repository, name)), expected, name); files[name] = expected;
   }
-  const fixture = require('./constants/fixtures.json').index;
-  assert.equal(hash(path.join(repository, fixture.path)), fixture.sha256); files[fixture.path] = fixture.sha256;
+  const fixtures = require('./constants/fixtures.json');
+  for (const fixture of [fixtures.index, fixtures.archive, fixtures.archiveManifest]) {
+    assert.equal(hash(path.join(repository, fixture.path)), fixture.sha256); files[fixture.path] = fixture.sha256;
+  }
   const names = [...policy.methodFiles.map((name) => `${policy.methodDirectory}/${name}`), ...Object.values(policy.codeMaps), ...policy.workflowSources];
   for (const name of names) files[name] = hash(path.join(repository, name));
   return files;

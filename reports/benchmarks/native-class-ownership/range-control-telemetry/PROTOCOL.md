@@ -69,8 +69,16 @@ no oculta un fallo posterior. Un fallo conserva el prefijo y nunca lo completa.
 El replay completo rechaza parciales; los análisis por proceso y crudos ya
 persistidos permiten analizar lo disponible, sin interpretar ausencias como cero.
 
-Faltan workflows de ejecución/contratos, revisión/CI íntegros y registro final
-de mapas con capacidad habilitada. Los mapas de esta etapa no autorizan captura.
+Los workflows de ejecución/contratos ya están declarados con los límites
+anteriores. El transporte existe antes de preparar y conserva incluso un
+fallo de readiness. Su índice guarda APIs completas antes de comprobarlas.
+Los contratos extraen solo datos históricos y los paquetes exactos publicados;
+no ejecutan workers DOM. El subconjunto de regresión incluye ocho procesos
+de MutationRecord con bytes originales y el índice completo sin relabelar.
+No es captura nueva ni replay positivo de Range.
+
+Faltan revisión/CI íntegros y registro final de mapas con capacidad habilitada.
+Los mapas de esta etapa no autorizan captura.
 Ninguna etiqueta se aplica ni se permite captura con este estado deshabilitado.
 Al completar estos componentes se exige revisión íntegra y CI del SHA exacto,
 registrar una única activación y no relanzar, ampliar o cambiar la secuencia.

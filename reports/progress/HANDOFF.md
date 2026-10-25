@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Contratos portables y workflows AA — 2026-10-25
+
+El método range-control-telemetry ya tiene workflows de contratos y captura,
+pero captureImplemented=false. No aplicar etiqueta todavía; la autorización
+permanente está concedida. Faltan registro de mapas al habilitar capacidad,
+revisión íntegra del método habilitado y CI del SHA exacto antes de una sola
+activación. No relanzar los estudios históricos consumidos.
+
+historical-fixtures.py autentica el ZIPsubset3f249e84/15283591bytes con57archivos
+originales de ocho procesos MutationRecord del run40051899308. Conserva índice
+completo512 sin relabelar, hashes/ordinals y96spans por lector; no es captura
+Range. qualify.py crea derivaciones y prueba ambos Node en Git real limpio,
+sin DOM/profiling nuevo ni recompilar/instalar paquetes. Usa un probe propio
+trackeado, restaurado por los contratos. Límites55/65/90/15/10min intactos.
+
+QArealLinux privado cfa6f167 sobre7b6fca9d: grafo599, mapas893por modo,
+17contratos porNode22.12.0/24.14.1, seisPython de derivación y seisreaderLinux.
+Windows5pass/1skip por WinError1314 symlink, caso cubierto enLinux.
+Planes/preflightsbyteidénticos; Actionlint0. Evidencia en
+reports/validation/native-class-ownership/range-control-telemetry-portable/20261025/:
+ZIP0f3ced6a/19928725bytes/2424miembros, logs/contextos/derivaciones originales.
+Los inputs ya versionados se enlazan por hash en vez de duplicarlos.
+No ejecutar código archivado ni presentar el commit privado como publicado.
+
+La capacidad aún está cerrada; no hay replay positivo de un diagnóstico
+nuevo. performanceAccepted=null/gateReevaluated=false no modifican el rechazo
+histórico de ownership. Sin tag/merge ni integrar StaticRange todavía.
+Preservar563pins y48entradas ajenas, sidecar propio y watch compartido intacto.
+La migración general sigue activa e incompleta.
+
 ## Colector y replay AA implementados, sin captura — 2026-10-25
 
 Componentes en reports/benchmarks/native-class-ownership/range-control-telemetry/:

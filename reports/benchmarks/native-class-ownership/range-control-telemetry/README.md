@@ -59,7 +59,7 @@ ejecutar. Un recibo exclusivo por run impide reiniciar en otro destino.
 Los datos históricos usados para probar el lector mantienen identidad y
 fila originales; no constituyen observaciones de Range ni una captura nueva.
 
-Faltan workflows, revisión/CI completos y registro final de los mapas con la
+Faltan revisión/CI completos y registro final de los mapas con la
 capacidad habilitada antes de capturar. La autorización permanente ya cubre esos pasos. No
 pedir permiso adicional ni activar métodos antiguos. No tag/merge de ownership.
 Recursos y límites en reports/memory/range-control-telemetry-preparation-20261025.md.
@@ -91,5 +91,48 @@ no se presentan como observaciones o ejecuciones reales.
 Se probaron preservación de argv/root, mapas/archivos extra, recibos reescritos,
 consumo exclusivo, checks recientes, historial, run vivo, budgets antes/después
 del trabajo y formato Git porcelain real. Las guardas siguen cerradas con la
-capacidad deshabilitada. Los workflows y la revisión/CI completos continúan
-pendientes; no aplicar etiqueta ni ejecutar otro método consumido.
+capacidad deshabilitada. La revisión/CI completos continúan pendientes;
+no aplicar etiqueta ni ejecutar otro método consumido.
+
+## Integración portable de contratos
+
+`historical-fixtures.py` autentica `fixtures/native-mutation-subset.zip`, su
+manifiesto y el índice original publicado. Contiene 57 archivos originales de
+ocho procesos de MutationRecord/100, con ambos Node, modos y motores. El índice
+sigue describiendo los 512 procesos históricos; no presenta el subconjunto como
+un estudio completo ni lo renombra como Range. La extracción lee bloques de
+1 MiB, conserva destinos existentes y nunca ejecuta scripts archivados.
+
+`qualify.py` usa Git real limpio, autentica ambos ejecutables fijados, extrae
+la preparación exacta publicada sin instalar o recompilar y genera derivaciones
+CPU/JIT nuevas sin ejecutar DOM. Conserva argv, logs y errores de cada comando;
+compara planes/preflights byte a byte entre Node y verifica que los contratos
+restauren el checkout. Usa el probe trackeado propio en fixtures/.
+
+Los workflows nuevos son `range-control-telemetry-contracts.yml` y
+`range-control-telemetry.yml`. Los dos checks offline ejecutan lectores y
+contratos con timeout de 20 minutos. La futura captura exige seis checks del
+SHA exacto y conserva los límites de 55 minutos de captura, 65 de step,
+90 de job, 15 de archivo y 10 de subida. El segundo workflow solo responde a
+su etiqueta específica/intento 1; mantiene la capacidad deshabilitada en esta
+etapa. La autorización permanente ya está concedida.
+
+Reproducir con fuentes actuales en un checkout Git Linux real limpio, salida
+nueva disjunta y ambos ejecutables originales autenticados:
+
+```sh
+python3 -B reports/benchmarks/native-class-ownership/range-control-telemetry/qualify.py /checkout /salida-nueva /node22/bin/node /node24/bin/node
+```
+
+El transporte portable y los workflows no aceptan rendimiento ni reemplazan
+los estudios consumidos. Falta habilitar capacidad con mapas/revisión íntegros
+y CI del SHA final antes de una única activación nueva.
+
+La evidencia ejecutada está en
+reports/validation/native-class-ownership/range-control-telemetry-portable/20261025/:
+grafo599, 17 contratos por Node, seis Python de derivación y seis del lector
+en Linux; Windows pasó cinco y omitió symlinks por WinError1314, cubierto en
+Linux. Actionlint aprobó ambos workflows. El ZIP de QA conserva2424miembros,
+fuentes/comandos/logs/derivaciones, y referencia los inputs originales ya
+versionados sin duplicarlos. QAprivadaLinux cfa6f167 es real/limpia sobre7b6fca9d;
+no es un SHA publicado ni un runtime nuevo. No hubo DOM ni profiling nuevo.
