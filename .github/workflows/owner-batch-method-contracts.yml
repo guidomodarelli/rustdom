@@ -87,12 +87,32 @@ jobs:
           export RUSTDOM_OWNER_BATCH_NODE="$(command -v node)"
           python -B -m unittest discover -s "$TOOLS" -p test_assemble.py
       - name: Probar 64 criterios sin aceptar una captura
-        run: node --test "$STUDY/compare.spec.cjs"
+        run: |
+          node --test "$STUDY/compare.spec.cjs"
+          node --test "$STUDY/results.spec.cjs" "$STUDY/process.spec.cjs"
       - name: Probar procesos reales, semillas, errores y endpoints
         env:
           RUSTDOM_OWNER_BATCH_WORKER_MANIFEST: ${{ runner.temp }}/owner-batch-manifest.json
           RUSTDOM_OWNER_BATCH_WORKER_OUTPUT: ${{ github.workspace }}/artifacts/owner-batch-method/workers
         run: node --expose-gc --test --test-concurrency=1 "$STUDY/worker.spec.cjs"
+      - name: Calificar el controlador completo sin medición científica
+        timeout-minutes: 20
+        run: |
+          node --expose-gc "$STUDY/capture.cjs" --functional "$RUNNER_TEMP/owner-batch-package" "$RUNNER_TEMP/owner-batch-functional-part"
+          node "$STUDY/replay.cjs" --functional "$RUNNER_TEMP/owner-batch-functional-part" "$RUNNER_TEMP/owner-batch-functional-verification.json"
+      - name: Probar procedencia y rechazos del replay con la captura funcional real
+        env:
+          RUSTDOM_OWNER_BATCH_PART_FOR_CONTRACTS: ${{ runner.temp }}/owner-batch-functional-part
+        run: node --test "$STUDY/protocol.spec.cjs" "$STUDY/part.spec.cjs"
+      - name: Conservar controlador funcional completo o parcial
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/owner-batch-functional-part" ]; then
+            tar -C "$RUNNER_TEMP" -cJf artifacts/owner-batch-method/functional-part.tar.xz owner-batch-functional-part
+          fi
+          if [ -f "$RUNNER_TEMP/owner-batch-functional-verification.json" ]; then
+            cp "$RUNNER_TEMP/owner-batch-functional-verification.json" artifacts/owner-batch-method/functional-verification.json
+          fi
       - name: Guardar todos los datos funcionales y parciales
         if: always()
         uses: actions/upload-artifact@v4

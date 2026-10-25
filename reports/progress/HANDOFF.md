@@ -1,5 +1,55 @@
 # Continuar rustdom en otra máquina
 
+## Controlador por SDK y replay funcional completo — 2026-10-25
+
+HEAD publicado564f0f554bcc43f8a12df1acaedc97525d1032ae. Su CI40216555955 aprobó
+4/4jobs (ids121238836517,121238836694,121238836716,121238837008). Dos ZIP completos
+autenticados en reports/validation/owner-batch-method-ci/40216555955/. Esta aprobación
+corresponde al componente previo; NO acredita el prototipo ampliado aún sin publicar.
+
+Nuevo prototipo en owner-batch-study/:process.cjs con timeout/cancelación de grupo,
+io.cjs acotado/atómico,source.cjs, binding.cjs,capture.cjs,replay.cjs yresults.cjs.
+Los32workers funcionales por SDK completaron sobre el mismo paquete4b52, con
+9216medidas+3072warmup en64procesos,768Window+768Document,6snapshots del padre y
+4primerasrondasnoclaras conservadas. Tres rondas de cleanup y dos finales claras.
+Cada parte y el lector actualizado se reprodujeron en ambosSDK sin DOM nuevo.
+30contratos lector/protocolo/datos por SDK,6procesos por SDK yactionlint pasaron.
+
+Se conservan tres tar íntegros en reports/validation/owner-batch-integral/20261025/:
+initial-preflight-node22 (0workers,incompleto),node22(32),node24(32), con todos sus
+miembros ySHA. El preflight falló inicialmente por un manifiesto de candidato
+ausente en el grafo; se corrigió la dependencia antes de ejecutar workers. No hubo
+estudio científico ni reparación de muestras. Memoria en reports/memory/owner-batch-integral/20261025/.
+
+La calificación local usa Git nativo REAL f781c3b7 con169líneas crudas de WIP del
+método (168en el preflight inicial), no un checkout publicado limpio. Código actual copiado por SHA; no inventar
+sourceCommit/sourceChangesRaw/sourceGitErrors. Raíz nativa temporal:
+/dev/shm/owner-batch-current-method-functional-source. Las capturasfuncionales son
+/dev/shm/owner-batch-functional-controller-fixed-node22 y…node24. Hubo actualización
+de reader sin repetir datos; qualified-functional.json fija índice ydigest del
+productor original. El reader informa sus propios módulos/identidad aparte.
+
+El snapshot conserva código/config como datos y el paquete actual íntegro;142MB
+de objetos comprimidos históricos se referencian por path/tamaño/SHA inmutables
+ya publicados y se verifican en replay, evitando duplicarlos por job. No ejecutar
+helpers archivados. No comparar el src actual con el productor al leer historia:
+el código del productor se verifica en el snapshot y el del lector por separado.
+
+La etiqueta futura ownership-owner-batch-serial-v1 NO se aplicó. Tres flags de
+executionReady siguenfalse. Faltan autenticación científica externa/decisión,
+calificación del SHA limpio hospedado, revisión/recibo íntegros yhabilitación
+publicada antes de la única captura2048workers. Preservar±2/±5,16pares,semillas,
+warmup ytodoslosrechazos. Sin tag/merge. Runtimehíbrido ygoalactivo, migraciónpendiente.
+
+Espacio: se retiraron solo duplicados ZIP ignored tras compararlos con los ZIP
+públicos y dos instaladores Node (4882+4556payloads idénticos aSDKinstalados).
+Se preservaron SDKs/binaries. El borrado de seis carpetasQA duplicadas fue rechazado
+por revisión automática: NO intentar borrarlas mediante otra ruta. También preservar
+los dos directoriosWindowsQA bloqueados anteriormente. C~190MB: comprobar antes
+de archivos grandes. /dev/shm del distro dedicado se amplió de3.8Ga5G manteniendo
+archivos. KeepernuevoPID32395/sesión14468,2h desde18:43UTC. Paquete ydatos importantes
+ya archivados. Preservar48ajenos/watchcompartido. Engram sigue sin identidadregistrada.
+
 ## Worker, paquete sellado y comparación por proceso — 2026-10-25
 
 HEAD previo publicado5d823f49 conserva sampler y CIcandidato6/6. Nuevo hito:
@@ -5253,3 +5303,16 @@ Agregá las regresiones necesarias, ejecutá las pruebas relevantes en Node 22 y
 
 Avanzá autónomamente. Antes de crear un checkpoint funcional, completá la validación y la revisión exigidas. Hacé commit y push de los avances validados y actualizá el HANDOFF con lo resuelto y lo pendiente. Comunicá el progreso en español.
 ```
+
+La revisión aislada detectó un P2 en la salida del replay: rename podía reemplazar
+un enlace colgante o una salida concurrente. writeNewJSON publica con hardlink
+exclusivo; el progreso propio conserva rename atómico. Las tres regresiones CLI
+pasaron en ambos SDK. La suite separada conserva7casos CLI+12protocolo por SDK
+y11casos de datos por SDK. Un recheck combinado posterior sufrió EIO al llenarse C:
+(el fallo y sus logs quedan publicados), sin cambiar las capturas originales.
+Se liberaron1157624877bytes retirando solo dos copias ZIP/tar ignored de la
+materialización Windows40051899308, tras verificar SHA/tamaño contra originales
+conservados en native-telemetry-collection-40051899308. No se tocó ningún directorio
+cuyo borrado fue rechazado. WSL mantiene EIO; no terminarlo perdiendo RAM sin
+recuperación. Los tres tar publicados conservan todas las capturas completas/parciales.
+La nueva ejecución de CI deberá validar el prototipo sobre el SHA publicado.

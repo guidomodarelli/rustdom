@@ -8,6 +8,8 @@ const { getHeapStatistics } = require('node:v8');
 const { createBatchSampler, failureView } = require('./batches.cjs');
 const samplerPolicy = require('./constants/sampler.json');
 const policy = require('./constants/worker.json');
+const capturePolicy = require('./constants/capture.json');
+const { childBinding } = require('./binding.cjs');
 const original = require('../combined-process-study/model.cjs');
 const { createSinglePackageWorker } = require('../single-package-worker.cjs');
 const { schedule: pairSchedule, inspectDistributions } = require('../paired-main-worker.cjs');
@@ -34,8 +36,11 @@ function workerArguments(position) { return scheduler.workerArguments(position);
  * @returns {Promise<object>} Scalar report including every duration and all resource endpoints.
  */
 async function main(args, functionalOnly = false, onProgress = () => {}) {
-  if (!functionalOnly) assert.equal(policy.executionReady, true, 'Owner batch worker: formal capture is not enabled');
-  assert.equal(functionalOnly, true, 'Owner batch worker: only functional qualification is currently implemented');
+  assert.equal(typeof functionalOnly, 'boolean');
+  if (!functionalOnly) {
+    assert.equal(policy.executionReady, true, 'Owner batch worker: formal capture is not enabled');
+    assert.equal(samplerPolicy.executionReady, true); assert.equal(capturePolicy.executionReady, true);
+  }
   assert.equal(typeof onProgress, 'function', 'Owner batch worker: scalar progress observer must be a function');
   assert.equal(args.length, 7, 'Owner batch worker: provide manifest, phase, engine, position, label, output and row');
   assert.equal(process.platform, 'linux', 'Owner batch worker: Linux thread affinity evidence is required');
@@ -47,12 +52,14 @@ async function main(args, functionalOnly = false, onProgress = () => {}) {
   assert.equal(positionText, String(position)); assert.equal(rowText, String(rowIndex));
   assert.deepEqual(process.execArgv, workerArguments(position), 'Owner batch worker: changed V8 startup flags');
   assert.equal(fs.existsSync(output), false, 'Owner batch worker: preserve existing evidence');
+  const binding = childBinding(functionalOnly ? 'functional' : 'capture');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, policy.outputEncoding));
   const plan = scheduler.schedule(manifest, phase, engine, position, label, rowIndex);
   const key = samplerPolicy.rows[rowIndex];
   assert.deepEqual(plan.rows, [{ name: key.slice(0, key.lastIndexOf('/')), size: Number(key.slice(key.lastIndexOf('/') + 1)) }]);
-  const report = { revision: policy.revision, complete: false, functionalOnly, purpose: policy.purpose,
-    performanceAccepted: null, gateReevaluated: false, performanceStudyExecuted: false,
+  const report = { revision: policy.revision, complete: false, functionalOnly,
+    purpose: functionalOnly ? policy.purpose : samplerPolicy.purposes.capture,
+    performanceAccepted: null, gateReevaluated: false, performanceStudyExecuted: !functionalOnly,
     phase, engine, position, label, rowIndex, key, schedule: plan,
     pid: process.pid, node: process.version, v8: process.versions.v8, execArgv: process.execArgv,
     heapLimitBytes: getHeapStatistics().heap_size_limit,
@@ -61,6 +68,7 @@ async function main(args, functionalOnly = false, onProgress = () => {}) {
     sampling: { tasksPerBlock: samplerPolicy.logicalTasksPerBlock,
       warmupBlocks: samplerPolicy.warmupBlocksPerProcess, measuredBlocks: samplerPolicy.measuredBlocksPerProcess,
       withinRealmWarmupRounds: samplerPolicy.withinRealmWarmupRounds }, blocks: [] };
+  if (binding) { report.methodBindingSha256 = binding.sha256; report.methodParentPid = binding.parentPid; }
   fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   const save = () => fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
   const owners = { window: [], document: [] };
@@ -89,6 +97,7 @@ async function main(args, functionalOnly = false, onProgress = () => {}) {
     report.nativeBaseline = runtime.api.getNativeTreeStatistics?.() ?? null;
     save();
     report.measurement = await sampler.measureRow({ runtime, engine, key, owners,
+      purpose: functionalOnly ? samplerPolicy.purposes.functional : samplerPolicy.purposes.capture,
       onProgress: (block) => {
         if (!report.blocks.includes(block)) report.blocks.push(block);
         save();

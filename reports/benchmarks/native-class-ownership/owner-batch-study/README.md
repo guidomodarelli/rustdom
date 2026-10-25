@@ -19,8 +19,10 @@ original, incluso Symbol y undefined, y el realm se cierra en finally. Los fallo
 de cleanup se registran sin reemplazar el error previo. La captura formal está
 bloqueada por executionReady=false antes de crear un realm. worker.cjs ya integra
 procesos nuevos y compare.cjs reduce las 144 tareas medidas a una media por proceso.
-Faltan capturador, replay integral, calificación completa y revisión del método para
-habilitar una nueva secuencia.
+El capturador por SDK y el replay de partes ya están implementados y calificados
+localmente en modo funcional. Falta terminar la autenticación externa de los dos
+artifacts científicos y su decisión, validar el SHA limpio en CI y cerrar la
+revisión/publicación íntegra antes de habilitar una nueva secuencia.
 
 Pasaron 22 contratos reales por Node 22.12.0 y 24.14.1. Cada SDK ejecutó 448 tareas
 cronometradas para validar el sampler, dieciséis casos de bloque, una fila completa,
@@ -45,3 +47,12 @@ No se afirma reproducibilidad binaria. No hubo captura científica ni reevaluaci
 Evidencia: reports/validation/owner-batch-sampler/20261025/ y
 reports/validation/static-range-owner-batch-ci/40205226009/.
 La migración sigue activa, el runtime híbrido y el hito sin aceptación de rendimiento.
+
+El controlador completo conserva64workers funcionales,9216tiempos medidos,
+3072warmup,768Window/Document separados y6snapshots del padre. Se guardan4primeras
+rondas no claras y todos los endpoints. Pasaron27contratos de lectura/protocolo
+por SDK,6de grupos de procesos y cuatro replays por versión de lector sobre las
+dos partes. Los datos originales y sus metadatos no se reescribieron al actualizar
+el reader. El catálogo separa snapshots ejecutables de referencias comprimidas
+históricas ya publicadas; no congela futuros cambios de runtime durante replay.
+Ver PROTOCOL.md y reports/validation/owner-batch-integral/20261025/.
