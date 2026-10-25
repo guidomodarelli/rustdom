@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Transporte, decisión y CI integral aprobado — 2026-10-25
+
+Publicado e7895fb0daeb7858ba99805cff21a07f5767241f, CI40224283558 **4/4 aprobado**.
+Los2gates de rendimiento históricos aún rechazan; no declarar CI global verde.
+Nueva ampliación propia aún sinpublicar: transport.py,extract.py,decision.cjs,
+perfil externo del productor yregresiones.31contratos reader/protocolo/datos y5de
+cadena autenticada por SDK pasaron enNode22.12.0/24.14.1;18Python enWindows/Linux,
+actionlint correcto. El CI4/4 corresponde al controlador e789, no aesta ampliación.
+
+La colección API/ZIP/tar/logs completa de e789 está en
+reports/validation/owner-batch-integral-ci/40224283558/. Los dos artifacts están
+ligados aIDs12611152720/12611320873 ySHA/tamaño API, jobs121262251242/121262251193,
+run/intento1/commit. Los lectores actuales reprodujeron ambos tar enambosSDK sin
+DOM nuevo ni código archivado. Evidencia ycasosnegativos en
+reports/validation/owner-batch-authenticated-replay/20261025/; recursos completos en
+reports/memory/owner-batch-hosted-controller/40224283558/.64workers del controlador,
+9216medidas+3072warmup,768Window+Document separados,4primerasnoclaras y6padres.
+
+La revisión detectó yse corrigieron2P2: pyc podía sustituir transport.py aunque se
+usara-B; ahora secompilan bytes actuales yregistran hashes. Laúltima procedencia
+podía fallar despuésdecomplete=true; finalize ahora leeantesdepublicar ycatch
+invalida complete/aceptación. Casos reales de caché yENOENT respaldan ambas fixes.
+
+WSL Rustdom-Validation-20261025 recuperado: Clleno produjoEIO; se conservaron
+Git/ELF en .cache/owner-batch-ram-git-and-elf-recovery.tar.xz (47miembros,2.3MB),
+ylas capturas ya estaban publicadas. Solo se reinició el distro de la tarea yse
+adjuntó su VHD; e2fsck-fn como root dio0, no se hizo reparación. Detach/arranque
+limpio restauró el servicio. Se reconstruyeron Git nativo f781+WIP ydos partes
+como datos, sin ejecutar snapshots. Keeper nuevoPID400/sesión36538 por2h; comprobar
+vigencia antesde usar RAM. TMPDIR deQA se fija a/dev/shm paraevitar crecerelVHD.
+Las2copias ZIP/tar Windows eliminadas eran idénticas aoriginales conservados;
+ninguna carpeta cuyo borrado se rechazó fue tocada. C~1GB: revisar espacio.
+
+Siguiente: cierre aislado/publicación deesta ampliación yCI sobreSHA final, luego
+recibo íntegro/habilitación revisados antesde única captura nueva. Autorización
+permanente concedida, no preguntar. Flags executionReady=false en3constantes,
+etiqueta NOaplicada. No repetir estudiosconsumidos, conservar±2/±5 yrechazos.
+El forecast de32workers proyecta158.64/90.11min por1024 en22/24; no garantiza170min.
+No tag/merge hasta aceptación eintegración probadas. Goal activo, runtimehíbrido,
+migración pendiente; preservar599/724/738,48ajenos ywatchcompartido.
+
 ## Controlador por SDK y replay funcional completo — 2026-10-25
 
 HEAD publicado564f0f554bcc43f8a12df1acaedc97525d1032ae. Su CI40216555955 aprobó

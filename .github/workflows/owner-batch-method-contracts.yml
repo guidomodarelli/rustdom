@@ -46,6 +46,7 @@ jobs:
         run: |
           python -B -m unittest discover -s "$TOOLS" -p test_artifact.py
           python -B -m unittest discover -s "$TOOLS" -p test_transport.py
+          python -B -m unittest discover -s reports/benchmarks/native-class-ownership/owner-batch-study -p 'test_*.py'
   qualify:
     name: Procesos secuenciales Node ${{ matrix.node }}
     runs-on: ubuntu-22.04
@@ -104,6 +105,10 @@ jobs:
         env:
           RUSTDOM_OWNER_BATCH_PART_FOR_CONTRACTS: ${{ runner.temp }}/owner-batch-functional-part
         run: node --test "$STUDY/protocol.spec.cjs" "$STUDY/part.spec.cjs"
+      - name: Reproducir los dos artifacts hospedados completos con código actual
+        env:
+          RUSTDOM_OWNER_BATCH_COLLECTION_FOR_CONTRACTS: ${{ github.workspace }}/reports/validation/owner-batch-integral-ci/40224283558
+        run: node --test "$STUDY/decision.spec.cjs"
       - name: Conservar controlador funcional completo o parcial
         if: always()
         run: |

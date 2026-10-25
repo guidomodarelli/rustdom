@@ -35,6 +35,15 @@ test('the real complete part replays through the current CLI with all measured a
   assert.equal(result.warmupDurations, 1536); assert.equal(result.windows, 384); assert.equal(result.documents, 384);
   assert.equal(result.parentSnapshots, 3); assert.equal(result.captureAuthenticated, false); assert.equal(result.performanceAccepted, null);
 });
+
+test('an external producer profile cannot change the actual producer commit or catalog graph', () => {
+  const { verifyPart } = require(executable);
+  const profile = { sourceCommit: index.sourceCommit, catalogSha256: index.sourceFiles[policy.catalog], files: index.sourceFiles };
+  for (const changed of [{ ...profile, sourceCommit: '0'.repeat(40) }, { ...profile, catalogSha256: '0'.repeat(64) },
+    { ...profile, files: { ...profile.files, [policy.workerFile]: '0'.repeat(64) } }]) {
+    assert.throws(() => verifyPart(part, 'functional', changed));
+  }
+});
 test('duplicate process metadata is rejected without filling or rerunning the missing tuple', () => {
   const copy = path.join(root, 'duplicate'); fs.cpSync(part, copy, { recursive: true });
   const changed = read(path.join(copy, policy.indexFile)); changed.processes[1] = changed.processes[0];

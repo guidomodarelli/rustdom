@@ -32,8 +32,8 @@ function verifyParent(snapshots, workers, parentPid) {
   }
 }
 
-/** @param {string} directory - Current data extraction, never a code module root. @param {'functional'|'capture'} mode - Explicit reader role. @returns {object} All scalar process observations; acceptance stays null. */
-function verifyPart(directory, mode = 'capture') {
+/** @param {string} directory - Data extraction, never imported. @param {'functional'|'capture'} mode - Explicit role. @param {object|null} producerProfile - Independent source graph from authenticated external transport, never taken from the capture. @returns {object} All process observations; acceptance stays null. */
+function verifyPart(directory, mode = 'capture', producerProfile = null) {
   assert.ok(['functional', 'capture'].includes(mode));
   assert.equal(process.platform, 'linux');
   assert.equal(hashFile(process.execPath, policy.maximumExecutableBytes, false), executableHashes[process.version]);
@@ -64,8 +64,12 @@ function verifyPart(directory, mode = 'capture') {
     assert.ok(Number.isFinite(index.setupElapsedSeconds) && index.setupElapsedSeconds >= 0 && index.setupElapsedSeconds <= policy.setupBudgetMinutes * 60);
   } else {
     const declared = readJSON(path.join(source.repository, policy.catalog));
-    files = { ...declared.files, [policy.catalog]: hashFile(path.join(source.repository, policy.catalog)) };
-    if (!isDeepStrictEqual(index.sourceFiles, files)) {
+    files = producerProfile?.files ?? { ...declared.files, [policy.catalog]: hashFile(path.join(source.repository, policy.catalog)) };
+    if (producerProfile !== null) {
+      assert.equal(producerProfile.sourceCommit, index.sourceCommit);
+      assert.match(producerProfile.catalogSha256, /^[a-f0-9]{64}$/);
+      assert.equal(files[policy.catalog], producerProfile.catalogSha256);
+    } else if (!isDeepStrictEqual(index.sourceFiles, files)) {
       const references = readJSON(path.join(source.repository, policy.functionalReferences));
       const matched = references.profiles.find((entry) => entry.indexSha256 === hashFile(path.join(root, policy.indexFile)));
       assert.ok(matched, 'Owner batch replay: original functional producer is not independently pinned');
@@ -73,6 +77,10 @@ function verifyPart(directory, mode = 'capture') {
       files = index.sourceFiles;
     }
     assert.equal(index.publicationSha256, undefined); assert.equal(index.hosted, null);
+  }
+  if (producerProfile !== null) {
+    assert.equal(producerProfile.sourceCommit, index.sourceCommit);
+    assert.deepEqual(producerProfile.files, files);
   }
   assert.deepEqual(index.sourceFiles, files);
   source.verifySnapshot(root, files);
