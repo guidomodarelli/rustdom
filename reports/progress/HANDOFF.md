@@ -1,5 +1,50 @@
 # Continuar rustdom en otra máquina
 
+## Worker, paquete sellado y comparación por proceso — 2026-10-25
+
+HEAD previo publicado5d823f49 conserva sampler y CIcandidato6/6. Nuevo hito:
+worker39/39 por SDK, con64 procesos funcionales completos,8rechazos de startup y
+6regresiones de errores primitivos en progreso. P2 del serializador corregido:
+failureView tolera undefined/null/Symbol, originalFailure se propaga sin reemplazo
+y el observador propio recibe solo escalares. fixed-node22/24 contienen el cierre;
+node22/24 yinitial-worker-summary conservan la calificación36/36 anterior sin mezclar.
+Se preservan9216duraciones medidas funcionales,3072warmup,768Window+768Document,
+semillas originales, CPU2 y una sola distribución física por worker. Tres rondas
+de recursos y dos finales claras; dos primeras rondas no claras quedan visibles.
+Evidencia: reports/validation/owner-batch-worker/20261025/ y reports/memory/owner-batch-worker/20261025/.
+Los22contratos del sampler con ELFremoto4b52 también aprobaron ambos SDK y están
+separados del hito inicial f8 en reports/validation/owner-batch-selected-runtime/20261025/.
+
+Nuevo paquete: reports/validation/owner-batch-package/20261025/packages.tar.xz,
+SHA1e4313382b809453d6af724b931f9c366519cf637a80d16038b1d143d45003aa,
+7823miembros bajo raíz/6links,7824entradas tar contando raíz. Reader autentica6ZIP/6jobs/24comandos y soloBartifact12604810857.
+577archivos runtime y346fuentes canónicas. La reproducción local f781+patchcb se
+identifica separada del compilador hospedado; no normalizar errores Git ni atribuir
+build.mjs de fixtures al checkout. Extracción real final y ensamblado verificados
+en ambosSDK. Paquete solo datos; nunca ejecutar helpers archivados. Extraer fuera
+del checkout Git para preservar la identidad real del snapshot sin repositorio.
+
+Pasaron4lectoresWindows/Linux,3transporteLinux y2+1exclusiónWindows,4ensamblado/SDK,
+8comparador/SDK yactionlint. Logs iniciales de agotamiento de RAM se conservan
+comprimidos. Setup negativo corregido con corrupción reversible y lock exclusivo
+sobre el ensamblado nuevo propio, restaurando bytes. El primer writer tar falló
+solo por ordenarPath vsstrings: el mismo archivo se autenticó por mapas completos,
+sin diferencias ni regeneración, después de restaurar pruebas negativas.
+
+El workflow nuevo owner-batch-method-contracts prueba el paquete sellado y workers
+enCI; observar su SHA y artifacts después del push. Los64workers locales usaron
+roots temporales autenticados previos al sellado: no confundirlos con aprobación
+del método integral. Faltan capturador/replay de dos jobs, snapshots del padre,
+calificación/revisión integral y publicación habilitada antes de la captura única.
+executionReady=false, performanceAccepted=null, gateReevaluated=false; autorización
+concedida. No repetir capturas consumidas, relajar±2/±5, tag ni merge sin aceptación.
+Ambos gates de rendimiento siguen rojos; no es CIverde. Objetivo activo/runtimehíbrido.
+
+RAMkeeper nuevoPID29282/sesión37622,2h desde~17:01UTC. Paquete reconstruido en
+/dev/shm/owner-batch-transport-reconstruction-final. CacheCargo temporal propio
+retirado tras guardar QA/binaries; sourceGit nativo f781 sigue disponible. Preservar
+48ajenos ywatchcompartido. Engram sigue sin identidad registrada: no usar memoria.
+
 ## Candidato funcional 6/6 y sampler secuencial implementado — 2026-10-25
 
 CI 40205226009 terminó success: los seis jobs aprobaron Linux/Windows/macOS ×

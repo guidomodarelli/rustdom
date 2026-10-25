@@ -176,4 +176,4 @@ function createBatchSampler({ fixtureHTML, fixtures, operations, warmOwnership, 
   }
   return { measureBlock, measureRow };
 }
-module.exports = { createBatchSampler };
+module.exports = { createBatchSampler, failureView };

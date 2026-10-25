@@ -1,0 +1,103 @@
+name: Contratos del sampler secuencial de ownership
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/owner-batch-method-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/owner-batch-study/**'
+      - 'reports/benchmarks/native-class-ownership/owner-batch-packages/**'
+      - 'reports/validation/owner-batch-package/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/owner-batch-method-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/owner-batch-study/**'
+      - 'reports/benchmarks/native-class-ownership/owner-batch-packages/**'
+      - 'reports/validation/owner-batch-package/**'
+
+permissions:
+  contents: read
+
+jobs:
+  transport:
+    name: Transporte de owners ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/owner-batch-packages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probar lectura real y rechazos de transporte
+        run: |
+          python -B -m unittest discover -s "$TOOLS" -p test_artifact.py
+          python -B -m unittest discover -s "$TOOLS" -p test_transport.py
+  qualify:
+    name: Procesos secuenciales Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/owner-batch-packages
+      STUDY: reports/benchmarks/native-class-ownership/owner-batch-study
+      PACKAGE: reports/validation/owner-batch-package/20261025/packages.tar.xz
+      COLLECTION: reports/validation/static-range-owner-batch-ci/40205226009
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verificar paquete y preparar manifiesto fuera del checkout
+        run: |
+          mkdir -p artifacts/owner-batch-method
+          python "$TOOLS/transport.py" --extract "$PACKAGE" "$RUNNER_TEMP/owner-batch-package" > artifacts/owner-batch-method/extraction.json
+          python "$TOOLS/assemble.py" --verify "$RUNNER_TEMP/owner-batch-package" "$COLLECTION" "$(command -v node)" > artifacts/owner-batch-method/package-verification.json
+          node "$TOOLS/manifest.cjs" "$RUNNER_TEMP/owner-batch-package" "$RUNNER_TEMP/owner-batch-manifest.json"
+      - name: Probar protección de bytes y enlaces del ensamblado
+        run: |
+          export RUSTDOM_OWNER_BATCH_ASSEMBLED="$RUNNER_TEMP/owner-batch-package"
+          export RUSTDOM_OWNER_BATCH_NODE="$(command -v node)"
+          python -B -m unittest discover -s "$TOOLS" -p test_assemble.py
+      - name: Probar 64 criterios sin aceptar una captura
+        run: node --test "$STUDY/compare.spec.cjs"
+      - name: Probar procesos reales, semillas, errores y endpoints
+        env:
+          RUSTDOM_OWNER_BATCH_WORKER_MANIFEST: ${{ runner.temp }}/owner-batch-manifest.json
+          RUSTDOM_OWNER_BATCH_WORKER_OUTPUT: ${{ github.workspace }}/artifacts/owner-batch-method/workers
+        run: node --expose-gc --test --test-concurrency=1 "$STUDY/worker.spec.cjs"
+      - name: Guardar todos los datos funcionales y parciales
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-batch-method-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/owner-batch-method/
+          if-no-files-found: error
+          retention-days: 90
