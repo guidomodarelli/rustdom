@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Diagnóstico AA activado una vez — 2026-10-25
+
+Seguir únicamente run40154725015/job121053535757/intento1 de guidomodarelli/rustdom,
+fuente d5ec4186d2033709e532bc93d6f47d930afe525f, PR80. El step de captura está
+en curso al guardar este registro. La etiqueta ownership-range-control-aa-telemetry-v1
+se aplicó una vez (evento34161128543, 02:30:44 UTC). No ejecutar activadores,
+reaplicar etiquetas, relanzar workflows ni completar muestras faltantes.
+La autorización permanente ya está concedida; no preguntar nuevamente.
+
+CI previo: general40152264918 aprobado8/8, incluido Valgrind; método40152264828
+aprobado en ambos Node fijos. Se comprobaron seis checks recientes del SHA exacto.
+Doce workflows históricos quedaron omitidos. El grafo599, los563pins, métodos,
+paquetes preparados y presupuestos55/65/90/15/10 siguen intactos.
+
+Registro portable:
+reports/validation/native-class-ownership/range-control-telemetry-activation/d5ec4186/.
+Incluye evidencia íntegra/manifest y readers actuales de transporte, probados
+con el run real en Windows (7pass1skip) y Linux (8pass). Los pins finales de
+artifact siguen null hasta observar/autenticar el archivo terminado. No extraer
+ni ejecutar código archivado. El collector solo sigue este run/job y guarda
+parciales; nunca ejecuta DOM ni inicia otra secuencia.
+
+La primera invocación local falló antes del POST por conversión Windows→WSL.
+Se probó el fix y luego se envió el único POST. El lector WSL también detectó
+gh ausente en PATH; se usó el CLI real existente mediante shim local scoped,
+sin mocks. Todos los fallos y snapshots incompletos quedan preservados.
+
+Para replay: checkout Git Linux real y limpio de d5ec4186; local preparado
+/home/guido/rustdom-validation/range-aa-telemetry-source-d5ec4186, comprobado
+en Node22.12.0/24.14.1 con hashes fijados. No leer un gitfile Windows desde Git
+WSL, no normalizar sourceCommit/sourceChanges/sourceGitErrors. Este commit de
+registro puede ser posterior; la medición permanece vinculada a d5ec4186.
+
+Plan256, medidas2304/warmup768, Window3072/Document3072 separados y128CPU/128JIT
+son cantidades planificadas. Las observaciones finales y replay nuevo completo
+siguen pendientes. Analizar nativeTree de Range completos y publicar también
+regresiones, clocks inciertos, deltas negativos y primeros estados no claros.
+performanceAccepted=null/gateReevaluated=false; ownership sigue rechazado.
+Sin tag/merge ni integrar StaticRange aún. Preservar48entradas ajenas y watch
+compartido; usar sidecar propio. La migración general sigue activa e incompleta.
+
 ## Método AA con capacidad configurada — 2026-10-25
 
 range-control-telemetry conserva el mismo plan256 y presupuestos55/65/90/15/10.
