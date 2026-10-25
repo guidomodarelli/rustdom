@@ -38,6 +38,7 @@ names.add(packagePolicy.archive.path); names.add(packagePolicy.members.path); na
 const binding = require('../../range-combined-packages/constants/artifact-binding.json');
 for (const name of Object.keys(binding.collectionFiles)) names.add(binding.collectionDirectory + '/' + name);
 names.add('reports/implementation/range-combined-candidate/source.json');
+names.add(require('../constants/protocol.json').derivation.canonicalManifest);
 const policy = { methodDirectory, checkoutTimeoutSeconds: 300, historicalPins: 599,
   contractScope: 'numerical-and-read-only-real-package-preparation', samplerInvoked: false,
   files: Object.fromEntries([...names].sort().map((name) => [name, sha(name)])) };

@@ -1,5 +1,39 @@
 # Continuar rustdom en otra máquina
 
+## Worker combinado calificado y lectores corregidos — 2026-10-25
+
+Base publicada8eb2f9b3. Calificación funcional TERMINAL0:64procesos(32porNode),
+192warmup,576duraciones,768Window y768Document separados. Tres rondas por
+proceso ydos estados finales claros;8primeras rondas no claras preservadas.
+No es captura científica ni aceptación. Runtime híbrido,ownership sin integrar.
+
+Derivación actual autentica434fuentes ycontroles;worker conserva parciales,
+propósito ygateReevaluated=false. Revisión encontró dosP2 de trazabilidad:
+argv exacto ycommit del sidecar. Corregidos en lectores,sin repetir64procesos;
+replay actual aprobó ambosNode con el index terminal original intacto.
+Identidad funcional independiente fija index/HEAD8eb/grafo/derivación/fuentes.
+Este replay requiere checkout productor Git8eb con lectores actuales yoverlay
+WIP explícito más inputs físicos originales;no es replay integral transportable.
+
+17contratos finales porNode,incluyendo proceso real de manifiesto inválido
+sin workload,negativos deargv/commit ydatos reales. Verificación adicional
+lee64reportes/rechaza8alteraciones porSDK,sin DOM. CI acotado reproduce
+11comandos con688dependencias/599pins,SDKs,derivación,tests yactionlint.
+Los15contratos iniciales yCI anterior quedan preservados aparte.
+
+Evidencia íntegra:reports/benchmarks/native-class-ownership/
+combined-process-worker-qualification/20261025/,QA2214miembros/13856533bytes.
+Validación/QA posterior:reports/validation/combined-process-study/20261025-worker/.
+Recursos:reports/memory/combined-process-study/20261025-worker/. No ejecutar
+código archivado. No inferir memoria pico o ausencia universal de fugas.
+
+Siguiente:verificarCI del SHA publicado ycompletar capturador,replay integral,
+workflow de captura yrevisión/checks sobre SHA habilitado antes de activar
+una secuencia nueva. executionReady=false,no captura nueva,sin tag/merge.
+Autorización permanente;no preguntar. Conservar599pins/434fuentes/48ajenos,
+watch compartido,rechazos históricos. Migración general activa,incompleta,
+sin porcentaje defendible por auditoría pendiente.
+
 ## CI del núcleo prospectivo aprobado — 2026-10-25
 
 Núcleo publicado c6cf340e. Run40173536771/intento1 TERMINAL success2/2:

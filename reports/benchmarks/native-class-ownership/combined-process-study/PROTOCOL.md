@@ -44,7 +44,8 @@ rechazada o con timeout se conserva íntegra y no autoriza repetirla.
 El run histórico de 2048 procesos tardó 5963,541 segundos; se usa solo como
 observación de costo, sin reinterpretar su rechazo ni garantizar el tiempo futuro.
 El workflow nuevo de contratos tiene su límite independiente de 20 minutos y
-no invoca el sampler.
+no recoge muestras. Un contrato entra al worker con un manifiesto inválido y
+comprueba el sidecar de fallo antes de cargar un paquete DOM; no ejecuta workloads.
 
 ## Resumen e incertidumbre
 
@@ -91,6 +92,29 @@ La futura aceptación requiere además autenticar captura completa, método, pro
 paquete, salidas públicas, spans, seeds y recursos con el replay actual revisado.
 
 ## Contratos y límites de esta fase
+
+La calificación funcional del nuevo wrapper usa un plan separado y fijo:
+64 procesos, 32 por Node, con las ocho filas, ambos engines y ambos labels,
+únicamente fase AB y posición 0. Conserva los tres warmup spans, nueve duraciones,
+trazas de cleanup y observaciones separadas de 768 Window y 768 Document.
+Sus reportes declaran `functionalOnly=true`, `purpose=functional-qualification`,
+`performanceAccepted=null` y `gateReevaluated=false`. No se aplican presupuestos
+ni intervalos de aceptación a esas duraciones. No es la captura de 2048 procesos.
+El replay funcional usa lectores actuales y requiere los inputs físicos originales;
+todavía no es un replay integral transportable. No ejecuta código del archivo.
+Tras la revisión del lector, la identidad de la única calificación original queda
+fijada independientemente en `constants/functional-qualification.json`, contrastada
+contra los bytes físicos del productor y el index original. Permite leer esos
+datos con las correcciones de trazabilidad del lector sin editar las observaciones
+ni repetir procesos. Solo se admite ese grafo funcional conocido o el grafo actual;
+ninguno concede aceptación de rendimiento. El comando exacto y el commit de cada
+sidecar deben coincidir con el SDK, plan, derivación y captura declarados.
+Esa identidad fija también el index terminal íntegro, derivación y grafo434.
+El replay funcional de esta fase requiere aún el checkout productor Git8eb2f9b3
+con los lectores actuales superpuestos explícitamente y sus inputs físicos
+originales; no se declara que ese overlay sea un checkout limpio ni portable.
+`fixtures/functional-worker.json` conserva un proceso real de ese archivo para
+probar cambios de executable, worker, flags, commit y propósito sin ejecutar DOM.
 
 Los fixtures son sintéticos y no son capturas de rendimiento. Los contratos ejercen
 la matriz completa, incertidumbre entre procesos, medias sin overflow, presupuestos,

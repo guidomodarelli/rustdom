@@ -43,6 +43,7 @@ jobs:
           mkdir -p "$proof_directory"
           printf 'PROOF=%s\n' "$proof_directory" >> "$GITHUB_ENV"
           printf 'RUSTDOM_COMBINED_PACKAGE_ROOT=%s/combined-process-package/combined-range-packages\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'RUSTDOM_COMBINED_DERIVED_ROOT=%s/combined-process-derived\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
           python3 -B "$METHOD/tools/configure-checkout.py" "$GITHUB_WORKSPACE" > "$proof_directory/checkout.stdout.log" 2> "$proof_directory/checkout.stderr.log"
       - uses: actions/setup-node@v4
         with:
@@ -52,11 +53,16 @@ jobs:
         run: |
           node "$METHOD/tools/runtime.cjs" '${{ matrix.node }}' > "$PROOF/runtime.json"
           python3 -B reports/benchmarks/native-class-ownership/range-combined-packages/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/combined-process-package" > "$PROOF/extraction.stdout.log" 2> "$PROOF/extraction.stderr.log"
+      - name: Derivar el sampler actual sin ejecutarlo
+        timeout-minutes: 5
+        run: |
+          node "$METHOD/source.cjs" "$PROOF/source-manifest.json" > "$PROOF/source.stdout.log" 2> "$PROOF/source.stderr.log"
+          python3 -B "$METHOD/derive.py" "$GITHUB_WORKSPACE" "$PROOF/source-manifest.json" "$RUSTDOM_COMBINED_DERIVED_ROOT" > "$PROOF/derivation.stdout.log" 2> "$PROOF/derivation.stderr.log"
       - name: Probar criterios y preparación real sin muestrear
         timeout-minutes: 5
         run: |
           set +e
-          node --test "$METHOD/compare.spec.cjs" "$METHOD/preparation.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
+          node --test "$METHOD/compare.spec.cjs" "$METHOD/preparation.spec.cjs" "$METHOD/worker.spec.cjs" "$METHOD/results.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
           validation_status=$?
           printf '%s\n' "$validation_status" > "$PROOF/tests.exit-code"
           exit "$validation_status"
