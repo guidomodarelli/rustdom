@@ -1,5 +1,29 @@
 # Continuar rustdom en otra máquina
 
+## Variación entre pares y dentro de cada proceso AA — 2026-10-25
+
+El resultado completo se publicó en09b86d33; su CI lector40160504234/job121070864546
+sigue en cola según la última observación. No repetir captura40154725015.
+Exploración post hoc nueva en reports/benchmarks/native-class-ownership/
+range-aa-exploration/40154725015/:128pares,256procesos,192grupos de índice,
+768warmup/2304medidas completos. Cinco outputs idénticos Windows/Linux;
+8contratos por plataforma y Actionlint0. No DOM, profiling, replay ni mediciones
+nuevas. Los599pins, paquete fuente09b y48entradas ajenas se preservan.
+
+jsdom CPU/Node22: mediana agrupada+19.1964% y mediana de diferencias por par
++4.1625% (13de16positivos). Fórmulas distintas, no resultados intercambiables.
+jsdom JIT/Node22: mediana del cambio entre primeros/últimos tres spans medidos
++22.9116%, extremos−27.2139%/+99.6612%. Todas las cohortes/pares se publican.
+No inferir causa, estacionariedad, nueva aceptación ni reemplazar el estimador
+histórico; performanceAccepted=null/gateReevaluated=false. Runtime híbrido.
+
+Siguiente: verificar CI y publicar evidencia final de lectores; preparar el
+siguiente candidato funcional Rust y su calificación prospectiva con procesos,
+observaciones repetidas y warmup explícitos. No reutilizar estudios consumidos
+ni pedir autorización. B/StaticRange siguen sin calificación ni integración.
+Sin tag/merge mientras ownership siga rechazado. Objetivo general activo.
+
+
 ## Diagnóstico AA completo, preservado y reproducido — 2026-10-25
 
 Run40154725015/job121053535757/intento1 terminó success. Fuente d5ec4186;
