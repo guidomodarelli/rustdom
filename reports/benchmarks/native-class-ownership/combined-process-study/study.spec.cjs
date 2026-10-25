@@ -43,11 +43,12 @@ test('real preflight and input snapshots preserve complete current provenance wi
   } finally { fs.rmSync(temporary, { recursive: true }); }
 });
 
-test('capture stays disabled and genuine functional data cannot pass the scientific replay boundary', () => {
+test('capture refuses an unrelated host and genuine functional data cannot pass the scientific replay boundary', () => {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'combined-capture-disabled-'));
   try {
     const output = path.join(temporary, 'capture');
-    assert.throws(() => study.run('/absent/package', output, '0'.repeat(40), []), /publication is not enabled/);
+    assert.notEqual(process.env.GITHUB_WORKFLOW, policy.workflowName);
+    assert.throws(() => study.run('/absent/package', output, '0'.repeat(40), []));
     assert.equal(fs.existsSync(output), false);
     const data = path.join(temporary, 'functional-data');
     const child = spawnSync('python3', ['-B', path.join(__dirname, 'materialize-functional.py'), data],

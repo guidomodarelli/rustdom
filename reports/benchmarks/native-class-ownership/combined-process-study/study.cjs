@@ -20,6 +20,7 @@ const model = require('./model.cjs');
 const results = require('./results.cjs');
 const { compare } = require('./compare.cjs');
 const { hashFile } = require('./io.cjs');
+const { verifyPublication, verifyCaptureBinding, methodFilesDigest } = require('./publication.cjs');
 const repository = path.resolve(__dirname, '../../../..');
 const write = (filename, value) => fs.writeFileSync(filename, JSON.stringify(value, null, 2) + '\n');
 const hash = hashFile; const read = processes.read;
@@ -46,9 +47,7 @@ function sourceFiles() {
 /** @returns {object} Exact reviewed method declaration; no receipt is taken from the capture being verified. */
 function publication() {
   const receipt = read(path.join(repository, capture.publicationReceipt));
-  assert.equal(receipt.revision, policy.revision); assert.equal(receipt.actionableFindings, 0);
-  assert.deepEqual(receipt.files, sourceFiles(), 'Combined capture: method differs from the independent reviewed publication');
-  return receipt;
+  return verifyPublication(receipt, sourceFiles());
 }
 
 /** @param {string} directory - Real independently authenticated package. @returns {object} Actual source/package provenance without DOM or measurement. */
@@ -123,6 +122,10 @@ function verify(directory) {
   const publicationFile = path.join(root, capture.files.publication);
   assert.equal(hash(publicationFile), hash(path.join(repository, capture.publicationReceipt)));
   assert.equal(hash(publicationFile), index.publicationSha256); assert.deepEqual(read(publicationFile), reviewed);
+  const activation = read(path.join(root, capture.files.activation));
+  assert.deepEqual(activation, index.activationBinding);
+  verifyCaptureBinding(activation, { sourceCommit: index.sourceCommit, hosted: index.hosted,
+    publicationSha256: index.publicationSha256, methodFilesSha256: methodFilesDigest(reviewed.files) });
   for (const [name, expected] of Object.entries(reviewed.files)) assert.equal(hash(path.join(root, capture.files.method, name)), expected);
   const packageFile = path.join(root, capture.files.package);
   assert.equal(hash(packageFile), policy.packageArchiveSha256); assert.equal(fs.statSync(packageFile).size, archive.archive.bytes);
@@ -151,7 +154,7 @@ function verify(directory) {
   assert.deepEqual(read(path.join(root, capture.files.inventory)), inventory.snapshot(root));
   return { verified: true, payloadComplete: true, captureAuthenticated: false, revision: policy.revision,
     sourceCommit: index.sourceCommit, readerSourceCommit: harness.identity.sourceCommit,
-    hosted: index.hosted, processes: index.processes.length, measuredDurations: observed.measuredDurations,
+    hosted: index.hosted, activationBinding: activation, processes: index.processes.length, measuredDurations: observed.measuredDurations,
     warmupDurations: observed.warmupDurations, windows: observed.windows, documents: observed.documents,
     comparison, performanceAccepted: null, gateReevaluated: false };
 }
@@ -165,6 +168,11 @@ function run(directory, destination, sourceCommit, nodes) {
   assert.match(process.env.GITHUB_RUN_ID ?? '', /^[1-9][0-9]*$/);
   const reviewed = publication(); const checked = preflight(directory); const runtimes = runtimeIdentities(nodes);
   assert.equal(checked.sourceCommit, sourceCommit); assert.equal(checked.sourceChangesRaw, '', 'Combined capture: a clean actual producer checkout is required');
+  const hosted = { repository: process.env.GITHUB_REPOSITORY, workflow: process.env.GITHUB_WORKFLOW,
+    runId: process.env.GITHUB_RUN_ID, attempt: Number(process.env.GITHUB_RUN_ATTEMPT), jobKey: process.env.GITHUB_JOB };
+  const activationBinding = read(process.env.COMBINED_BINDING_FILE);
+  verifyCaptureBinding(activationBinding, { sourceCommit, hosted,
+    publicationSha256: hash(path.join(repository, capture.publicationReceipt)), methodFilesSha256: methodFilesDigest(reviewed.files) });
   destination = path.join(fs.realpathSync.native(path.dirname(path.resolve(destination))), path.basename(destination));
   for (const protectedPath of [checked.preparedDirectory, repository]) assert.ok(destination !== protectedPath &&
     !destination.startsWith(protectedPath + path.sep) && !protectedPath.startsWith(destination + path.sep));
@@ -173,8 +181,7 @@ function run(directory, destination, sourceCommit, nodes) {
     performanceAccepted: null, gateReevaluated: false, sourceCommit, sourceChangesRaw: checked.sourceChangesRaw,
     sourceFiles: reviewed.files, harness: checked.harness, manifest: checked.manifest, preparedDirectory: checked.preparedDirectory,
     captureDirectory: destination, runtimes, startedAt: new Date().toISOString(), processes: [],
-    hosted: { repository: process.env.GITHUB_REPOSITORY, workflow: process.env.GITHUB_WORKFLOW, runId: process.env.GITHUB_RUN_ID,
-      attempt: Number(process.env.GITHUB_RUN_ATTEMPT), jobKey: process.env.GITHUB_JOB },
+    hosted, activationBinding,
     machine: { cpus: os.cpus(), platform: os.platform(), release: os.release(), totalMemory: os.totalmem() },
     parentMemory: [] };
   const save = () => write(path.join(destination, capture.files.index), index);
@@ -186,6 +193,7 @@ function run(directory, destination, sourceCommit, nodes) {
     index.derivationSha256 = prepared.derivationSha256; save();
     const publicationFile = path.join(destination, capture.files.publication);
     fs.copyFileSync(path.join(repository, capture.publicationReceipt), publicationFile); index.publicationSha256 = hash(publicationFile);
+    fs.writeFileSync(path.join(destination, capture.files.activation), JSON.stringify(activationBinding, null, 2) + '\n', { flag: 'wx' });
     const unchanged = () => {
       assert.deepEqual(publication(), reviewed); assert.deepEqual(source.captureHarness(), checked.harness);
       assert.deepEqual(preparation.createManifest(checked.preparedDirectory), checked.manifest);

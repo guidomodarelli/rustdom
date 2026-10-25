@@ -39,7 +39,7 @@ test('keeps every original execution tuple and balances adjacent labels without 
   assert.deepEqual(original.plan(), before);
   assert.equal(critical.degreesOfFreedom, policy.pairsPerComparison - 1);
   assert.equal(critical.twoSidedCriticalValue, policy.criticalValue);
-  assert.equal(policy.executionReady, false);
+  assert.equal(policy.performanceAccepted, null); assert.equal(policy.gateReevaluated, false);
 });
 
 test('reduces all nine durations to one arithmetic process mean without overflow or input mutation', () => {

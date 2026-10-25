@@ -38,6 +38,22 @@ JSON sigue limitado a 16 MiB. Los descriptores se cierran incluso ante errores
 posteriores a abrir el archivo. Las pruebas de ciclos son finitas y no certifican
 ausencia universal de fugas ni memoria pico.
 
-Pendiente: cerrar el recibo revisado de activación y el vínculo de la decisión
-científica con el transporte de la ejecución nueva. `executionReady=false`.
-El éxito de estos contratos no habilita un merge de ownership.
+`--method-identity` seguido del repositorio publica el SHA del recibo y el digest
+UTF8 JSON de sus entradas ordenadas. Python y Node deben coincidir. El binding
+independiente conserva ambos valores; nunca los obtiene del archivo descargado.
+
+`activation.cjs` exige el workflow CI exacto aprobado sobre el mismo SHA,
+conserva las respuestas API y fija el run/job real antes de medir. El payload
+preserva su binding inmutable. El binding final agrega ID/tamaño/hash del artifact
+autenticado, conservando los campos originales.
+
+`decision.cjs` recibe binding JSON independiente, colección y destino nuevo.
+Extrae nuevamente desde los bytes autenticados, verifica el payload íntegro y su
+identidad, lee el log de progreso más resultado terminal y contrasta exit-code y
+conclusiones API. Conserva todo ante errores. No ejecuta código del archivo.
+La prueba positiva integral depende de la futura captura real de 2048 procesos;
+ni los 64 funcionales ni los fixtures sintéticos pueden reemplazarla.
+
+El método declarado queda habilitado con recibo y CI obligatorios; no se activa
+por ese flag ni acepta rendimiento mediante sus contratos. El éxito de estos
+contratos no habilita un merge de ownership.

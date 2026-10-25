@@ -1,5 +1,43 @@
 # Continuar rustdom en otra máquina
 
+## Método combinado completo habilitado para CI — 2026-10-25
+
+Base publicada3735c616. CI40182447893/intento1 aprobó2/2:29Node+14Python porSDK,
+artifacts12595051295/12595175736 ymetadata/logs íntegros autenticados en
+reports/validation/combined-process-study/40182447893/. No relanzarlo.
+
+activation.cjs vincula CI al workflow/SHA/intento yambos jobs exactos; conserva
+el run/job real ybinding del método antes de medir. No alcanza compartir nombres
+de check con otro workflow. El recibo independiente está en
+reports/validation/combined-process-capture-method/review.json:724fuentes,
+digest9f49b150cbeea0badc1c00b24ef3984cdaed93c0c3eb6657c15a630bd1cc7aab.
+CI materializa723dependencias más el recibo fuera del grafo, con Git real y599pins.
+
+El método local declara executionReady=true; esto no aplica la etiqueta ni acepta
+rendimiento. Antes de activarlo, publicar/revisar el SHA final ycomprobar ambos
+jobs del workflow combinado sobre ese mismo SHA. Una sola etiqueta
+ownership-combined-process-means-v1 yuna secuencia. No relanzar ni completar
+muestras tras fallo/rechazo. Autorización permanente vigente,sin otra pregunta.
+
+Job201=setup14+captura175+archivo4+upload3+margen5. El minuto adicional acota
+materialización ylecturas API del gate exacto; no cambia muestreo,filas,semillas,
+warmup,estimador ni presupuestos±2%/±5%. El paquete ya calificado no se reconstruye.
+
+decision.cjs solo evalúa una extracción nueva desde ZIP/TAR autenticados ybinding
+independiente, con método/payload completo,2048progresos+resultado final,exit y
+conclusiones API coherentes. No ejecuta código archivado. Nunca acepta a partir
+de fixtures ni de los64funcionales; la prueba científica positiva integral sigue
+pendiente de la captura real. El transporte aislado mantiene aceptaciónnull.
+
+QA local final:36Node+14Python porSDK oficial22.12.0/24.14.1,13comandos correctos,
+actionlint,datos funcionales e históricos originales. Un proceso de contrato por
+SDK entra al sampler con manifiesto inválido antes de cargar DOM; no recoge
+workloads ni muestras nuevas. QA64miembros ymetodología en reports/validation/
+combined-process-study/20261025-activation/; recursos en reports/memory/
+combined-process-study/20261025-activation/. Usar WSL Rustdom-Validation-20261025;
+el VHD anterior sigue conservado yno arranca. Sin tag/merge hasta aceptación
+íntegra, integración probada yrevisión. Runtime híbrido; migración general pendiente.
+
 ## Transporte real y recuperación de artefactos — 2026-10-25
 
 El CI publicado 40180085250/9b31d4cc terminó success 2/2 con 29 contratos por

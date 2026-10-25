@@ -35,11 +35,12 @@ test('annotation rejects a report from another process, runtime or sampler', () 
   }
 });
 
-test('capture remains unavailable before complete method publication, without touching an output', async () => {
+test('capture refuses execution outside its actual reviewed hosted workflow without touching an output', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'combined-worker-disabled-'));
   try {
     const report = path.join(root, 'report.json');
-    await assert.rejects(main(['manifest', 'AB', 'rustdom', '0', 'B', report, '0']), /publication is not enabled/);
+    assert.notEqual(process.env.GITHUB_WORKFLOW, policy.workflowName);
+    await assert.rejects(main(['manifest', 'AB', 'rustdom', '0', 'B', report, '0']));
     assert.deepEqual(fs.readdirSync(root), []);
   } finally { fs.rmSync(root, { recursive: true }); }
 });

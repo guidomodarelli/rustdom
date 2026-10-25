@@ -2,10 +2,12 @@
 
 Esta declaración prepara el estudio `ownership-combined-process-means-v1`.
 El núcleo numérico, manifiesto, capturador y lector de payload están implementados.
-La preparación y lectura portable se prueban sin nuevas mediciones. Todavía faltan
-la autenticación externa del transporte, revisión final y CI del método habilitado.
-`executionReady=false` impide presentar esta fase como estudio ejecutable o aceptado.
-La autorización permanente ya está concedida; el límite actual es técnico.
+La preparación, activación, transporte externo y decisión se verifican con lectores
+actuales y datos ya archivados, sin nuevas mediciones. `executionReady=true`
+permite ejecutar únicamente el workflow declarado: exige recibo independiente del
+método completo, revisión sin pendientes y ambos contratos aprobados sobre el
+mismo SHA en su workflow exacto. El flag no es aceptación ni activa una captura.
+La autorización permanente ya está concedida; no requiere otra confirmación.
 
 ## Candidato y referencias
 
@@ -41,10 +43,14 @@ No se añaden procesos o muestras tras ver resultados, ni se filtran outliers.
 
 Para la futura captura quedan declarados 180 segundos por worker y 175 minutos
 de captura. Antes de activar, se corrigió prospectivamente el límite global del
-job de 180 a 200 minutos: 13 para los pasos de setup acotados, 175 de captura,
+job de 180 a 200 minutos y luego a 201: 14 para los pasos de setup acotados, 175 de captura,
 4 de archivo, 3 de upload y 5 de margen. La revisión detectó que el primer límite
 podía cancelar la conservación de la única secuencia al agotar sus 175 minutos.
 No se recorta ese tiempo científico ni se amplían los presupuestos ±2%/±5%.
+El minuto adicional corresponde a materializar las dependencias revisadas y
+comprobar run/job del CI exacto mediante API antes de medir. Evita confundir
+checks con el mismo nombre provenientes de otros workflows. El checkout es
+acotado y conserva la identidad Git real; no descarga ni reconstruye otro paquete.
 Los workflows históricos y sus límites permanecen intactos. Una secuencia parcial,
 rechazada o con timeout se conserva íntegra y no autoriza repetirla.
 El run histórico de 2048 procesos tardó 5963,541 segundos; se usa solo como
@@ -154,8 +160,16 @@ La evidencia de memoria real del candidato sigue separada en
 `reports/memory/range-combined-packages/20261025-assembly/`; no demuestra memoria
 pico ni ausencia universal de fugas. El lector portable autentica bytes y conserva
 las rutas originales; jamás ejecuta scripts del archivo. La verificación de payload
-mantiene captureAuthenticated=false y performanceAccepted=null: falta vincularla
-al artifact, run, intento, SHA y digest externos con lectores probados.
+mantiene captureAuthenticated=false y performanceAccepted=null. La decisión
+externa extrae desde un ZIP/TAR autenticado hacia un destino nuevo, vincula el
+payload completo a run/job/intento/SHA, recibo y grafo revisados, comprueba las
+2048 líneas de progreso y resultado terminal, exit-code y conclusiones API.
+No acepta un árbol de extracción aportado sin verificarlo contra el archivo.
+Solo una captura completa con los 64 criterios y terminales coherentes establece
+performanceAccepted; los errores de lectura o infraestructura mantienen null.
+El transporte por sí solo nunca reevalúa el gate. Cada decisión conserva sus
+parciales, trazas y manifiesto completo; nunca ejecuta módulos archivados.
 La prueba positiva integral de 2048 procesos requiere la futura captura completa;
 64 procesos funcionales no pueden sustituirla. Sin integración, tag o merge de
-ownership antes de aceptar rendimiento. executionReady sigue siendo false.
+ownership antes de aceptar rendimiento. La etiqueta de este método se aplica
+una sola vez después de publicar y revisar el SHA habilitado y sus checks.

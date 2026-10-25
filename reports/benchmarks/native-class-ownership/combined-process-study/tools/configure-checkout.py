@@ -18,6 +18,8 @@ def configure(repository):
     policy = json.loads((Path(__file__).parent.parent / 'constants/ci-files.json').read_bytes())
     patterns = ['/' + re.sub(r'([\\*?\[\]])', r'\\\1', name) for name in policy['files']]
     patterns.append('/' + policy['methodDirectory'] + '/')
+    capture = json.loads((Path(__file__).parent.parent / 'constants/capture.json').read_bytes())
+    patterns.append('/' + capture['publicationReceipt'])
     result = subprocess.run(['git', 'sparse-checkout', 'set', '--no-cone', '--stdin'], cwd=repository,
                             input='\n'.join(patterns) + '\n', capture_output=True, text=True,
                             timeout=policy['checkoutTimeoutSeconds'])

@@ -48,12 +48,28 @@ def validate_binding(binding, pinned=False):
             assert type(binding[field]) is int and binding[field] > 0
 
 
-def current_binding(binding):
+def method_identity(repository):
+    """Expose the current independent reviewed declaration for an activation binding, never from downloaded data."""
+    receipt = repository / CAPTURE['publicationReceipt']
+    reviewed = json.loads(receipt.read_bytes())
+    assert reviewed['revision'] == PROTOCOL['revision'] and reviewed['actionableFindings'] == 0
+    assert reviewed['completeMethodReview'] is True and reviewed['executionReady'] == PROTOCOL['executionReady']
+    canonical = json.dumps(sorted(reviewed['files'].items()), ensure_ascii=False, separators=(',', ':')).encode()
+    checksum = hashlib.sha256(canonical).hexdigest()
+    assert checksum == reviewed['methodFilesSha256']
+    return {'revision': PROTOCOL['revision'], 'publicationSha256': digest(receipt), 'methodFilesSha256': checksum,
+            'performanceAccepted': None, 'gateReevaluated': False}
+
+
+def current_binding(binding, repository=METHOD.parents[3]):
     """Fixed public CLI scope: historical profiles are usable only as transport contracts, never as this study."""
     validate_binding(binding)
     assert binding['revision'] == PROTOCOL['revision'] and binding['workflow'] == CAPTURE['workflow']
     assert binding['tarName'] == POLICY['tarName'] and binding['rootName'] == POLICY['rootName']
     assert binding['artifactName'] == POLICY['artifactPrefix'] + binding['head'] + '-attempt1'
+    identity = method_identity(repository)
+    assert identity['publicationSha256'] == binding['publicationSha256']
+    assert identity['methodFilesSha256'] == binding['methodFilesSha256']
     return binding
 
 
@@ -244,9 +260,12 @@ def extract(repository, collection, destination, binding):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == POLICY['methodIdentityOperation']:
+        print(json.dumps(method_identity(Path(sys.argv[2]).resolve(strict=True))))
+        sys.exit(0)
     assert len(sys.argv) in [5, 6], 'Provide operation, repository, binding JSON, collection and optional extraction destination'
     operation, repository, binding_file, collection = sys.argv[1:5]
-    repository = Path(repository).resolve(strict=True); binding = current_binding(json.loads(Path(binding_file).read_bytes()))
+    repository = Path(repository).resolve(strict=True); binding = current_binding(json.loads(Path(binding_file).read_bytes()), repository)
     if operation == '--observe': result = collect(repository, Path(collection), binding)
     elif operation == '--collect': result = collect(repository, Path(collection), binding, True)
     elif operation == '--verify': result = verify_collection(repository, Path(collection), binding)
