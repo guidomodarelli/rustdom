@@ -1,5 +1,42 @@
 # Continuar rustdom en otra máquina
 
+## Transporte real y recuperación de artefactos — 2026-10-25
+
+El CI publicado 40180085250/9b31d4cc terminó success 2/2 con 29 contratos por
+Node 22.12.0/24.14.1. Artifacts 12594475706 y 12594066429, metadata, ZIPs y logs
+íntegros autenticados en reports/validation/combined-process-study/40180085250/.
+No relanzarlo. El transporte actual está en combined-process-study/transport.py;
+TRANSPORT.md documenta sus límites y operaciones. Siempre conserva
+performanceAccepted=null/gateReevaluated=false. El histórico 40137458635 sigue
+rechazado; sus bytes solo ejercen los contratos de lectura, sin ejecutar DOM ni
+código archivado. La revisión local detectó recuperación incompleta del TAR:
+se preserva el TAR truncado y se permite reconstruirlo desde su ZIP autenticado.
+
+La validación final aprobó 29 contratos Node y 14 de transporte por cada SDK,
+13 comandos locales, catálogo de 714 dependencias y actionlint. Extracción
+exacta: 19.214 miembros, 16.203 archivos, seis enlaces y 1.404.005.115 bytes
+regulares; identidad y conclusión históricas intactas. QA y fallos previos:
+reports/validation/combined-process-study/20261025-transport/ (ZIP de 123 miembros).
+Recursos en reports/memory/combined-process-study/20261025-transport/: 32 fallos
+de autenticación binaria por SDK, cuatro descriptores antes y después. No es
+memoria pico, nueva medición DOM ni certificación de ausencia universal de fugas.
+
+Incidente local: Ubuntu-22.04 sufrió errores de E/S y remontó su disco en solo
+lectura durante una extracción de prueba. El reinicio no recuperó el arranque.
+El VHD anterior queda conservado; no se ejecutó reparación destructiva. Las
+pruebas continúan en WSL aislado Rustdom-Validation-20261025, imagen oficial
+Ubuntu Jammy SHA256 1483cc5c1dce13064f774834cbffdff226559fd522a67a381a8ea77d63fb4109.
+Las rutas Linux antiguas de pruebas locales pertenecen a la distribución anterior;
+no asumir que son accesibles ni sustituir identidades Git. El nuevo checkout
+Git real usa HEAD 9b31d4cc con overlay WIP explícito y los SDK oficiales fijados.
+
+Próximo paso: verificar el CI del nuevo SHA, cerrar contratos/recibo de activación
+y la decisión científica ligada al transporte, revisar el método completo y
+habilitar una secuencia nueva bajo la autorización permanente. Sigue
+executionReady=false; no se activó otra captura. Mantener los 599 pins, grafo434,
+48 entradas ajenas y watch compartido. Sin tag/merge de ownership antes de
+aceptación íntegra. Objetivo general activo, híbrido y sin porcentaje defendible.
+
 ## Capturador preparado y lectura portable — 2026-10-25
 
 Base publicada: d1494117. Su CI 40176086547/intento1 terminó success 2/2,

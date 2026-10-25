@@ -13,6 +13,7 @@ const capture = require('./constants/capture.json');
 const policy = require('./constants/protocol.json');
 const results = require('./results.cjs');
 const qualified = require('./constants/functional-qualification.json');
+const { hashFile } = require('./io.cjs');
 
 test('real preflight and input snapshots preserve complete current provenance without invoking workers', () => {
   const packageRoot = process.env.RUSTDOM_COMBINED_PACKAGE_ROOT;
@@ -28,7 +29,7 @@ test('real preflight and input snapshots preserve complete current provenance wi
     const receipt = processes.read(path.join(prepared.derived, 'preparation.json'));
     assert.equal(receipt.sourceCommit, checked.sourceCommit); assert.equal(receipt.sourceChangesRaw, checked.sourceChangesRaw);
     assert.deepEqual(processes.read(path.join(temporary, capture.files.manifest)), checked.manifest);
-    for (const [name, checksum] of Object.entries(checked.files)) assert.equal(processes.hash(path.join(temporary, capture.files.method, name)), checksum);
+    for (const [name, checksum] of Object.entries(checked.files)) assert.equal(hashFile(path.join(temporary, capture.files.method, name)), checksum);
     assert.equal(processes.hash(path.join(temporary, capture.files.package)), policy.packageArchiveSha256);
     const before = inventory.snapshot(temporary);
     assert.throws(() => study.snapshotInputs(checked, temporary), /preserve existing evidence/);
@@ -72,6 +73,8 @@ test('physical inventory includes empty directories, rejects aliases, and bounds
     fs.truncateSync(oversized, capture.maximumExecutableBytes + 1);
     const descriptorsBefore = fs.readdirSync('/proc/self/fd').length;
     for (let index = 0; index < 32; index++) assert.throws(() => study.hashExecutable(oversized), /binary reader bound/);
+    assert.equal(fs.readdirSync('/proc/self/fd').length, descriptorsBefore);
+    for (let index = 0; index < 32; index++) assert.throws(() => hashFile('/proc/sys/kernel/ostype'));
     assert.equal(fs.readdirSync('/proc/self/fd').length, descriptorsBefore);
   } finally { fs.rmSync(temporary, { recursive: true }); }
 });

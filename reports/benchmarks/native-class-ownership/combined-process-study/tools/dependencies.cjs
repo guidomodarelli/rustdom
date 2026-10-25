@@ -3,7 +3,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createHash } = require('node:crypto');
 require('../model.cjs'); require('../compare.cjs'); require('../preparation.cjs');
 require('../../range-collapse-study/model.cjs');
 const repository = path.resolve(__dirname, '../../../../..');
@@ -11,7 +10,8 @@ const methodDirectory = path.relative(repository, path.resolve(__dirname, '..'))
 const packageDirectory = 'reports/benchmarks/native-class-ownership/range-combined-packages';
 const frozenReceipt = 'reports/validation/native-class-ownership/range-control-telemetry-method/review.json';
 const receipt = JSON.parse(fs.readFileSync(path.join(repository, frozenReceipt), 'utf8'));
-const sha = (name) => createHash('sha256').update(fs.readFileSync(path.join(repository, name))).digest('hex');
+const { hashFile } = require('../io.cjs');
+const sha = (name) => hashFile(path.join(repository, name));
 assert.equal(sha(frozenReceipt), 'bdab7f4639f99054c93b1f4f962f233a9e5feb98db6ea6c708de4da87e5be9fb');
 assert.equal(Object.keys(receipt.files).length, 599);
 for (const [name, expected] of Object.entries(receipt.files)) assert.equal(sha(name), expected, name);
@@ -42,6 +42,11 @@ names.add(require('../constants/protocol.json').derivation.canonicalManifest);
 const portable = require('../constants/portable.json');
 names.add(portable.qualificationArchive.path); names.add(portable.qualificationManifest.path);
 names.add(require('../constants/capture.json').workflow);
+for (const name of Object.keys(require('../constants/transport-reference.json').files)) names.add(name);
+for (const role of ['reader', 'extractor']) {
+  const descriptor = require('../constants/transport.json')[role]; names.add(descriptor.path);
+  for (const dependency of descriptor.dependencies || []) names.add(dependency.path);
+}
 const policy = { methodDirectory, checkoutTimeoutSeconds: 300, historicalPins: 599,
   contractScope: 'numerical-and-read-only-real-package-preparation', samplerInvoked: false,
   files: Object.fromEntries([...names].sort().map((name) => [name, sha(name)])) };

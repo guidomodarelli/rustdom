@@ -68,6 +68,14 @@ jobs:
           validation_status=$?
           printf '%s\n' "$validation_status" > "$PROOF/tests.exit-code"
           exit "$validation_status"
+      - name: Probar transporte y extracción históricos sin ejecutar código archivado
+        timeout-minutes: 5
+        run: |
+          set +e
+          python3 -B "$METHOD/transport.spec.py" > "$PROOF/transport.stdout.log" 2> "$PROOF/transport.stderr.log"
+          validation_status=$?
+          printf '%s\n' "$validation_status" > "$PROOF/transport.exit-code"
+          exit "$validation_status"
       - uses: actions/upload-artifact@v4
         if: always()
         timeout-minutes: 3

@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { hash } = require('./processes.cjs');
+const { hashFile: hash } = require('./io.cjs');
 const capture = require('./constants/capture.json');
 
 /** @param {string} directory - Current data extraction or fresh capture directory. @returns {object} Full physical inventory except the two explicitly self-referential metadata files. */

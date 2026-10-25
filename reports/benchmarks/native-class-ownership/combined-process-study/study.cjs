@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { createHash } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { execute } = require('../jsdom-telemetry/run.cjs');
 const { runtimeIdentities } = require('../shared-fixture-study/study.cjs');
@@ -20,21 +19,14 @@ const inventory = require('./inventory.cjs');
 const model = require('./model.cjs');
 const results = require('./results.cjs');
 const { compare } = require('./compare.cjs');
+const { hashFile } = require('./io.cjs');
 const repository = path.resolve(__dirname, '../../../..');
 const write = (filename, value) => fs.writeFileSync(filename, JSON.stringify(value, null, 2) + '\n');
-const hash = processes.hash; const read = processes.read;
+const hash = hashFile; const read = processes.read;
 
 /** @param {string} filename - Current official Node executable, never an archived path. @returns {string} SHA256 computed with a bounded reusable buffer, independently of JSON member limits. */
 function hashExecutable(filename) {
-  const descriptor = fs.openSync(filename, 'r');
-  try {
-    const status = fs.fstatSync(descriptor);
-    assert.ok(status.isFile() && status.size <= capture.maximumExecutableBytes, 'Combined capture: executable exceeds the declared binary reader bound');
-    const digest = createHash('sha256'); const buffer = Buffer.allocUnsafe(capture.hashChunkBytes);
-    let length;
-    while ((length = fs.readSync(descriptor, buffer, 0, buffer.length, null)) !== 0) digest.update(buffer.subarray(0, length));
-    return digest.digest('hex');
-  } finally { fs.closeSync(descriptor); }
+  return hashFile(filename, capture.maximumExecutableBytes, false, 'binary');
 }
 
 /** @returns {object} Independently regenerated current dependency graph plus its nonrecursive catalog bytes. */
