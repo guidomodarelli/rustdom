@@ -1,0 +1,33 @@
+"""Verify every current compiler/runtime input after environment recovery, permitting only the three intended candidate changes."""
+import sys
+if sys.flags.optimize: raise RuntimeError('Candidate source audit requires non-optimized checks')
+import hashlib
+import json
+from pathlib import Path
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/dev/shm/rustdom-range-initialization-candidate-v1/source')
+binding = repository / 'reports/benchmarks/native-class-ownership/owner-batch-packages/constants/source.json'
+assert hashlib.sha256(binding.read_bytes()).hexdigest() == '75b8f606bc9d598c8f82026d5d4453c0116160c09c17704d7baa95e8bf98d7c6'
+roots = json.loads(binding.read_bytes())['sourceRoots']
+def inputs(directory):
+    result = {}
+    for relative in roots:
+        root = directory / relative
+        assert not root.is_symlink()
+        files = root.rglob('*') if root.is_dir() else [root]
+        for filename in sorted(files):
+            assert not filename.is_symlink()
+            if filename.is_file():
+                name = filename.relative_to(directory).as_posix()
+                assert name not in result
+                result[name] = hashlib.sha256(filename.read_bytes()).hexdigest()
+    return result
+production = inputs(repository); candidate = inputs(source)
+assert len(production) == len(candidate) == 344 and production.keys() == candidate.keys()
+changed = {name: {'production': production[name], 'candidate': candidate[name]} for name in production if production[name] != candidate[name]}
+assert set(changed) == {'src/dom/range_state_binding.rs', 'src/dom/native-tree.cjs', 'types/native.d.cts'}
+receipt = {'productionInputs': production, 'candidateInputs': candidate, 'changes': changed,
+    'unintendedChanges': [], 'runtimeIntegrated': False, 'benchmarkExecuted': False, 'performanceAccepted': None}
+with (source.parent / 'inputs-after-recovery.json').open('x') as stream: json.dump(receipt, stream, indent=2); stream.write('\n')
+print(json.dumps({'verifiedCompilerInputsPerSource': len(production), 'intendedChanges': list(changed), 'unintendedChanges': []}))

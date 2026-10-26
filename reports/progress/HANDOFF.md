@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Candidato numérico probado; ownership todavía rechazado — 2026-10-26 UTC
+
+En `dc0b2df4` solo fallan los dos checks ownership. El CI general y los demás
+checks del PR pasan. No es un timeout: la evidencia histórica no acepta
+rendimiento. No saltar ese gate ni crear tag/merge con rechazo.
+
+Se preparó **native-range-initialization-candidate-v1**, sin integrar en el runtime.
+Patch, contratos y alcance en `reports/implementation/range-initialization-candidate/`.
+Solo modifica tres inputs de 344: creación numérica de ambos extremos en una
+llamada explícita al addon; `document.createRange()` por defecto sigue igual.
+No contiene el antiguo candidato StaticRange rechazado. El ELF nuevo es
+`e313770b9a16edba40757b62b2384ce8b39afb26f4848b2b1feba637a73513d6`.
+
+Pasaron los 26 comandos de calificación Linux, incluidos 311 tests Rust, Clippy,
+compatibilidad, Jest/Vitest/VM, corpus, WPT, consumidor TS ejecutado y memoria
+en Node 22.12.0/24.14.1. WPT conserva `complete=false`, exclusiones y fallos
+compartidos: no significa conformidad completa. Ambos SDK liberaron los 4814
+NativeRange observados; no prueba ausencia universal de fugas ni pico de memoria.
+Evidencia en `reports/validation/range-initialization-candidate/local-linux/` y
+`reports/memory/range-initialization-candidate/local-linux/`.
+
+Fuente Linux propia: `/dev/shm/rustdom-range-initialization-candidate-v1/source`,
+distro `Rustdom-Validation-20261025`, HEAD f781c3b7 más cambios reales. La build
+terminó; no repetirla sin motivo. El runtime de producción y los pins históricos
+permanecen intactos. No hay medición de rendimiento nueva de este candidato.
+
+La revisión estadística del estudio completo aclara que los 32 puntos jsdom
+están dentro de ±2%; los 19 controles rechazados no demostraron equivalencia
+por sus intervalos amplios. No son 19 diferencias reales demostradas. Con el
+costo anterior, aumentar pares en solo dos jobs de 170 minutos no alcanza.
+Siguiente: revisar precisión/estimando y costo de autenticación fuera del timer
+para un método nuevo prospectivo, con candidato distinto y límites explícitos.
+No repetir ni combinar muestras de los históricos ni pedir nuevos permisos:
+la autorización permanente sigue vigente.
+
+Incidente local resuelto antes de la build: disco C lleno causó SIGBUS en npm;
+se recuperaron duplicados ya publicados, preservando payloads y metadatos.
+El journal normal de WSL recuperó el filesystem y el chequeo posterior de solo
+lectura terminó en 0. No hubo reparación manual. Usar RUSTUP_HOME/RUSTFMT del
+SDK local del proyecto; el rustup de root no es la toolchain validada.
+
 ## Estudio completo rechazado y evidencia preservada — 2026-10-26 UTC
 
 `ownership-owner-batch-serial-v1`, run **40234774968**, intento 1, método

@@ -1,0 +1,79 @@
+"""Build and behaviorally qualify a distinct native factory candidate, preserving all command outcomes."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Range initialization build requires non-optimized source verification')
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-range-initialization-candidate-v1')
+source = root / 'source'
+proof = root / 'proof-local-toolchain'
+assert not proof.exists(); proof.mkdir()
+tools = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+toolchain = tools / 'rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin'
+node = tools / 'node/bin/node'
+environment = dict(os.environ, PATH=str(node.parent) + os.pathsep + str(toolchain) + os.pathsep + os.environ['PATH'],
+    CARGO_HOME=str(tools / 'cargo'), RUSTUP_HOME=str(tools / 'rustup'), CARGO_TARGET_DIR=str(root / 'target'), CARGO_INCREMENTAL='0',
+    RUSTC=str(toolchain / 'rustc'), RUSTDOC=str(toolchain / 'rustdoc'), RUSTFMT=str(toolchain / 'rustfmt'), RUSTUP_TOOLCHAIN='1.99.1', CARGO_BUILD_JOBS='2',
+    npm_config_cache=str(root / 'npm-cache'), TMPDIR=str(root), RUSTDOM_RANGE_INITIALIZATION_SOURCE=str(source))
+assert hashlib.sha256(node.read_bytes()).hexdigest() == 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a'
+assert subprocess.check_output([node, '--version'], text=True).strip() == 'v24.14.1'
+version = subprocess.check_output([toolchain / 'rustc', '--version'], text=True).strip()
+assert version.startswith('rustc 1.99.1 '), version
+filename = source / 'types/native.d.cts'
+text = filename.read_text()
+needle = '  static fromEndpoints(startNode: number, startOffset: number, endNode: number, endOffset: number): NativeRange;'
+assert text.count(needle) == 1
+assert (source / 'tests/range-initialization-candidate.spec.cjs').read_bytes() == (repository / 'reports/implementation/range-initialization-candidate/public.spec.cjs').read_bytes()
+assert (source / 'tests/consumers/range-initialization.cts').read_bytes() == (repository / 'reports/implementation/range-initialization-candidate/consumer.cts').read_bytes()
+command_file = repository / 'reports/implementation/range-combined-candidate/tools/command.py'
+command_bytes = command_file.read_bytes()
+command_sha256 = hashlib.sha256(command_bytes).hexdigest()
+commands = {'__file__': str(command_file), '__name__': 'range_candidate_current_command'}
+exec(compile(command_bytes, str(command_file), 'exec'), commands)
+receipt = {'revision': 'native-range-initialization-candidate-v1', 'rustVersion': version,
+    'commandReaderSha256': command_sha256, 'commands': [],
+    'qualified': False, 'runtimeIntegrated': False, 'benchmarkExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+def run(label, argv):
+    result = commands['run_command'](label, list(map(str, argv)), source, environment, proof, 1800, 30)
+    receipt['commands'].append(result)
+    (proof / 'build.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps({'label': label, 'exitCode': result['exitCode'], 'seconds': result['seconds']}), flush=True)
+    if result['exitCode'] != 0 or result['timedOut']:
+        raise RuntimeError('Range initialization candidate failed in ' + label)
+run('format-check', [toolchain / 'cargo', 'fmt', '--check'])
+run('npm-ci', [node, tools / 'node/lib/node_modules/npm/bin/npm-cli.js', 'ci', '--no-audit', '--no-fund'])
+run('rust-tests', [toolchain / 'cargo', 'test', '--release', '--locked', '--offline', '--lib'])
+run('native-build', [node, 'scripts/build-native.mjs'])
+run('js-build', [node, 'scripts/build.mjs'])
+run('clippy', [toolchain / 'cargo', 'clippy', '--all-targets', '--release', '--locked', '--offline', '--', '-D', 'warnings'])
+for major, directory, version, checksum in [
+    ('22', 'node-22', 'v22.12.0', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24', 'node', 'v24.14.1', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a'),
+]:
+    selected = tools / directory / 'bin/node'
+    assert hashlib.sha256(selected.read_bytes()).hexdigest() == checksum
+    assert subprocess.check_output([selected, '--version'], text=True).strip() == version
+    environment['PATH'] = str(selected.parent) + os.pathsep + str(toolchain) + os.pathsep + os.environ['PATH']
+    run('native-factory-node' + major, [selected, '--expose-gc', '--test', '--test-concurrency=1',
+        'tests/range-initialization-candidate.spec.cjs'])
+    output = source / '.cache' / ('range-initialization-consumers-node' + major)
+    run('types-node' + major, [selected, source / 'node_modules/typescript/bin/tsc', '--strict', '--module', 'NodeNext',
+        '--target', 'ES2022', '--esModuleInterop', '--skipLibCheck', 'false', '--types', 'node', '--rootDir', source,
+        '--outDir', output, 'tests/consumers/range-initialization.cts'])
+    run('consumer-node' + major, [selected, output / 'tests/consumers/range-initialization.cjs'])
+    for suite in ['test:compat', 'test:jest', 'test:vitest', 'test:vm', 'test:corpus', 'test:wpt']:
+        run(suite.replace(':', '-') + '-node' + major,
+            [selected, selected.parent / '../lib/node_modules/npm/bin/npm-cli.js', 'run', suite])
+    run('range-memory-node' + major, [selected, '--expose-gc', 'tests/helpers/range-state-memory.cjs'])
+receipt.update(buildComplete=True, nativeBinarySha256=hashlib.sha256((source / 'dist/rustdom.node').read_bytes()).hexdigest(),
+    qualified=True,
+    sourceCommit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip(),
+    sourceChangesRaw=subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=source, text=True))
+(proof / 'build.json').write_text(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps({'buildComplete': True, 'nativeBinarySha256': receipt['nativeBinarySha256'], 'performanceAccepted': None}), flush=True)

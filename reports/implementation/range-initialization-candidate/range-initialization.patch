@@ -1,0 +1,62 @@
+diff --git a/src/dom/native-tree.cjs b/src/dom/native-tree.cjs
+index da7cc979f2048c06aeb39411f32bf9ffd2b0cb3b..6c2b14ce1c44ba624980f34b9fd88ae50d2629c5 100644
+--- a/src/dom/native-tree.cjs
++++ b/src/dom/native-tree.cjs
+@@ -201,11 +201,15 @@ class NativeSymbolTree extends SymbolTree {
+       return;
+     }
+     const { start, end } = data;
+-    range._nativeRange = new NativeRange();
++    range._nativeRange = start && end
++      ? NativeRange.fromEndpoints(this._ensure(start.node), start.offset, this._ensure(end.node), end.offset)
++      : new NativeRange();
+     range._rangeStartNode = start?.node;
+     range._rangeEndNode = end?.node;
+-    if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+-    if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
++    if (!start || !end) {
++      if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
++      if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
++    }
+   }
+   /** @param {object} range - Source Range implementation. @returns {object} Independent numeric state with GC-visible endpoint identities. */
+   cloneRangeData(range) {
+diff --git a/src/dom/range_state_binding.rs b/src/dom/range_state_binding.rs
+index 5da5e0c98bc80d80e2c37bcb9ea13ae4a72003a5..577c61844d3184b71455b7a8982041f1a9a37893 100644
+--- a/src/dom/range_state_binding.rs
++++ b/src/dom/range_state_binding.rs
+@@ -143,6 +143,21 @@ impl NativeRange {
+     pub fn new() -> Self {
+         Self::with_state(RangeState::default())
+     }
++    /// Construct both validated numeric endpoints before exposing a V8-owned state.
++    #[napi]
++    pub fn from_endpoints(
++        start_node: f64,
++        start_offset: f64,
++        end_node: f64,
++        end_offset: f64,
++    ) -> Result<Self> {
++        let mut state = RangeState::default();
++        state
++            .set_start(start_node, start_offset)
++            .map_err(to_napi_error)?;
++        state.set_end(end_node, end_offset).map_err(to_napi_error)?;
++        Ok(Self::with_state(state))
++    }
+     #[napi]
+     pub fn copy(&self) -> Self {
+         Self::with_state(self.state.clone())
+diff --git a/types/native.d.cts b/types/native.d.cts
+index 758e2cd406e428a8d79e1722e306b0a92abd26bb..db3654d9238699a98b4eb1e009488e01aded882b 100644
+--- a/types/native.d.cts
++++ b/types/native.d.cts
+@@ -363,6 +363,8 @@ export interface RangeInsertionPlan { startNode: number; startOffset: number; pa
+ export class NativeRange {
+   constructor();
+   static statistics(): NativeRangeStatistics;
++  /** Validate both endpoint identities before allocating a native state. */
++  static fromEndpoints(startNode: number, startOffset: number, endNode: number, endOffset: number): NativeRange;
+   readonly start: NativeBoundaryPoint | null;
+   readonly end: NativeBoundaryPoint | null;
+   readonly startOffset: number;
