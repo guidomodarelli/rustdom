@@ -1,0 +1,68 @@
+name: Calendario prospectivo de bloques jsdom
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/jsdom-block-pilot-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jsdom-block-pilot-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Calendario y medias Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      PILOT: reports/benchmarks/native-class-ownership/control-precision/pilot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/benchmarks/native-class-ownership/control-precision/pilot/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materializar las dependencias de calendario sin ejecutar DOM
+        run: |
+          mkdir -p "$RUNNER_TEMP/pilot-blocks-qa"
+          python -B "$TOOLS/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/pilot-blocks-qa/checkout.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/checkout.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Probar calendario y agregación con escalares sintéticos
+        run: node --test "$PILOT/blocks.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
+      - name: Guardar el calendario completo sin activar captura
+        run: node "$PILOT/plan.cjs" "$RUNNER_TEMP/pilot-blocks-qa/calendar.json" > "$RUNNER_TEMP/pilot-blocks-qa/plan.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/plan.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jsdom-block-calendar-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/pilot-blocks-qa/
+          if-no-files-found: error
+          retention-days: 90

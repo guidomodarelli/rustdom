@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Calendario del piloto jsdom implementado, sin captura — 2026-10-26 UTC
+
+El cierre del índice/paquete con CI 2/2 está publicado en **90d80b0e**; PR y
+watch reflejan el run40281778101 aprobado sobre ff07406d. El gate ownership
+sigue rechazado por rendimiento. No tag/merge ni captura científica nueva.
+
+Preparación nueva en `control-precision/pilot/`: calendario de 32 criterios
+jsdom, 16 bloques completos de 16 factores por criterio, 16384 procesos
+propuestos. Rotación Latin-square que preserva semilla, asignación y lead A/B
+del factor original. `summarize` conserva bloques completos y razón de medias,
+covarianza y contrastes fijos; rechaza parciales/duplicados/orden/hosts múltiples.
+Los escalares deben estar autenticados por el futuro lector; esta función no
+autentica datos ni calcula intervalos, independencia o aceptación.
+
+Se elige r16 como propuesta del piloto por incertidumbre puntual de SD y costo,
+según README y borrador. No dimensiona RustAB ni prueba variación entre hosts.
+Los límites 170/200 son propuesta sin capturador implementado.
+
+Pasaron seis contratos reales de calendario/agregación/CLI en cada combinación
+Windows/Linux × Node22.12.0/24.14.1 (24 contratos). Los cuatro calendarios son
+idénticos por SHA6e6c0daf; actionlint aprobó el workflow funcional nuevo. Logs,
+calendarios íntegros gzip y QA en `reports/validation/jsdom-block-pilot/20261026/`.
+No se ejecutó DOM: los datos de prueba son sintéticos y no son benchmarks.
+
+Siguiente: calificar CI funcional de esta preparación y completar intervalos,
+lectura integral autenticada de tareas/recursos, límites, transporte y revisión
+prospectiva antes de activar un único piloto. executionReady=false; no usar
+activadores históricos ni repetir capturas consumidas. Migración general activa,
+runtime híbrido. Se preservan las 48 entradas ajenas del otro worktree.
+
 ## Paquete e índice confirmados en CI: ff07406d — 2026-10-26 UTC
 
 Run **40281778101**, intento 1, head **ff07406d**, terminó **2/2 aprobado**.

@@ -1,0 +1,54 @@
+import gzip
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+primary = Path(r'C:\Users\guido\ghq\projects\rustdom')
+output = repository / 'reports/validation/jsdom-block-pilot/20261026/final'
+output.mkdir(parents=True, exist_ok=False)
+test_path = 'reports/benchmarks/native-class-ownership/control-precision/pilot/blocks.spec.cjs'
+plan_path = 'reports/benchmarks/native-class-ownership/control-precision/pilot/plan.cjs'
+
+def mounted(path):
+    return '/mnt/' + path.drive[0].lower() + path.as_posix()[2:]
+
+versions = [
+    ('22.12.0', 'win32', primary / '.tools/node-win/node-v22.12.0-win-x64/node.exe', 'b3b117a08ee61efee09e6fd523ab33c0c018da1b570bde08e4fd914dc1170ed6'),
+    ('24.14.1', 'win32', primary / '.tools/node-win/node-v24.14.1-win-x64/node.exe', '58e74bf02fc5bbacc41dcb8bef089961cd5bddd37830b87784e4fc624d145d1f'),
+    ('22.12.0', 'linux', primary / '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', 'linux', primary / '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]
+results = []; calendar_hashes = set()
+for version, platform, executable, expected in versions:
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    prefix = [str(executable)] if platform == 'win32' else ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--', mounted(executable)]
+    assert subprocess.check_output([*prefix, '--version']).decode().strip() == 'v' + version
+    result = subprocess.run([*prefix, '--test', test_path], cwd=repository, capture_output=True, timeout=60)
+    label = f'node-{version}-{platform}'
+    (output / (label + '.stdout.log')).write_bytes(result.stdout)
+    (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    results.append({'node': 'v' + version, 'platform': platform, 'executableSha256': expected, 'exitCode': result.returncode})
+    assert result.returncode == 0, label
+    calendar = output / (label + '-calendar.json')
+    generation = subprocess.run([*prefix, plan_path, str(calendar) if platform == 'win32' else mounted(calendar)], cwd=repository, capture_output=True, timeout=60)
+    (output / (label + '-plan.stdout.log')).write_bytes(generation.stdout)
+    (output / (label + '-plan.stderr.log')).write_bytes(generation.stderr)
+    assert generation.returncode == 0, label
+    raw = calendar.read_bytes(); calendar_hashes.add(hashlib.sha256(raw).hexdigest())
+    with (output / (label + '-calendar.json.gz')).open('xb') as stream:
+        stream.write(gzip.compress(raw, mtime=0))
+    # Only this helper's just-created own uncompressed file is removed after durable byte-identical compression.
+    assert gzip.decompress((output / (label + '-calendar.json.gz')).read_bytes()) == raw
+    calendar.unlink()
+assert len(calendar_hashes) == 1
+lint = subprocess.run(['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--',
+    mounted(primary / '.tools/actionlint/actionlint'), '.github/workflows/jsdom-block-pilot-contracts.yml'], capture_output=True, timeout=60)
+(output / 'actionlint.stdout.log').write_bytes(lint.stdout); (output / 'actionlint.stderr.log').write_bytes(lint.stderr)
+record = {'results': results, 'testsPerSdk': 6, 'calendarSha256': next(iter(calendar_hashes)), 'actionlintExitCode': lint.returncode,
+    'proposedProcesses': 16384, 'proposedBlocks': 512, 'proposedCriteria': 32,
+    'syntheticScalarContractsOnly': True, 'domExecuted': False, 'scientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False}
+(output / 'qa.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(record))
+assert lint.returncode == 0
