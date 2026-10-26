@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## CI funcional de Windows corregido: 18/18 aprobados — 2026-10-26 UTC
+
+Las tres matrices del fix **2a53f88c** terminaron aprobadas, intento1:
+combinado40268998980, numérico40268999071 yowners40268998982, seis jobs cada una.
+CIgeneral40268998988 también pasó. El gateownership40268999068 conserva el
+rechazo de rendimiento: **el PR todavía no está totalmente verde**. No tag/merge.
+
+Los18ZIP/API/logs/manifiestos autenticados y lectores mantenidos están en
+`reports/validation/node-windows-shutdown/hosted-2a53/`. Los216 endpoints de
+memoria, Window/Document separados, están en
+`reports/memory/node-windows-shutdown/hosted-2a53/`.
+Pasaron ocho contratos del lector Windows/Linux y nueve de transporte Linux;
+Windows pasó ocho y omitió crear symlinks por privilegios. La revisión corrigió
+guard-O, reuso de parciales, caché Python y publicación sin reemplazo; el
+colector actual se reprodujo offline sobre los18archives. Los786pins intactos.
+No se repitieron pruebas hospedadas ni estudios consumidos. El smoke Node puro
+pasó en los seis jobsWindows. Los detalles de exclusiones WPT y fuentes no
+archivadas permanecen explícitos; no afirmar compatibilidad total ni ausencia
+universal de fugas. El runtime de producción sigue híbrido.
+
+Se conserva también la planificación sintética revisada en
+`reports/benchmarks/native-class-ownership/control-precision/planner/`:
+44000 ensayos, todos los pares/intervalos y controles adversos; siete contratos
+por SDK22/24 y cinco del auditor Windows/Linux. No mide rustdom ni acepta
+rendimiento. El borrador de24576procesos **no está listo para ejecución**;
+falta un protocolo prospectivo de variación entre bloques y dimensionamiento
+defendible. La autorización permanente sigue vigente: falta trabajo técnico,
+no permiso del usuario. No repetir capturas históricas ni cambiar presupuestos.
+Preservar las48entradas ajenas del worktree native-collection-queries.
+
 ## Aborto de Node puro en Windows: actualizar SDK funcional — 2026-10-26 UTC
 
 Después de publicar6953f006 apareció otro fallo del head e6c4e6a9: run 40263224047,
