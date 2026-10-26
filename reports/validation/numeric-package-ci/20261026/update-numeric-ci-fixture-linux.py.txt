@@ -1,0 +1,29 @@
+"""Commit the one corrected test fixture into its real native Git repository, preserving the original failed attempt."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-numeric-ci-minimal-20261026')
+relative = 'reports/benchmarks/native-class-ownership/numeric-composed-packages/test_assemble.py'
+def git(*arguments):
+    return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=root)
+assert git('status', '--porcelain=v1') == b''
+before = git('rev-parse', 'HEAD').decode().strip()
+old = (root / relative).read_bytes()
+shutil.copyfile(repository / relative, root / relative)
+new = (root / relative).read_bytes()
+assert new != old
+git('add', '--', relative)
+git('-c', 'user.name=Native CI fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Use existing parent for protected-output regression')
+after = git('rev-parse', 'HEAD').decode().strip()
+assert git('status', '--porcelain=v1') == b''
+record = {'fixtureBefore': before, 'fixtureAfter': after, 'file': relative,
+    'oldSha256': hashlib.sha256(old).hexdigest(), 'newSha256': hashlib.sha256(new).hexdigest(),
+    'fixtureIsPublishedCommit': False, 'runtimeCodeChanged': False,
+    'reason': 'El checkout mínimo no tiene .cache; el contrato debe usar el parent existente del repositorio para ejercer la protección prevista.'}
+output = repository / 'reports/validation/numeric-package-ci/20261026/source-fixture-correction.json'
+output.write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps(record))

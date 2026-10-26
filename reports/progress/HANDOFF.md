@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Preparación CI del paquete numérico — 2026-10-26 UTC
+
+Se incorpora `numeric-composed-package-contracts.yml`, dos jobs: transporte y
+Git Windows/Linux, ejecución real Node 22.12.0/24.14.1 en Linux. `checkout.py`
+hidrata únicamente los 810 inputs autenticados con Git sparse real limpio,
+non-cone y autocrlf=false. No instala ni recompila ni activa mediciones.
+Siete contratos de Git por plataforma y actionlint pasaron.
+
+El flujo local completo pasó en un fixture Git Linux real mínimo: seis comandos,
+incluyendo cinco contratos de transporte, doce de ensamblado y seis ciclos de
+runtime por SDK, con doce endpoints finales claros. El SHA del fixture nunca se
+presenta como el SHA publicado del método. Evidencia y fallos previos completos en
+`reports/validation/numeric-package-ci/20261026/`; recursos en
+`reports/memory/numeric-package-ci/20261026/`.
+
+Se corrigieron diferencias CRLF/Git 2.34 y un contrato que asumía `.cache` en el
+checkout mínimo. Runtime, tar fb06276a, ELF a2777cbf y los 786 pins no cambiaron.
+Falta observar el nuevo workflow en GitHub sobre su commit publicado. No afirmar
+calificación hospedada hasta que sus dos jobs terminen aprobados. Después sigue
+fijar/revisar el protocolo de precisión; todavía no hay piloto activado ni
+rendimiento aceptado. No tag/merge de ownership. El objetivo general sigue activo,
+el runtime es híbrido y las 48 entradas ajenas siguen protegidas.
+
 ## Paquete numérico hospedado reconstruido y probado — 2026-10-26 UTC
 
 El siguiente candidato ya tiene paquete íntegro, sin recompilar ni instalar:

@@ -1,0 +1,44 @@
+"""Execute the proposed functional CI commands on the minimal native Git fixture, preserving partial logs and real status."""
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-numeric-ci-minimal-20261026')
+tools = root / 'reports/benchmarks/native-class-ownership/numeric-composed-packages'
+node22 = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node-22/bin/node')
+node24 = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node')
+package = Path('/dev/shm/rustdom-numeric-ci-job-package-fixed-20261026')
+output = repository / 'reports/validation/numeric-package-ci/20261026/local-job-fixed'
+assert not output.exists() and not package.exists()
+output.mkdir()
+archive = root / 'reports/validation/range-numeric-composed-package/20261026/packages.tar.xz'
+commands = [
+    ('checkout-contracts', ['python3', '-B', str(tools / 'test_checkout.py')]),
+    ('transport-contracts', ['python3', '-B', str(tools / 'test_transport.py')]),
+    ('extract', ['python3', '-B', str(tools / 'transport.py'), '--extract', str(archive), str(package)]),
+    ('assembly-contracts', ['python3', '-B', str(tools / 'test_assemble.py'), str(package), str(node22), str(node24)]),
+    ('node22', [str(node22), '--expose-gc', str(tools / 'smoke.cjs'), str(package)]),
+    ('node24', [str(node24), '--expose-gc', str(tools / 'smoke.cjs'), str(package)]),
+]
+environment = {**os.environ, 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.autocrlf', 'GIT_CONFIG_VALUE_0': 'false'}
+result = {'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commands': [],
+    'harnessFixtureIsPublishedCommit': False, 'newScientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False, 'complete': False}
+try:
+    for label, command in commands:
+        start = time.monotonic()
+        with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+            completed = subprocess.run(command, cwd=root, env=environment, stdout=stdout, stderr=stderr, timeout=600)
+        result['commands'].append({'label': label, 'argv': command, 'exitCode': completed.returncode, 'seconds': time.monotonic() - start})
+        print(json.dumps({'label': label, 'exitCode': completed.returncode}), flush=True)
+        assert completed.returncode == 0, label
+    result['complete'] = True
+finally:
+    result['finishedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    (output / 'outcomes.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps({'complete': result['complete'], 'commands': len(result['commands'])}))

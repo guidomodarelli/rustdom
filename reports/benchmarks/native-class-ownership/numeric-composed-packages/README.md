@@ -1,5 +1,12 @@
 # Paquete numérico hospedado, sin reconstruir
 
+La preparación automática se incorpora en
+`.github/workflows/numeric-composed-package-contracts.yml`: dos jobs, transporte
+en Windows/Linux y ejecución real con ambos SDK en Linux. El ensayo completo
+en un checkout mínimo de Git nativo pasó; evidencia en
+`reports/validation/numeric-package-ci/20261026/`. Su confirmación hospedada
+requiere observar los dos jobs del SHA publicado. No es una captura científica.
+
 Selecciona exclusivamente Ubuntu/Node24.14.1, artefacto **12628261403** del run
 **40268999071**, intento1, head **2a53f88c**. Las seis combinaciones de esa matriz
 aprobaron. El ELF es

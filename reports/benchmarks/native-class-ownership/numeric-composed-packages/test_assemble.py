@@ -79,7 +79,7 @@ class NumericPackageContracts(unittest.TestCase):
         self.assertEqual((root / 'assembly-index.json').read_bytes(), original)
 
     def test_output_inside_repository_is_rejected_without_creation(self):
-        target = reader.REPOSITORY / '.cache/forbidden-numeric-package-output'
+        target = reader.REPOSITORY / 'forbidden-numeric-package-output'
         self.assertFalse(target.exists())
         with self.assertRaises(AssertionError):
             reader.prepare(root / 'controls', root / 'candidate-sources', target, node24)

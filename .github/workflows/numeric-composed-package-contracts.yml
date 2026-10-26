@@ -1,0 +1,96 @@
+name: Paquete numérico hospedado autenticado
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/numeric-composed-package-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/numeric-composed-packages/**'
+      - 'reports/validation/range-numeric-composed-package/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/numeric-composed-package-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/numeric-composed-packages/**'
+      - 'reports/validation/range-numeric-composed-package/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Paquete numérico ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      PACKAGE: reports/validation/range-numeric-composed-package/20261026/packages.tar.xz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materializar únicamente los inputs autenticados
+        run: |
+          mkdir -p "$RUNNER_TEMP/numeric-package-qa"
+          python -B "$TOOLS/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/numeric-package-qa/checkout.json" 2> "$RUNNER_TEMP/numeric-package-qa/checkout.stderr.log"
+      - name: Probar Git real y transporte sin ejecutar DOM
+        run: |
+          python -B "$TOOLS/test_checkout.py" > "$RUNNER_TEMP/numeric-package-qa/checkout-tests.stdout.log" 2> "$RUNNER_TEMP/numeric-package-qa/checkout-tests.stderr.log"
+          python -B "$TOOLS/test_transport.py" > "$RUNNER_TEMP/numeric-package-qa/transport-tests.stdout.log" 2> "$RUNNER_TEMP/numeric-package-qa/transport-tests.stderr.log"
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Linux'
+        with:
+          node-version: '22.12.0'
+      - name: Conservar ruta del SDK Node 22
+        if: runner.os == 'Linux'
+        id: node22
+        run: printf 'node=%s\n' "$(command -v node)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Linux'
+        with:
+          node-version: '24.14.1'
+      - name: Extraer paquete completo sin recompilar ni instalar
+        if: runner.os == 'Linux'
+        run: python -B "$TOOLS/transport.py" --extract "$PACKAGE" "$RUNNER_TEMP/numeric-package" > "$RUNNER_TEMP/numeric-package-qa/extraction.json" 2> "$RUNNER_TEMP/numeric-package-qa/extraction.stderr.log"
+      - name: Probar ensamble y corrupciones con ambos SDK reales
+        if: runner.os == 'Linux'
+        env:
+          NODE22: ${{ steps.node22.outputs.node }}
+        run: python -B "$TOOLS/test_assemble.py" "$RUNNER_TEMP/numeric-package" "$NODE22" "$(command -v node)" > "$RUNNER_TEMP/numeric-package-qa/assembly-tests.stdout.log" 2> "$RUNNER_TEMP/numeric-package-qa/assembly-tests.stderr.log"
+      - name: Probar API nativa, DOM y teardown del paquete en ambos SDK
+        if: runner.os == 'Linux'
+        env:
+          NODE22: ${{ steps.node22.outputs.node }}
+        run: |
+          "$NODE22" --expose-gc "$TOOLS/smoke.cjs" "$RUNNER_TEMP/numeric-package" > "$RUNNER_TEMP/numeric-package-qa/node22.json" 2> "$RUNNER_TEMP/numeric-package-qa/node22.stderr.log"
+          node --expose-gc "$TOOLS/smoke.cjs" "$RUNNER_TEMP/numeric-package" > "$RUNNER_TEMP/numeric-package-qa/node24.json" 2> "$RUNNER_TEMP/numeric-package-qa/node24.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: numeric-package-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/numeric-package-qa/
+          if-no-files-found: error
+          retention-days: 90
