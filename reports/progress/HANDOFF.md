@@ -1,5 +1,22 @@
 # Continuar rustdom en otra máquina
 
+## CLI Linux fijado y cancelación nativa probada — 2026-10-26 UTC
+
+La evidencia complementaria ahora incluye `native-cli/2.103.3/` y el lock
+`tools/evidence-transport/native-cli.lock.json`. Se verificaron release oficial,
+checksums/tar/ELF y una descarga autenticada del mismo artifact104KB. Un HTTP
+local real confirmó timeout/cleanup; dos señales durante ese cleanup no permiten
+escribir éxito. Cuatro guards actuales pasaron. No se persistió la credencial.
+El alcance es Linux; el puente breve de credenciales Windows no se presenta
+como probado por/proc. Ver límites y review en el README de esa evidencia.
+
+Siguiente: integrar el transporte científico secuencial por criterio usando el
+ELF fijado y helpers revisados. El QA anterior de14artifacts/256MiB no sustituye
+esa integración. No se aplicó la etiqueta v2 ni se ejecutó DOM nuevo. Fuente4196
+estable,903entradas/850pins intactos, CI77/79 y rechazo de ownership vigente.
+No tag ni merge. Runtime híbrido, objetivo activo y48entradas ajenas preservadas.
+
+
 ## CI `4196c496` conservado y reproducido — 2026-10-26 UTC
 
 La fuente `4196c496` mantiene 77/79 checks verdes; los dos rojos de ownership
