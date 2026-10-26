@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Composición numérica calificada en Linux; siguiente CI de plataformas — 2026-10-26 UTC
+
+El PR80 todavía tiene pendientes los dos gates ownership: falta aceptación de
+rendimiento. No crear tag ni merge ni repetir los estudios consumidos. La
+autorización permanente continúa vigente y el objetivo general está activo.
+
+Se publicó previamente la inicialización numérica en e4f46b3c. Ahora se compuso
+con el colapso nativo ya probado, sin la integración del constructor StaticRange
+Rust del antiguo ELF4b52. Packet: `reports/implementation/range-numeric-composed-candidate/`.
+Son cuatro cambios de 344 inputs; producción permanece intacta e híbrida.
+El patch es `47c6f7c54a6cbab05bdeca7f911c3eb4f76684912a03553dfe7a5839fa8f076f`.
+
+Pasaron 18 comandos y un probe adicional por SDK, Node 22.12.0/24.14.1, en Linux:
+313 tests Rust, Clippy, nueve contratos públicos/nativos, tipos y consumidor
+ejecutado, compatibilidad, Jest/Vitest/VM, corpus, WPT y dos probes de memoria.
+Ambos compilaron ELF `a6a21c3c97f6972eb871be739fd4e4f9d7d4030156ab8062c69bab5a6d80c3b0`.
+WPT mantiene `complete=false`, sus exclusiones y 1203 resultados adversos
+compartidos por SDK. Los seis ciclos de cada probe observaron liberación de
+Document y Window separados; no prueban ausencia universal de fugas ni pico.
+
+Evidencia en `reports/validation/range-numeric-composed-candidate/` y
+`reports/memory/range-numeric-composed-candidate/`. Se conservan también los
+intentos fallidos: fixtures omitidos en el clon de prueba y colisión de salida
+exclusiva de memoria detectada en review. El fix separa la captura cruda del
+probe y tiene regresión con archivo heredado preexistente. No se repitieron
+mediciones de un estudio. Los procesos del comando funcional cancelado terminaron.
+
+Siguiente: seguir los seis jobs del workflow nuevo `range-numeric-composed-candidate.yml`
+(Node22/24 × Linux/Windows/macOS), autenticar su artefacto y conservar resultados.
+No confundir esos checks con aceptación de rendimiento. El borrador de bloques
+en `control-precision/PROSPECTIVE-DRAFT.md` sigue no ejecutable: revisión técnica
+señala independencia temporal y potencia/tamaño aún sin fundamento suficiente.
+No activar una captura costosa sin resolver esos puntos; no pedir otra autorización.
+
+Fuentes Linux propias y recibos activos en la distro `Rustdom-Validation-20261025`:
+`/dev/shm/rustdom-range-numeric-composed-v1/qualified-source-reviewed-node22` y
+`qualified-source-reviewed-node24`, con `proof-reviewed-node22/24`. HEAD real
+f781c3b7 más patch y pruebas; no normalizar sourceCommit/sourceChangesRaw/errors.
+Ambas calificaciones terminaron: no repetirlas sin cambios o una causa concreta.
+Usar las herramientas actuales versionadas, no scripts archivados de QA.
+
 ## Candidato numérico probado; ownership todavía rechazado — 2026-10-26 UTC
 
 En `dc0b2df4` solo fallan los dos checks ownership. El CI general y los demás

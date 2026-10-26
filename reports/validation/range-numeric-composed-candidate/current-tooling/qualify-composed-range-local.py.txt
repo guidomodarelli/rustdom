@@ -1,0 +1,50 @@
+"""Exercise the composed real candidate with explicit SDKs and no performance capture."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+assert len(sys.argv) == 2 and sys.argv[1] in ['22', '24']
+major = sys.argv[1]
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-range-numeric-composed-v1')
+tools = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+rust = tools / 'rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin'
+node = tools / ('node-22' if major == '22' else 'node') / 'bin/node'
+checksum = {'22': '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9',
+            '24': 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a'}[major]
+assert hashlib.sha256(node.read_bytes()).hexdigest() == checksum
+source = root / ('qualified-source-reviewed-node' + major)
+proof = root / ('proof-reviewed-node' + major)
+if major in ['22', '24']:
+    assert not source.exists() and not proof.exists()
+    for argv in [
+        ['git', 'clone', '--shared', '--no-checkout', str(root / 'qualified-source'), str(source)],
+        ['git', '-C', str(source), 'sparse-checkout', 'set', '--no-cone', '/*', '!/*/', '/src/', '/scripts/', '/benchmarks/',
+         '/tests/', '/types/', '/third-party/',
+         '/reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz',
+         '/reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz',
+         '/reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz'],
+        ['git', '-C', str(source), 'checkout', '--detach', 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7'],
+        ['python3', '-B', str(repository / 'reports/implementation/range-numeric-composed-candidate/tools/candidate.py'),
+         '--prepare', str(repository), str(source), str(proof)],
+    ]:
+        subprocess.run(argv, check=True, capture_output=True, timeout=60)
+environment = dict(os.environ, PATH=str(node.parent) + os.pathsep + str(rust) + os.pathsep + os.environ['PATH'],
+    CARGO_HOME=str(tools / 'cargo'), RUSTUP_HOME=str(tools / 'rustup'), RUSTUP_TOOLCHAIN='1.99.1',
+    RUSTC=str(rust / 'rustc'), RUSTDOC=str(rust / 'rustdoc'), RUSTFMT=str(rust / 'rustfmt'),
+    CARGO_TARGET_DIR='/dev/shm/rustdom-range-initialization-candidate-v1/target', CARGO_INCREMENTAL='0', CARGO_BUILD_JOBS='2',
+    npm_config_cache='/dev/shm/rustdom-range-initialization-candidate-v1/npm-cache', TMPDIR=str(root))
+sentinel = proof / 'review-environment-sentinel.json'
+sentinel_bytes = b'{"preserved": true}\n'
+with sentinel.open('xb') as stream:
+    stream.write(sentinel_bytes)
+environment['RUSTDOM_RANGE_MEMORY_OUTPUT'] = str(sentinel)
+argv = ['python3', '-B', repository / 'reports/implementation/range-numeric-composed-candidate/tools/qualify.spec.py',
+        repository, source, proof, node]
+result = subprocess.run(list(map(str, argv)), env=environment, timeout=2400)
+assert sentinel.read_bytes() == sentinel_bytes, 'Qualification leaked the exclusive memory output across suites'
+print(json.dumps({'node': major, 'exitCode': result.returncode, 'newStudyExecuted': False}))
+raise SystemExit(result.returncode)

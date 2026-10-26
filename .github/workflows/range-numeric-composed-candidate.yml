@@ -1,0 +1,109 @@
+name: Inicialización y colapso numérico de Range en plataformas
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/range-numeric-composed-candidate.yml'
+      - 'reports/implementation/range-initialization-candidate/**'
+      - 'reports/implementation/range-numeric-composed-candidate/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/range-numeric-composed-candidate.yml'
+      - 'reports/implementation/range-initialization-candidate/**'
+      - 'reports/implementation/range-numeric-composed-candidate/**'
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    name: Extremos y colapso Range ${{ matrix.os }} Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+        node: ['22.12.0', '24.14.1']
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      CARGO_BUILD_JOBS: '2'
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CANDIDATE_TOOLS: reports/implementation/range-numeric-composed-candidate/tools
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            !/Cargo.toml
+            /.github/
+            /reports/implementation/range-initialization-candidate/
+            /reports/implementation/range-numeric-composed-candidate/
+            /reports/implementation/range-combined-candidate/tools/command.py
+            /reports/implementation/range-combined-candidate/tools/command.spec.py
+            /reports/validation/range-initialization-candidate/local-linux/inputs.json
+      - uses: actions/checkout@v4
+        with:
+          ref: f781c3b7549a86b6aa8b5a34d2bbb32038c315b7
+          fetch-depth: 2
+          path: artifacts/range-initialization-source
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /src/
+            /scripts/
+            /benchmarks/
+            /tests/
+            /types/
+            /third-party/
+            /reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz
+            /reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz
+            /reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: Probar preparación real y preservar entradas ajenas
+        run: |
+          python -B reports/implementation/range-initialization-candidate/tools/prepare.spec.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/range-initialization-source" "$RUNNER_TEMP/range-initialization-contracts" > "$RUNNER_TEMP/range-initialization-contracts.stdout.log" 2> "$RUNNER_TEMP/range-initialization-contracts.stderr.log"
+          python -B reports/implementation/range-combined-candidate/tools/command.spec.py > "$RUNNER_TEMP/range-initialization-command.stdout.log" 2> "$RUNNER_TEMP/range-initialization-command.stderr.log"
+      - name: Aplicar patch y autenticar los 344 inputs
+        run: python -B "$CANDIDATE_TOOLS/candidate.py" --prepare "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/range-initialization-source" "$RUNNER_TEMP/range-initialization-proof" > "$RUNNER_TEMP/range-initialization-prepare.stdout.log" 2> "$RUNNER_TEMP/range-initialization-prepare.stderr.log"
+      - name: Construir addon y probar API, runners, corpus, WPT y memoria
+        timeout-minutes: 40
+        run: python -B "$CANDIDATE_TOOLS/qualify.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/range-initialization-source" "$RUNNER_TEMP/range-initialization-proof" "$(node -p 'process.execPath')" > "$RUNNER_TEMP/range-initialization-qualify.stdout.log" 2> "$RUNNER_TEMP/range-initialization-qualify.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: range-numeric-composed-${{ matrix.os }}-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/range-initialization-*.log
+            ${{ runner.temp }}/range-initialization-proof/
+            ${{ runner.temp }}/range-initialization-contracts/
+            artifacts/range-initialization-source/dist/
+            artifacts/range-initialization-source/types/
+            artifacts/range-initialization-source/src/
+            artifacts/range-initialization-source/Cargo.toml
+            artifacts/range-initialization-source/Cargo.lock
+            artifacts/range-initialization-source/build.rs
+            artifacts/range-initialization-source/package.json
+            artifacts/range-initialization-source/package-lock.json
+          if-no-files-found: error
