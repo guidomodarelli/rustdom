@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Fuente4196 calificada y transporte acotado — 2026-10-26 UTC
+
+Esta es una rama de evidencia. La fuente de PR80 permanece estable en4196c496,
+con su propio CI40395417183(4/4), general40395416750(8/8), almacenamiento
+40395418207(2/2) y calibración40395416716(2/2). No mover esa fuente mientras se
+conservan/reproducen sus artifacts. La metadata positiva y el rechazo íntegro
+del gate40395416797 están en `reports/validation/jsdom-block-pilot-v2/ci-4196c496/`.
+El gate conserva13/32 controles históricos sin calibración; no hubo mediciones
+nuevas y ambos Node reprodujeron la misma decisión. No tag ni merge.
+
+El transporte32MiB pasó sobre DOS segmentos originales de57c3c2c9, no un estudio
+nuevo. Ver `transport-qualification/partial-git-slices-v1/`: lecturas frescas,
+hash conjunto, cuatro clones retirados tras confirmación y76 comandos cerrados.
+Cinco pruebas reales de cancelación recolectan hijos/nietos, incluidas señales
+durante cleanup. Los intentos negativos están preservados. Se corrigió la
+hidratación innecesaria de Git2.34 sin alterar los850pins ni el método903.
+El intento fallido conservado ocupó1.8GB y llenó /dev/shm; usar el workspace
+propio de /run para el transporte nuevo. Las cuatro copias QA Windows cuya
+limpieza fue bloqueada siguen intactas; no intentar borrarlas por otra vía.
+
+Siguiente trabajo: autenticar/preservar los14 artifacts de contratos/general
+actuales, sin expandir snapshots dentro del checkout; probar colección completa
+ZIP/tar/manifiesto y replays offline en ambos Node con el nuevo transporte.
+`scientificCapturePreservationQualified=false`, etiqueta v2 SINaplicar. La
+autorización permanente permite avanzar sin preguntar. El piloto es diagnóstico,
+no acepta rendimiento Rust ni cambia el rechazo histórico. Runtime híbrido y
+migración general activa; preservar48 entradas ajenas. Engram sin identidad:
+no escribir memoria ni inventar sesión. No ejecutar scripts archivados.
+
+
 ## Fix 57c3c2c9 calificado y evidencia complementaria — 2026-10-26 UTC
 
 La fuente de `feature/native-class-ownership` sigue en **57c3c2c9**. Su propio
