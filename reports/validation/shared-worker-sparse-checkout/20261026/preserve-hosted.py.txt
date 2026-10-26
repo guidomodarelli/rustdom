@@ -1,0 +1,42 @@
+"""Preserve observed CI failures and current source/foreign-state checks, without rerunning CI."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+output = repository / 'reports/validation/shared-worker-sparse-checkout/20261026/hosted-before'
+output.mkdir(parents=True, exist_ok=False)
+prefix = 'repos/guidomodarelli/rustdom/'
+records = []
+for name, run_id in [('shared-worker', 40310785437), ('ownership', 40310785593), ('general', 40310785667)]:
+    run_raw = subprocess.check_output(['gh', 'api', prefix + f'actions/runs/{run_id}/attempts/1'], timeout=120)
+    jobs_raw = subprocess.check_output(['gh', 'api', prefix + f'actions/runs/{run_id}/attempts/1/jobs?per_page=100'], timeout=120)
+    run, jobs = json.loads(run_raw), json.loads(jobs_raw)
+    assert run['head_sha'] == '527439d6170dbd736436002b7b7fb5b7a987cef0' and run['run_attempt'] == 1
+    (output / (name + '-run.json')).write_bytes(run_raw)
+    (output / (name + '-jobs.json')).write_bytes(jobs_raw)
+    for job in jobs['jobs']:
+        if job['conclusion'] != 'failure':
+            continue
+        raw = subprocess.check_output(['gh', 'api', prefix + f"actions/jobs/{job['id']}/logs"], timeout=120)
+        (output / (str(job['id']) + '.log')).write_bytes(raw)
+    records.append({'name': name, 'runId': run_id, 'conclusion': run['conclusion'],
+                    'jobs': [{'id': job['id'], 'name': job['name'], 'conclusion': job['conclusion']} for job in jobs['jobs']]})
+receipt = repository / 'reports/validation/owner-batch-capture-method/review.json'
+assert hashlib.sha256(receipt.read_bytes()).hexdigest() == '8f21aa4074985c47cc5a375e9040617b63a6f4d999deba7c7e24bae3c9691b42'
+pins = json.loads(receipt.read_bytes())['files']
+assert len(pins) == 786
+for relative, expected in pins.items():
+    assert hashlib.sha256((repository / relative).read_bytes()).hexdigest() == expected, relative
+assert '.github/workflows/shared-fixture-worker.yml' not in pins
+foreign = Path(r'C:\Users\guido\.codex\worktrees\native-collection-queries\rustdom')
+foreign_status = subprocess.check_output(['git', '-c', 'core.longpaths=true', 'status', '--short', '--untracked-files=normal'], cwd=foreign)
+baseline = (repository / '.cache/jsdom-telemetry-foreign-wip-preserved.txt').read_bytes()
+assert foreign_status.decode().splitlines() == baseline.decode().splitlines()
+assert len(foreign_status.splitlines()) == 48
+(output / 'foreign-state.txt').write_bytes(foreign_status)
+(output / 'summary.json').write_bytes(json.dumps({'runs': records, 'sourcePinsUnchanged': len(pins),
+    'workflowBelongsToFrozenGraph': False, 'foreignEntriesPreserved': 48,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')
+print(json.dumps({'runs': records, 'sourcePinsUnchanged': len(pins), 'foreignEntriesPreserved': 48}))

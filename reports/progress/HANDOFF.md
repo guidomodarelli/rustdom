@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Timeout del checkout archivado corregido localmente — 2026-10-26 UTC
+
+El último rojo adicional fue `Integración archivada Node 24.14.1`, job
+121531149900/run40310785437 sobre527439d6: GitHub confirmó timeout10min
+durante `git fetch`, sin ejecutar tests. `shared-fixture-worker.yml` ahora
+descarga solo los inputs necesarios con sparse checkout y el hidratador
+publicado; conserva timeout10min y los mismos contratos. Replay80 +15tests
+pasaron en ambos SDK fijados desde un clon parcial remoto real, limpio;
+checkout/hidratación ~31s locales y actionlint Linux aprobado. Revisión
+aislada sin hallazgos. Evidencia, límites y logs originales en
+`reports/validation/shared-worker-sparse-checkout/20261026/`.
+
+El CI general527439d6 terminó8/8 aprobado. Ownership22/24 sigue rechazando
+el presupuesto histórico; no confundir ese rechazo con el timeout resuelto.
+No se relajaron gates ni se repitieron capturas. Confirmar el CI del SHA que
+publique esta corrección antes de declararlo cerrado. Sin tag/merge.
+
+El capturador prospectivo permanece como WIP propio sin commitear en
+`control-precision/pilot/` (engine, binding, padre y helpers), deshabilitado.
+Se corrigió el P2 del lector: si cualquiera de sidecar/expectativa declara
+engine, ambos deben estar presentes e iguales; regresión inversa añadida.
+Falta calificar el capturador integral y publicar/revisar el método antes
+de activarlo. No mezclar ese WIP con el commit del checkout. 786pins y
+48entradas ajenas preservados; Engram sin identidad registrada.
+
 ## Contexto del worker integrado y validado — 2026-10-26 UTC
 
 Nuevo `pilot/envelope.cjs`, integrado en el padre funcional. Comprueba
