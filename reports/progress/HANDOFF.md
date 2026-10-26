@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## Paquete numérico hospedado reconstruido y probado — 2026-10-26 UTC
+
+El siguiente candidato ya tiene paquete íntegro, sin recompilar ni instalar:
+artefacto 12628261403, run 40268999071/intento 1, head 2a53f88c, ELF
+`a2777cbf00baa2cc7aa67c1098d6a5ceba4009aa6e514d558aac0b304e7ea583`.
+No confundir con el ELF local a6a21 ni el anterior 4b52 rechazado.
+Herramientas actuales en `reports/benchmarks/native-class-ownership/numeric-composed-packages/`;
+tar íntegro, API referenciada, manifest y QA en
+`reports/validation/range-numeric-composed-package/20261026/`.
+
+Son 575 archivos runtime, 344 inputs canónicos y controles inmutables A0/A1/J0/J1.
+El tar SHA fb06276a conserva 7819 miembros bajo raíz y seis enlaces. Se preservan
+Git real de la reproducción canónica y los errores reales del snapshot sin Git;
+no se atribuyen al compilador hospedado los 177 inputs no archivados en su ZIP.
+Pasaron 12 contratos de ensamble, 5 de transporte Linux y 3 Windows con 2 skips Linux-only.
+El roundtrip real pasó Node 22.12.0/24.14.1: 6 ciclos por SDK, 12 endpoints claros con
+Window/Document separados y contadores nativos, después de autenticar el paquete.
+Recursos en `reports/memory/range-numeric-composed-package/20261026/`.
+Los 786 pins se conservan intactos. Sin captura nueva ni aceptación de rendimiento.
+
+Review detectó y corrigió cierre transitivo previo a Node y autenticación previa
+al primer require del runtime. El guard rechazó un paquete alterado con ELF
+local API-compatible; fallo del matcher del driver preservado y resuelto leyendo
+logs, sin repetir esa ejecución. Las garantías finales no se atribuyen al probe
+inicial anterior al guard. No ejecutar `.py.txt` archivados.
+
+La planificación siguiente está en `control-precision/VARIANCE-PILOT-DRAFT.md`:
+se cuantificó incertidumbre de SD y costos bajo iid normal. r=16 jsdom satisface
+nominalmente U95≤1.5s puntual, no demuestra potencia ni varianza RustAB ni cobertura
+simultánea. No hay workflow ni piloto activado. Falta fijar/revisar protocolo,
+alcance, tolerancia, calendario, presupuesto y pruebas. Autorización permanente,
+sin nuevas preguntas. Producción sigue híbrida; no tag/merge sin rendimiento
+aceptado. Auditar los manifiestos históricos con sus commits publicados;
+HANDOFF es mutable y el snapshot de 550fb096 permanece en ese commit.
+
 ## CI funcional de Windows corregido: 18/18 aprobados — 2026-10-26 UTC
 
 Las tres matrices del fix **2a53f88c** terminaron aprobadas, intento1:

@@ -1,5 +1,14 @@
 # Inicialización y colapso numérico — candidato compuesto
 
+**Estado actualizado 2026-10-26:** la matriz hospedada 40268999071 terminó 6/6
+en el fix 2a53f88c. El paquete exacto Ubuntu/Node 24.14.1, artefacto 12628261403,
+ELF a2777cbf, ya se ensambló y se verificó tras archivar/extraer todos sus bytes
+con Node 22.12.0 y 24.14.1. Herramientas en
+`reports/benchmarks/native-class-ownership/numeric-composed-packages/` y evidencia
+en `reports/validation/range-numeric-composed-package/20261026/`. No se recompiló
+el artefacto ni se reemplazó por el ELF local. Sigue pendiente el protocolo y
+su preparación CI para medir rendimiento; no hay aceptación ni integración.
+
 Combina la inicialización numérica de ambos extremos de `privateData` con el
 colapso atómico en Rust cuando coinciden los owners. El binding conserva las
 referencias visibles a V8 y evita repetir aristas que no cambiaron. El constructor
@@ -64,5 +73,6 @@ presupuestos de rendimiento.
 Se preservan los intentos fallidos del preparador y la revisión que detectó una
 colisión de salidas antes de publicar el workflow. Su evidencia está en
 `reports/validation/range-numeric-composed-candidate/tooling-attempts/`.
-Antes de cualquier estudio faltan la matriz hosted, selección y autenticación
-de su artefacto, y un protocolo prospectivo con precisión defendible.
+La matriz hosted, selección, autenticación y transporte del paquete están
+completados en la actualización anterior. Antes de medir sigue pendiente un
+protocolo prospectivo con precisión defendible y su preparación CI.
