@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Componentes de transporte probados sobre33artifacts — 2026-10-26 UTC
+
+Se autenticaron33ZIP/408198146bytes del v1 consumido y64replays parciales en
+ambosNode, sin DOM ni nuevas muestras. La publicación nativa del ZIP111MB hizo
+cuatro partes con lecturas remotas y retiró ocho Git descartables confirmados.
+Sus partes están en el commitc25901a6; resultados en scientific-transport/20261026/.
+Pasaron31casos de metadata/ZIP y seis controles de carga autenticada sin .pyc.
+Se conservan el fallo ANSI inicial y los P2 cerrados, sin ocultar límites.
+
+Recuperación: el fetch filtrado compartido falló por repack/ENOSPACE. Su temporal
+467795968bytes permanece intacto porque borrar fue bloqueado por política; no
+reintentarlo. Se unmaterializaron mediante sparse65copias versionadas verificadas,
+sin afectar903entradas/850pins; originales Git/remoto conservados. No repetir
+fetch filtrado de refs en el Git compartido. DATA tiene tools/evidence-transport
+incluido en su sparse y solo se importaron cuatro blobs QA de forma acotada.
+
+Siguiente: conectar/probar el coordinador secuencial para colección+publicación+
+replay por criterio y retiro seguro de duplicados confirmados. Los componentes
+por separado todavía no califican ese flujo. Luego comprobar SHA/CI/ventana y
+la única activación v2 autorizada. Fuente4196 y CI77/79: ownership sigue rechazado.
+Sin tag/merge, sin otra pregunta. Runtime híbrido, objetivo activo y48entradas ajenas.
+
+
 ## Receptor incremental revisado — 2026-10-26 UTC
 
 Se mantienen runtime/stream de transporte con CLI Linux fijado, límites de
