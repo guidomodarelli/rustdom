@@ -1,5 +1,34 @@
 # Continuar rustdom en otra máquina
 
+## Fix del checkout Windows con evidencia íntegra — 2026-10-26 UTC
+
+La calificación de 525e2be6 detectó un fallo real adicional: run40391590431,
+job121813674010, `Filename too long` en checkout, antes de los tests. Los
+snapshots expandidos de los artifacts anteriores generaban rutas relativas
+de 308 caracteres. Esta revisión retira solo esas 9624 copias redundantes,
+conservando los cuatro ZIP íntegros (dos en partes), metadata, logs, tar,
+muestras y warmup. Cada blob retirado coincide por SHA256 con su miembro ZIP;
+los 850 pins y las 903 entradas del método permanecen intactos.
+
+Ver `ci-57c3c2c9/expanded-artifact-layout.json` y STORAGE.md para reconstruir
+fuera del checkout. El manifiesto anterior describe el inventario histórico
+recuperable. El lector actual verifica recibo/ZIP/miembros y rechaza destino
+interior, igual o ancestro del repo; nunca ejecutar scripts archivados.
+
+Se restauraron los cuatro ZIP reales en Windows y verificaron 9624 archivos.
+Git Windows con core.longpaths=false reprodujo el fallo original y aprobó el
+checkout con la ruta máxima restante de 219 caracteres. Pasaron ocho pruebas
+de ZIP/filesystem en Windows y Linux y actionlint del workflow adicional.
+Los fallos iniciales de fixtures (CRLF y raíz de prueba larga) se conservaron.
+Evidencia en `reports/validation/ci-windows-checkout/40391590431/`.
+
+El nuevo SHA publicado requiere su propio CI; los verdes anteriores no lo
+califican. La etiqueta científica v2 sigue sin aplicarse. Los históricos
+conservan rechazo y el diagnóstico no acepta rendimiento Rust. Sin tag ni
+merge de ownership. Runtime híbrido, migración general activa y 48 entradas
+ajenas intactas. Mantener autorización permanente, sin otra pregunta.
+
+
 ## Publicación revisada del método v2; CI propio pendiente — 2026-10-26 UTC
 
 La rama integra la evidencia publicada en **b348202b** y habilita la preparación

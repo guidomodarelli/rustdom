@@ -1,0 +1,48 @@
+name: Transporte de evidencia sin rutas largas
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ci-evidence-storage.yml'
+      - 'reports/validation/jsdom-block-pilot-v2/ci-57c3c2c9/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ci-evidence-storage.yml'
+      - 'reports/validation/jsdom-block-pilot-v2/ci-57c3c2c9/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  storage:
+    name: ZIP y checkout en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            python: '3.10'
+          - os: windows-latest
+            python: '3.12'
+    env:
+      GIT_CONFIG_COUNT: '2'
+      GIT_CONFIG_KEY_0: core.longpaths
+      GIT_CONFIG_VALUE_0: 'false'
+      GIT_CONFIG_KEY_1: core.autocrlf
+      GIT_CONFIG_VALUE_1: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Probar ZIP reales y rechazo de alteraciones sin ejecutar DOM
+        run: python reports/validation/jsdom-block-pilot-v2/ci-57c3c2c9/test_materialize.py
