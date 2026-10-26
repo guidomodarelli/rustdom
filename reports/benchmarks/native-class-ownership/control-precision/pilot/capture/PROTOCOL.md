@@ -118,8 +118,15 @@ el journal exclusivamente antes de iniciar al productor. SIGTERM/SIGINT cancelan
 la secuencia; una muerte forzada de Node no deja a sus workers separados sin
 controller. Solo se señalizan descendientes reales observados por PID y
 startTicks, nunca PIDs leídos de un archivo archivado. Gracia 15 s y reap 5 s
-consumen parte del margen del job. Un descendiente inesperado o un plazo
+consumen parte del margen del job. Un descendiente activo inesperado o un plazo
 agotado invalida la finalización aunque las tareas guardadas sean correctas.
+
+La calificación funcional prueba cancelación del controller, muerte forzada
+de Node y recolección de un worker ya zombi. Solo en este último test se detiene
+temporalmente el padre con SIGSTOP para observar el estado zombi real antes de
+SIGKILL. No se modifica ni instrumenta el worker. Los tres casos deben conservar
+parciales, terminar con exit 2 y dejar cero descendientes propios. Un zombi
+recolectado no se declara falsamente como worker activo.
 
 El watchdog hace polling de estado, sin leer `/proc` en cada tarea normal.
 Su trabajo es parte del entorno observado. No se presupone que su costo sea

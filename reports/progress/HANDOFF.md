@@ -1,5 +1,32 @@
 # Continuar rustdom en otra máquina
 
+## Regresión de recolección de zombis corregida localmente — 2026-10-26 UTC
+
+El CI funcional `40341408765` del SHA `199e5332` falló en ambos SDK en
+`qualify-lifecycle.py`: tras SIGKILL del padre, el worker ya estaba en estado
+`Z`; el supervisor lo recolectó, devolvió exit 2 y dejó cero descendientes,
+pero el arnés exigía incorrectamente `unexpectedDescendants=true`.
+Los bloques completos y sus replay habían pasado. Se preservaron los dos ZIP
+autenticados, API, inventario completo, logs, journals y ocho replays offline
+en `reports/validation/jsdom-block-pilot/lifecycle-reaping-fix/20261026/`.
+Este run continúa registrado como fallido; los replays dependientes quedaron
+omitidos y todavía no hay calificación hosted completa.
+
+El fix mantiene la exigencia de exit 2, parciales, SIGKILL real y cero hijos
+restantes. Añade un tercer caso que detiene solo al padre con SIGSTOP hasta
+observar su worker real zombi en `/proc`, luego exige su recolección. Pasaron
+los seis casos en Node 22.12.0/24.14.1 desde Git Linux privado limpio
+`7c29a39433c28e0c2f3cd741587b565c05322916`, sin modificar el worker.
+Raw y observaciones en `reports/benchmarks/native-class-ownership/jsdom-block-lifecycle-reaping-fix/20261026/`
+y `reports/memory/jsdom-block-pilot/lifecycle-reaping-fix/20261026/`.
+No confundir el estado zombi recolectado con un proceso activo huérfano.
+
+El método sigue deshabilitado/PREVIEW. Confirmar los cuatro jobs de contratos
+y transporte del SHA que publique este fix, además de los ocho generales,
+antes de habilitar y calificar el método final. No activar etiquetas ni
+repetir capturas históricas. Ownership sigue rechazado por rendimiento;
+sin tag/merge, runtime híbrido y migración general activa.
+
 ## Checkout en verde y capturador funcional calificado — 2026-10-26 UTC
 
 Confirmado el fix publicado en `6a8f541c`: integración archivada

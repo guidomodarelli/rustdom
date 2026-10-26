@@ -1,0 +1,65 @@
+"""Summarize already observed snapshots and cleanup endpoints, without execution or causal claims."""
+from pathlib import Path
+import hashlib
+import json
+repository=Path(__file__).resolve().parent.parent
+root=repository/'reports/memory/jsdom-block-pilot/capture-method/20261026'
+source=root/'resources.json'
+data=json.loads(source.read_bytes()); records=[]
+for criterion in data['criteria']:
+    before,middle,after=criterion['parentSnapshots']
+    assert [item['stage'] for item in [before,middle,after]]==['before-workers','after-first-half','after-workers']
+    assert [item['completedWorkers'] for item in [before,middle,after]]==[0,16,32]
+    records.append({'criterionId':criterion['criterionId'],'sourceCommit':criterion['sourceCommit'],
+        'processes':criterion['totals']['processes'],'windows':criterion['totals']['windows'],
+        'documents':criterion['totals']['documents'],'firstUnclearStates':criterion['totals']['firstUnclearStates'],
+        'finalClearStates':criterion['totals']['finalClearStates'],
+        'rssBeforeBytes':before['memory']['rss'],'rssMiddleBytes':middle['memory']['rss'],
+        'rssAfterBytes':after['memory']['rss'],'rssDeltaBytes':after['memory']['rss']-before['memory']['rss'],
+        'heapUsedDeltaBytes':after['memory']['heapUsed']-before['memory']['heapUsed'],
+        'externalDeltaBytes':after['memory']['external']-before['memory']['external'],
+        'observedSnapshotRssMaximumBytes':max(item['memory']['rss'] for item in [before,middle,after])})
+assert sum(item['processes'] for item in records)==128
+assert sum(item['windows'] for item in records)==1536==sum(item['documents'] for item in records)
+assert sum(item['finalClearStates'] for item in records)==256
+terminations=[]
+for version in ['22.12.0','24.14.1']:
+    for role in ['controller-cancel','parent-hard-exit']:
+        file=root/(version+'-'+role+'-supervisor.json')
+        journal=json.loads(file.read_bytes())
+        assert journal['exitCode']==2 and journal['ownedDescendantsRemaining']==[]
+        terminations.append({'sdk':version,'case':role,'parentExitCode':journal['parentExitCode'],
+                             'exitCode':journal['exitCode'],'remainingOwnedDescendants':0,
+                             'journalSha256':hashlib.sha256(file.read_bytes()).hexdigest()})
+result={'sourceSha256':hashlib.sha256(source.read_bytes()).hexdigest(),'criteria':records,
+        'forcedTerminationCases':terminations,'firstUnclearStatesTotal':sum(item['firstUnclearStates'] for item in records),
+        'finiteFunctionalEvidenceOnly':True,'peakMemoryMeasured':False,'universalLeakFreedomDemonstrated':False,
+        'nativeRustMemoryExercised':False,'performanceAccepted':None,'gateReevaluated':False}
+output=root/'functional-resource-analysis.json'
+with output.open('xb') as stream:stream.write(json.dumps(result,indent=2).encode()+b'\n')
+lines=['# Recursos del capturador funcional','',
+       'Se analizan las observaciones originales de los cuatro bloques funcionales del Git Linux',
+       'privado `5bd2e200`. El runtime de estos casos es jsdom 27.4.0. No se ejecutó el ELF',
+       'Rust ni se midió rendimiento científico. Las épocas anteriores permanecen separadas.','',
+       '| SDK / fase | RSS antes / medio / después (bytes) | Delta heap usado (bytes) | Primera ronda no clara | Estados finales claros |',
+       '|---|---:|---:|---:|---:|']
+for item in records:
+    sdk,phase,*unused=item['criterionId'].split('/')
+    lines.append(f"| {sdk} / {phase} | {item['rssBeforeBytes']} / {item['rssMiddleBytes']} / {item['rssAfterBytes']} | {item['heapUsedDeltaBytes']} | {item['firstUnclearStates']} | {item['finalClearStates']} |")
+lines+=['','Los 128 procesos completos observaron 1 536 Window y 1 536 Document por separado.',
+        'Hubo **15 primeras rondas no claras**, todas publicadas. Los 256 estados finales',
+        'exigidos terminaron claros. Las tres observaciones del padre corresponden a 0,',
+        '16 y 32 workers completos. Se conserva el aumento de RSS y heap observado;',
+        'estos datos no permiten atribuirlo al allocator, a una fuga ni a una causa concreta.','',
+        'Los cuatro escenarios de cancelación o muerte forzada terminaron con exit 2,',
+        'conservando datos parciales y sin descendientes propios restantes. Son fallos',
+        'controlados esperados, no capturas completas. No se rellenan tareas faltantes.','',
+        'El adaptador de lectura también pasó 64 errores repetidos y comprobaciones reales',
+        'de handles con ambos SDK en Windows y Linux; los logs están en la calificación.',
+        'Se trata de pruebas finitas. Los snapshots no miden memoria pico, no demuestran',
+        'ausencia universal de fugas y no certifican la memoria del runtime Rust.','',
+        'Fuente y fórmulas verificables en `functional-resource-analysis.json` y `resources.json`.',
+        '`performanceAccepted=null`, `gateReevaluated=false`.']
+with (root/'README.md').open('xb') as stream:stream.write(('\n'.join(lines)+'\n').encode())
+print(json.dumps({'processes':128,'windows':1536,'documents':1536,'firstUnclear':15,
+                  'finalClearStates':256,'forcedTerminationCases':4,'newDOMExecution':False}))
