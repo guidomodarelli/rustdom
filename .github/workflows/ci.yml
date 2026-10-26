@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Validate only the newest revision of each PR; preserve every main push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     timeout-minutes: 60

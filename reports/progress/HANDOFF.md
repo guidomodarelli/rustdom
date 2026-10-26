@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## CI funcional 2/2 y corrección de concurrencia del CI general — 2026-10-26 UTC
+
+El productor publicado en **2466b8d35910e5f663224203462d341fdae14f64**
+aprobó ambos SDK en GitHub Actions: run **40301728367**, intento 1.
+ZIP/API/logs/inventarios y cuatro replays offline en
+`reports/validation/jsdom-block-pilot/functional-hosted/40301728367/`.
+Los datos conservan el Git real limpio del SHA publicado. Se califican 32
+positivos y 12 adversos; 4608 duraciones, 1536 warmup positivos y 32 adversos,
+386 Window/386 Document separados, dos primeras rondas no claras y 68
+endpoints finales claros. Recursos en
+`reports/memory/jsdom-block-pilot/functional-hosted/40301728367/`.
+No son datos científicos ni aceptación del candidato Rust.
+
+La lectura inicial buscó el campo incorrecto `sourceChanges`; el schema real
+usa `sourceChangesRaw`. El artifact original no cambió. Review detectó otro P2:
+el collector ahora rechaza Python optimizado antes de filesystem/API. Pasaron
+los tres rechazos CLI reales y la nueva lectura normal en ambos Node. Todo
+queda preservado, sin reiniciar el workflow ni ejecutar código archivado.
+
+`ci.yml` ahora agrupa solo los runs generales del mismo PR y cancela commits
+obsoletos; todos los pushes a main usan grupos independientes. No cambia
+pruebas, límites, gates ni workflows científicos. Actionlint 1.7.12 Windows
+aprobado y revisión aislada sin hallazgos. WSL temporal no resolvió `root`,
+por eso el intento Linux de lint no se presenta aprobado. La observación del
+scheduler de esta configuración requiere el siguiente push. Evidencia en
+`reports/validation/ci-pr-concurrency/20261026/`.
+
+**El PR aún no está resuelto:** ownership Node 24, job 121500981859 del run
+40301728369, verificó la evidencia y rechazó el presupuesto con exit 1.
+El log íntegro está guardado; la concurrencia no corrige esa regresión.
+Mantener el rechazo y avanzar con el capturador/envelope prospectivo antes
+del piloto pendiente, sin reutilizar capturas consumidas. No tag/merge con
+rendimiento sin aceptación. Migración general activa y runtime híbrido.
+Engram sin identidad registrada; preservar las 48 entradas ajenas.
+
 ## Productor funcional real probado en Node22/24 — 2026-10-26 UTC
 
 Nuevo `control-precision/pilot/functional.cjs --functional` y worker real:

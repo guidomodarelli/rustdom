@@ -1,0 +1,30 @@
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Run the real reader rejection proof without Python optimization')
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / '.cache/pilot-functional-hosted-40301728367'
+reader = repository / '.cache/collect-pilot-functional-hosted.py'
+
+def state():
+    return {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in root.iterdir() if path.is_file()}
+
+before = state(); results = []
+for name, arguments, optimize in [('flag-O', ['-O'], None), ('flag-OO', ['-OO'], None), ('environment-1', [], '1')]:
+    environment = {**os.environ}; environment.pop('PYTHONOPTIMIZE', None)
+    if optimize is not None: environment['PYTHONOPTIMIZE'] = optimize
+    command = [sys.executable, *arguments, '-B', str(reader)]
+    result = subprocess.run(command, cwd=repository, env=environment, capture_output=True, timeout=10)
+    assert result.returncode == 1
+    assert b'Functional hosted transport requires non-optimized Python; unset PYTHONOPTIMIZE' in result.stderr
+    assert result.stdout == b'' and state() == before
+    results.append({'case': name, 'exitCode': result.returncode, 'stdout': '', 'stderr': result.stderr.decode(), 'existingEvidenceUnchanged': True})
+record = {'readerSha256': hashlib.sha256(reader.read_bytes()).hexdigest(), 'cases': results,
+    'domExecuted': False, 'workflowTriggered': False}
+(root / 'optimize-rejection.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps({'rejectionCasesPassed': len(results), 'existingEvidenceUnchanged': True, 'readerSha256': record['readerSha256']}))

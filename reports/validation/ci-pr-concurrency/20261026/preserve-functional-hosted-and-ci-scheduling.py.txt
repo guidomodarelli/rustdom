@@ -1,0 +1,58 @@
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Evidence publication requires non-optimized Python')
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+cache = repository / '.cache/pilot-functional-hosted-40301728367'
+receipts = sorted(cache.glob('*-receipt.json'))
+receipt = json.loads(receipts[-1].read_bytes())
+assert receipt['complete'] and receipt['jobsPreserved'] == 2 and receipt['conclusion'] == 'success'
+root = repository / 'reports/validation/jsdom-block-pilot/functional-hosted/40301728367'
+assert not root.exists()
+shutil.copytree(cache, root)
+memory_root = repository / 'reports/memory/jsdom-block-pilot/functional-hosted/40301728367'
+memory_root.mkdir(parents=True, exist_ok=False)
+for name in ['collect-pilot-functional-hosted.py', 'replay-pilot-functional-hosted.cjs', 'prove-functional-hosted-optimize-rejection.py']:
+    shutil.copyfile(repository / '.cache' / name, root / (name + '.txt'))
+(root / 'receipt.json').write_bytes(json.dumps(receipt, indent=2).encode() + b'\n')
+totals = {key: 0 for key in receipt['records'][0]['offlineReplays'][0]['totals']}
+for record in receipt['records']:
+    version = record['node']
+    for key, count in record['offlineReplays'][0]['totals'].items(): totals[key] += count
+    with zipfile.ZipFile(root / (version + '-artifact.zip')) as archive:
+        index = json.loads(archive.read('functional/index.json'))
+        partial = json.loads(archive.read('functional/adverse/progress-failure/report.json'))
+        positive = [
+            {'row': entry['input']['row'], 'label': entry['input']['label'], 'pid': entry['invocation']['command']['pid'],
+             'trackedOwners': {'window': entry['observed']['windows'], 'document': entry['observed']['documents']},
+             'cleanupTrace': entry['observed']['cleanupTrace']}
+            for entry in index['processes']]
+        assert len(positive) == 16 and len(index['parentMemory']) == 3
+        memory = {'producerCommit': receipt['sourceCommit'], 'runId': receipt['runId'], 'node': version,
+            'artifactId': record['artifactId'], 'artifactZipSha256': record['sha256'],
+            'sourceIdentity': index['sourceIdentity'], 'positive': positive,
+            'adverseObserverFailure': {'complete': partial['complete'], 'failure': partial['failure'],
+                'trackedOwners': partial['trackedOwners'], 'cleanupTrace': partial['cleanupTrace']},
+            'parentSnapshots': index['parentMemory'], 'nativeBaseline': None,
+            'scope': 'Functional jsdom 27.4.0 only, separate Window/Document endpoints; finite scenarios',
+            'peakMemoryMeasured': False, 'universalLeakFreedomDemonstrated': False,
+            'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+        (memory_root / (version + '.json')).write_bytes(json.dumps(memory, indent=2).encode() + b'\n')
+summary = {'sourceCommit': receipt['sourceCommit'], 'runId': receipt['runId'], 'attempt': 1,
+    'hostedJobsPassed': 2, 'offlineReplays': 4, 'totals': totals,
+    'sourceChangesRaw': '', 'sourceGitErrors': [], 'runtime': 'jsdom 27.4.0, no Rust candidate execution',
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(root / 'analysis.json').write_bytes(json.dumps(summary, indent=2).encode() + b'\n')
+review = {'mode': 'isolated-read-only', 'reviewer': 'review_ownership_closeout', 'findings': [],
+    'resolved': [{'priority': 'P2', 'problem': 'Python optimization disabled assert checks',
+        'fix': 'Unconditional sys.flags.optimize rejection before filesystem/API',
+        'readerSha256': '01d12d1e75d1b78db657ccaab2f5fe4caeb4c2c0b0c4e3450c0e082a9a1b123b',
+        'proof': 'optimize-rejection.json; three actual CLI rejections, existing evidence unchanged'}],
+    'scope': 'Collector plus Node22 artifact and current replay; final combined evidence separately reviewed before commit'}
+(root / 'reader-review.json').write_bytes(json.dumps(review, indent=2).encode() + b'\n')
+print(json.dumps(summary))

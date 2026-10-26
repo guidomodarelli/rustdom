@@ -1,0 +1,56 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { replayProcess } = require('../reports/benchmarks/native-class-ownership/control-precision/pilot/process-reader.cjs');
+const { validateEndpoint } = require('../reports/benchmarks/native-class-ownership/owner-batch-study/results.cjs');
+const packet = JSON.parse(fs.readFileSync(0, 'utf8'));
+const { index } = packet;
+assert.equal(index.complete, true);
+assert.equal(index.functionalOnly, true);
+assert.equal(index.scientificCaptureExecuted, false);
+assert.equal(index.analysisObservation, null);
+assert.equal(index.performanceAccepted, null);
+assert.equal(index.gateReevaluated, false);
+assert.equal(index.processes.length, 16);
+assert.equal(index.adverse.length, 6);
+const totals = { positive: 0, adverse: 6, measured: 0, warmup: 0, windows: 0, documents: 0, firstUnclear: 0, endpoints: 0 };
+for (const [position, entry] of index.processes.entries()) {
+  assert.equal(entry.complete, true);
+  const { report, context } = packet.workers[position];
+  const { command } = entry.invocation;
+  assert.equal(command.exitCode, 0);
+  assert.equal(context.pid, command.pid);
+  assert.equal(context.parentPid, index.parentPid);
+  assert.equal(context.workerSourceSha256, index.ownSourceFiles['worker.cjs']);
+  assert.deepEqual(context.plannedInput, entry.input);
+  const replay = replayProcess(report, index.manifest, entry.input, {
+    mode: 'functional', node: index.node, pid: command.pid,
+    hostId: 'functional-parent-' + index.parentPid,
+    startMonotonicMs: entry.invocation.startMonotonicMs, endMonotonicMs: entry.invocation.endMonotonicMs
+  });
+  assert.equal(replay.analysisObservation, null);
+  totals.positive += 1;
+  totals.measured += replay.replay.samplesMs.length;
+  totals.warmup += replay.replay.warmupSamplesMs.length;
+  totals.windows += replay.trackedOwners.window;
+  totals.documents += replay.trackedOwners.document;
+  totals.firstUnclear += Number(!report.cleanupTrace[0].clear);
+  totals.endpoints += report.cleanupTrace.slice(-2).filter((endpoint) => endpoint.clear).length;
+}
+for (const entry of index.adverse) assert.equal(entry.command.exitCode, 2);
+const partial = packet.partial;
+assert.equal(partial.complete, false);
+assert.equal(partial.blocks.length, 1);
+assert.equal(partial.failure.message, 'Pilot functional progress observer failed deliberately');
+for (const endpoint of partial.cleanupTrace) validateEndpoint(endpoint, null);
+assert.equal(partial.cleanupTrace.length, 3);
+assert.ok(partial.cleanupTrace.slice(-2).every((endpoint) => endpoint.clear));
+totals.warmup += partial.blocks[0].tasks.length;
+totals.windows += partial.trackedOwners.window;
+totals.documents += partial.trackedOwners.document;
+totals.firstUnclear += Number(!partial.cleanupTrace[0].clear);
+totals.endpoints += 2;
+assert.equal(index.parentMemory.length, 3);
+assert.deepEqual(index.packageVerification, index.packageVerificationAfter);
+process.stdout.write(JSON.stringify({ readerNode: process.version, producerNode: index.node, totals,
+  archivedCodeExecuted: false, scientificCaptureExecuted: false, performanceAccepted: null, gateReevaluated: false }) + '\n');
