@@ -1,0 +1,18 @@
+"""Verify every staged evidence blob against its published raw-byte manifest, without text decoding."""
+import hashlib
+import json
+import subprocess
+from pathlib import Path
+
+repository = Path(__file__).resolve().parents[1]
+manifest = json.loads((repository / 'reports/validation/owner-batch-complete-replay/40234774968/manifest.json').read_bytes())
+for name, entry in manifest['files'].items():
+    blob = subprocess.run(['git', 'show', ':' + name], cwd=repository, check=True, capture_output=True).stdout
+    assert len(blob) == entry['bytes'], 'Staged byte length changed: ' + name
+    assert hashlib.sha256(blob).hexdigest() == entry['sha256'], 'Staged SHA changed: ' + name
+foreign = Path('C:/Users/guido/.codex/worktrees/native-collection-queries/rustdom')
+status = subprocess.run(['git', 'status', '--porcelain'], cwd=foreign, check=True, capture_output=True, text=True).stdout
+original = (repository / '.cache/jsdom-telemetry-foreign-wip-preserved.txt').read_text(encoding='utf-8')
+assert status.splitlines() == original.splitlines(), 'Foreign worktree entries changed'
+print(json.dumps({'stagedEvidenceFilesVerified': len(manifest['files']), 'rawBytesPreservedInGit': True,
+                  'foreignEntriesPreserved': len(status.splitlines()), 'performanceAccepted': False}))

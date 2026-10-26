@@ -1,5 +1,56 @@
 # Continuar rustdom en otra máquina
 
+## Estudio completo rechazado y evidencia preservada — 2026-10-26 UTC
+
+`ownership-owner-batch-serial-v1`, run **40234774968**, intento 1, método
+**504ebc36b66dd6f36b19fd67bd6d61b3faff3f67**, terminó con ambos jobs exitosos.
+La captura duró 148.956/144.259 minutos en Node 22.12.0/24.14.1, dentro de
+170 minutos por SDK y 200 por job. No fue un timeout. La secuencia se consumió:
+no relanzar, reaplicar etiqueta ni agregar muestras. Autorización permanente
+concedida: continuar el trabajo necesario sin pedir nuevos permisos.
+
+**Rendimiento rechazado: cumplen 42/64 criterios.** Fallan 19 controles jsdom
+y 3 RustAB de Node 24: mutation-records-collect/100 y
+range-state-lifecycle-1000/{1000,250}. Los 16 controles RustAA cumplen. Los tres
+RustAB adversos coinciden con controles jsdom rechazados: publicar los resultados
+sin atribuir causalidad a Rust a partir de esa correlación. Presupuestos e
+intervalos originales intactos; los estudios históricos también siguen rechazados.
+
+Se verificaron 2048 procesos, 294912 duraciones medidas, 98304 warmup externas,
+24576 bloques, 24576 Window y 24576 Document separados, 6144 endpoints y
+6 snapshots parentales. Las 144 tareas medidas forman UNA media por proceso;
+cada criterio usa 16 pares, con IC95% pointwise, sin cobertura simultánea del 95%.
+Se conservan 108 primeras rondas no claras y dos finales claras por proceso.
+Los 1024 procesos Rust tienen 684032 filas nativas; napiClasses.live termina
+en 22, igual al baseline (delta 0), y liveNodes termina en 0. Estos snapshots
+no miden pico ni demuestran ausencia universal de fugas. Runtime híbrido.
+
+Evidencia íntegra en
+`reports/benchmarks/native-class-ownership/owner-batch-study-results/40234774968/`,
+recursos en `reports/memory/owner-batch-study/40234774968/` y replay/QA en
+`reports/validation/owner-batch-complete-replay/40234774968/`.
+Ambos SDK oficiales reprodujeron la misma decisión y tablas byte idénticas con
+lectores actuales; exit code 1 es rechazo numérico completo. Los ZIP/tar/API/logs,
+manifiestos y payload originales están autenticados y conservados. Nunca ejecutar
+código archivado. El lector actual y las instrucciones están en
+`reports/benchmarks/native-class-ownership/owner-batch-exports/`.
+
+En el SHA 504ebc36 solo fallan los dos checks `Native class ownership Node 22/24`:
+exigen aceptación del estudio original 39921160254. Compilación, compatibilidad y
+preparación pasan. Este estudio nuevo tampoco permite aceptar rendimiento. No
+crear tag ni merge. El candidato ELF4b52 no se integró a producción ni se reconstruyó.
+
+Siguiente: diagnosticar estabilidad de controles y costo de creación/clonación de
+Range/StaticRange usando las muestras existentes; corregir y probar una causa
+concreta antes de justificar cualquier candidato o método nuevo. No cambiar el
+gate para aceptar un estudio rechazado. No activar métodos consumidos. Mantener
+la migración general activa, preservar las 48 entradas ajenas de
+native-collection-queries y las autorizaciones del watch. Engram sigue sin identidad
+registrada: no usar herramientas de memoria ni inventar un ID.
+
+Las secciones siguientes son históricas; este estado prevalece sobre los estados
+anteriores de propuesta pendiente y run activo.
+
 ## Propuesta lista para CI de habilitación — 2026-10-25
 
 El CI de lectores df5dfff8005a683b514c903d7fe9b007e2f06cc3, run40227003272,

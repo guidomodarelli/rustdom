@@ -1,0 +1,203 @@
+"""Build inspectable reports from the complete unchanged decision/CSV exports; no new measurement or estimator."""
+import sys
+if sys.flags.optimize: raise RuntimeError('Result analysis requires non-optimized contract checks')
+import collections, csv, gzip, hashlib, json, shutil, statistics
+from pathlib import Path
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+reader = Path('/dev/shm/owner-batch-complete-reader-node24-40234774968')
+benchmark = repository / 'reports/benchmarks/native-class-ownership/owner-batch-study-results/40234774968'
+memory = repository / 'reports/memory/owner-batch-study/40234774968'
+assert not benchmark.exists() and not memory.exists()
+benchmark.mkdir(parents=True); memory.mkdir(parents=True)
+def read(filename): return json.loads(filename.read_bytes())
+def save(filename, value):
+    with filename.open('x', encoding='utf-8') as stream: json.dump(value, stream, indent=2, allow_nan=False); stream.write('\n')
+def digest(filename):
+    checksum = hashlib.sha256()
+    with filename.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1048576), b''): checksum.update(chunk)
+    return checksum.hexdigest()
+def rows(name):
+    with gzip.open(reader / 'tables' / (name + '.csv.gz'), 'rt', encoding='utf-8', newline='') as stream:
+        yield from csv.DictReader(stream)
+summary = read(reader / 'export-summary.json'); decision = read(reader / 'verified/decision.json')
+first_summary = read(repository / '.cache/owner-batch-complete-reader-node22-export-summary.json')
+first_decision = read(repository / '.cache/owner-batch-complete-reader-node22-decision.json')
+assert summary['complete'] and decision['complete'] and decision['captureAuthenticated']
+assert decision['performanceAccepted'] is False and decision['gateReevaluated'] is True
+assert summary['counts'] == first_summary['counts'] and summary['tableFiles'] == first_summary['tableFiles']
+assert decision['comparison'] == first_decision['comparison']
+collection = repository / '.cache/owner-batch-science-collection-40234774968'
+shutil.copytree(collection, benchmark / 'transport')
+shutil.copytree(reader / 'tables', benchmark / 'tables')
+verification = benchmark / 'verification'; verification.mkdir()
+for major, source_summary, source_decision in [('22', first_summary, first_decision), ('24', summary, decision)]:
+    save(verification / ('node' + major + '-export-summary.json'), source_summary)
+    save(verification / ('node' + major + '-decision.json'), source_decision)
+for reference in decision['parts']:
+    filename = Path(reference['filename']); assert digest(filename) == reference['sha256']
+    shutil.copyfile(filename, verification / ('part-' + reference['node'] + '.json'))
+process_fields = ['nodeVersion', 'phase', 'engine', 'label', 'position', 'rowIndex']
+def key(row): return tuple(row[name] for name in process_fields)
+processes = {}; sequences = collections.defaultdict(set)
+for row in rows('processes'):
+    identity = key(row); assert identity not in processes
+    processes[identity] = row; sequences[row['nodeVersion']].add(int(row['sequence']))
+    assert (int(row['measuredDurations']), int(row['warmupDurations']), int(row['measuredBlocks']), int(row['warmupBlocks'])) == (144, 48, 9, 3)
+    assert (int(row['windows']), int(row['documents']), int(row['finalClearStates'])) == (12, 12, 2)
+assert len(processes) == 2048 and all(values == set(range(1024)) for values in sequences.values())
+blocks = {}
+for row in rows('blocks'):
+    identity = key(row); assert identity in processes and row['pid'] == processes[identity]['pid']
+    block_key = identity + (int(row['blockIndex']),); assert block_key not in blocks
+    assert int(row['tasks']) == 16 and int(row['withinRealmWarmupRounds']) == 3
+    blocks[block_key] = row
+assert len(blocks) == 24576
+task_masks = collections.defaultdict(int); task_counts = collections.Counter()
+for row in rows('tasks'):
+    identity = key(row); block_key = identity + (int(row['blockIndex']),)
+    assert block_key in blocks and row['pid'] == processes[identity]['pid'] and row['stage'] == blocks[block_key]['stage']
+    task_index = int(row['taskIndex']); assert 0 <= task_index < 16
+    bit = 1 << task_index; assert not task_masks[block_key] & bit
+    task_masks[block_key] |= bit; task_counts[row['stage']] += 1
+assert task_counts == {'measured': 294912, 'warmup': 98304}
+assert len(task_masks) == len(blocks) and all(mask == 65535 for mask in task_masks.values())
+cleanup = collections.defaultdict(dict); first_unclear = collections.Counter(); final_memory = collections.defaultdict(lambda: collections.defaultdict(list))
+for row in rows('cleanup'):
+    identity = key(row); round_number = int(row['round'])
+    assert identity in processes and round_number not in cleanup[identity]
+    assert row['pid'] == processes[identity]['pid'] and round_number in [1, 2, 3]
+    assert (row['clear'] == 'true') == (int(row['survivingWindows']) == int(row['survivingDocuments']) == 0)
+    cleanup[identity][round_number] = row
+    if round_number == 1 and row['clear'] != 'true': first_unclear[(row['nodeVersion'], row['engine'])] += 1
+    if round_number in [2, 3]: assert row['clear'] == 'true'
+    if round_number == 3:
+        for field in ['rssBytes', 'heapTotalBytes', 'heapUsedBytes', 'externalBytes', 'arrayBuffersBytes']:
+            final_memory[(row['nodeVersion'], row['engine'])][field].append(int(row[field]))
+assert len(cleanup) == 2048 and all(set(values) == {1, 2, 3} for values in cleanup.values())
+assert sum(first_unclear.values()) == 108
+native_baselines = {}; native_endpoint_counts = collections.Counter(); native_fields = {}; native_final = {}
+native_rows = 0
+for row in rows('native-counters'):
+    identity = key(row); assert processes[identity]['engine'] == 'rustdom' and processes[identity]['nativeApplicable'] == 'true'
+    field = row['field']; field_index = native_fields.setdefault(field, len(native_fields))
+    round_number = int(row['round']); stage = row['stage']; reference = identity + (field,)
+    if row['valueType'] == 'boolean':
+        assert row['value'] in ['true', 'false'] and row['baselineValue'] in ['true', 'false'] and row['delta'] == ''
+        value = row['value']; baseline = row['baselineValue']; delta = None
+    else:
+        assert row['valueType'] == 'number'
+        value = int(row['value']); baseline = int(row['baselineValue']); delta = int(row['delta'])
+        assert delta == value - baseline
+    if stage == 'baseline':
+        assert round_number == 0 and reference not in native_baselines and value == baseline
+        native_baselines[reference] = baseline
+    else:
+        assert stage == 'cleanup' and round_number in [1, 2, 3] and native_baselines[reference] == baseline
+    endpoint = identity + (stage, round_number)
+    bit = 1 << field_index; assert not native_endpoint_counts[endpoint] & bit
+    native_endpoint_counts[endpoint] |= bit
+    native_rows += 1
+    if stage == 'cleanup' and round_number == 3:
+        aggregate = native_final.setdefault(field, {'valueType': row['valueType'], 'values': [], 'deltas': []})
+        aggregate['values'].append(value)
+        if delta is not None: aggregate['deltas'].append(delta)
+assert len(native_fields) == 167 and native_rows == 684032 and len(native_baselines) == 1024 * 167
+assert len(native_endpoint_counts) == 1024 * 4 and all(mask == (1 << 167) - 1 for mask in native_endpoint_counts.values())
+native_summary = {}
+for field, aggregate in native_final.items():
+    assert len(aggregate['values']) == 1024
+    if aggregate['valueType'] == 'boolean':
+        native_summary[field] = {'valueType': 'boolean', 'finalValues': dict(collections.Counter(aggregate['values'])), 'deltaApplicable': False}
+    else:
+        values = aggregate['values']; deltas = aggregate['deltas']
+        native_summary[field] = {'valueType': 'number', 'count': len(values), 'minimumFinalValue': min(values), 'maximumFinalValue': max(values),
+            'minimumDeltaFromOwnBaseline': min(deltas), 'maximumDeltaFromOwnBaseline': max(deltas),
+            'positiveDeltaProcesses': sum(value > 0 for value in deltas), 'negativeDeltaProcesses': sum(value < 0 for value in deltas)}
+parents = list(rows('parents')); assert len(parents) == 6
+parent_deltas = []
+for node in ['v22.12.0', 'v24.14.1']:
+    group = [row for row in parents if row['nodeVersion'] == node]
+    assert [row['stage'] for row in group] == ['before-workers', 'after-first-half', 'after-workers']
+    assert [int(row['completedWorkers']) for row in group] == [0, 512, 1024]
+    assert len({row['parentPid'] for row in group}) == 1
+    for before, after in zip(group, group[1:]):
+        deltas = {field: int(after[field]) - int(before[field]) for field in ['rssBytes', 'heapUsedBytes', 'externalBytes', 'cpuUserMicroseconds', 'cpuSystemMicroseconds']}
+        parent_deltas.append({'node': node, 'before': before['stage'], 'after': after['stage'], 'deltas': deltas,
+                              'negativeCPUObserved': any(deltas[field] < 0 for field in ['cpuUserMicroseconds', 'cpuSystemMicroseconds'])})
+memory_ranges = [{'node': node, 'engine': engine, 'processes': len(next(iter(fields.values()))),
+    'roundThreeSnapshots': {name: {'minimum': min(values), 'median': statistics.median(values), 'maximum': max(values)} for name, values in fields.items()}}
+    for (node, engine), fields in final_memory.items()]
+resources = {'runId': 40234774968, 'processes': 2048, 'windowsObserved': 24576, 'documentsObserved': 24576,
+    'cleanupEndpoints': 6144, 'twoFinalClearStatesPerProcess': True, 'finalSurvivingWindows': 0, 'finalSurvivingDocuments': 0,
+    'firstCleanupNotClear': 108, 'firstCleanupNotClearBySDKAndEngine': [{'node': node, 'engine': engine, 'processes': count} for (node, engine), count in sorted(first_unclear.items())],
+    'nativeProcesses': 1024, 'nativeCounterRows': native_rows, 'nativeCounterFields': len(native_fields), 'nonNativeCounterRowsFabricated': False,
+    'nativeFinalCounters': native_summary, 'postGCRoundThreeMemorySnapshots': memory_ranges, 'originalParentSnapshots': parents, 'parentSnapshotDeltas': parent_deltas,
+    'peakMemoryMeasured': False, 'universalLeakAbsenceClaimed': False, 'runtimeHybrid': True}
+save(memory / 'resources.json', resources)
+grouped = collections.defaultdict(lambda: {'passed': 0, 'total': 0})
+result_rows = decision['comparison']['results']; assert len(result_rows) == 64
+for result in result_rows:
+    group = grouped[(result['node'], result['phase'], result['engine'], result['role'])]
+    group['passed'] += int(result['passesBudget']); group['total'] += 1
+assert sum(result['passesBudget'] for result in result_rows) == 42
+assert sum(not result['passesBudget'] and result['engine'] == 'jsdom' for result in result_rows) == 19
+assert sum(not result['passesBudget'] and result['role'] == 'rustdom-ab-candidate' for result in result_rows) == 3
+hardware = []
+for node in ['22.12.0', '24.14.1']:
+    index = read(reader / 'verified/extracted' / node / 'payload/owner-batch-run/capture/index.json')
+    hardware.append({'node': node, 'machine': index['machine'], 'captureElapsedMs': index['captureElapsedMs'], 'setupElapsedSeconds': index['setupElapsedSeconds'],
+                     'captureStartedAt': index['startedAt'], 'captureFinishedAt': index['finishedAt'], 'parentPid': index['parentPid']})
+assessment = {'runId': 40234774968, 'attempt': 1, 'methodCommit': decision['transport']['head'], 'complete': True, 'bothReadersVerified': True,
+    'readerNodes': ['v22.12.0', 'v24.14.1'], 'allExportedTablesByteIdentical': True, 'sameWholeDecisionComparison': True,
+    'performanceAccepted': False, 'gateReevaluated': True, 'passedCriteria': 42, 'totalCriteria': 64,
+    'failedJsdomControls': 19, 'failedRustCandidateComparisons': 3,
+    'groups': [{'node': key[0], 'phase': key[1], 'engine': key[2], 'role': key[3], **value} for key, value in grouped.items()],
+    'counts': summary['counts'], 'hardware': hardware, 'estimator': decision['comparison']['processUnit'],
+    'confidenceScope': decision['comparison']['confidenceScope'], 'historicalRejectionsPreserved': True, 'productionCandidateIntegrated': False,
+    'tagCreated': False, 'merged': False, 'newBenchmarkSamples': False, 'archivedCodeExecuted': False}
+save(benchmark / 'assessment.json', assessment)
+with (benchmark / 'all-criteria.csv').open('x', encoding='utf-8', newline='') as stream:
+    writer = csv.writer(stream); writer.writerow(['node', 'phase', 'engine', 'role', 'row', 'pairs', 'changePercent', 'lower95Percent', 'upper95Percent', 'passesBudget', 'reason'])
+    for result in result_rows:
+        interval = result['interval']
+        writer.writerow([result['node'], result['phase'], result['engine'], result['role'], result['key'], len(result['processPairs']),
+                         interval['changePercent'], *interval['intervalChangePercent'], result['passesBudget'], result['reason']])
+lines = ['# Resultado íntegro de ownership-owner-batch-serial-v1', '',
+    '**Rendimiento rechazado:42/64 criterios cumplen.** Hay19 controles jsdom y3 comparaciones RustAB deNode24 fuera del criterio. Captura e integridad completas no equivalen a aceptación del rendimiento.', '',
+    'Run [40234774968](https://github.com/guidomodarelli/rustdom/actions/runs/40234774968), intento1, método504ebc36b66dd6f36b19fd67bd6d61b3faff3f67. Ambos jobs terminaron con success. El candidato ELF4b52 procede del artifact12604810857 delCI40205226009; no se reconstruyó para este estudio. Producción no integra este candidato y sigue híbrida.', '',
+    'Se autenticaron los dos artifacts porID, run, commit, intento, nombre, tamaño y digest. Los ZIP, tar, checksums originales, API, logs y manifiestos completos están en transport/. Los dos lectores actuales Node22.12.0/24.14.1 reprodujeron el rechazo íntegro y generan tablas byte-idénticas. No se ejecutaron scripts archivados ni se recogieron muestras adicionales.', '',
+    '## Alcance y unidades', '',
+    '2048 procesos;294912 duraciones medidas y98304warmup externas;18432 bloques medidos y6144warmup;24576Window y24576Document separados;6144 endpoints de cleanup y6 snapshots parentales. Las144 duraciones medidas forman UNA media por proceso; cada criterio usa16 pares de procesos. Las tres rondas internas de warmup son untimed y no se inventan duraciones.', '',
+    'Intervalos Fieller pareados del95% con t15=2.131449545559323. Son pointwise por comparación, no cobertura simultánea del95% para64 criterios. Se mantuvieron controles jsdom±2%, controles RustAA±5% y límite superior RustAB+5%. Se conservan también mejoras grandes, resultados adversos y los19 controles rechazados; su fallo limita la atribución causal de las diferencias al códigoRust.', '',
+    '## Todos los grupos', '', '| SDK | Fase | Engine | Cumplen |', '|---|---|---|---|']
+for group in assessment['groups']: lines.append(f"| {group['node']} | {group['phase']} | {group['engine']} | {group['passed']}/{group['total']} |")
+lines += ['', 'La tabla all-criteria.csv y tables/comparisons.json conservan los64 criterios sin selección. Las filas range-control muestran mejoras observadas; las tres filas RustAB rechazadas deNode24 son mutation-records-collect/100 y range-state-lifecycle-1000/{1000,250}. No se declara aceptación global ni se descartan sus controles desfavorables.', '',
+    '## Hardware y tiempos observados', '', '| SDK | CPU informada | vCPU visibles | Memoria guest(bytes) | Captura(min) |', '|---|---|---|---|---|']
+for item in hardware:
+    machine = item['machine']; models = ', '.join(sorted({cpu['model'] for cpu in machine['cpus']}))
+    lines.append(f"| {item['node']} | {models} | {len(machine['cpus'])} | {machine['totalMemory']} | {item['captureElapsedMs']/60000:.3f} |")
+lines += ['', 'La frecuencia reportada por os.cpus es0: se conserva como no informada y no como una frecuencia física nula. Los modelos de forecasts anteriores no se sustituyen por el hardware observado ni demuestran causalidad. Se conservaron170min de captura y200min por job; este rechazo es numérico, no un timeout.', '',
+    '## Memoria, procedencia y continuación', '',
+    'Hay108 primeras rondas no claras, publicadas íntegramente. Todos los procesos cumplen dos estados finales claros paraWindow yDocument separados. Los baselines nativos, booleanos sin delta, deltas numéricos y snapshots parentales están completos; ver reports/memory/owner-batch-study/40234774968/. Estas pruebas finitas no miden memoria pico ni demuestran ausencia universal de fugas.', '',
+    'Las identidades originales del método, del compilador, de los paquetes y del lector se conservan sin normalizar. El lector local usa Git nativo f781+WIP real; no se presenta como el checkout publicado limpio504. Todos los cálculos usan código actual y los snapshots medidos solo se leen como datos.', '',
+    'No se repite esta secuencia, no se amplían muestras, no se cambian semillas/warmup/estimador/presupuestos y no se crea tag ni merge de ownership. El CI de rendimiento sigue sin aceptación. Siguiente trabajo: analizar la estabilidad de los controles y el costo de range-state-lifecycle usando la evidencia existente, justificar y probar cualquier candidato o método posterior antes de ejecutarlo. La autorización permanente ya está concedida; la migración general continúa pendiente.', '']
+(benchmark / 'README.md').write_text('\n'.join(lines), encoding='utf-8')
+live_fields = {name: value for name, value in native_summary.items() if name == 'liveNodes' or name.endswith('.live') or name.endswith('.active') or name.endswith('.cleanupErrors')}
+memory_lines = ['# Recursos del estudio completo40234774968', '',
+    'Se conservaron24576Window y24576Document como objetos distintos,6144 endpoints deGC y los seis snapshots parentales originales. Los2048 procesos tienen tres rondas y dos estados finales claros; en los últimos estados no quedan Window niDocument observados.108 primeras rondas no claras no se eliminan.', '',
+    'Solo1024 procesos Rust tienen baselines y estadísticas nativas:684032filas y167campos en cuatro estados por proceso. Parajsdom esos datos son no aplicables; no se fabrican ceros. Los booleanos preservan su valor y delta vacío. resources.json contiene todos los167campos, no solo los favorables.', '',
+    '## Contadores observados al último endpoint', '', '| Campo | Mínimo | Máximo | Delta mínimo | Delta máximo |', '|---|---|---|---|---|']
+for name, value in sorted(live_fields.items()):
+    memory_lines.append(f"| {name} | {value['minimumFinalValue']} | {value['maximumFinalValue']} | {value['minimumDeltaFromOwnBaseline']} | {value['maximumDeltaFromOwnBaseline']} |")
+memory_lines += ['', '## Snapshots y límites', '',
+    'resources.json resume mínimos/medianas/máximos del último snapshot trasGC porSDK/engine y conserva todos los endpoints originales en elCSV. Son snapshots, no memoria pico. Se mantienen los tres snapshots del padre porSDK y sus deltas, incluidos deltasCPU negativos si aparecen; no se usan como memoria oCPU de todos los hijos.', '',
+    'Capacidades y contadores acumulados distintos de cero no bastan para declarar una fuga. La liberación observada es finita y se limita a estos casos, ventanas y tareas. No se afirma ausencia universal de fugas ni equivalencia con un DOM totalmenteRust: el runtime sigue híbrido. Los relojes monotónicos pertenecen a su propio proceso; no se unen cronologías entre máquinas oPIDs.', '',
+    'El rechazo de rendimiento42/64 no se cambia por estos resultados de recursos. La captura no se repite y las regresiones permanecen publicadas.', '']
+(memory / 'README.md').write_text('\n'.join(memory_lines), encoding='utf-8')
+save(benchmark / 'analysis-source.json', {'scriptSha256': digest(Path(__file__)), 'decisionSha256': digest(reader / 'verified/decision.json'),
+    'sourceTableFiles': summary['tableFiles'], 'newBenchmarkSamples': False, 'estimatorReplaced': False})
+print(json.dumps({'benchmarkReport': benchmark.relative_to(repository).as_posix(), 'memoryReport': memory.relative_to(repository).as_posix(),
+    'performanceAccepted': False, 'criteriaPassed': 42, 'criteria': 64, 'processesValidated': len(processes), 'taskRowsValidated': sum(task_counts.values()),
+    'nativeRowsValidated': native_rows, 'firstCleanupNotClear': sum(first_unclear.values()),
+    'selectedLiveCounters': live_fields}))
