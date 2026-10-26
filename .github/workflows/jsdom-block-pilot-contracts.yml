@@ -5,11 +5,13 @@ on:
     paths:
       - '.github/workflows/jsdom-block-pilot-contracts.yml'
       - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+      - 'reports/validation/jsdom-block-pilot/hosted/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/jsdom-block-pilot-contracts.yml'
       - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+      - 'reports/validation/jsdom-block-pilot/hosted/**'
 
 permissions:
   contents: read
@@ -33,6 +35,7 @@ jobs:
       GIT_CONFIG_VALUE_0: 'false'
       TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
       PILOT: reports/benchmarks/native-class-ownership/control-precision/pilot
+      READER: reports/validation/jsdom-block-pilot/hosted/tools
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +48,7 @@ jobs:
             /reports/validation/range-numeric-composed-package/20261026/archive.json
             /reports/validation/owner-batch-capture-method/review.json
             /reports/benchmarks/native-class-ownership/control-precision/pilot/
+            /reports/validation/jsdom-block-pilot/hosted/
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -52,11 +56,15 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/pilot-blocks-qa"
           python -B "$TOOLS/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/pilot-blocks-qa/checkout.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/checkout.stderr.log"
+      - name: Verificar el archivo hosted original y rechazar corrupciones
+        run: |
+          python -B "$READER/verify.spec.py" > "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stderr.log"
+          python -B "$READER/verify.py" reports/validation/jsdom-block-pilot/hosted/40286292347 > "$RUNNER_TEMP/pilot-blocks-qa/reader.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader.stderr.log"
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
       - name: Probar calendario y agregación con escalares sintéticos
-        run: node --test "$PILOT/blocks.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
+        run: node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
       - name: Guardar el calendario completo sin activar captura
         run: node "$PILOT/plan.cjs" "$RUNNER_TEMP/pilot-blocks-qa/calendar.json" > "$RUNNER_TEMP/pilot-blocks-qa/plan.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/plan.stderr.log"
       - uses: actions/upload-artifact@v4

@@ -1,5 +1,35 @@
 # Continuar rustdom en otra máquina
 
+## Archivo CI del calendario y análisis de dispersión — 2026-10-26 UTC
+
+El run **40286292347**, intento1, head **ec57e3bc**, terminó **2/2 aprobado**.
+Se publican ambos ZIP/API/jobs/logs/manifiestos en
+`reports/validation/jsdom-block-pilot/hosted/40286292347/`. Node22 y24 aprobaron
+seis contratos originales por job; sus calendarios propuestos coinciden con
+SHA6e6c0daf. No fueron 16384 procesos ejecutados ni mediciones DOM.
+
+El lector actual autentica datos con pins junto al código, sin ejecutar miembros
+archivados; seis contratos de datos reales/corrupciones pasaron Windows/Linux.
+La estadística nueva en `control-precision/pilot/variance.cjs` calcula IC de SD
+y límite superior puntual de los tres contrastes fijos, condicionado a bloques
+iid normales df15. Conserva deriva/lag1 descriptivos y devuelve inconclusión ante
+SD observada cero. No prueba independencia, potencia ni cobertura simultánea.
+
+Cuantiles y fixture sintético independientes por inversión gamma mpmath1.3.0 a80
+decimales, cotejados con NIST; dependencia de referencia autenticada por PyPI y
+wheel, sin dependencia matemática nueva en runtime. Metodología/generador/lock
+y resultados en `reports/validation/jsdom-block-pilot/variance/20261026/`.
+
+Pasaron once contratos por Windows/Linux × Node22.12.0/24.14.1 (44), seis lectores
+por plataforma y actionlint. CI hosted de los once contratos nuevos pendiente;
+el verde ec57e3bc anterior no prueba esta ampliación. No DOM/captura científica.
+
+Siguiente: cerrar calificación hosted de esta ampliación, implementar lector
+integral de tareas/recursos y capturador con límites/revisión prospectiva antes
+de activar un único piloto. executionReady=false, performanceAccepted=null,
+gateReevaluated=false. Gate ownership sigue rechazado, runtime híbrido,
+migración general activa; sin tag/merge. Preservar las 48 entradas ajenas.
+
 ## Calendario del piloto jsdom implementado, sin captura — 2026-10-26 UTC
 
 El cierre del índice/paquete con CI 2/2 está publicado en **90d80b0e**; PR y

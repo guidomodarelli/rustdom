@@ -33,11 +33,26 @@ procesos incompletos, conteos alterados y tiempos no finitos/solapados. No
 autentica esos escalares ni demuestra corrección o cleanup: eso continúa
 pendiente en el transporte y verificador integral. Conserva todas las medias
 de bloques, razón de medias aritméticas, covarianza y contrastes fijos
-B−qA para q=0.98/1/1.02; q=1 es diagnóstico. No calcula intervalos todavía ni
-adapta el tamaño según resultados.
+B−qA para q=0.98/1/1.02; q=1 es diagnóstico. No adapta el tamaño según resultados.
+
+`variance.analyze` agrega intervalos de SD y un límite superior unilateral95%
+bajo el modelo explícito de contrastes de bloques iid normales. Son puntuales
+por q; no son cobertura conjunta, potencia, prueba de independencia ni decisión
+de presupuesto. Una SD empírica cero devuelve inconclusión, sin afirmar varianza
+poblacional cero. Se conservan autocorrelación lag1 y pendiente temporal como
+descriptivos; no se excluyen bloques ni se interpreta una prueba no significativa
+como independencia.
+
+Los cuantiles chi-cuadrado df15 se obtuvieron invirtiendo la gamma incompleta
+con mpmath1.3.0 a80 decimales. Los casos sintéticos de referencia se generaron
+por un cálculo independiente de la implementación Node y concuerdan con los
+cuantiles tabulados de NIST. No se agrega dependencia matemática al runtime:
+Node usa constantes explícitas y módulos estándar. Ver metodología, generador,
+lock de referencia y resultados en `reports/validation/jsdom-block-pilot/variance/`.
 
 ```sh
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/blocks.spec.cjs
+node --test reports/benchmarks/native-class-ownership/control-precision/pilot/variance.spec.cjs
 node reports/benchmarks/native-class-ownership/control-precision/pilot/plan.cjs /nuevo/calendar.json
 ```
 
@@ -45,6 +60,6 @@ La salida usa creación exclusiva y conserva cualquier archivo previo. Las
 pruebas validan comportamiento, calendario completo, estimando, errores y CLI
 real. Los arrays escalares están acotados por el diseño; no se cargan runtimes,
 wrappers, realms ni referencias DOM. Esto no sustituye las pruebas de memoria
-del capturador futuro. Faltan lector autenticado de tareas/recursos, intervalos,
+del capturador futuro. Faltan lector autenticado de tareas/recursos,
 diagnósticos de dependencia, empaquetado, límites, revisión integral y evidencia
 hosted antes de cualquier captura. No tag/merge; ownership sigue rechazado.

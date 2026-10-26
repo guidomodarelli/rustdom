@@ -1,0 +1,44 @@
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+primary = Path(r'C:\Users\guido\ghq\projects\rustdom')
+output = repository / 'reports/validation/jsdom-block-pilot/variance/20261026/qa'
+output.mkdir(exist_ok=False)
+
+def mounted(path): return '/mnt/' + path.drive[0].lower() + path.as_posix()[2:]
+
+versions = [
+    ('22.12.0', 'win32', '.tools/node-win/node-v22.12.0-win-x64/node.exe', 'b3b117a08ee61efee09e6fd523ab33c0c018da1b570bde08e4fd914dc1170ed6'),
+    ('24.14.1', 'win32', '.tools/node-win/node-v24.14.1-win-x64/node.exe', '58e74bf02fc5bbacc41dcb8bef089961cd5bddd37830b87784e4fc624d145d1f'),
+    ('22.12.0', 'linux', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', 'linux', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]
+outcomes = []
+
+def execute(label, command, timeout=120):
+    result = subprocess.run(command, cwd=repository, capture_output=True, timeout=timeout)
+    (output / (label + '.stdout.log')).write_bytes(result.stdout)
+    (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    outcomes.append({'label': label, 'exitCode': result.returncode})
+    assert result.returncode == 0, label
+
+for version, platform, relative, expected in versions:
+    executable = primary / relative
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    prefix = [str(executable)] if platform == 'win32' else ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--', mounted(executable)]
+    assert subprocess.check_output([*prefix, '--version']).decode().strip() == 'v' + version
+    execute(f'{platform}-{version}', [*prefix, '--test',
+        'reports/benchmarks/native-class-ownership/control-precision/pilot/blocks.spec.cjs',
+        'reports/benchmarks/native-class-ownership/control-precision/pilot/variance.spec.cjs'])
+reader = 'reports/validation/jsdom-block-pilot/hosted/tools/verify'
+execute('reader-windows', ['python', '-B', reader + '.spec.py'])
+execute('reader-linux', ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--', 'python3', '-B', reader + '.spec.py'])
+execute('hosted-verification', ['python', '-B', reader + '.py', 'reports/validation/jsdom-block-pilot/hosted/40286292347'])
+execute('actionlint', ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--', mounted(primary / '.tools/actionlint/actionlint'), '.github/workflows/jsdom-block-pilot-contracts.yml'])
+record = {'commands': outcomes, 'scalarContractsPerSdkPlatform': 11, 'scalarContractsTotal': 44,
+    'readerContractsPerPlatform': 6, 'reference': 'mpmath-1.3.0-80-digits',
+    'domExecuted': False, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(output / 'summary.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))
