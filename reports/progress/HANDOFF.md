@@ -1,5 +1,58 @@
 # Continuar rustdom en otra máquina
 
+## Contexto del worker integrado y validado — 2026-10-26 UTC
+
+Nuevo `pilot/envelope.cjs`, integrado en el padre funcional. Comprueba
+PID/padre/SDK, fuente del worker, revisión, artifact y calendario contra las
+observaciones del executor antes de replay de tareas y recursos. El sidecar
+no autentica su propio transporte ni fuente. Solo funcional, sin habilitar
+captura científica ni generar observaciones estadísticas.
+
+El CI general anterior **9a6f62a9 / run 40304459936 terminó 8/8 aprobado**:
+Linux, Windows, macOS, cuatro shards y agregador. Se guardan artifacts/API/logs
+en `previous-general-ci-9a6/` dentro de la validación de este hito. Incluye
+Memcheck 3.18.1 sobre 311 tests Rust en diez batches, con todas sus salidas y
+límites; datos nativos en `reports/memory/ci-general/40304459936/`.
+No califica el envelope añadido después ni acepta ownership.
+
+Benchmarks ordinarios completos en `reports/benchmarks/ci-general/40304459936/`:
+332 filas, 213 con mediana rustdom más lenta que jsdom y 119 más rápida.
+Todo queda publicado, incluidos veinte reportes de contratos adicionales y
+fallos esperados. No pooling ni certificación estadística. Node observado
+24.21.0 y checkout real merge `6233aecf`, padre 9a6; Git no normalizado y sin
+atribuir esas muestras al candidato a277 ni a los SDK de otros estudios.
+
+Pasaron **124 contratos**, 31 por Windows/Linux × Node 22.12.0/24.14.1,
+y **44 procesos funcionales reales** del padre integrado: 32 positivos y 12
+adversos. Git Linux nativo limpio `a7c7f16d5f16013272643ae3d8e806daae8b9998`,
+fixture privado explícito; no se presenta como commit publicado. Los diez
+archivos del productor y sus hashes se preservan. Runtime solo jsdom 27.4.0,
+sin operaciones del candidato Rust ni pooling con épocas anteriores.
+
+Raw en `reports/benchmarks/native-class-ownership/jsdom-block-envelope-functional/20261026/`,
+QA/fuente/recovery en `reports/validation/jsdom-block-pilot/envelope/20261026/`
+y recursos en `reports/memory/jsdom-block-pilot/envelope/20261026/`.
+4608 duraciones medidas, 1536 warmup positivos y 32 adversos; 386 Window y
+386 Document separados, dos primeras rondas no claras y 68 endpoints finales
+claros. Seis snapshots parentales; no memoria pico ni ausencia universal de fugas.
+El helper offline inicial confundió `kind` con `stage`; se corrigió la lectura
+sin cambiar datos ni repetir secuencias. La revisión cerró el P2 de los filtros
+`paths` del workflow. Actionlint Linux aprobado.
+
+Se recuperó la VM propia después de errores de I/O: copias temporales
+duplicadas eliminadas solo tras verificar las partes publicadas; los 9541
+archivos temporales legibles quedaron respaldados y verificados antes del
+reinicio. Seis enlaces no resueltos por 9p permanecen documentados y sus targets
+están en el paquete sellado. Sin e2fsck, sin tocar otra distro en uso ni repetir
+capturas científicas. El backup temporal se conserva en `.cache/`, sin ejecutar
+su código archivado. Nuevo keeper de la VM: sesión 95940, PID Linux 291.
+
+Siguiente: verificar CI del SHA que publique este envelope y completar el
+capturador/envelope científico, archivo por criterio, grafo y revisión íntegros
+antes del piloto prospectivo. Los gates históricos conservan su rechazo.
+Sin tag/merge con rendimiento sin aceptar. Migración general activa, runtime
+híbrido, Engram sin identidad registrada y 48 entradas ajenas preservadas.
+
 ## CI funcional 2/2 y corrección de concurrencia del CI general — 2026-10-26 UTC
 
 El productor publicado en **2466b8d35910e5f663224203462d341fdae14f64**

@@ -47,15 +47,15 @@ async function run(prepared, destination) {
   const { calendar } = require('./blocks.cjs');
   const { createFunctionalManifest } = require('./packages.cjs');
   const { workerArguments } = require('./worker.cjs');
-  const { replayProcess } = require('./process-reader.cjs');
+  const { replayEnvelope } = require('./envelope.cjs');
   const { execute } = require('../../owner-batch-study/process.cjs');
   const { readJSON, writeJSON, hashFile } = require('../../owner-batch-study/io.cjs');
   const { collectGarbage } = require('../../../../../scripts/memory-endpoint.cjs');
   const source = require('../../owner-batch-study/source.cjs');
   const sampling = require('../../owner-batch-study/constants/sampler.json');
   const historical = source.currentFiles();
-  const ownNames = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'functional.cjs', 'process-reader.cjs',
-    'constants/design.json', 'constants/worker.json', 'fixtures/progress-failure.cjs'];
+  const ownNames = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'functional.cjs', 'process-reader.cjs', 'envelope.cjs',
+    'constants/design.json', 'constants/worker.json', 'constants/envelope.json', 'fixtures/progress-failure.cjs'];
   const ownFiles = () => Object.fromEntries(ownNames.map((name) => [name, hashFile(path.join(__dirname, name))]));
   const sourceIdentity = source.gitIdentity();
   assert.equal(sourceIdentity.sourceGitErrors.length, 0);
@@ -102,14 +102,11 @@ async function run(prepared, destination) {
       const observed = await launch(argv, directory); entry.invocation = observed; save();
       assert.equal(observed.command.exitCode, 0, 'Pilot functional qualifier: worker failed without retry');
       const report = readJSON(reportPath); const context = readJSON(reportPath + '.context.json');
-      assert.equal(context.complete, true); assert.equal(context.workerRevision, policy.revision);
-      assert.equal(context.workerSourceSha256, index.ownSourceFiles['worker.cjs']);
-      assert.deepEqual(context.plannedInput, input); assert.equal(context.pid, observed.command.pid);
-      assert.equal(context.parentPid, process.pid); assert.equal(context.scientificCaptureExecuted, false); assert.equal(context.analysisObservation, null);
+      const replay = replayEnvelope(report, context, manifest, input, { mode: 'functional', node: process.version, pid: observed.command.pid,
+        hostId: 'functional-parent-' + process.pid, startMonotonicMs: observed.startMonotonicMs, endMonotonicMs: observed.endMonotonicMs },
+      { parentPid: process.pid, workerSourceSha256: index.ownSourceFiles['worker.cjs'] });
       if (index.randomProbePrefix === undefined) index.randomProbePrefix = [...report.randomProbe];
       else assert.deepEqual(report.randomProbe, index.randomProbePrefix, 'Pilot functional qualifier: matched factor has a different startup RNG prefix');
-      const replay = replayProcess(report, manifest, input, { mode: 'functional', node: process.version, pid: observed.command.pid,
-        hostId: 'functional-parent-' + process.pid, startMonotonicMs: observed.startMonotonicMs, endMonotonicMs: observed.endMonotonicMs });
       assert.equal(replay.analysisObservation, null);
       entry.observed = { measured: replay.replay.samplesMs.length, warmup: replay.replay.warmupSamplesMs.length,
         windows: replay.trackedOwners.window, documents: replay.trackedOwners.document, cleanupTrace: replay.cleanupTrace };

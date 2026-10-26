@@ -1,0 +1,64 @@
+"""Retain readable volatile test bytes before restarting only our failed validation distro."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Volatile evidence preservation requires non-optimized Python')
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import shutil
+import stat
+import tarfile
+
+repository = Path(__file__).resolve().parent.parent
+root = Path(r'\\?\UNC\wsl.localhost\Rustdom-Validation-20261025\dev\shm')
+expected_roots = {'rustdom-pilot-worker-functional-20261026', 'rustdom-pilot-worker-functional-results-20261026',
+    'rustdom-pilot-worker-functional-results-20261026-fixed-auth', 'rustdom-pilot-worker-source-20261026'}
+assert {path.name for path in root.iterdir()} == expected_roots
+destination = repository / '.cache/pilot-functional-ram-preserved-20261026.tar.gz'
+assert not destination.exists()
+members = {}; objects = {}; raw_bytes = 0; unresolved = []
+with tarfile.open(destination, 'x:gz', compresslevel=6) as archive:
+    for path in sorted(root.rglob('*')):
+        name = path.relative_to(root).as_posix(); metadata = path.lstat()
+        if metadata.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            entry = {'kind': 'reparse-point', 'reportedBytes': metadata.st_size, 'windowsAttributes': metadata.st_file_attributes}
+            try: entry['linkTarget'] = os.readlink(path)
+            except OSError as error:
+                entry.update(targetAvailable=False, error=str(error)); unresolved.append(name)
+            members[name] = entry
+        elif path.is_dir(): members[name] = {'kind': 'directory'}
+        else:
+            with path.open('rb') as stream: checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
+            members[name] = {'kind': 'file', 'bytes': metadata.st_size, 'sha256': checksum}
+            raw_bytes += metadata.st_size
+            if checksum not in objects:
+                assert shutil.disk_usage(repository).free > metadata.st_size + 104857600, 'Preserve partial backup; insufficient host free space'
+                info = tarfile.TarInfo('objects/' + checksum); info.size = metadata.st_size
+                with path.open('rb') as stream: archive.addfile(info, stream)
+                objects[checksum] = {'bytes': metadata.st_size}
+            after = path.lstat()
+            assert after.st_size == metadata.st_size and after.st_mtime_ns == metadata.st_mtime_ns
+    index = {'members': members, 'uniqueObjects': objects, 'rawRegularBytes': raw_bytes,
+        'unresolvedReparseTargets': unresolved, 'metadataScope': 'Windows 9p transport metadata, not original POSIX provenance'}
+    data = json.dumps(index, indent=2).encode(); info = tarfile.TarInfo('index.json'); info.size = len(data)
+    archive.addfile(info, io.BytesIO(data))
+seen = set()
+with tarfile.open(destination, 'r:gz') as archive:
+    for member in archive:
+        if member.name == 'index.json': assert json.load(archive.extractfile(member)) == index
+        else:
+            checksum = member.name.removeprefix('objects/'); assert checksum in objects and checksum not in seen
+            assert member.size == objects[checksum]['bytes']
+            with archive.extractfile(member) as stream: assert hashlib.file_digest(stream, 'sha256').hexdigest() == checksum
+            seen.add(checksum)
+assert seen == set(objects)
+with destination.open('rb') as stream: archive_hash = hashlib.file_digest(stream, 'sha256').hexdigest()
+record = {'archive': destination.name, 'bytes': destination.stat().st_size, 'sha256': archive_hash,
+    'regularFiles': sum(value['kind'] == 'file' for value in members.values()), 'rawRegularBytes': raw_bytes,
+    'uniqueObjects': len(objects), 'allRegularBytesVerified': True, 'metadataComplete': not unresolved,
+    'unresolvedReparseTargets': unresolved, 'publishedFunctionalEvidenceCommit': '9a6f62a982c64f5c02c54c6cd80b5a4d8474b6b7',
+    'scientificCaptureRepeated': False, 'archiveMembersMustNotBeExecuted': True}
+(repository / '.cache/pilot-functional-ram-preserved-20261026.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))

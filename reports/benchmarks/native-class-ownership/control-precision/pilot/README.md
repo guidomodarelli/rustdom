@@ -90,3 +90,15 @@ raw/recursos por separado en los directorios de validación y benchmarks. Faltan
 calificación hosted, transporte/lector integral autenticado y capturador científico,
 diagnósticos de dependencia, empaquetado, límites, revisión integral y evidencia
 hosted antes de cualquier captura. No tag/merge; ownership sigue rechazado.
+## Contrato funcional del contexto de producción
+
+`envelope.cjs` enlaza el raw y su sidecar con las observaciones independientes
+del executor antes de llamar a `process-reader.cjs`. El padre integrado usa
+este contrato y autentica previamente fuente/paquete; el reader no atribuye
+autenticación a las afirmaciones del sidecar. Solo acepta modo funcional y
+conserva `analysisObservation=null`, sin habilitar captura científica.
+
+La calificación está en `reports/validation/jsdom-block-pilot/envelope/20261026/`:
+124 contratos en Windows/Linux × Node 22/24 y 44 procesos funcionales reales.
+No califica rendimiento del candidato Rust ni reemplaza los rechazos históricos.
+
