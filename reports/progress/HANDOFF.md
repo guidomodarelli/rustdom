@@ -1,5 +1,26 @@
 # Continuar rustdom en otra máquina
 
+## CI `4196c496` conservado y reproducido — 2026-10-26 UTC
+
+La fuente `4196c496` mantiene 77/79 checks verdes; los dos rojos de ownership
+reproducen el rechazo histórico, no un fallo de checkout. Se publicaron los
+14 ZIP actuales íntegros por partes con lectura remota independiente, metadata,
+logs e inventarios. Pasaron 14 materializaciones externas y ocho replays en ambos
+Node fijados, sin DOM nuevo. Ver `ci-4196c496/COMPLETED.md` y su resumen.
+
+Benchmarks ordinarios: 332 filas, 213 medianas rustdom mayores/119 menores y otros
+20 contratos separados. Memcheck: 311 tests Rust en diez batches, con límites explícitos.
+La revisión del método/resultados quedó sin hallazgos. Los 17 tests de lectores/guards
+pasaron; se preservó también el P2 corregido de dependencias transitivas.
+
+Falta integrar y probar el colector científico secuencial por criterio antes de
+aplicar la etiqueta v2: el QA actual fija 14 artifacts/256 MiB y no admite la matriz
+de 32 criterios. No ejecutar otra vez los scripts de captura/activación históricos
+ni este transporte fijo ya consumido. Mantener la fuente4196 calificada estable.
+Autorización permanente vigente; sin preguntas. No tag/merge con rechazo actual.
+Runtime híbrido, migración activa y 48 entradas ajenas preservadas.
+
+
 ## Fuente4196 calificada y transporte acotado — 2026-10-26 UTC
 
 Esta es una rama de evidencia. La fuente de PR80 permanece estable en4196c496,
