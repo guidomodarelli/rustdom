@@ -1,0 +1,81 @@
+"""Preserve successful ordinary CI plus memory report artifacts; never execute archive members."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('CI evidence closure requires non-optimized Python')
+import hashlib
+import io
+import json
+from pathlib import Path, PurePosixPath
+import stat
+import subprocess
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / 'reports/validation/jsdom-block-pilot/readiness/20261026/prior-general-ci-714'
+root.mkdir(exist_ok=True)
+prefix = 'repos/guidomodarelli/rustdom/'
+source = '7148577dcf1eeffda2ebf95a3ccd1eb173a6082b'
+
+def api(endpoint, filename):
+    raw = subprocess.check_output(['gh', 'api', prefix + endpoint], cwd=repository, timeout=120)
+    destination = root / filename
+    if destination.exists(): assert destination.read_bytes() == raw
+    else: destination.write_bytes(raw)
+    return json.loads(raw)
+
+run = api('actions/runs/40344594060/attempts/1', 'run.json')
+jobs = api('actions/runs/40344594060/attempts/1/jobs?per_page=100', 'jobs.json')
+artifacts = api('actions/runs/40344594060/artifacts?per_page=100', 'artifacts.json')
+assert run['head_sha'] == source and run['path'] == '.github/workflows/ci.yml' and run['run_attempt'] == 1
+assert run['status'] == 'completed' and run['conclusion'] == 'success'
+assert jobs['total_count'] == 8 and all(job['conclusion'] == 'success' and job['head_sha'] == source for job in jobs['jobs'])
+records = []
+for platform in ['ubuntu-22.04', 'windows-latest', 'macos-latest']:
+    name = 'validation-' + platform
+    job = next(job for job in jobs['jobs'] if job['name'] == 'validate (' + platform + ')')
+    artifact = next(artifact for artifact in artifacts['artifacts'] if artifact['name'] == name)
+    assert not artifact['expired'] and artifact['workflow_run']['id'] == run['id'] and artifact['workflow_run']['head_sha'] == source
+    assert 0 < artifact['size_in_bytes'] <= 33554432 and job['started_at'] <= artifact['created_at'] <= job['completed_at']
+    metadata = api('actions/artifacts/' + str(artifact['id']), platform + '-metadata.json'); assert metadata == artifact
+    archive_path = root / (platform + '.zip')
+    raw = archive_path.read_bytes() if archive_path.exists() else subprocess.check_output(
+        ['gh', 'api', prefix + 'actions/artifacts/' + str(artifact['id']) + '/zip'], cwd=repository, timeout=120)
+    checksum = hashlib.sha256(raw).hexdigest()
+    assert len(raw) == artifact['size_in_bytes'] and artifact['digest'] == 'sha256:' + checksum
+    if not archive_path.exists(): archive_path.write_bytes(raw)
+    inventory = {}; native_reports = []
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        members = archive.infolist(); names = [member.filename for member in members]
+        assert len(names) == len(set(names)) and len(members) <= 4096
+        assert sum(member.file_size for member in members) <= 268435456
+        for member in members:
+            path = PurePosixPath(member.filename)
+            assert not path.is_absolute() and '..' not in path.parts and '\\' not in member.filename
+            assert not stat.S_ISLNK(member.external_attr >> 16)
+            if member.is_dir(): continue
+            assert member.file_size <= 67108864
+            with archive.open(member) as stream: member_hash = hashlib.file_digest(stream, 'sha256').hexdigest()
+            inventory[member.filename] = {'bytes': member.file_size, 'sha256': member_hash}
+            if member.filename.endswith('-valgrind.json'):
+                assert member.file_size <= 1048576
+                report = json.loads(archive.read(member))
+                assert report['pass'] and report['runs']
+                assert all(entry['exitCode'] == 0 and entry['testsCompleted'] and not entry.get('error') and not entry.get('signal') for entry in report['runs'])
+                native_reports.append({'member': member.filename, 'version': report['version'],
+                    'batches': len(report['runs']), 'testsCompleted': sum(len(entry['tests']) for entry in report['runs']),
+                    'limitations': report['limitations'], 'allBatchesPassed': True})
+    if platform == 'ubuntu-22.04': assert len(native_reports) == 1
+    (root / (platform + '-members.json')).write_bytes(json.dumps(inventory, indent=2).encode() + b'\n')
+    log = subprocess.check_output(['gh', 'api', prefix + 'actions/jobs/' + str(job['id']) + '/logs'], cwd=repository, timeout=120)
+    (root / (platform + '-job.log')).write_bytes(log)
+    records.append({'platform': platform, 'jobId': job['id'], 'artifactId': artifact['id'], 'zipBytes': len(raw),
+        'zipSha256': checksum, 'members': len(inventory), 'nativeMemoryReports': native_reports})
+merge = api('commits/88b893a888b5cebd37b532b7a0eeb0c142fab1b6', 'benchmark-merge-commit.json')
+assert source in [parent['sha'] for parent in merge['parents']]
+record = {'runId': run['id'], 'attempt': 1, 'headCommit': source, 'jobsPassed': 8, 'conclusion': 'success',
+    'benchmarkCheckoutCommit': merge['sha'], 'benchmarkCheckoutIsPrMerge': True,
+    'artifacts': records, 'readinessCandidateQualifiedByThisRun': False,
+    'archivedCodeExecuted': False, 'scientificCaptureExecuted': False,
+    'ownershipGateReevaluated': False, 'ownershipPerformanceAccepted': None}
+(root / 'receipt.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))

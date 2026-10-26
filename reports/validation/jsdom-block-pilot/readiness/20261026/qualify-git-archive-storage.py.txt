@@ -1,0 +1,96 @@
+"""Exercise real Git publication, dehydration and exact archive recovery in an isolated local fixture."""
+from pathlib import Path
+import hashlib
+import json
+import subprocess
+repository=Path(__file__).resolve().parent.parent
+root=repository/'.cache/git-archive-storage-qa-20261026';root.mkdir(exist_ok=False)
+work=root/'work';work.mkdir()
+remote=root/'remote.git'
+original=repository/'reports/validation/jsdom-block-pilot/lifecycle-reaping-fix/20261026/failed-hosted-40341408765/12659018455.zip'
+expected_archive_sha='65a68d17a33e5a4351f7db980370bd626fecbb595d51421e5385774694faa8d5'
+chunk_bytes=4*1024*1024
+read_bytes=1024*1024
+git=['git','-c','core.longpaths=true','-c','gc.auto=0']
+def run(arguments,**options):return subprocess.check_output(git+arguments,cwd=work,stderr=subprocess.PIPE,**options)
+def digest(file):
+    checksum=hashlib.sha256()
+    with file.open('rb') as stream:
+        for chunk in iter(lambda:stream.read(read_bytes),b''):checksum.update(chunk)
+    return checksum.hexdigest()
+def read_committed(relative,commit,writer=None):
+    child=subprocess.Popen(git+['cat-file','blob',commit+':'+relative],cwd=work,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    checksum=hashlib.sha256();size=0
+    try:
+        for chunk in iter(lambda:child.stdout.read(read_bytes),b''):
+            size+=len(chunk);checksum.update(chunk)
+            if writer is not None:writer.write(chunk)
+        error=child.stderr.read();assert child.wait(timeout=30)==0,error
+    finally:
+        child.stdout.close();child.stderr.close()
+    return size,checksum.hexdigest()
+def dehydrate(parts,commit):
+    assert run(['rev-parse','HEAD']).decode().strip()==commit
+    assert run(['ls-remote','--refs','origin','refs/heads/main']).decode().split()[0]==commit,'Publish before removing owned duplicate files'
+    for item in parts:
+        file=work/item['path']
+        assert file.resolve().is_relative_to(work.resolve()) and not file.is_symlink()
+        assert file.stat().st_size==item['bytes'] and digest(file)==item['sha256'],'Preserve uncommitted byte changes'
+        assert read_committed(item['path'],commit)==(item['bytes'],item['sha256'])
+        assert run(['rev-parse',':'+item['path']]).strip()==run(['rev-parse',commit+':'+item['path']]).strip()
+    # Paths are exclusively owned, byte-verified and published. Only their duplicate working copies are removed.
+    run(['update-index','--skip-worktree','--',*[item['path'] for item in parts]])
+    for item in parts:(work/item['path']).unlink()
+
+assert digest(original)==expected_archive_sha
+subprocess.run(git+['init','--bare',str(remote)],check=True,capture_output=True)
+run(['init','--initial-branch=main']);run(['config','user.name','Archive storage fixture'])
+run(['config','user.email','fixture@example.invalid']);run(['config','core.autocrlf','false'])
+run(['remote','add','origin',str(remote)])
+folder=work/'reports/benchmarks/storage-fixture';folder.mkdir(parents=True)
+parts=[]
+with original.open('rb') as stream:
+    while True:
+        raw=stream.read(chunk_bytes)
+        if not raw:break
+        relative='reports/benchmarks/storage-fixture/archive.part-'+str(len(parts)).zfill(4)+'.bin'
+        with (work/relative).open('xb') as output:output.write(raw)
+        parts.append({'path':relative,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
+manifest={'originalSha256':expected_archive_sha,'originalBytes':original.stat().st_size,
+          'testChunkBytes':chunk_bytes,'parts':parts,'byteIdenticalReconstructionRequired':True}
+with (folder/'manifest.json').open('xb') as output:output.write(json.dumps(manifest,indent=2).encode()+b'\n')
+run(['add','--',*[item['path'] for item in parts],'reports/benchmarks/storage-fixture/manifest.json'])
+run(['commit','-m','Publish exact archive parts in isolated storage fixture'])
+run(['push','origin','main']);commit=run(['rev-parse','HEAD']).decode().strip()
+
+changed=work/parts[-1]['path'];saved=changed.read_bytes();changed.write_bytes(saved+b'changed')
+try:
+    dehydrate(parts,commit)
+    raise RuntimeError('Changed bytes must not be removed')
+except AssertionError:
+    assert changed.read_bytes()==saved+b'changed'
+changed.write_bytes(saved)
+run(['commit','--allow-empty','-m','Unpublished local fixture revision'])
+unpublished=run(['rev-parse','HEAD']).decode().strip()
+try:
+    dehydrate(parts,unpublished)
+    raise RuntimeError('Unpublished revision must not dehydrate')
+except AssertionError:
+    assert all((work/item['path']).exists() for item in parts)
+run(['push','origin','main'])
+dehydrate(parts,unpublished)
+assert all(not (work/item['path']).exists() for item in parts)
+assert run(['status','--porcelain'])==b''
+restored=root/'restored-original.zip'
+with restored.open('xb') as writer:
+    for item in parts:assert read_committed(item['path'],unpublished,writer)==(item['bytes'],item['sha256'])
+assert restored.stat().st_size==original.stat().st_size and digest(restored)==expected_archive_sha
+receipt={**manifest,'localBareRemoteFixture':True,'publicGitHubPublishingPerformed':False,
+         'fixtureCommit':unpublished,'publishedBeforeDehydrating':True,'changedByteRemovalRejected':True,
+         'unpublishedCommitRemovalRejected':True,'ownedWorkingCopyBytesAfterDehydrating':0,
+         'restoredOriginalSha256':digest(restored),'DOMExecuted':False,'scientificCaptureExecuted':False,
+         'limits':'This verifies exact storage and recovery, not scientific data quality, CI approval or free space for every possible archive size',
+         'performanceAccepted':None,'gateReevaluated':False}
+(root/'receipt.json').write_bytes(json.dumps(receipt,indent=2).encode()+b'\n')
+print(json.dumps({'parts':len(parts),'originalBytes':original.stat().st_size,'byteIdenticalRecovery':True,
+                  'changedBytesPreserved':True,'publicationRequired':True,'publicGitHubPublishingPerformed':False}))

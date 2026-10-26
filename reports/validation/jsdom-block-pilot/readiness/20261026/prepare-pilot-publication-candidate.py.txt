@@ -1,0 +1,41 @@
+"""Prepare reviewed publication bytes outside the worktree; neither publish nor activate before hosted qualification."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+repository=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=Path('/dev/shm/rustdom-pilot-readiness-source-20261026-v2')
+output=repository/'.cache/pilot-ready-publication-candidate-20261026';output.mkdir(exist_ok=False)
+pilot='reports/benchmarks/native-class-ownership/control-precision/pilot'
+publication='reports/validation/jsdom-block-pilot/capture-method/review.json'
+original=json.loads((source/publication).read_bytes())
+assert original['completeMethodReview'] and original['actionableFindings']==0
+paths=[pilot+'/constants/capture.json',pilot+'/constants/design.json',pilot+'/capture/files.json']
+for relative in paths:
+    target=output/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source/relative,target)
+review={key:original[key] for key in ['revision','kind','executionReady','completeMethodReview','actionableFindings',
+                                   'files','filesDigest','performanceAccepted','gateReevaluated','reviewer','reviewedAtUTC','reviewedSourceFilesDigest']}
+review.update({'reviewScope':'Complete source method, corrected lifecycle harness and readiness transition; qualification of the final published SHA is independently required before label',
+    'reviewedPrivateSourceCommit':'4ce60ce2efe477caba1fc1a99f31dc724872c33b','privateSourceIsPublishedCommit':False,
+    'localQualification':[
+        {'scope':'functional coordinator and readers','sourceCommit':'5bd2e200019b54f9b333cec5c6b7b5e0de85ce41',
+         'sourceIsPublishedCommit':False,'coordinatorWorkers':128,'nodeContractsPerSdkPerPlatform':60,'platforms':['linux','win32']},
+        {'scope':'lifecycle reaping regression','sourceCommit':'7c29a39433c28e0c2f3cd741587b565c05322916',
+         'sourceIsPublishedCommit':False,'realTerminationCases':6,'actualZombieCases':2,'remainingOwnedDescendants':0},
+        {'scope':'readiness flags with incomplete review','sourceCommit':'7bd4c9a489c40ccd2e1cb3bf338064f2568e9083',
+         'sourceIsPublishedCommit':False,'nodeContractsPerSdk':51,'incompleteReviewRejectedBothSdks':True},
+        {'scope':'reviewed source admission without controller','sourceCommit':'4ce60ce2efe477caba1fc1a99f31dc724872c33b',
+         'sourceIsPublishedCommit':False,'reviewedSourceAdmittedBothSdks':True,'missingControllerRejectedBothSdks':True,
+         'sourceSnapshotArchiveSha256':'a4b2507a84528ef22a8db46897809af22642aeafe712ea8353af27917e87f08e'}],
+    'hostedQualificationPolicy':{'requiredForFinalPublishedSha':True,'qualificationJobs':4,'generalJobs':8,
+        'enforcedBy':'reports/benchmarks/native-class-ownership/control-precision/pilot/capture/once.cjs'},
+    'hostedQualificationCompleteAtReviewTime':False,'scientificCaptureExecuted':False})
+target=output/publication;target.parent.mkdir(parents=True,exist_ok=True)
+target.write_bytes(json.dumps(review,indent=2).encode()+b'\n')
+paths.append(publication)
+manifest={'basePublishedCommit':'7148577dcf1eeffda2ebf95a3ccd1eb173a6082b','files':{
+    relative:hashlib.sha256((output/relative).read_bytes()).hexdigest() for relative in paths},
+    'notYetAppliedToWorktree':True,'notYetPublished':True,'scientificCaptureExecuted':False,
+    'performanceAccepted':None,'gateReevaluated':False}
+(output/'candidate-manifest.json').write_bytes(json.dumps(manifest,indent=2).encode()+b'\n')
+print(json.dumps(manifest))

@@ -1,5 +1,94 @@
 # Continuar rustdom en otra máquina
 
+## Método habilitado; calificar el SHA final antes de ejecutar — 2026-10-26 UTC
+
+La base `7148577d` terminó **4/4** en el run **40344594967** y **8/8** en
+el general **40344594060**, ambos intento 1. Artifacts originales, inventarios,
+logs y ocho replays offline están en
+`reports/validation/jsdom-block-pilot/readiness/20261026/`. El Memcheck de Linux
+aprobó 311 tests Rust en diez batches con Valgrind 3.18.1; archivos íntegros en
+`reports/memory/ci-general/40344594060/`. Cubre el ejecutable Rust, no V8 ni el
+addon cargado; conservar las posibles fugas y asignaciones alcanzables de logs.
+
+Después de confirmar esa base se aplicaron exactamente los cuatro archivos
+revisados: flags capture/design, catálogo y recibo. La publicación contiene
+849 dependencias y 850 entradas contando el catálogo; SHA256 del recibo
+`f85ec2b26d1839f7130a7bee4e02e560f6497f4003c7c0b2cf3f8c140402f2c1`.
+El perfil habilitado pasó además 120 contratos Node en Windows con Node
+22.12.0/24.14.1 y diez Python. Sus cambios de trabajo y hashes se conservan
+sin atribuirlos a la fuente base. Admisión y snapshots privados de Linux
+están identificados por sus commits reales en la evidencia; no son commits
+publicados ni capturas científicas.
+
+**Verificar el nuevo SHA publicado y sus propios 4+8 jobs originales** antes
+de la única etiqueta `ownership-jsdom-block-pilot-v1`. Autenticar artifacts y
+replay de ese SHA. No sustituirlos por el verde 714. El preflight exige historia
+íntegra, la misma fuente, intento 1 y CI terminado antes del label; el recibo
+del controller vuelve a exigirse antes de crear la expectativa de captura.
+La autorización permanente ya está concedida: avanzar sin otra pregunta.
+
+El método fija 32 criterios y 16 384 procesos jsdom, Node 22.12.0/24.14.1,
+captura 170 min dentro de cada job de 200 min, paquete sellado fb062/A277 y
+el calendario publicado. No reconstruir el paquete, alterar muestras, filas,
+semillas, warmup o presupuestos, ni repetir una secuencia consumida. Conservar
+íntegros resultados negativos y parciales, Window/Document separados y recursos.
+El ELF se autentica; este piloto solo ejecuta jsdom. Mantiene siempre
+performanceAccepted=null y gateReevaluated=false; no acepta ownership.
+
+Los benchmarks ordinarios completos del CI714 están en
+`reports/benchmarks/ci-general/40344594060/`: 332 filas, 221 medianas rustdom
+más lentas y 111 más rápidas, veinte controles adicionales separados. Fuente
+real de esos reportes: merge `88b893a8`, Node 24.21.0, binario reportado 221d5b65.
+Son datos descriptivos, sin pooling, normalización de Git ni inferencia de
+regresión estadística. No atribuirlos al paquete A277 del piloto.
+
+La descripción del PR ahora resume el cambio real de ownership N-API y sus
+bloqueos. La anterior quedó preservada íntegra en `readiness/20261026/`.
+El objetivo general continúa activo, el runtime es híbrido y el gate histórico
+de ownership sigue rechazado. Sin tag ni merge. Las 48 entradas ajenas se
+preservan. Engram permanece sin identidad registrada; no inventarla ni usarlo.
+
+## Calificación hosted 4/4 y perfil de habilitación preparado — 2026-10-26 UTC
+
+El fix publicado `7148577dcf1eeffda2ebf95a3ccd1eb173a6082b` aprobó
+**40344594967, intento 1, cuatro jobs**: contratos/bloques y replay por
+artifact ID en Node 22.12.0/24.14.1. Los cuatro ZIP originales, API, inventarios,
+journals y ocho replays offline están preparados como WIP propio en
+`reports/validation/jsdom-block-pilot/readiness/20261026/`. El CI general
+**40344594060** continúa vivo: confirmar sus ocho jobs antes de cambiar el
+SHA publicado. No cancelar ni reiniciar por una observación transitoria.
+
+Fuera del worktree está preparado el candidato de cuatro archivos en
+`.cache/pilot-ready-publication-candidate-20261026/`. Revisión aislada sin
+hallazgos; recibo SHA256 `f85ec2b26d1839f7130a7bee4e02e560f6497f4003c7c0b2cf3f8c140402f2c1`.
+El perfil privado limpio `7bd4c9a4` pasó 51 contratos por SDK y rechazó revisión
+incompleta. `4ce60ce2` admitió la fuente revisada en ambos SDK y rechazó el
+recibo ausente del controller, sin DOM. Snapshot completo verificado de
+12 477 959 bytes; los perfiles privados no son commits publicados.
+
+Siguiente paso: confirmar y archivar el CI general de 714; aplicar solamente
+los cuatro archivos candidatos, conservar esta evidencia y revisar/stagear
+por path, commit/push. El SHA habilitado requiere **su propio CI 4+8 y sus
+artifacts autenticados antes de la única etiqueta**. No reutilizar el verde
+714 como aprobación del código posterior. La autorización permanente ya
+cubre el estudio; no pedirla otra vez. Las autorizaciones antiguas consumidas
+y sus rechazos permanecen intactos. El piloto solo estudia controles jsdom y
+mantiene performanceAccepted=null, gateReevaluated=false.
+
+La máquina tiene unos 5 GB libres. Se probó en un Git/remoto bare aislado la
+preservación y recuperación exacta de un ZIP real de 21 256 521 bytes en seis
+partes: se rechaza retirar cambios sin commit o datos no publicados. Para la
+colección, procesar un criterio por vez y conservar bytes originales en Git,
+con recuperación verificable; no mantener todas las extracciones a la vez.
+El protocolo de medición no cambia. No retirar archivos ajenos ni rellenar
+muestras. Documentar explícitamente cualquier copia propia deshidratada.
+
+WIP propio de este turno: este HANDOFF y el directorio `readiness/20261026/`.
+Los flags del worktree publicado siguen false/PREVIEW. No se aplicó etiqueta
+ni se ejecutó captura científica. Las 48 entradas ajenas siguen preservadas.
+Engram continúa sin identidad registrada. Objetivo general activo; runtime
+híbrido y ownership aún rechazado, sin tag ni merge.
+
 ## Regresión de recolección de zombis corregida localmente — 2026-10-26 UTC
 
 El CI funcional `40341408765` del SHA `199e5332` falló en ambos SDK en

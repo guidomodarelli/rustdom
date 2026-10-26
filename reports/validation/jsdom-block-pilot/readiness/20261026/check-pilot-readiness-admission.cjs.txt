@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const root=process.argv[2];
+const pilot=path.join(root,'reports/benchmarks/native-class-ownership/control-precision/pilot');
+const source=require(path.join(pilot,'capture/source.cjs'));
+const io=require(path.join(pilot,'capture/io.cjs'));
+const policy=require(path.join(pilot,'constants/capture.json'));
+const design=require(path.join(pilot,'constants/design.json'));
+assert.equal(policy.executionReady,true);assert.equal(design.executionReady,true);
+const catalog=io.readJSON(path.join(root,policy.catalog));
+const publication=io.readJSON(path.join(root,policy.publication));
+const files=source.currentFiles(root,true);
+assert.deepEqual(catalog.files,files);assert.equal(catalog.executionReady,true);
+assert.equal(catalog.filesDigest,source.filesDigest(files));
+assert.equal(publication.executionReady,true);assert.equal(publication.completeMethodReview,false);
+assert.deepEqual(publication.files,{...files,[policy.catalog]:io.hashFile(path.join(root,policy.catalog))});
+assert.equal(publication.filesDigest,source.filesDigest(publication.files));
+const origin=source.producer('functional');
+assert.equal(origin.sourceChangesRaw,'');assert.deepEqual(origin.sourceGitErrors,[]);
+assert.match(origin.sourceCommit,/^[a-f0-9]{40}$/);
+let rejection;
+assert.throws(()=>source.producer('capture'),(error)=>{
+  rejection={name:error.name,code:error.code,actual:error.actual,expected:error.expected,operator:error.operator};
+  return error.code==='ERR_ASSERTION'&&error.actual===false&&error.expected===true&&error.operator==='strictEqual';
+});
+process.stdout.write(JSON.stringify({sourceCommit:origin.sourceCommit,sourceIsPublishedCommit:false,
+  sourceClean:true,sourceFiles:Object.keys(files).length,sourceFilesDigest:source.filesDigest(files),
+  completeCatalogValidated:true,functionalProducerAdmissionPassed:true,incompleteReviewRejected:true,rejection,
+  DOMExecuted:false,scientificCaptureExecuted:false,performanceAccepted:null,gateReevaluated:false})+'\n');

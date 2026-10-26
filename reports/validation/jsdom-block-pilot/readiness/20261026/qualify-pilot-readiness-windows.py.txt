@@ -1,0 +1,48 @@
+"""Run the current reader/contracts on both real Windows SDKs over independently bound Linux data."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import sys
+
+repository = Path(__file__).resolve().parent.parent
+primary = Path(r'C:\Users\guido\ghq\projects\rustdom')
+pilot = repository / 'reports/benchmarks/native-class-ownership/control-precision/pilot'
+linux = repository / '.cache/pilot-method-qualification-20261026'
+output = repository / '.cache/pilot-readiness-windows-20261026'
+assert json.loads((pilot / 'constants/capture.json').read_bytes())['executionReady'] is True
+output.mkdir(exist_ok=False)
+commands = []
+
+def run(label, arguments, environment=None):
+    with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+        process = subprocess.run(list(map(str, arguments)), cwd=repository, env=environment,
+                                 stdout=stdout, stderr=stderr, timeout=180)
+    commands.append({'label': label, 'argv': list(map(str, arguments)), 'exitCode': process.returncode})
+    (output / 'commands.json').write_bytes(json.dumps(commands, indent=2).encode() + b'\n')
+    assert process.returncode == 0, label + ': ' + (output / (label + '.stderr.log')).read_text(errors='replace')
+    print(json.dumps({'label': label, 'exitCode': 0}), flush=True)
+
+for version, checksum in [
+    ('22.12.0', 'b3b117a08ee61efee09e6fd523ab33c0c018da1b570bde08e4fd914dc1170ed6'),
+    ('24.14.1', '58e74bf02fc5bbacc41dcb8bef089961cd5bddd37830b87784e4fc624d145d1f')]:
+    node = primary / ('.tools/node-win/node-v' + version + '-win-x64/node.exe')
+    assert hashlib.sha256(node.read_bytes()).hexdigest() == checksum
+    archive = linux / (version + '-AA.tar.gz')
+    receipt = json.loads((linux / (version + '-AA-archive.stdout.log')).read_bytes())
+    extracted = output / (version + '-AA')
+    run(version + '-extract', [sys.executable, '-B', pilot / 'capture/archive.py', '--extract', archive,
+                              receipt['archiveSha256'], extracted])
+    tests = ['blocks.spec.cjs', 'variance.spec.cjs', 'process-reader.spec.cjs', 'worker.spec.cjs',
+             'envelope.spec.cjs', 'capture/binding.spec.cjs', 'capture/once.spec.cjs', 'capture/io.spec.cjs']
+    run(version + '-contracts', [node, '--test', *[pilot / name for name in tests]])
+    expected = linux / (version + '-AA-expected.json')
+    run(version + '-reader-contracts', [node, '--test', pilot / 'capture/verify.spec.cjs'],
+        {**os.environ, 'RUSTDOM_JSDOM_PILOT_CRITERION_FIXTURE': str(extracted),
+         'RUSTDOM_JSDOM_PILOT_CRITERION_EXPECTED': str(expected)})
+run('archive-contracts', [sys.executable, '-B', pilot / 'capture/test_archive.py'])
+run('receipt-contracts', [sys.executable, '-B', pilot / 'capture/test_supervise.py'])
+(output / 'summary.json').write_bytes(json.dumps({'nodeContractsPerSdk': 60, 'pythonContracts': 10,
+    'dataSourceCommit': '5bd2e200019b54f9b333cec5c6b7b5e0de85ce41', 'dataSourceIsPublishedCommit': False,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'commands': commands}, indent=2).encode() + b'\n')

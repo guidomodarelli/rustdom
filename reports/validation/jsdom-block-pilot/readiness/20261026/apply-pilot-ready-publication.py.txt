@@ -1,0 +1,74 @@
+"""Apply exactly four reviewed files only after original-attempt source qualification and archive replay succeed."""
+from pathlib import Path
+import hashlib
+import json
+import subprocess
+repository=Path(__file__).resolve().parent.parent
+head='7148577dcf1eeffda2ebf95a3ccd1eb173a6082b'
+candidate=repository/'.cache/pilot-ready-publication-candidate-20261026'
+prefix='repos/guidomodarelli/rustdom/'
+git=['git','-c','core.longpaths=true','-c','gc.auto=0']
+def command(arguments):return subprocess.check_output(git+arguments,cwd=repository)
+def api(endpoint):return json.loads(subprocess.check_output(['gh','api',prefix+endpoint],timeout=120))
+assert command(['rev-parse','HEAD']).decode().strip()==head
+assert command(['diff','--cached','--name-only'])==b''
+policy=json.loads((repository/'reports/benchmarks/native-class-ownership/control-precision/pilot/constants/capture.json').read_bytes())
+assert policy['executionReady'] is False
+required=[(40344594967,policy['qualificationWorkflowPath'],policy['qualificationJobs']),
+          (40344594060,policy['generalWorkflowPath'],policy['generalJobs'])]
+observations=[]
+for run_id,path,names in required:
+    run=api(f'actions/runs/{run_id}/attempts/1')
+    jobs=api(f'actions/runs/{run_id}/attempts/1/jobs?per_page=100')
+    assert run['head_sha']==head and run['run_attempt']==1 and run['path']==path
+    assert run['repository']['full_name']==policy['repository'] and run['event']=='pull_request'
+    assert jobs['total_count']==len(jobs['jobs'])
+    observations.append({'run':run,'jobs':jobs})
+    if run['status']!='completed':
+        print(json.dumps({'applied':False,'waitingForRun':run_id,'status':run['status'],
+            'jobsPassed':sum(job['conclusion']=='success' for job in jobs['jobs']),
+            'jobsExpected':len(names),'scientificCaptureExecuted':False}))
+        raise SystemExit(0)
+    assert run['conclusion']=='success', 'Preserve failed qualification; do not enable'
+    assert sorted(job['name'] for job in jobs['jobs'])==sorted(names)
+    assert len({job['id'] for job in jobs['jobs']})==len(names)
+    assert all(job['status']=='completed' and job['conclusion']=='success' and job['head_sha']==head and job['run_attempt']==1 for job in jobs['jobs'])
+assert api('pulls/80')['head']['sha']==head
+assert command(['rev-parse','origin/feature/native-class-ownership']).decode().strip()==head
+archive=json.loads((repository/'.cache/pilot-method-hosted-40344594967/receipt.json').read_bytes())
+replay=json.loads((repository/'.cache/pilot-method-hosted-replay-40344594967/receipt.json').read_bytes())
+assert archive['headCommit']==head and archive['allFourJobsPassed'] and archive['allFourArtifactsPresent']
+assert replay['sourceCommit']==head and len(replay['replays'])==8
+for artifact in archive['artifacts']:
+    metadata=api(f'actions/artifacts/{artifact["id"]}')
+    assert metadata['workflow_run']['id']==40344594967 and metadata['workflow_run']['head_sha']==head
+    assert metadata['digest']=='sha256:'+artifact['sha256'] and metadata['size_in_bytes']==artifact['bytes']
+manifest=json.loads((candidate/'candidate-manifest.json').read_bytes())
+expected={
+ 'reports/benchmarks/native-class-ownership/control-precision/pilot/constants/capture.json':'e4b4b8a58d0c5710c3e8a2eda866baf95ecd87d2db8da100992c183b2f069c91',
+ 'reports/benchmarks/native-class-ownership/control-precision/pilot/constants/design.json':'2f0a65534fa3e9e124eb3eb6f7e4174a7bd6818001d54fb9e1c355c5862d802c',
+ 'reports/benchmarks/native-class-ownership/control-precision/pilot/capture/files.json':'1a4f142ccc27ed834da69ae923454cd7ccc18bea1cb5b8e3103a5293100d2b62',
+ 'reports/validation/jsdom-block-pilot/capture-method/review.json':'f85ec2b26d1839f7130a7bee4e02e560f6497f4003c7c0b2cf3f8c140402f2c1'}
+assert manifest['basePublishedCommit']==head and manifest['files']==expected
+status=command(['status','--porcelain=v1','--untracked-files=all','-z'])
+paths=[record[3:].decode() for record in status.split(b'\0') if record]
+assert all(name=='reports/progress/HANDOFF.md' or name.startswith('reports/validation/jsdom-block-pilot/readiness/')
+           or name.startswith('reports/benchmarks/ci-general/40344594060/') for name in paths)
+backup=repository/'.cache/pilot-publication-applied-20261026';backup.mkdir(exist_ok=False)
+(backup/'source-qualification.json').write_bytes(json.dumps(observations,indent=2).encode()+b'\n')
+for relative,checksum in expected.items():
+    actual=repository/relative;prepared=candidate/relative
+    assert not actual.is_symlink() and not prepared.is_symlink()
+    assert actual.read_bytes()==command(['cat-file','blob','HEAD:'+relative]), 'Preserve intervening source edits'
+    assert hashlib.sha256(prepared.read_bytes()).hexdigest()==checksum
+    destination=backup/relative;destination.parent.mkdir(parents=True,exist_ok=True)
+    destination.write_bytes(actual.read_bytes())
+for relative,checksum in expected.items():
+    target=repository/relative;pending=target.with_name('.'+target.name+'.ready-next')
+    assert target.read_bytes()==(backup/relative).read_bytes()
+    with pending.open('xb') as stream:stream.write((candidate/relative).read_bytes())
+    pending.replace(target)
+    assert hashlib.sha256(target.read_bytes()).hexdigest()==checksum
+(backup/'receipt.json').write_bytes(json.dumps({'baseCommit':head,'appliedFiles':expected,'qualifiedJobs':12,
+    'activationPerformed':False,'newPublishedShaQualificationRequired':True,'scientificCaptureExecuted':False},indent=2).encode()+b'\n')
+print(json.dumps({'applied':True,'files':4,'baseQualifiedJobs':12,'activationPerformed':False,'newCiRequired':True}))

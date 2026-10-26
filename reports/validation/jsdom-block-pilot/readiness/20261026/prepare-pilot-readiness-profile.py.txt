@@ -1,0 +1,68 @@
+"""Qualify a private enabled profile without a completed review, hosted identity, receipt or DOM capture."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import subprocess
+repository=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary=Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source=Path('/dev/shm/rustdom-pilot-readiness-source-20261026-v2')
+output=repository/'.cache/pilot-readiness-profile-20261026-v2'
+assert not source.exists() and not output.exists()
+output.mkdir()
+subprocess.run(['git','clone','--local','/dev/shm/rustdom-pilot-lifecycle-fix-source-20261026',str(source)],check=True,capture_output=True)
+pilot='reports/benchmarks/native-class-ownership/control-precision/pilot'
+publication='reports/validation/jsdom-block-pilot/capture-method/review.json'
+original=json.loads((repository/publication).read_bytes())
+for relative,checksum in {**original['files'],publication:hashlib.sha256((repository/publication).read_bytes()).hexdigest()}.items():
+    target=source/relative
+    if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest()!=checksum:
+        target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(repository/relative,target)
+    assert hashlib.sha256(target.read_bytes()).hexdigest()==checksum
+for relative in [pilot+'/constants/capture.json',pilot+'/constants/design.json']:
+    target=source/relative;raw=target.read_bytes()
+    assert raw.count(b'"executionReady": false')==1
+    raw=raw.replace(b'"executionReady": false',b'"executionReady": true')
+    if relative.endswith('/design.json'):
+        assert raw.count(b'"planningOnly": true')==1
+        raw=raw.replace(b'"planningOnly": true',b'"planningOnly": false')
+    target.write_bytes(raw)
+catalog=source/pilot/'capture/files.json'
+shutil.copyfile(catalog,output/'previous-files.json')
+assert hashlib.sha256(catalog.read_bytes()).digest()==hashlib.sha256((output/'previous-files.json').read_bytes()).digest()
+catalog.unlink()
+subprocess.run([str(primary/'.tools/node-22/bin/node'),str(source/pilot/'capture/catalog.cjs'),str(catalog)],check=True,capture_output=True)
+files={**json.loads(catalog.read_bytes())['files'],pilot+'/capture/files.json':hashlib.sha256(catalog.read_bytes()).hexdigest()}
+files=dict(sorted(files.items()))
+pending={'revision':original['revision'],'kind':'private-readiness-review-pending',
+         'executionReady':True,'completeMethodReview':False,'actionableFindings':None,
+         'files':files,'filesDigest':hashlib.sha256(json.dumps(files,separators=(',',':'),ensure_ascii=False).encode()).hexdigest(),
+         'performanceAccepted':None,'gateReevaluated':False}
+(source/publication).write_bytes(json.dumps(pending,indent=2).encode()+b'\n')
+git=['git','-c','core.longpaths=true','-c','gc.auto=0']
+changed=subprocess.check_output(git+['diff','--name-only'],cwd=source).decode().splitlines()
+subprocess.run(git+['add','--',*changed],cwd=source,check=True)
+subprocess.run(git+['-c','user.name=Native CI fixture','-c','user.email=fixture@example.invalid',
+                    'commit','-m','Private readiness flags with incomplete review; no capture'],cwd=source,check=True,capture_output=True)
+head=subprocess.check_output(git+['rev-parse','HEAD'],cwd=source).decode().strip()
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+commands=[]
+for version,relative,checksum in [('22.12.0','.tools/node-22/bin/node','177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+                                 ('24.14.1','.tools/node/bin/node','bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    node=primary/relative;assert hashlib.sha256(node.read_bytes()).hexdigest()==checksum
+    tests=['blocks.spec.cjs','variance.spec.cjs','process-reader.spec.cjs','worker.spec.cjs','envelope.spec.cjs',
+           'capture/binding.spec.cjs','capture/once.spec.cjs','capture/io.spec.cjs']
+    with (output/(version+'-contracts.stdout.log')).open('xb') as stdout,(output/(version+'-contracts.stderr.log')).open('xb') as stderr:
+        result=subprocess.run([str(node),'--test',*[str(source/pilot/name) for name in tests]],cwd=source,stdout=stdout,stderr=stderr,timeout=120)
+    commands.append({'sdk':version,'contractsExitCode':result.returncode,'sourceCommit':head})
+    (output/'commands.json').write_bytes(json.dumps(commands,indent=2).encode()+b'\n')
+    assert result.returncode==0,(output/(version+'-contracts.stderr.log')).read_text()
+    # Exercise the actual admission branch. No hosted identity is fabricated and no worker is started.
+    code='const assert=require("node:assert/strict");const source=require("./'+pilot+'/capture/source.cjs");assert.throws(()=>source.producer("capture"),{code:"ERR_ASSERTION"});console.log(JSON.stringify({incompleteReviewRejected:true,DOMExecuted:false}));'
+    outcome=subprocess.check_output([str(node),'-e',code],cwd=source,timeout=60)
+    (output/(version+'-admission.json')).write_bytes(outcome)
+    print(json.dumps({'node':version,'contractsPassed':51,'incompleteReviewRejected':True,'DOMExecuted':False}),flush=True)
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+(output/'summary.json').write_bytes(json.dumps({'privateSourceCommit':head,'sourceIsPublishedCommit':False,
+    'sourceClean':True,'changedFiles':changed,'reviewComplete':False,'incompleteReviewRejectedInBothSdks':True,
+    'nodeContractsPerSdk':51,'scientificCaptureExecuted':False,'performanceAccepted':None,'gateReevaluated':False},indent=2).encode()+b'\n')

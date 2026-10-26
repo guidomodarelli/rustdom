@@ -1,0 +1,193 @@
+<!-- pilot-lifecycle-zombie-fix-7148577d -->
+[7148577d](https://github.com/guidomodarelli/rustdom/commit/7148577dcf1eeffda2ebf95a3ccd1eb173a6082b) corrige el rojo real del CI funcional199e5332: ambos SDK fallaron en una aserción del arnés que exigía un worker activo después de SIGKILL de Node. Los artifacts autenticados muestran un worker **ya zombi, correctamente recolectado**, exit2 y cero descendientes propios. El run40341408765 permanece fallido y sus dos ZIP/API/logs/journals están [publicados íntegros](https://github.com/guidomodarelli/rustdom/tree/7148577dcf1eeffda2ebf95a3ccd1eb173a6082b/reports/validation/jsdom-block-pilot/lifecycle-reaping-fix/20261026). Sus cuatro bloques completos también aprobaron ocho replays offline con los dos SDK; eso no convierte al workflow fallido en aprobado.
+
+El fix mantiene señal real, exit2, parciales y cero hijos restantes. Añade un tercer caso reproducible: SIGSTOP solo sobre el padre hasta observar al worker real en Z, luego SIGKILL y reap. **Seis casos reales en Node 22.12.0/24.14.1 aprobados**, dos zombis observados, Git Linux privado limpio 7c29a394 (no publicado), revisión aislada sin hallazgos;850 blobs del catálogo autenticados y786 pins intactos. Raw/recursos preservados, sin modificar el worker ni el presupuesto histórico.
+
+El [CI de contratos y transporte40344594967](https://github.com/guidomodarelli/rustdom/actions/runs/40344594967) terminó **4/4 aprobado**, incluidos ambos replays por artifact ID. Se autenticaron los cuatro ZIP originales y pasaron ocho replays offline; la evidencia local se publicará con la habilitación. El [CI general40344594060](https://github.com/guidomodarelli/rustdom/actions/runs/40344594060) continúa en seguimiento sobre este mismo SHA. El método sigue deshabilitado/PREVIEW; el SHA habilitado necesitará su propio CI4+8 antes del label. Ownership mantiene el rechazo de rendimiento. Sin tag ni merge; `performanceAccepted=null`, `gateReevaluated=false`, runtime híbrido y48 entradas ajenas preservadas.
+---
+
+<!-- jsdom-block-capture-method-preparation-199e5332 -->
+[199e5332](https://github.com/guidomodarelli/rustdom/commit/199e5332b7bcdf69bca88903103994fa31a96ab2) publica el capturador prospectivo **deshabilitado/PREVIEW**: supervisor real con límites y recolección de descendientes, archivos completos con inventario y replay independiente. La revisión cerró el P2 de `download-artifact`: ambos workflows usan ID único y `merge-multiple: true`; el CI funcional ejerce esa misma ruta.
+
+Calificación local: **60 contratos Node por SDK en Windows/Linux**, 10 Python por plataforma, 128 workers coordinados +32 legacy positivos +12 adversos y cuatro cancelaciones/muertes forzadas reales, todas con parciales conservados y cero descendientes propios. Fuente Linux limpia **5bd2e200, fixture privado no publicado**; los YAML posteriores requieren el CI nuevo. Datos, warmup, épocas previas y límites están [preservados](https://github.com/guidomodarelli/rustdom/tree/199e5332b7bcdf69bca88903103994fa31a96ab2/reports/validation/jsdom-block-pilot/capture-method/qualification-20261026); [recursos](https://github.com/guidomodarelli/rustdom/tree/199e5332b7bcdf69bca88903103994fa31a96ab2/reports/memory/jsdom-block-pilot/capture-method/20261026). No inferir ausencia universal de fugas ni memoria pico desde snapshots.
+
+El fix de checkout **6a8f541c** quedó confirmado: [integración archivada 40320141130](https://github.com/guidomodarelli/rustdom/actions/runs/40320141130) **2/2** y [CI general40320139639](https://github.com/guidomodarelli/rustdom/actions/runs/40320139639) **8/8**. Su última comprobación tiene69 checks aprobados y solo ownership22/24 rechazados. Los ZIP/API/logs originales están publicados. El CI del nuevo SHA todavía debe calificarse: [Validate rustdom](https://github.com/guidomodarelli/rustdom/actions/runs/40341409745), [Calendario prospectivo de bloques jsdom](https://github.com/guidomodarelli/rustdom/actions/runs/40341408765).
+
+No se activó captura científica, no se reaplicaron etiquetas ni se cambió el presupuesto histórico. `performanceAccepted=null`, `gateReevaluated=false`. Sin tag/merge. El siguiente paso es confirmar los cuatro jobs de calificación/transporte y ocho generales, luego habilitar/revisar el método completo y calificar ese SHA antes de la única secuencia. La autorización permanente ya cubre el trabajo. Runtime híbrido, migración activa y48 entradas ajenas intactas.
+
+---
+
+<!-- shared-worker-sparse-checkout-v1 -->
+[6a8f541c](https://github.com/guidomodarelli/rustdom/commit/6a8f541cc6454feaf0e91ea5abb8fb86cb821c1d) corrige la descarga del job «Integración archivada Node24»: el run40310785437 agotó10min en `git fetch`, antes de los tests. Checkout parcial y810inputs autenticados, con el mismo timeout y todos los contratos. **Replay80 +15tests por Node22.12.0/24.14.1 aprobados** desde un clon remoto real; checkout/hidratación ~31s locales. Actionlint Linux y revisión aislada sin hallazgos;786pins intactos.
+
+[Evidencia y logs originales](https://github.com/guidomodarelli/rustdom/tree/6a8f541cc6454feaf0e91ea5abb8fb86cb821c1d/reports/validation/shared-worker-sparse-checkout/20261026). [CI nuevo40320141130](https://github.com/guidomodarelli/rustdom/actions/runs/40320141130), intento1, todavía pendiente de confirmación hosted. [CI general527439d6](https://github.com/guidomodarelli/rustdom/actions/runs/40310785667) terminó8/8 aprobado. Ownership22/24 continúa rechazando el presupuesto histórico; esta corrección no acepta rendimiento ni repite mediciones. Sin tag/merge; runtime híbrido y migración activa. Las48entradas ajenas siguen intactas.
+
+---
+
+<!-- jsdom-block-pilot-functional-envelope-v1 -->
+[527439d6](https://github.com/guidomodarelli/rustdom/commit/527439d6170dbd736436002b7b7fb5b7a987cef0) integra el contrato del reporte y su sidecar con las observaciones independientes del executor: PID/padre/SDK, fuente del worker, artifact, revisión y calendario. Solo funcional; el sidecar no autentica su propio transporte/fuente ni puede producir observaciones científicas. Pasaron **124 contratos** (31 por Windows/Linux × Node 22.12.0/24.14.1), actionlint Linux y **44 procesos reales** del padre integrado. La revisión cerró el P2 de los filtros del workflow; 786 pins intactos.
+
+[Código, fuentes y evidencia](https://github.com/guidomodarelli/rustdom/tree/527439d6170dbd736436002b7b7fb5b7a987cef0/reports/validation/jsdom-block-pilot/envelope/20261026): 32 positivos y 12 adversos, 4608 duraciones, 1536 warmup positivos y 32 adversos, 386 Window y 386 Document separados, dos primeras rondas no claras y 68 endpoints finales. Fuente Git privada a7c7 explícita, sin atribuirla a un SHA publicado; runtime jsdom, sin operaciones del candidato Rust ni pooling. [CI nuevo del envelope 40310785874](https://github.com/guidomodarelli/rustdom/actions/runs/40310785874), intento 1, registrado sobre este SHA; pendiente de confirmación hosted.
+
+**El CI general de 9a6 terminó 8/8 aprobado**, [run 40304459936](https://github.com/guidomodarelli/rustdom/actions/runs/40304459936). [Artifacts/API/logs completos de validación](https://github.com/guidomodarelli/rustdom/tree/527439d6170dbd736436002b7b7fb5b7a987cef0/reports/validation/jsdom-block-pilot/envelope/20261026/previous-general-ci-9a6) y [Memcheck: 311 tests Rust, diez batches](https://github.com/guidomodarelli/rustdom/tree/527439d6170dbd736436002b7b7fb5b7a987cef0/reports/memory/ci-general/40304459936), con límites y logs íntegros. Ese CI precede al envelope añadido después. [CI general del SHA nuevo 40310785667](https://github.com/guidomodarelli/rustdom/actions/runs/40310785667) registrado, sin declararlo aprobado aún.
+
+[Benchmarks ordinarios: todos los ZIP y 332 filas](https://github.com/guidomodarelli/rustdom/tree/527439d6170dbd736436002b7b7fb5b7a987cef0/reports/benchmarks/ci-general/40304459936): **213 medianas rustdom más lentas y 119 más rápidas**, sin ocultar resultados ni pooling de hosts. Veinte reportes contractuales adicionales, incluidos fallos esperados, permanecen conservados. El Node observado fue 24.21.0 y el checkout real fue merge6233, padre 9a6; metadata sin normalizar. No se atribuyen al candidato a277 o a los SDK fijados de otros estudios.
+
+Ownership conserva el rechazo histórico; no se acepta rendimiento. Capturador y transporte científicos pendientes, runtime híbrido y migración general activa. Sin tag/merge. Las 48 entradas ajenas siguen intactas y sin commitear.
+
+---
+
+<!-- ci-pr-concurrency-and-functional-hosted-v1 -->
+[9a6f62a9](https://github.com/guidomodarelli/rustdom/commit/9a6f62a982c64f5c02c54c6cd80b5a4d8474b6b7) corrige la acumulación de ejecuciones del CI general: solo el commit más reciente del mismo PR conserva su grupo; todos los pushes a main son independientes. No cambia pruebas, timeouts, gates ni workflows científicos. Pasaron actionlint 1.7.12 y revisión aislada; 786 pins intactos. [Configuración, log del fallo real y validación](https://github.com/guidomodarelli/rustdom/tree/9a6f62a982c64f5c02c54c6cd80b5a4d8474b6b7/reports/validation/ci-pr-concurrency/20261026). [CI general nuevo 40304459936](https://github.com/guidomodarelli/rustdom/actions/runs/40304459936), intento 1, registrado sobre este SHA; aprobación todavía pendiente. Se solicitó una sola cancelación del CI general 2466 obsoleto, que había empezado sin grupo.
+
+**El productor funcional de 2466 terminó 2/2 aprobado** en [run 40301728367](https://github.com/guidomodarelli/rustdom/actions/runs/40301728367), Node 22.12.0 y 24.14.1. [Ambos ZIP originales, API, logs y cuatro replays offline](https://github.com/guidomodarelli/rustdom/tree/9a6f62a982c64f5c02c54c6cd80b5a4d8474b6b7/reports/validation/jsdom-block-pilot/functional-hosted/40301728367): 32 positivos y 12 adversos, 4608 duraciones, 1536 warmup positivos y 32 adversos, 386 Window y 386 Document separados, dos primeras rondas no claras y 68 endpoints finales claros. El Git del productor está ligado al SHA publicado, sin normalización. La revisión cerró el P2 del lector bajo Python optimizado, con tres rechazos CLI reales. [Recursos completos](https://github.com/guidomodarelli/rustdom/tree/9a6f62a982c64f5c02c54c6cd80b5a4d8474b6b7/reports/memory/jsdom-block-pilot/functional-hosted/40301728367).
+
+**El PR aún no está resuelto.** El job ownership Node 24 de 2466 verificó los datos y salió con código 1 por presupuesto original rechazado; no fue timeout. Los controles funcionales de jsdom no califican el candidato Rust a277 ni aceptan rendimiento. Faltan capturador y envelope prospectivos; runtime híbrido, performanceAccepted=null, gateReevaluated=false, sin tag/merge.
+
+---
+
+<!-- jsdom-block-pilot-functional-worker-v1 -->
+[2466b8d3](https://github.com/guidomodarelli/rustdom/commit/2466b8d35910e5f663224203462d341fdae14f64) publica el productor **funcional** de controles jsdom reales. En Node 22.12.0 y 24.14.1 pasaron 88 contratos, cuatro pruebas de integridad y 44 procesos funcionales (32 positivos y 12 adversos). La revisión aislada detectó y cerró un P2: el padre ahora autentica el verificador y su política antes de ejecutarlos. Se conservan ambas épocas y sus fuentes sin mezclar resultados.
+
+La época corregida conserva 4608 duraciones medidas, 1536 warmup positivos y 32 adversos; 386 Window y 386 Document separados, dos primeras rondas no claras y 68 endpoints finales claros en 34 procesos DOM. Son pruebas funcionales de jsdom 27.4.0, sin ejecutar el candidato Rust a277 ni aceptar rendimiento. [Evidencia, fuentes, revisión y límites](https://github.com/guidomodarelli/rustdom/tree/2466b8d35910e5f663224203462d341fdae14f64/reports/validation/jsdom-block-pilot/worker/20261026), [raw](https://github.com/guidomodarelli/rustdom/tree/2466b8d35910e5f663224203462d341fdae14f64/reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026) y [memoria](https://github.com/guidomodarelli/rustdom/tree/2466b8d35910e5f663224203462d341fdae14f64/reports/memory/jsdom-block-pilot/worker/20261026).
+
+[CI del productor, run 40301728367](https://github.com/guidomodarelli/rustdom/actions/runs/40301728367), intento 1, registrado sobre este SHA; no se declara aprobado mientras siga pendiente. El CI anterior 8e9/run 40291196724 terminó 2/2 aprobado y su archivo íntegro está publicado en este commit; solo califica el lector anterior.
+
+El gate de ownership sigue rechazado por el estudio histórico. Faltan capturador y envelope/transporte prospectivos; executionReady=false, performanceAccepted=null, gateReevaluated=false. Runtime híbrido, sin tag/merge.
+
+---
+
+<!-- jsdom-block-pilot-process-reader-v1 -->
+[8e9d68d0](https://github.com/guidomodarelli/rustdom/commit/8e9d68d0011a847d09122684af0738edca4a239b) agrega replay de tareas y recursos con el contrato raw existente, sin reescribir headers ni identidades. Valida calendario/SDK, 144 tareas y 48 duraciones de warmup, salidas públicas/afinidad y Window/Document separados con tres rondas y dos endpoints finales claros. Los 32 casos jsdom históricos son AB/factor0 y solo califican el lector: `analysisObservation=null` en modo funcional y capture bloqueado. Sus contextos parentales sintéticos están identificados; no califican candidato a277 ni una captura nueva.
+
+Pasaron **76 contratos** (19 por Windows/Linux × Node22.12.0/24.14.1), nueve del lector registrado por plataforma, ocho órdenes del workflow en Git Linux real y actionlint. [QA, fixtures autenticados, fuente, memoria y revisión sin hallazgos](https://github.com/guidomodarelli/rustdom/tree/8e9d68d0011a847d09122684af0738edca4a239b/reports/validation/jsdom-block-pilot/process-reader/20261026). [CI del lector 40291196724](https://github.com/guidomodarelli/rustdom/actions/runs/40291196724): calificación hosted de los 19 contratos registrada sobre este commit.
+
+El [CI de dispersión de 5be, run 40288143186, terminó 2/2 aprobado](https://github.com/guidomodarelli/rustdom/actions/runs/40288143186). [Ambos ZIP/API/logs/manifiestos y lector actual](https://github.com/guidomodarelli/rustdom/tree/8e9d68d0011a847d09122684af0738edca4a239b/reports/validation/jsdom-block-pilot/hosted/40288143186): once escalares y seis lectores por SDK; no se presentan como prueba del lector de procesos posterior. Se canceló únicamente el CI general obsoleto ec57, sin tocar 5be ni estudios científicos.
+
+Faltan productor/capturador y envelope/transporte integral con límites/revisión. No hubo DOM, benchmark ni captura científica. executionReady=false, performanceAccepted=null, gateReevaluated=false. Ownership sigue rechazado por rendimiento; runtime híbrido, sin tag/merge.
+
+---
+
+<!-- jsdom-block-pilot-variance-v1 -->
+[5be2eebc](https://github.com/guidomodarelli/rustdom/commit/5be2eebcd3b13bac03ce595eb8f5bc06758e2ccf) agrega IC de SD y límite superior unilateral95% para los tres contrastes fijos de bloques jsdom, condicionado a iid/normal df15. SD observada cero es inconclusa. Pendiente/lag1 se conservan descriptivamente; no prueban independencia, potencia ni cobertura conjunta. Referencias independientes a80 decimales, sin dependencia matemática nueva en runtime.
+
+Pasaron **44 contratos escalares** (11 por Windows/Linux × Node22.12.0/24.14.1), seis contratos de lector por plataforma, siete órdenes en Git Linux real y actionlint; revisión aislada sin hallazgos. [Método, referencias, lock, QA y manifiesto](https://github.com/guidomodarelli/rustdom/tree/5be2eebcd3b13bac03ce595eb8f5bc06758e2ccf/reports/validation/jsdom-block-pilot/variance/20261026). [CI ampliado 40288143186](https://github.com/guidomodarelli/rustdom/actions/runs/40288143186): calificación hosted de la ampliación registrada sobre este commit.
+
+[Archivo íntegro del CI original ec57, run40286292347, 2/2 aprobado](https://github.com/guidomodarelli/rustdom/tree/5be2eebcd3b13bac03ce595eb8f5bc06758e2ccf/reports/validation/jsdom-block-pilot/hosted/40286292347): ZIP/API/jobs/logs/manifiestos, lector actual con pins independientes. Esos jobs ejercieron seis contratos originales; no prueban los once nuevos. Ningún miembro archivado se ejecutó.
+
+No hubo DOM, benchmark ni captura científica. executionReady=false; faltan lector integral de tareas/recursos y capturador con límites/revisión. performanceAccepted=null, gateReevaluated=false; ownership sigue rechazado por rendimiento, runtime híbrido y sin tag/merge.
+
+---
+
+<!-- jsdom-block-pilot-preparation-v1 -->
+Preparación nueva [ec57e3bc](https://github.com/guidomodarelli/rustdom/commit/ec57e3bc1ead7d80e5cf0374b68374ce22b04da1): calendario del piloto jsdom con 32 criterios, 16 bloques completos de 16 factores por criterio y 16384 procesos **propuestos**. La rotación conserva semilla, lead A/B y asignación del factor original; no demuestra independencia. La agregación conserva razón de medias, covarianza y contrastes fijos; rechaza parciales, duplicados, orden alterado y mezcla de hosts. Recibe escalares previamente autenticados: aún no implementa el lector integral ni intervalos.
+
+Pasaron **24 contratos**, seis por Windows/Linux × Node22.12.0/24.14.1; cuatro calendarios idénticos, cinco órdenes de workflow en Git Linux real y actionlint. [Logs completos, calendarios, QA, fuentes del fixture y revisión sin hallazgos](https://github.com/guidomodarelli/rustdom/tree/ec57e3bc1ead7d80e5cf0374b68374ce22b04da1/reports/validation/jsdom-block-pilot/20261026). Los 786 pins históricos permanecen intactos; el fallo del lector histórico Windows se conserva identificado, sin omitir sus comprobaciones. [CI funcional 40286292347](https://github.com/guidomodarelli/rustdom/actions/runs/40286292347): **2/2 aprobado** sobre ec57e3bc. ZIP/API/logs y manifiestos de ambos artefactos ya autenticados; los calendarios coinciden con los bytes locales. Publicación del archivo hosted y lector offline aún pendientes.
+
+No hubo DOM, benchmark ni captura científica. `executionReady=false`, `performanceAccepted=null`, `gateReevaluated=false`. Los tiempos de los tests sintéticos no son resultados de rendimiento. El paquete y su índice ya tienen CI 2/2 en ff07406d según la evidencia siguiente; ownership sigue rechazado, runtime híbrido y sin tag/merge.
+
+---
+
+<!-- numeric-index-provenance-fix-v1 -->
+El fix [ff07406d](https://github.com/guidomodarelli/rustdom/commit/ff07406dc61d6573d08dd731f7648a27c116a77e) autentica el índice canónico contra el manifiesto externo antes de parsearlo, con una única lectura acotada de 47796 bytes. La regresión adultera el commit conservando el tamaño original: exige SHA, no solo longitud. Tar fb06276a, ELF a277 y los 786 pins históricos permanecen intactos.
+
+**CI del fix: 2/2 jobs aprobados**, Windows y Ubuntu, [run 40281778101](https://github.com/guidomodarelli/rustdom/actions/runs/40281778101), intento 1, sobre ff07406d. Trece contratos de ensamblado, siete de checkout por plataforma, transporte Linux/Windows y probes reales Node 22.12.0/24.14.1: seis ciclos por SDK, doce endpoints finales claros, Window/Document/ranges/native separados. [Evidencia íntegra, ZIP/API/logs/manifiestos y lector offline](https://github.com/guidomodarelli/rustdom/tree/90d80b0e9a8097cf4819be510684e7315cbcf51c/reports/validation/numeric-package-ci/hosted/40281778101); recursos en reports/memory/numeric-package-ci/hosted/40281778101/.
+
+El lector pasó once contratos en Windows y Linux; políticas independientes junto al código, sin ejecutar miembros archivados. Revisión local aislada final sin hallazgos. La evidencia del productor f2 previo conserva sus doce contratos y producerCanonicalIndexSealPresent=false; el fix tiene trece y true. No se reutiliza el verde anterior como prueba del fix.
+
+La preparación y procedencia del paquete están verificadas. **Ownership sigue rechazado por rendimiento**; no se reevalúa ni debilita el gate. No hubo captura científica nueva, tag ni merge. El runtime sigue híbrido. Los snapshots finitos no prueban memoria pico ni ausencia universal de fugas. Sigue pendiente implementar y revisar el protocolo prospectivo de precisión antes de medir de nuevo.
+
+---
+
+<!-- numeric-composed-package-ci-v1 -->
+Preparación CI del paquete numérico publicada en [f2a87184](https://github.com/guidomodarelli/rustdom/commit/f2a87184d7c0c439407716d1cbab05eb2965b275). [Run 40277876693](https://github.com/guidomodarelli/rustdom/actions/runs/40277876693), intento 1, dos jobs Windows/Linux: **confirmación hospedada pendiente**. El checkout sparse materializa únicamente 810 inputs autenticados; exige Git limpio, modo non-cone y autocrlf=false. Transporte en ambas plataformas, ejecución real del paquete en Node 22.12.0 y 24.14.1 Linux, logs parciales con always(), límite de veinte minutos por job. No instala ni recompila.
+
+El ensayo integral local en un fixture Git Linux real aprobó seis comandos: contratos 7/5/12 y probes autenticados de ambos SDK, seis ciclos por SDK con doce endpoints claros. Se conservan fallos iniciales CRLF, default de Git 2.34 y el contrato que suponía .cache; este último se corrigió para ejercer el rechazo por solapamiento sin depender del entorno. [Evidencia íntegra y revisión local sin hallazgos](https://github.com/guidomodarelli/rustdom/tree/f2a87184d7c0c439407716d1cbab05eb2965b275/reports/validation/numeric-package-ci/20261026). La identidad Git del fixture se distingue del SHA publicado. Tar fb06276a, ELF a277 y los 786 pins históricos no cambiaron.
+
+Sin captura científica nueva ni rendimiento aceptado. El próximo cierre requiere observar ambos jobs de este run, autenticar sus artifacts y continuar con el protocolo de precisión. Ownership sigue rechazado, producción híbrida y sin tag/merge.
+
+---
+
+<!-- numeric-composed-hosted-package-v1 -->
+El candidato numérico estaba calificado en CI, pero faltaba trasladarlo como paquete autenticado. Se publicó en [cceca6b5](https://github.com/guidomodarelli/rustdom/commit/cceca6b5c4259fb9d70aeb9b71fd90d147648d98) el artefacto 12628261403 del run 40268999071/intento 1/head 2a53f88c, ELF a2777cbf. Conserva 575 archivos de distribución, 344 inputs canónicos y controles físicos inmutables, sin recompilar ni instalar. [Archivo íntegro y QA](https://github.com/guidomodarelli/rustdom/tree/cceca6b5c4259fb9d70aeb9b71fd90d147648d98/reports/validation/range-numeric-composed-package/20261026): tar de 7339056 bytes, SHA fb06276a, 7819 miembros bajo raíz y seis enlaces. La procedencia del snapshot canónico se distingue del compilador hospedado; no se normalizaron errores Git.
+
+Pasaron 12 contratos de ensamble, 5 de transporte Linux y 3 Windows con 2 omisiones explícitas Linux-only. El paquete reconstruido pasó creación/copia/colapso nativos, DOM/mutación/cierre y seis ciclos de recursos por SDK 22.12.0/24.14.1: [12 endpoints finales claros](https://github.com/guidomodarelli/rustdom/tree/cceca6b5c4259fb9d70aeb9b71fd90d147648d98/reports/memory/range-numeric-composed-package/20261026), Window/Document separados. La revisión cerró dos P2: cierre transitivo autenticado antes de los lectores Node y ensamble autenticado antes de cargar el runtime. Guardó el rechazo real del ELF local API-compatible y el fallo del matcher corregido leyendo logs, sin repetir esa ejecución. Los 786 pins históricos siguen intactos; cero hallazgos abiertos.
+
+**No hubo captura científica ni aceptación de rendimiento.** Falta preparar/calificar el método nuevo en CI y fijar el protocolo de precisión. El [borrador de piloto](https://github.com/guidomodarelli/rustdom/blob/cceca6b5c4259fb9d70aeb9b71fd90d147648d98/reports/benchmarks/native-class-ownership/control-precision/VARIANCE-PILOT-DRAFT.md) cuantifica incertidumbre nominal de SD, costo y límites; no está activado ni dimensiona Rust AB. Runtime híbrido, producción sin integrar, rechazos históricos preservados, sin tag/merge. Los snapshots no acreditan memoria pico ni ausencia universal de fugas.
+
+---
+
+<!-- windows-node-shutdown-functional-confirmed-v1 -->
+**CI funcional corregido y confirmado: 18/18 jobs aprobados.** Las matrices [combinada](https://github.com/guidomodarelli/rustdom/actions/runs/40268998980), [numérica](https://github.com/guidomodarelli/rustdom/actions/runs/40268999071) y [owners](https://github.com/guidomodarelli/rustdom/actions/runs/40268998982) terminaron 6/6 cada una, intento1, sobre el fix2a53f88c. [CI general](https://github.com/guidomodarelli/rustdom/actions/runs/40268998988) también pasó. Los seis jobs Windows aprobaron el smoke Node puro; Windows/24 usa24.20.0 con el fix oficial nodejs/node#61999. Linux/macOS mantienen22.12.0/24.14.1 y Windows22.12.0.
+
+Resultados publicados en [550fb096](https://github.com/guidomodarelli/rustdom/commit/550fb09629279e15b97014efd18525cd0070ba02): [18ZIP, API, logs, manifiestos y lectores actuales](https://github.com/guidomodarelli/rustdom/tree/550fb09629279e15b97014efd18525cd0070ba02/reports/validation/node-windows-shutdown/hosted-2a53), [216 endpoints de memoria](https://github.com/guidomodarelli/rustdom/tree/550fb09629279e15b97014efd18525cd0070ba02/reports/memory/node-windows-shutdown/hosted-2a53). Lectura offline y ocho contratos del lector aprobados en Windows/Linux; transporte9Linux y8Windows, con un skip Windows por privilegio de symlinks cubierto en Linux. Revisión aislada: cuatro P2 de transporte corregidos, cero hallazgos abiertos. Los786pins históricos siguen intactos. Ningún estudio ni test hospedado se repitió para esta publicación.
+
+WPT mantiene240fixtures,83007aserciones y1203resultados adversos compartidos por job, exclusiones y complete=false. Los216estados finales observaron Window/Document separados liberados; no prueban memoria pico ni ausencia universal de fugas. El candidato numérico verificó344inputs en el qualifier,167 archivados; no se afirma que los restantes estén enZIP. Runtime de producción híbrido, candidatos todavía separados.
+
+**El PR todavía no está totalmente verde.** [Ownership](https://github.com/guidomodarelli/rustdom/actions/runs/40268999068) conserva el rechazo numérico histórico: no hubo aceptación de rendimiento, tag ni merge. La planificación sintética [7d4ef93e](https://github.com/guidomodarelli/rustdom/commit/7d4ef93eb127cbe546095a28174b09a44e9e5b37) guarda44000ensayos y controles adversos, pero no mide rustdom ni habilita otra captura; falta justificar prospectivamente variación entre bloques y tamaño. La autorización permanente sigue vigente sin nuevas preguntas.
+
+---
+
+<!-- numeric-composed-hosted-qualified-v1 -->
+La corrección de preparación de CI está comprobada: [matriz 40263224006](https://github.com/guidomodarelli/rustdom/actions/runs/40263224006), intento 1, fuente `e6c4e6a9`, **6/6 jobs aprobados** en Node 22.12.0/24.14.1 × Linux/Windows/macOS. El [CI general 40263224090](https://github.com/guidomodarelli/rustdom/actions/runs/40263224090) del mismo commit también aprobó sus ocho jobs.
+
+[Resultados publicados en 6953f006](https://github.com/guidomodarelli/rustdom/tree/6953f00601ccbfdbf443df40af7c1ff6f7feda6b/reports/validation/range-numeric-composed-candidate/hosted): seis ZIP/API/logs/manifiestos íntegros, 18 comandos y un probe por job, 313 tests Rust, compatibilidad/Jest/Vitest/VM, tipos/consumidor, corpus/WPT y memoria. Nueve contratos del lector con los seis artefactos reales pasaron en Windows y Linux; revisión local aislada sin hallazgos pendientes. Se cerró antes de publicar el P2 de autenticación mediante pins independientes de artefacto/job y regresión de reseñado coherente.
+
+Los 72 endpoints finales observaron Document y Window separados sin supervivientes; son escenarios finitos y snapshots, no memoria pico ni garantía universal de ausencia de fugas. WPT conserva `complete=false`, exclusiones y 1203 resultados adversos compartidos por job. La fuente hosted verifica344inputs;167 están dentro de cada ZIP y se recomprueban offline. ELF Linux seleccionado: artifact12625768503, `a2777cbf00baa2cc7aa67c1098d6a5ceba4009aa6e514d558aac0b304e7ea583`, igual en ambos Node.
+
+**El PR continúa bloqueado por aceptación de rendimiento ownership.** Ambos checks preservan el rechazo numérico anterior. Este hito no integra el candidato, no acepta rendimiento, no repite mediciones ni cambia presupuestos; no hubo tag ni merge. El commit nuevo solo publica evidencia, lectores y documentación; sus checks se verifican por separado. El runtime sigue híbrido y la migración general está pendiente.
+
+---
+
+<!-- ci-checkout-promisor-fix-v1 -->
+Fix de CI publicado en [e6c4e6a9](https://github.com/guidomodarelli/rustdom/commit/e6c4e6a9e376c5f13474087550f96668ac0d476d): el preflight fallaba al servir el checkout parcial de GitHub como repositorio completo. Se conserva Git real por alternates, shallow/promisor y checkout del SHA auténtico, sin cambiar fuentes ni campos de procedencia. Regresión real filtered/shallow offline aprobada en Linux y Windows; cinco contratos de preparación y actionlint aprobados. Review aislada sin hallazgos.
+
+[Evidencia y ZIP originales del fallo](https://github.com/guidomodarelli/rustdom/tree/e6c4e6a9e376c5f13474087550f96668ac0d476d/reports/validation/range-numeric-composed-candidate/ci-checkout-fix). La nueva matriz de seis jobs es [40263224006](https://github.com/guidomodarelli/rustdom/actions/runs/40263224006), intento 1. Su resultado todavía está pendiente. El runtime conserva su validación local y ownership sigue sin aceptación de rendimiento.
+
+---
+
+<!-- range-numeric-composed-candidate-v1 -->
+Actualización de CI (8dc0513a): [candidato compuesto de inicialización y colapso numérico](https://github.com/guidomodarelli/rustdom/tree/8dc0513ac7aa8a63b73161ac79249bcb392fd981/reports/implementation/range-numeric-composed-candidate) calificado localmente en Node 22.12.0/24.14.1. Cuatro inputs de 344; producción sigue intacta e híbrida. Se publicó el workflow de seis jobs para ambos Node en Linux, Windows y macOS, con límites de tiempo y artefactos parciales.
+
+Ambos SDK pasaron 18 comandos de suites y un probe adicional: 313 tests Rust, nueve contratos dirigidos, consumidor TS ejecutado, compatibilidad, Jest/Vitest/VM, corpus, WPT y memoria. ELF local idéntico a6a21c3c. La colisión de salida exclusiva detectada en review se corrigió y la regresión real pasó. [Evidencia completa, parciales y revisión aislada sin hallazgos](https://github.com/guidomodarelli/rustdom/tree/8dc0513ac7aa8a63b73161ac79249bcb392fd981/reports/validation/range-numeric-composed-candidate). WPT mantiene sus exclusiones y estados adversos compartidos; la memoria observada no prueba ausencia universal de fugas ni pico.
+
+**Ownership todavía sin aceptación de rendimiento.** No se activó otro estudio, ni se creó tag/merge. El borrador de bloques permanece no ejecutable: tamaño/potencia e independencia temporal requieren trabajo técnico. Los históricos rechazados y sus 786 pins permanecen intactos. Siguiente: verificar la matriz hosted y autenticar su artefacto antes de definir la evaluación prospectiva.
+
+---
+
+<!-- range-initialization-candidate-v1 -->
+Actualización del bloqueo ownership (e4f46b3c): se publicó un candidato numérico distinto, todavía sin integrar ni aceptar rendimiento. [Patch y alcance](https://github.com/guidomodarelli/rustdom/tree/e4f46b3c2237b1312b6c0e757fcf58fce02da3a8/reports/implementation/range-initialization-candidate): inicializa ambos extremos de privateData en una llamada explícita al addon; document.createRange() por defecto sigue igual.
+
+Pasaron 26 comandos en Linux con Node 22.12.0/24.14.1: 311 tests Rust, Clippy, API/tipos con consumidor ejecutado, compatibilidad, Jest/Vitest/VM, corpus, WPT y memoria. WPT conserva sus exclusiones y 1203 resultados adversos compartidos por SDK; no es conformidad completa. Ambos SDK liberaron los 4814 NativeRange observados. [Evidencia íntegra y review local sin hallazgos](https://github.com/guidomodarelli/rustdom/tree/e4f46b3c2237b1312b6c0e757fcf58fce02da3a8/reports/validation/range-initialization-candidate/local-linux).
+
+En dc0b2df4 solo fallaban los dos gates ownership; el CI general y los demás checks pasaban. Los históricos siguen rechazados. No se activó otro estudio ni se crearon tag/merge. Sigue pendiente un protocolo prospectivo con precisión y costo justificados para evaluar el nuevo candidato sin repetir secuencias consumidas.
+
+---
+
+<!-- rustdom-owner-batch-complete-run:40234774968 -->
+
+Un error al construir o envolver clases N-API podía dejar una asignación Rust sin dueño. El guard conserva ownership hasta registrar el finalizer y libera el valor ante errores, incluidos tipos zero-sized. XMLSerializer conserva getters, receivers, realms, reentrada y errores. El runtime sigue híbrido.
+
+**El CI de ownership todavía no está resuelto.** En `504ebc36` fallan únicamente `Native class ownership Node 22/24`: ambos rechazan el presupuesto del estudio histórico `39921160254`. Compilación, compatibilidad y preparación pasan. No se eluden esos gates ni se modifican presupuestos para aceptar un rechazo.
+
+El [run 40234774968](https://github.com/guidomodarelli/rustdom/actions/runs/40234774968), intento 1, método `504ebc36b66dd6f36b19fd67bd6d61b3faff3f67`, terminó con ambos jobs exitosos. La captura duró 148.956/144.259 minutos en Node 22.12.0/24.14.1, dentro de 170 minutos de captura y 200 por job. **No fue un timeout; el rendimiento fue rechazado: cumplen 42/64 criterios.** Fallan 19 controles jsdom y 3 comparaciones RustAB de Node 24; los 16 controles RustAA cumplen.
+
+Las comparaciones RustAB rechazadas son `mutation-records-collect/100` (+4.376466%, IC95% [3.202629%, 5.566310%]), `range-state-lifecycle-1000/1000` (+5.743904%, [4.413334%, 7.130208%]) y `range-state-lifecycle-1000/250` (+4.300560%, [3.201423%, 5.423808%]). Los tres controles jsdom correspondientes también fueron rechazados; esto limita la atribución causal a Rust. Se publican todos los criterios, incluidas las mejoras observadas de range-control y los resultados adversos. Presupuestos originales: jsdom ±2%, RustAA ±5%, RustAB límite superior +5%; IC pointwise, sin cobertura simultánea del 95%.
+
+Captura íntegra: 2048 procesos, 294912 duraciones medidas, 98304 warmup externas, 24576 bloques, 24576 Window y 24576 Document separados, 6144 endpoints y 6 snapshots parentales. Cada proceso aporta UNA media de 144 tareas medidas; cada criterio usa 16 pares. ZIP, tar, API, logs, muestras, warmup y manifiestos completos quedan autenticados y conservados.
+
+Los lectores actuales de ambos SDK reprodujeron la misma decisión íntegra y siete tablas byte a byte idénticas. El exit code 1 corresponde al rechazo numérico, no a un error del lector. La revisión aislada recalculó los 64 Fieller y contrastó las tablas, el transporte y los recursos: 0 hallazgos pendientes. Se conservan la QA funcional/adversarial, sus fallos iniciales y las correcciones. No se ejecutó código archivado ni se repitió la captura.
+
+Se conservan 108 primeras rondas no claras; todos los procesos terminan con dos estados claros para Window y Document por separado. Los 1024 procesos Rust conservan 684032 filas de contadores nativos: `liveNodes=0`, `napiClasses.live=22` igual al baseline (delta 0). Los snapshots no miden memoria pico ni demuestran ausencia universal de fugas.
+
+El candidato aislado StaticRange resuelve ambos owners en un callback Rust; CI `40205226009` aprobó 6/6 en Linux/Windows/macOS × Node 22/24. ELF estudiado `4b52a84d`, artifact `12604810857`, sin reconstrucción. **No está integrado a producción y este estudio no habilita integrarlo.** Los rechazos históricos se conservan.
+
+Evidencia publicada en `dc0b2df487d2845bc952ec08265773eb798eb419`:
+
+- [Resultado completo y ZIP/tar/API/logs](https://github.com/guidomodarelli/rustdom/tree/dc0b2df487d2845bc952ec08265773eb798eb419/reports/benchmarks/native-class-ownership/owner-batch-study-results/40234774968).
+- [Recursos y límites](https://github.com/guidomodarelli/rustdom/tree/dc0b2df487d2845bc952ec08265773eb798eb419/reports/memory/owner-batch-study/40234774968).
+- [Replays de ambos Node, QA y revisión](https://github.com/guidomodarelli/rustdom/tree/dc0b2df487d2845bc952ec08265773eb798eb419/reports/validation/owner-batch-complete-replay/40234774968).
+- [Lector actual e instrucciones](https://github.com/guidomodarelli/rustdom/tree/dc0b2df487d2845bc952ec08265773eb798eb419/reports/benchmarks/native-class-ownership/owner-batch-exports).
+- [HANDOFF](https://github.com/guidomodarelli/rustdom/blob/dc0b2df487d2845bc952ec08265773eb798eb419/reports/progress/HANDOFF.md).
+
+La secuencia está consumida: no relanzar, agregar muestras ni cambiar el método. Siguiente trabajo: diagnosticar la estabilidad de los controles y el costo de Range/StaticRange con los datos existentes, corregir una causa concreta y justificar cualquier candidato o método nuevo antes de ejecutarlo. Autorización permanente concedida; no solicitar otro permiso. Sin tag ni merge con rendimiento rechazado. La migración a Rust sigue activa e incompleta; no hay porcentaje global defendible. No se solicita review remota por cuota agotada.

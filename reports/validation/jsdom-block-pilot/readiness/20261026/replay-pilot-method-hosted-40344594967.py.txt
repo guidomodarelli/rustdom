@@ -1,0 +1,50 @@
+"""Read functional hosted criteria with current Windows SDKs and externally bound current source; no DOM."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import sys
+repository=Path(__file__).resolve().parent.parent
+primary=Path(r'C:\Users\guido\ghq\projects\rustdom')
+pilot=repository/'reports/benchmarks/native-class-ownership/control-precision/pilot'
+collection=repository/'.cache/pilot-method-hosted-40344594967'
+root=repository/'.cache/pilot-method-hosted-replay-40344594967'
+receipt=json.loads((collection/'receipt.json').read_bytes())
+assert receipt['conclusion'] in ['success','failure']
+assert receipt['headCommit']=='7148577dcf1eeffda2ebf95a3ccd1eb173a6082b'
+root.mkdir(exist_ok=False)
+sdks={}
+for version,checksum in [('22.12.0','b3b117a08ee61efee09e6fd523ab33c0c018da1b570bde08e4fd914dc1170ed6'),
+                         ('24.14.1','58e74bf02fc5bbacc41dcb8bef089961cd5bddd37830b87784e4fc624d145d1f')]:
+    node=primary/('.tools/node-win/node-v'+version+'-win-x64/node.exe')
+    assert hashlib.sha256(node.read_bytes()).hexdigest()==checksum
+    sdks[version]=node
+current_files=json.loads(subprocess.check_output([str(sdks['22.12.0']),'-e',
+    'process.stdout.write(JSON.stringify(require("./reports/benchmarks/native-class-ownership/control-precision/pilot/capture/source.cjs").currentFiles()));'],cwd=repository))
+records=[]
+for data_sdk in sdks:
+    original=collection/('jsdom-block-calendar-'+data_sdk+'-'+receipt['headCommit'])
+    for phase in ['AA','AB']:
+        label=data_sdk+'-'+phase
+        expected_file=original/(phase+'-expected.json')
+        expected=json.loads(expected_file.read_bytes())
+        assert expected['sourceCommit']==receipt['headCommit'] and expected['files']==current_files
+        assert expected['mode']=='functional' and expected['requireComplete'] and expected['requireSupervisor']
+        assert expected['criterionId']=='v'+data_sdk+'/'+phase+'/jsdom/mutation-records-collect/100'
+        archived=json.loads((original/(phase+'-archive.json')).read_bytes())
+        target=root/label
+        with (root/(label+'-extraction.json')).open('xb') as stdout, (root/(label+'-extraction.stderr.log')).open('xb') as stderr:
+            subprocess.run([sys.executable,'-B',str(pilot/'capture/archive.py'),'--extract',
+                str(original/(phase+'.tar.gz')),archived['archiveSha256'],str(target)],stdout=stdout,stderr=stderr,check=True,timeout=180)
+        for reader_sdk,node in sdks.items():
+            result=root/(label+'-reader-'+reader_sdk+'.json')
+            with result.with_suffix('.stdout.log').open('xb') as stdout, result.with_suffix('.stderr.log').open('xb') as stderr:
+                subprocess.run([str(node),str(pilot/'capture/verify.cjs'),str(target),str(expected_file),str(result)],
+                               stdout=stdout,stderr=stderr,check=True,timeout=120)
+            replay=json.loads(result.read_bytes())
+            assert replay['complete'] and replay['totals']['processes']==32 and replay['analysis'] is None
+            records.append({'dataSdk':data_sdk,'phase':phase,'readerSdk':reader_sdk,'result':result.name,'totals':replay['totals']})
+            print(json.dumps(records[-1]),flush=True)
+(root/'receipt.json').write_bytes(json.dumps({'runId':receipt['runId'],'attempt':1,'sourceCommit':receipt['headCommit'],
+    'criteria':4,'replays':records,'noNewDOMExecution':True,'performanceAccepted':None,'gateReevaluated':False},indent=2).encode()+b'\n')
