@@ -1,5 +1,41 @@
 # Continuar rustdom en otra máquina
 
+## Productor funcional real probado en Node22/24 — 2026-10-26 UTC
+
+Nuevo `control-precision/pilot/functional.cjs --functional` y worker real:
+16 positivos AB/factor0 + seis adversos por SDK, sin entrada científica. Paquete
+fb062/artefacto12628261403 autenticado sin rebuild; solo se ejecuta jsdom27.4,
+no el ELF a277. Raw/sidecars/contextos y parciales en
+`reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/`.
+
+Review detectó P2 de invocar el verificador antes de autenticar sus bytes. Se
+cerró con bindings c12598c8/f651981f antes de spawn/imports y verificación integral
+final idéntica. Cuatro probes reales de whitespace rechazaron alteraciones sin
+ejecutar DOM y restauraron los inputs. La primera época ce15d77c se conserva,
+pero no califica el fix. `fixed-auth/` es la época corregida del Git Linux real
+c5298ad1: sourceCommit/status/errors se preservan tal cual, no como SHA publicado.
+
+Final:32 positivos +12 adversos;4608 duraciones,1536 warmup positivos y32 warmup
+adversos;386 Window/386 Document separados en34 procesos DOM, tres rondas y dos
+endpoints finales claros. Dos primeras rondas no claras y seis snapshots del
+padre preservados. Los otros diez adversos no construyen DOM. No pooling entre
+épocas, no aceptación ni estimador de rendimiento de estos datos funcionales.
+
+Pasaron88 contratos (22 por Windows/Linux × Node22.12.0/24.14.1), cuatro probes
+de integridad Linux y actionlint. Revisión aislada cerró el P2 sin nuevos hallazgos.
+Los controladores tienen límite funcional15min y workers180s; job CI25min, con
+preservación de artifacts. CI hosted del productor nuevo pendiente de publicar.
+
+CI8e9/run40291196724 terminó2/2 aprobado (19 +9 lectores por SDK), conservado en
+`reports/validation/jsdom-block-pilot/worker/20261026/previous-ci-8e9/`. No prueba
+el productor añadido después. Su inventario real es13 miembros por ZIP.
+
+Siguiente: calificar CI funcional y cerrar capturador/envelope/transporte de un
+piloto prospectivo con grafo/publicación/revisión completos. No reusar resultados
+funcionales como captura, ni activar workflows históricos. executionReady=false,
+performanceAccepted=null, gateReevaluated=false. Gate ownership rechazado, runtime
+híbrido y migración general activa; sin tag/merge. Preservar las48 entradas ajenas.
+
 ## CI de dispersión cerrado y lector de procesos probado — 2026-10-26 UTC
 
 Run **40288143186**, intento1, head **5be2eebc**, terminó **2/2 aprobado**.

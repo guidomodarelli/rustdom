@@ -1,0 +1,45 @@
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+primary = Path(r'C:\Users\guido\ghq\projects\rustdom')
+root = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/contracts'
+root.mkdir(parents=True, exist_ok=False)
+(root / 'initial-path-failure.json').write_bytes(json.dumps({
+    'role': 'summary-of-observed-tool-output-not-raw-log', 'node': 'v22.12.0', 'exitCode': 1,
+    'error': 'ENOENT resolving physical-manifest.json one parent above the repository',
+    'correction': 'The test fixture root now ascends five directories instead of six.',
+    'domExecuted': False, 'scientificCaptureExecuted': False}, indent=2).encode() + b'\n')
+
+def mounted(path): return '/mnt/' + path.drive[0].lower() + path.as_posix()[2:]
+
+versions = [
+    ('22.12.0', 'win32', '.tools/node-win/node-v22.12.0-win-x64/node.exe', 'b3b117a08ee61efee09e6fd523ab33c0c018da1b570bde08e4fd914dc1170ed6'),
+    ('24.14.1', 'win32', '.tools/node-win/node-v24.14.1-win-x64/node.exe', '58e74bf02fc5bbacc41dcb8bef089961cd5bddd37830b87784e4fc624d145d1f'),
+    ('22.12.0', 'linux', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', 'linux', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]
+results = []
+for version, platform, relative, expected in versions:
+    executable = primary / relative
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    prefix = [str(executable)] if platform == 'win32' else ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--', mounted(executable)]
+    assert subprocess.check_output([*prefix, '--version']).decode().strip() == 'v' + version
+    command = [*prefix, '--test', *['reports/benchmarks/native-class-ownership/control-precision/pilot/' + name for name in ['blocks.spec.cjs', 'variance.spec.cjs', 'process-reader.spec.cjs', 'worker.spec.cjs']]]
+    result = subprocess.run(command, cwd=repository, capture_output=True, timeout=120)
+    label = platform + '-' + version
+    (root / (label + '.stdout.log')).write_bytes(result.stdout); (root / (label + '.stderr.log')).write_bytes(result.stderr)
+    results.append({'node': version, 'platform': platform, 'executableSha256': expected, 'exitCode': result.returncode})
+    assert result.returncode == 0, label
+lint = subprocess.run(['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', mounted(repository), '--',
+    mounted(primary / '.tools/actionlint/actionlint'), '.github/workflows/jsdom-block-pilot-contracts.yml'], capture_output=True, timeout=60)
+(root / 'actionlint.stdout.log').write_bytes(lint.stdout); (root / 'actionlint.stderr.log').write_bytes(lint.stderr)
+record = {'results': results, 'testsPerSdkPlatform': 22, 'testsTotal': 88, 'newWorkerContractTestsPerSdkPlatform': 3,
+    'historicalJsdomFunctionalPayloadsReplayed': 32, 'historicalMeasuredDurationsValidated': 4608,
+    'historicalWarmupDurationsValidated': 1536, 'historicalWindowsValidated': 384, 'historicalDocumentsValidated': 384,
+    'historicalPayloadsPromotedToNewStudy': False, 'actionlintExitCode': lint.returncode,
+    'domExecuted': False, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(root / 'qa.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))
+assert lint.returncode == 0

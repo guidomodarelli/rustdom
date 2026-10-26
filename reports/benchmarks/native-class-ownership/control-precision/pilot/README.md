@@ -1,8 +1,8 @@
 # Calendario y agregación del piloto jsdom
 
-Implementación de preparación, **sin capturador ni activación**. El CI
-comprueba escalares sintéticos, relee datos funcionales históricos y escribe el calendario completo.
-No ejecuta DOM, no produce tiempos de rendimiento y no reevalúa el gate.
+Implementación de preparación, **sin captura científica ni activación**. El CI
+comprueba escalares, relee datos históricos y valida un productor funcional con
+jsdom real. No aprueba rendimiento ni reevalúa el gate.
 
 Se fija como propuesta del piloto la opción r16 de VARIANCE-PILOT-DRAFT.md:
 32 criterios jsdom, cada uno con 16 bloques de las 16 combinaciones originales,
@@ -64,17 +64,29 @@ el candidato Rust a277 ni un piloto nuevo. La salida funcional tiene
 El transporte y la identidad del productor no se autentican dentro de esta
 función: debe hacerlo el futuro lector integral antes de analizar observaciones.
 
+`functional.cjs --functional` autentica el verificador/política antes de usarlos,
+verifica el paquete sellado y ejecuta16 controles nuevos más seis adversos por
+SDK. Reutiliza el muestreador y runner de grupos; valida todos los raw con
+`replayProcess`, observa Window/Document y recheckea el paquete al terminar.
+El modo científico permanece sin implementar. Reportes, parciales y sidecars
+son funcionales e inelegibles para el futuro piloto. La época preliminar y la
+corregida se conservan por separado, sin pooling.
+
 ```sh
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/blocks.spec.cjs
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/variance.spec.cjs
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/process-reader.spec.cjs
+node --test reports/benchmarks/native-class-ownership/control-precision/pilot/worker.spec.cjs
+node --expose-gc reports/benchmarks/native-class-ownership/control-precision/pilot/functional.cjs --functional /paquete/verificado /salida/nueva
 node reports/benchmarks/native-class-ownership/control-precision/pilot/plan.cjs /nuevo/calendar.json
 ```
 
 La salida usa creación exclusiva y conserva cualquier archivo previo. Las
 pruebas validan comportamiento, calendario completo, estimando, errores y CLI
-real. Los arrays escalares están acotados por el diseño; no se cargan runtimes,
+real. Los módulos escalares están acotados por el diseño; esos módulos no cargan runtimes,
 wrappers, realms ni referencias DOM. Esto no sustituye las pruebas de memoria
-del capturador futuro. Faltan transporte/lector integral autenticado y capturador,
+del capturador futuro. El nuevo productor funcional sí ejecuta DOM y guarda
+raw/recursos por separado en los directorios de validación y benchmarks. Faltan
+calificación hosted, transporte/lector integral autenticado y capturador científico,
 diagnósticos de dependencia, empaquetado, límites, revisión integral y evidencia
 hosted antes de cualquier captura. No tag/merge; ownership sigue rechazado.

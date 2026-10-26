@@ -26,7 +26,7 @@ jobs:
   contracts:
     name: Calendario y medias Node ${{ matrix.node }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -68,9 +68,17 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Probar calendario, dispersión y tareas históricas sin ejecutar DOM
-        run: node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" "$PILOT/process-reader.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
+        run: node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" "$PILOT/process-reader.spec.cjs" "$PILOT/worker.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
       - name: Guardar el calendario completo sin activar captura
         run: node "$PILOT/plan.cjs" "$RUNNER_TEMP/pilot-blocks-qa/calendar.json" > "$RUNNER_TEMP/pilot-blocks-qa/plan.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/plan.stderr.log"
+      - name: Extraer el paquete sellado sin instalar ni reconstruir
+        run: python -B "$TOOLS/transport.py" --extract reports/validation/range-numeric-composed-package/20261026/packages.tar.xz "$RUNNER_TEMP/pilot-worker-package" > "$RUNNER_TEMP/pilot-blocks-qa/package-extraction.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/package-extraction.stderr.log"
+      - name: Rechazar verificadores alterados antes de ejecutarlos
+        env:
+          RUSTDOM_JSDOM_BLOCK_FUNCTIONAL_PACKAGE: ${{ runner.temp }}/pilot-worker-package
+        run: node --test "$PILOT/integrity.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/integrity-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/integrity-tests.stderr.log"
+      - name: Validar controles jsdom reales, fallos y cleanup con procesos independientes
+        run: node --expose-gc "$PILOT/functional.cjs" --functional "$RUNNER_TEMP/pilot-worker-package" "$RUNNER_TEMP/pilot-blocks-qa/functional" > "$RUNNER_TEMP/pilot-blocks-qa/functional.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/functional.stderr.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

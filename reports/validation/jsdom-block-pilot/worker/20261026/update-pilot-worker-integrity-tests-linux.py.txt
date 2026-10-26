@@ -1,0 +1,32 @@
+"""Update only the agent-owned current worker files in its private Git fixture before any DOM worker runs."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-pilot-worker-source-20261026')
+output = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/source-fixture/integrity-tests-correction.json'
+assert not output.exists()
+def git(*arguments): return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=root)
+assert git('status', '--porcelain=v1') == b''
+before = git('rev-parse', 'HEAD').decode().strip()
+prefix = 'reports/benchmarks/native-class-ownership/control-precision/pilot/'
+names = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'functional.cjs', 'process-reader.cjs', 'constants/design.json', 'constants/worker.json', 'fixtures/progress-failure.cjs', 'integrity.spec.cjs']
+changes = {}
+for name in names:
+    relative = prefix + name; old = (root / relative).read_bytes() if (root / relative).exists() else b''; new = (repository / relative).read_bytes()
+    if old != new:
+        shutil.copyfile(repository / relative, root / relative)
+        changes[relative] = {'before': hashlib.sha256(old).hexdigest(), 'after': hashlib.sha256(new).hexdigest()}
+assert changes
+git('add', '--', *changes)
+git('-c', 'user.name=Native CI fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Add real verifier-byte rejection probes before corrected functional qualification')
+after = git('rev-parse', 'HEAD').decode().strip()
+assert git('status', '--porcelain=v1') == b''
+record = {'fixtureBefore': before, 'fixtureAfter': after, 'changedFiles': changes,
+    'fixtureIsPublishedCommit': False, 'preliminaryFunctionalEpochHadCompleted': True, 'runtimePackageChanged': False,
+    'reason': 'Cerrar P2 de autenticación del helper antes de validar la nueva versión; se preserva la época preliminar anterior.'}
+output.write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))

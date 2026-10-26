@@ -1,0 +1,51 @@
+"""Authenticate/extract the existing numeric payload for new functional worker tests; never rebuild it."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+root = Path('/dev/shm/rustdom-pilot-worker-functional-20261026')
+output = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/preparation'
+assert not root.exists() and not output.exists(); output.mkdir(parents=True)
+tools = repository / 'reports/benchmarks/native-class-ownership/numeric-composed-packages'
+archive = repository / 'reports/validation/range-numeric-composed-package/20261026/packages.tar.xz'
+assert hashlib.sha256(archive.read_bytes()).hexdigest() == 'fb06276a9fb0510360b4a0cf804699b2554303c3f80cf164fcd60f3f443aa72d'
+nodes = {
+    '22.12.0': (primary / '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    '24.14.1': (primary / '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')}
+for version, (node, expected) in nodes.items():
+    assert hashlib.sha256(node.read_bytes()).hexdigest() == expected
+    assert subprocess.check_output([str(node), '--version']).decode().strip() == 'v' + version
+commands = [('extract', ['python3', '-B', str(tools / 'transport.py'), '--extract', str(archive), str(root)])]
+commands += [('verify-' + version, ['python3', '-B', str(tools / 'assemble.py'), '--verify', str(root), str(node)]) for version, (node, unused) in nodes.items()]
+for label, command in commands:
+    result = subprocess.run(command, cwd=repository, capture_output=True, timeout=180)
+    (output / (label + '.stdout.json')).write_bytes(result.stdout); (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    assert result.returncode == 0, label
+    report = json.loads(result.stdout)
+    if label.startswith('verify'):
+        assert report['verified'] and report['artifactId'] == 12628261403
+        assert report['nativeBinarySha256'] == 'a2777cbf00baa2cc7aa67c1098d6a5ceba4009aa6e514d558aac0b304e7ea583'
+records = {}
+for label in ['A0', 'A1', 'J0', 'J1', 'B']:
+    package = root / ('candidate' if label == 'B' else 'controls/packages/' + label)
+    files = []
+    def walk(relative):
+        target = package / relative
+        if target.is_dir():
+            for child in sorted(target.iterdir(), key=lambda item: item.name): walk(relative + '/' + child.name)
+        else:
+            contents = target.read_bytes()
+            files.append({'path': relative, 'bytes': len(contents), 'sha256': hashlib.sha256(contents).hexdigest()})
+    for part in (['lib', 'package.json'] if label.startswith('J') else ['dist', 'package.json']): walk(part)
+    raw = json.dumps(files, separators=(',', ':'), ensure_ascii=False).encode()
+    records[label] = hashlib.sha256(raw).hexdigest()
+legacy = json.loads((repository / 'reports/benchmarks/native-class-ownership/owner-batch-study/constants/worker.json').read_bytes())
+assert all(records[label] == legacy['distributions'][label] for label in ['A0', 'A1', 'J0', 'J1'])
+(output / 'distribution-hashes.json').write_bytes(json.dumps(records, indent=2).encode() + b'\n')
+(output / 'receipt.json').write_bytes(json.dumps({'root': str(root), 'archiveSha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+    'artifactId': 12628261403, 'distributionHashes': records, 'domExecuted': False,
+    'rustRebuilt': False, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')
+print(json.dumps(records))
