@@ -1,0 +1,38 @@
+/** @file Declares preparation inputs only; this recipe cannot grant performance acceptance. */
+'use strict';
+const inline = require('./paired-inline.cjs');
+module.exports = {
+  revision: 'ownership-hosted-build-v1',
+  node: 'v24.14.1',
+  npm: '11.11.0',
+  rustRelease: '1.99.1',
+  cargoRelease: '1.99.1',
+  platform: 'linux',
+  arch: 'x64',
+  glibc: '2.35',
+  referenceVersion: '27.4.0',
+  commandTimeoutMs: 1_200_000,
+  validationTimeoutMs: 120_000,
+  releaseMaxRounds: 64,
+  releaseTimeoutMs: 10_000,
+  validationNodeVersions: inline.nodeVersions,
+  validationCycles: 3,
+  packageSources: { A0: 'A', A1: 'A', B: 'B', J0: 'reference', J1: 'reference' },
+  commands: { install: ['ci', '--omit=dev', '--no-audit', '--no-fund'], build: ['run', 'build'] },
+  additionalBuildInputs: ['package.json', 'build.rs', 'third-party/saxes/LICENSE', 'third-party/w3c-xmlserializer/LICENSE.md'],
+  forbiddenEnvironment: ['NODE_OPTIONS', 'NODE_PATH', 'RUSTC', 'CARGO', 'RUSTFLAGS', 'CARGO_ENCODED_RUSTFLAGS',
+    'RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER', 'CC', 'CXX', 'AR', 'CFLAGS', 'CXXFLAGS'],
+  forbiddenEnvironmentPrefixes: ['CARGO_PROFILE_', 'CARGO_TARGET_', 'CARGO_BUILD_'],
+  allowedTargetEnvironment: 'CARGO_TARGET_DIR',
+  absoluteDirectoryEnvironment: ['CARGO_HOME', 'RUSTUP_HOME', 'CARGO_TARGET_DIR'],
+  preparationFiles: [
+    '.github/workflows/ownership-build.yml',
+    'reports/benchmarks/native-class-ownership/HOSTED-BUILD-PROTOCOL.md',
+    'reports/benchmarks/native-class-ownership/prepare-hosted-build.cjs',
+    'reports/benchmarks/native-class-ownership/prepare-hosted-build.spec.cjs',
+    'reports/benchmarks/native-class-ownership/hosted-build-worker.cjs',
+    'reports/benchmarks/native-class-ownership/constants/hosted-build.cjs',
+    'reports/benchmarks/native-class-ownership/ownership-evidence.cjs',
+    'reports/benchmarks/native-class-ownership/constants/ownership-evidence.json',
+  ],
+};

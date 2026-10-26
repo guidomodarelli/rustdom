@@ -1,0 +1,98 @@
+name: Hosted main ownership comparison
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ownership-hosted-main-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.label.name == 'ownership-hosted-main-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar la ruta exacta de Node 22
+        run: echo "OWNERSHIP_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar la ruta exacta de Node 24
+        run: echo "OWNERSHIP_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Extraer el artefacto oficial sin recompilar y comprobar el recibo de revisión
+        env:
+          OWNERSHIP_REVIEWED_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/hosted-main"
+          mkdir "$RUNNER_TEMP/hosted-main/prepared"
+          echo "RUSTDOM_HOSTED_BUILD_ARCHIVE=$RUNNER_TEMP/hosted-main/prepared/ownership-build" >> "$GITHUB_ENV"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const method = require('./reports/benchmarks/native-class-ownership/constants/hosted-main-study.cjs');
+          const filename = 'reports/validation/native-class-ownership/hosted-build-ci/39720077911/artifact-12400802735.zip';
+          assert.equal(createHash('sha256').update(fs.readFileSync(filename)).digest('hex'), method.preparation.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/hosted-build-ci/39720077911/artifact-12400802735.zip -d "$RUNNER_TEMP/hosted-main/download"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const method = require('./reports/benchmarks/native-class-ownership/constants/hosted-main-study.cjs');
+          assert.equal(createHash('sha256').update(fs.readFileSync(`${process.env.RUNNER_TEMP}/hosted-main/download/ownership-build.tar.gz`)).digest('hex'), method.preparation.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/hosted-main/download/ownership-build.tar.gz" -C "$RUNNER_TEMP/hosted-main/prepared"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const study = require('./reports/benchmarks/native-class-ownership/hosted-main-experiment.cjs');
+          const review = JSON.parse(fs.readFileSync('reports/validation/native-class-ownership/hosted-main-method/review.json'));
+          const harness = study.captureHarness();
+          assert.equal(review.actionableFindings, 0);
+          assert.equal(review.harnessSha256, harness.sha256, 'Hosted main: published harness differs from its review');
+          study.inspectPreparation(`${process.env.RUNNER_TEMP}/hosted-main/prepared/ownership-build`);
+          const provenance = { reviewedCommit: process.env.OWNERSHIP_REVIEWED_COMMIT,
+            harnessSha256: harness.sha256,
+            receiptUrl: `https://github.com/guidomodarelli/rustdom/blob/${process.env.OWNERSHIP_REVIEWED_COMMIT}/reports/validation/native-class-ownership/hosted-main-method/review.json` };
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/hosted-main/provenance.json`, JSON.stringify(provenance, null, 2));
+          JS
+      - name: Ejecutar una secuencia completa en Node 22 y después Node 24
+        shell: bash
+        run: |
+          set +e
+          "$OWNERSHIP_NODE22" reports/benchmarks/native-class-ownership/hosted-main-experiment.cjs "$RUSTDOM_HOSTED_BUILD_ARCHIVE" "$RUNNER_TEMP/hosted-main/node-22" "$RUNNER_TEMP/hosted-main/provenance.json" > "$RUNNER_TEMP/hosted-main/node-22.stdout.log" 2> "$RUNNER_TEMP/hosted-main/node-22.stderr.log"
+          node22_status=$?
+          echo "$node22_status" > "$RUNNER_TEMP/hosted-main/node-22.exit-code"
+          if [ "$node22_status" -gt 1 ]; then exit "$node22_status"; fi
+          "$OWNERSHIP_NODE24" reports/benchmarks/native-class-ownership/hosted-main-experiment.cjs "$RUSTDOM_HOSTED_BUILD_ARCHIVE" "$RUNNER_TEMP/hosted-main/node-24" "$RUNNER_TEMP/hosted-main/provenance.json" > "$RUNNER_TEMP/hosted-main/node-24.stdout.log" 2> "$RUNNER_TEMP/hosted-main/node-24.stderr.log"
+          node24_status=$?
+          echo "$node24_status" > "$RUNNER_TEMP/hosted-main/node-24.exit-code"
+          if [ "$node24_status" -gt 1 ]; then exit "$node24_status"; fi
+          "$OWNERSHIP_NODE24" reports/benchmarks/native-class-ownership/hosted-main-experiment.cjs --verify-set "$RUNNER_TEMP/hosted-main/node-22" "$RUNNER_TEMP/hosted-main/node-24" > "$RUNNER_TEMP/hosted-main/verification.json" 2> "$RUNNER_TEMP/hosted-main/verification.stderr.log"
+          verification_status=$?
+          if [ "$verification_status" -ne 0 ]; then exit "$verification_status"; fi
+          "$OWNERSHIP_NODE24" -e 'const result=require(process.argv[1]);process.exit(result.accepted ? 0 : 1)' "$RUNNER_TEMP/hosted-main/verification.json"
+      - name: Conservar toda la evidencia y los enlaces relativos
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/hosted-main" ]; then
+            tar -czf "$RUNNER_TEMP/hosted-main-results.tar.gz" -C "$RUNNER_TEMP" hosted-main
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-hosted-main-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/hosted-main-results.tar.gz

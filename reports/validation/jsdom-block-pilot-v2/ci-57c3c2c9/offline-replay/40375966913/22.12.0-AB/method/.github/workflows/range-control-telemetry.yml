@@ -1,0 +1,82 @@
+name: Telemetría AA de Range
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: range-control-aa-telemetry-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.event.action == 'labeled' && github.event.pull_request.number == 80 && github.event.label.name == 'ownership-range-control-aa-telemetry-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NATIVE_TELEMETRY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Crear transporte antes de cualquier preparación
+        run: mkdir "$RUNNER_TEMP/range-aa-telemetry"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar Node 22
+        run: echo "RANGE_TELEMETRY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar Node 24
+        run: echo "RANGE_TELEMETRY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar contexto, revisión y consumo antes de extraer paquetes
+        run: |
+          node <<'JS' > "$RUNNER_TEMP/range-aa-telemetry/readiness.stdout.log" 2> "$RUNNER_TEMP/range-aa-telemetry/readiness.stderr.log"
+          const fs = require('node:fs');
+          const method = './reports/benchmarks/native-class-ownership/range-control-telemetry/';
+          const context = require(method + 'context.cjs');
+          const event = require(method + 'capture.cjs').captureContext(process.env.NATIVE_TELEMETRY_SOURCE_COMMIT);
+          context.publication();
+          const readiness = require(method + 'readiness.cjs');
+          const evidence = readiness.readReadiness(event);
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/range-aa-telemetry/readiness.json`, JSON.stringify(evidence, null, 2) + '\n');
+          readiness.validateActivation(evidence, process.env.NATIVE_TELEMETRY_SOURCE_COMMIT);
+          JS
+      - name: Extraer la preparación exacta sin reconstruir paquetes
+        run: python3 -B reports/benchmarks/native-class-ownership/range-collapse-study/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/range-aa-telemetry/preparation" > "$RUNNER_TEMP/range-aa-telemetry/preparation.stdout.log" 2> "$RUNNER_TEMP/range-aa-telemetry/preparation.stderr.log"
+      - name: Ejecutar una sola secuencia diagnóstica
+        timeout-minutes: 65
+        run: |
+          set +e
+          "$RANGE_TELEMETRY_NODE24" reports/benchmarks/native-class-ownership/range-control-telemetry/run.cjs --capture "$RUNNER_TEMP/range-aa-telemetry/preparation/range-collapse-packages" "$RUNNER_TEMP/range-aa-telemetry/capture" "$NATIVE_TELEMETRY_SOURCE_COMMIT" "$RANGE_TELEMETRY_NODE22" "$RANGE_TELEMETRY_NODE24" > "$RUNNER_TEMP/range-aa-telemetry/stdout.log" 2> "$RUNNER_TEMP/range-aa-telemetry/stderr.log"
+          capture_status=$?
+          printf '%s\n' "$capture_status" > "$RUNNER_TEMP/range-aa-telemetry/exit-code"
+          exit "$capture_status"
+      - name: Conservar resultados íntegros o parciales
+        if: always()
+        timeout-minutes: 15
+        run: |
+          if [ -d "$RUNNER_TEMP/range-aa-telemetry" ]; then
+            tar -cJf "$RUNNER_TEMP/range-aa-telemetry.tar.xz" -C "$RUNNER_TEMP" range-aa-telemetry
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 10
+        with:
+          name: range-control-aa-telemetry-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/range-aa-telemetry.tar.xz

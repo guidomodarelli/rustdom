@@ -1,0 +1,100 @@
+name: Ownership con tareas secuenciales por proceso
+run-name: ${{ github.event.label.name }}:${{ github.event.pull_request.head.sha }}
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ownership-owner-batch-serial-v1
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    if: >-
+      github.event.label.name == 'ownership-owner-batch-serial-v1' &&
+      github.event.pull_request.number == 80 &&
+      github.event.pull_request.head.repo.full_name == 'guidomodarelli/rustdom' &&
+      github.run_attempt == 1
+    name: Ownership serial Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/owner-batch-packages
+      STUDY: reports/benchmarks/native-class-ownership/owner-batch-study
+      PACKAGE: reports/validation/owner-batch-package/20261025/packages.tar.xz
+      COLLECTION: reports/validation/static-range-owner-batch-ci/40205226009
+    steps:
+      - name: Registrar inicio para preservar presupuesto de archivo
+        run: |
+          mkdir -p "$RUNNER_TEMP/owner-batch-run"
+          cut -d' ' -f1 /proc/uptime > "$RUNNER_TEMP/owner-batch-run/job-started-uptime.txt"
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        timeout-minutes: 2
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        timeout-minutes: 2
+        with:
+          python-version: '3.12'
+      - name: Exigir los cuatro checks aprobados del mismo commit antes de capturar
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUSTDOM_OWNER_BATCH_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node "$STUDY/tools/qualification.cjs" "$RUSTDOM_OWNER_BATCH_EXPECTED_HEAD" > "$RUNNER_TEMP/owner-batch-run/source-qualification.json"
+      - name: Impedir globalmente una segunda captura de este método en cualquier commit
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUSTDOM_OWNER_BATCH_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node "$STUDY/tools/once.cjs" "$RUSTDOM_OWNER_BATCH_EXPECTED_HEAD" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/owner-batch-run/capture-consumption.json"
+      - name: Autenticar y extraer el mismo paquete fijado
+        timeout-minutes: 2
+        run: |
+          python -B "$TOOLS/transport.py" --extract "$PACKAGE" "$RUNNER_TEMP/owner-batch-package" > "$RUNNER_TEMP/owner-batch-run/extraction.json"
+      - name: Capturar la secuencia completa una sola vez
+        timeout-minutes: 173
+        run: |
+          set -o pipefail
+          export RUSTDOM_OWNER_BATCH_JOB_STARTED_UPTIME="$(cat "$RUNNER_TEMP/owner-batch-run/job-started-uptime.txt")"
+          export RUSTDOM_OWNER_BATCH_QUALIFICATION="$RUNNER_TEMP/owner-batch-run/source-qualification.json"
+          export RUSTDOM_OWNER_BATCH_CONSUMPTION="$RUNNER_TEMP/owner-batch-run/capture-consumption.json"
+          node --expose-gc "$STUDY/capture.cjs" --capture "$RUNNER_TEMP/owner-batch-package" "$RUNNER_TEMP/owner-batch-run/capture" \
+            2> >(tee "$RUNNER_TEMP/owner-batch-run/driver.stderr.log" >&2) | tee "$RUNNER_TEMP/owner-batch-run/driver.stdout.log"
+      - name: Archivar datos completos o parciales sin ejecutar sus scripts
+        if: always()
+        timeout-minutes: 10
+        run: |
+          tar -C "$RUNNER_TEMP" -cJf "$RUNNER_TEMP/owner-batch-result.tar.xz" owner-batch-run
+          sha256sum "$RUNNER_TEMP/owner-batch-result.tar.xz" > "$RUNNER_TEMP/owner-batch-result.tar.xz.sha256"
+      - name: Conservar el archivo íntegro aunque la captura falle
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-batch-science-${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/owner-batch-result.tar.xz
+            ${{ runner.temp }}/owner-batch-result.tar.xz.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90

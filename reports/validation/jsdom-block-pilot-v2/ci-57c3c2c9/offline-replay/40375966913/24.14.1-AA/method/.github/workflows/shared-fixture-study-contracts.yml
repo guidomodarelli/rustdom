@@ -1,0 +1,55 @@
+name: Contratos prospectivos de ownership
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/ownership-shared-fixtures.yml'
+      - '.github/workflows/shared-fixture-study-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/shared-fixture-study/**'
+      - 'reports/validation/native-class-ownership/shared-fixture-study-method/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: shared-fixture-study-contracts-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Contratos prospectivos Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer evidencia funcional autenticada, sin sampler
+        run: |
+          mkdir "$RUNNER_TEMP/shared-study-contracts"
+          python reports/validation/native-class-ownership/shared-fixture-worker/replay.py "$RUNNER_TEMP/shared-study-contracts/raw"
+      - name: Probar contratos del método y rechazos controlados
+        env:
+          SHARED_WORKER_EVIDENCE: ${{ runner.temp }}/shared-study-contracts/raw/shared-worker-qualification
+        run: |
+          node --test --test-reporter=tap reports/benchmarks/native-class-ownership/shared-fixture-study/contracts.spec.cjs 2>&1 | tee "$RUNNER_TEMP/shared-study-contracts/contracts.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-study-contracts-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/shared-study-contracts/contracts.log

@@ -1,0 +1,565 @@
+/** @file Stresses real lifecycle paths and measures retained references and post-GC memory. */
+'use strict';
+const assert = require('node:assert/strict');
+const { collectGarbage: settle, captureMemoryState, waitForMemoryQuiescence } = require('./memory-endpoint.cjs');
+
+/** Retain small result records, never the DOM objects whose collection is measured. */
+const snapshots = [];
+/** Deliberately retain teardown callbacks to catch accidental closure ownership. */
+const retainedTeardowns = [];
+/** Retain published Web API classes to detect strong realm ownership after teardown. */
+const retainedWebConstructors = [];
+/** Observe targets without keeping them alive. */
+const references = [];
+/** Observe Window proxies too: close() can release a Document while a Window remains retained. */
+const windowReferences = [];
+/** Observe attached and detached CharacterData wrappers owning native buffers. */
+const characterReferences = [];
+/** Track attached, removed and never-attached native-backed Attr values. */
+const attributeReferences = [];
+/** Observe compared subtrees and native immutable node metadata without retaining them. */
+const comparisonReferences = [];
+/** Keep copied string results alive to catch ownership accidentally shared with native nodes. */
+const retainedTextResults = [];
+/** Observe real Range wrappers without keeping their boundary nodes alive. */
+const rangeReferences = [];
+/** Every explicit fixture participates in the same final liveness observation. */
+const observedReferences = { documents: references, windows: windowReferences,
+  characterData: characterReferences, attributes: attributeReferences, comparedNodes: comparisonReferences, ranges: rangeReferences };
+/** Preserve collection progress as numbers and memory samples without retaining DOM fixtures. */
+const quiescenceChecks = [];
+/** Keep foreign signals alive to expose missed cross-realm listener cleanup. */
+const retainedControllers = [];
+/** Warm module caches and native allocators before judging bounded retained growth. */
+const WARMUP_BATCHES = 3;
+/** Sample enough lifecycle batches to expose a per-window leak. */
+const MEASURED_BATCHES = 8;
+/** Use several documents per batch while allowing pending readiness callbacks to settle. */
+const OPERATIONS_PER_BATCH = 40;
+
+/**
+ * Create and release a document, its observers, listeners, and outstanding timer.
+ * @param {object} runtime - Real jsdom-compatible implementation.
+ * @param {string} identity - Unique attribute identity to stress atom-table churn.
+ * @returns {void} Keeps only a weak document reference.
+ */
+function exerciseWindow(runtime, identity) {
+  const dom = new runtime.JSDOM('<!doctype html><body><div>start</div>', { url: 'https://memory.example.test/' });
+  const document = dom.window.document;
+  windowReferences.push(new WeakRef(dom.window));
+  const observer = new dom.window.MutationObserver(() => {});
+  observer.observe(document.body, { childList: true, characterData: true, characterDataOldValue: true, subtree: true });
+  dom.window.addEventListener('custom-event', () => document.body);
+  dom.window.setInterval(() => document.body, 60_000);
+  document.body.innerHTML = `<section data-${identity}="value"><p>updated</p></section>`.repeat(20) + '<iframe></iframe>';
+  exerciseHostRoots(document);
+  exerciseTraversals(document);
+  exerciseSelection(document);
+  exerciseXmlSerialization(dom.window);
+  exerciseStorage(dom.window);
+  const blob = new dom.window.Blob(['a'.repeat(2048)], { type: 'TEXT/PLAIN' });
+  const file = new dom.window.File([blob], 'memory.txt', { lastModified: 42 });
+  const slice = file.slice(10, 20); assert.equal(slice.size, 10);
+  const reader = new dom.window.FileReader(); reader.readAsText(blob); reader.abort();
+  const pendingReader = new dom.window.FileReader(); pendingReader.readAsArrayBuffer(slice);
+  comparisonReferences.push(new WeakRef(reader), new WeakRef(pendingReader));
+  comparisonReferences.push(new WeakRef(blob), new WeakRef(file), new WeakRef(slice));
+  const formData = new dom.window.FormData(); formData.append('file', file); formData.append('text', identity);
+  formData.append('file', slice, 'renamed'); formData.set('text', 'retained-result');
+  const formIterator = formData.entries(); formIterator.next();
+  assert.equal(formData.getAll('file').length, 2); retainedTextResults.push(formData.get('text'));
+  comparisonReferences.push(new WeakRef(formData), new WeakRef(formIterator));
+  const text = document.createTextNode('\ud800' + 'x'.repeat(8192));
+  const comment = document.createComment('comment-' + identity);
+  const detached = document.createTextNode('detached-' + identity);
+  document.body.append(text, comment);
+  text.replaceData(1, 4096, '🦀');
+  comment.appendData('\udc00');
+  characterReferences.push(new WeakRef(text), new WeakRef(comment), new WeakRef(detached));
+  const removedAttribute = document.createAttributeNS(`urn:${identity}`, 'p:value');
+  removedAttribute.value = 'x'.repeat(8192) + '\udfff';
+  document.body.setAttributeNodeNS(removedAttribute);
+  document.body.removeAttributeNode(removedAttribute);
+  removedAttribute.value = 'removed';
+  const detachedAttribute = document.createAttribute('detached');
+  detachedAttribute.value = '\ud800';
+  document.body.setAttribute('data-attached', identity);
+  attributeReferences.push(new WeakRef(removedAttribute), new WeakRef(detachedAttribute),
+    new WeakRef(document.body.getAttributeNode('data-attached')));
+  references.push(new WeakRef(document.querySelector('iframe').contentDocument));
+  windowReferences.push(new WeakRef(document.querySelector('iframe').contentWindow));
+  // Leave the observer connected: closing the window must release the entire cycle.
+  references.push(new WeakRef(document));
+  dom.window.close();
+}
+
+/** @param {Window} window - Real same-origin owner. @returns {void} Leave populated native areas and retain only copied strings/weak wrappers. */
+function exerciseStorage(window) {
+  const local = window.localStorage; const session = window.sessionStorage;
+  local.setItem('kept', 'value\0\ud800'); local.setItem('removed', 'temporary'); local.removeItem('removed');
+  session.setItem('other', 'session'); assert.deepEqual(Object.keys(local), ['kept']);
+  retainedTextResults.push(local.getItem('kept')); comparisonReferences.push(new WeakRef(local), new WeakRef(session));
+}
+
+/** @param {Document} document - Real document. @returns {void} Exercises retained filters and traversal repair before allowing the whole cycle to collect. */
+function exerciseTraversals(document) {
+  const rect = new document.defaultView.DOMRect(2, 3, -4, -5); rect.width = -6;
+  assert.equal(rect.left, -4); comparisonReferences.push(new WeakRef(rect));
+  const root = document.createElement('div'); root.innerHTML = '<a>A<b>B</b></a><p>P</p>';
+  const dataset = root.dataset; dataset.ownerId = 'memory'; dataset.nextValue = 'next'; delete dataset.ownerId;
+  assert.equal(root.getAttribute('data-next-value'), 'next'); comparisonReferences.push(new WeakRef(dataset));
+  const classes = root.classList; classes.value = ' one one two ';
+  classes.add('three'); classes.replace('two', 'one');
+  assert.equal(classes.value, 'one three'); comparisonReferences.push(new WeakRef(classes));
+  document.body.append(root);
+  const filter = (node) => node.nodeType === 1 ? 1 : 3;
+  const iterator = document.createNodeIterator(root, 0xffffffff, filter);
+  const walker = document.createTreeWalker(root, 0xffffffff, filter);
+  assert.equal(iterator.nextNode(), root); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.nextNode(), root.firstChild);
+  root.firstChild.remove(); assert.equal(iterator.nextNode(), root.firstChild);
+  assert.equal(walker.currentNode.textContent, 'AB');
+  root.remove();
+  comparisonReferences.push(new WeakRef(iterator), new WeakRef(walker), new WeakRef(filter), new WeakRef(root));
+}
+
+/** @param {object} target - Actual window or runner globals. @returns {void} Serialize a separate XML document and retain only weak observations. */
+function exerciseXmlSerialization(target) {
+  const xml = new target.DOMParser().parseFromString('<r xmlns="urn:r"><child a="&amp;"/></r>', 'text/xml');
+  const serializer = new target.XMLSerializer();
+  assert.equal(serializer.serializeToString(xml), '<r xmlns="urn:r"><child a="&amp;"/></r>');
+  assert.equal(xml.documentElement.innerHTML, '<child xmlns="urn:r" a="&amp;"/>');
+  references.push(new WeakRef(xml)); comparisonReferences.push(new WeakRef(serializer), new WeakRef(xml.documentElement));
+}
+
+/** @param {object} target - Real environment globals. @returns {void} Drops live/static Range roots before teardown while retaining only weak observations. */
+function exerciseEnvironmentRanges(target) {
+  exerciseSelection(target.document);
+  exerciseHostRoots(target.document);
+  exerciseTraversals(target.document);
+  exerciseXmlSerialization(target);
+  const text = target.document.querySelector('p').firstChild;
+  text.nodeValue = text.data;
+  const rejectedText = target.document.createTextNode('invalid document child');
+  assert.throws(() => target.document.appendChild(rejectedText), { name: 'HierarchyRequestError' });
+  assert.equal(rejectedText.parentNode, null); comparisonReferences.push(new WeakRef(rejectedText));
+  assert.equal(text.getRootNode(), target.document); assert.equal(text.isConnected, true);
+  const live = target.document.createRange(); live.setStart(text, 1); live.setEnd(text, 3);
+  const clone = live.cloneRange();
+  const frozen = new target.jsdom.window.StaticRange({ startContainer: text, startOffset: 1,
+    endContainer: text, endOffset: 3 });
+  text.insertData(0, '!');
+  assert.equal(live.startOffset, 2); assert.equal(clone.startOffset, 2); assert.equal(frozen.startOffset, 1);
+  rangeReferences.push(new WeakRef(live), new WeakRef(clone), new WeakRef(frozen));
+  const contentRoot = target.document.createElement('div'); contentRoot.innerHTML = '<b>left</b><i>right</i>';
+  target.document.body.append(contentRoot);
+  const contents = target.document.createRange(); contents.setStart(contentRoot.firstChild.firstChild, 1);
+  contents.setEnd(contentRoot.lastChild.firstChild, 2);
+  const copied = contents.cloneContents(); const extracted = contents.extractContents();
+  assert.equal(copied.textContent, 'eftri'); assert.equal(extracted.textContent, 'eftri');
+  assert.equal(contents.collapsed, true);
+  const surrounding = target.document.createElement('section');
+  contents.selectNodeContents(contentRoot); contents.surroundContents(surrounding);
+  assert.equal(contentRoot.firstChild, surrounding); assert.equal(surrounding.textContent, 'lght');
+  const inserted = target.document.createElement('i'); inserted.textContent = 'inserted';
+  const insertionFragment = target.document.createDocumentFragment(); insertionFragment.append(inserted);
+  contents.collapse(false); contents.insertNode(insertionFragment);
+  assert.equal(contentRoot.lastChild, inserted); assert.equal(contents.endOffset, 2);
+  assert.equal(insertionFragment.childNodes.length, 0);
+  const replacement = target.document.createElement('strong'); replacement.textContent = 'replacement';
+  assert.equal(contentRoot.replaceChild(replacement, inserted), inserted); assert.equal(inserted.parentNode, null);
+  comparisonReferences.push(new WeakRef(replacement));
+  const contextual = contents.createContextualFragment('<em>context</em>');
+  assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
+  rangeReferences.push(new WeakRef(contents));
+  comparisonReferences.push(new WeakRef(contentRoot), new WeakRef(copied), new WeakRef(extracted), new WeakRef(surrounding),
+    new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild));
+}
+
+/** @param {Document} document - Actual realm owner. @returns {void} Leave Selection/Range cycles visible to the collector. */
+function exerciseSelection(document) {
+  const paragraph = document.createElement('p'); paragraph.textContent = 'abcdef'; document.body.append(paragraph);
+  const selection = document.defaultView.getSelection(); const text = paragraph.firstChild;
+  selection.setBaseAndExtent(text, 5, text, 1); assert.equal(String(selection), 'bcde');
+  const range = selection.getRangeAt(0); range.setEnd(text, 6); assert.equal(String(selection), 'bcdef');
+  selection.collapseToStart(); selection.extend(text, 4);
+  comparisonReferences.push(new WeakRef(selection)); rangeReferences.push(new WeakRef(range), new WeakRef(selection.getRangeAt(0)));
+  paragraph.remove();
+}
+
+/**
+ * Observe failed constructor cleanup while foreign signals remain strongly reachable.
+ * @param {object} environment - The actual Vitest environment.
+ * @param {string} mode - Normal or VM environment lifecycle.
+ * @returns {void} Retains only weak document/window references and the foreign controller.
+ */
+function exerciseFailedEnvironment(environment, mode) {
+  const controller = new AbortController();
+  retainedControllers.push(controller);
+  const options = { jsdom: { beforeParse(window) {
+    references.push(new WeakRef(window.document));
+    windowReferences.push(new WeakRef(window));
+    window.addEventListener('pending', () => {}, { signal: controller.signal });
+    window.URL.createObjectURL(new window.Blob(['x'.repeat(32 * 1024)]));
+    window.setInterval(() => {}, 60_000);
+    throw new Error('expected memory fixture initialization failure');
+  } } };
+  assert.throws(() => mode === 'vitest-vm' ? environment.setupVM(options) : environment.setup({}, options),
+    /expected memory fixture initialization failure/);
+}
+
+/** @param {Document} document - Actual environment document. @returns {void} Observes shadow/template ownership through moves and teardown without keeping strong roots. */
+function exerciseHostRoots(document) {
+  const host = document.createElement('article'); document.body.append(host);
+  const root = host.attachShadow({ mode: 'closed' }); const nestedHost = root.appendChild(document.createElement('section'));
+  const nestedRoot = nestedHost.attachShadow({ mode: 'open' }); const child = nestedRoot.appendChild(document.createElement('b'));
+  const peerHost = document.createElement('aside'); document.body.append(peerHost);
+  const peerRoot = peerHost.attachShadow({ mode: 'open' }); const peer = peerRoot.appendChild(document.createElement('i'));
+  const eventResults = [];
+  host.addEventListener('mouseover', (event) => eventResults.push(event.target === host && event.relatedTarget === peerHost));
+  child.dispatchEvent(new document.defaultView.MouseEvent('mouseover', { bubbles: true, composed: true, relatedTarget: peer }));
+  assert.deepEqual(eventResults, [true]);
+  const slot = nestedRoot.appendChild(document.createElement('slot'));
+  const assigned = nestedHost.appendChild(document.createElement('span'));
+  const assignedText = nestedHost.appendChild(document.createTextNode('assigned'));
+  assert.equal(assigned.assignedSlot, slot); assert.equal(assignedText.assignedSlot, slot);
+  assigned.slot = 'missing'; assert.equal(assigned.assignedSlot, null);
+  assigned.slot = ''; assert.equal(assigned.assignedSlot, slot);
+  slot.name = 'retained'; assigned.slot = 'retained'; assert.equal(assigned.assignedSlot, slot);
+  assert.deepEqual(slot.assignedNodes({ flatten: true }), [assigned]);
+  const relay = document.createElement('slot'); relay.name = 'outer'; relay.slot = 'retained'; nestedHost.append(relay);
+  const outerLeaf = document.createElement('b'); outerLeaf.slot = 'outer'; host.append(outerLeaf);
+  assert.deepEqual(slot.assignedNodes({ flatten: true }), [assigned, outerLeaf]);
+  comparisonReferences.push(new WeakRef(relay), new WeakRef(outerLeaf));
+  comparisonReferences.push(new WeakRef(slot), new WeakRef(assigned), new WeakRef(assignedText));
+  const template = document.createElement('template'); template.innerHTML = '<i>inert</i>'; document.body.append(template);
+  assert.equal(child.getRootNode({ composed: true }), document); assert.equal(child.isConnected, true);
+  assert.equal(template.content.firstChild.getRootNode({ composed: true }), template.content);
+  host.remove(); assert.equal(child.getRootNode({ composed: true }), host); assert.equal(child.isConnected, false);
+  document.body.append(host);
+  comparisonReferences.push(...[host, root, nestedHost, nestedRoot, child, template, template.content].map((node) => new WeakRef(node)));
+  comparisonReferences.push(new WeakRef(peerHost), new WeakRef(peerRoot), new WeakRef(peer));
+  references.push(new WeakRef(template.content.ownerDocument));
+}
+
+/**
+ * Keep an element alive while removing many attributes, so delayed cleanup cannot hide behind window.close().
+ * @param {object} runtime - Real jsdom-compatible engine.
+ * @returns {Promise<void>} Verifies collection before releasing the owning document.
+ */
+async function exerciseAttributeChurn(runtime) {
+  let dom = new runtime.JSDOM('<!doctype html><div></div>');
+  let element = dom.window.document.querySelector('div');
+  references.push(new WeakRef(dom.window.document));
+  windowReferences.push(new WeakRef(dom.window));
+  /** Fixed stress size, independent of production allocation policy. */
+  const batches = 5;
+  const attributesPerBatch = 200;
+  try {
+    await settle();
+    const initial = runtime.getNativeTreeStatistics?.();
+    /** @param {number} identity - Unique payload. @returns {WeakRef<Attr>} A removed attribute without a strong test reference. */
+    function replace(identity) {
+      const attribute = dom.window.document.createAttribute('data-churn');
+      attribute.value = `value-${identity}`;
+      element.setAttributeNode(attribute);
+      return new WeakRef(attribute);
+    }
+    for (let batch = 0; batch < batches; batch++) {
+      const removed = [];
+      for (let index = 0; index < attributesPerBatch; index++) removed.push(replace(batch * attributesPerBatch + index));
+      element.removeAttribute('data-churn');
+      const endpoint = await waitForMemoryQuiescence({ label: `attribute-churn-${batch}`,
+        sample: () => captureMemoryState({ attributes: removed }, runtime), expectedNative: initial });
+      quiescenceChecks.push(endpoint);
+      assert.equal(removed.filter((reference) => reference.deref()).length, 0, 'removed Attr retained by a live element');
+      assert.ok(dom.window.document.body.contains(element));
+      const current = runtime.getNativeTreeStatistics?.();
+      if (current) {
+        assert.equal(current.attributeOwners, initial.attributeOwners);
+        assert.equal(current.attributeHolders, initial.attributeHolders);
+      }
+      attributeReferences.push(...removed);
+    }
+  } finally {
+    dom.window.close();
+    // Completed async scopes may outlive their last await; release the test's own strong roots.
+    element = null;
+    dom = null;
+  }
+}
+
+/**
+ * Compare transient nodes against a live tree and verify that no comparison cache retains them.
+ * @param {object} runtime - Real jsdom-compatible engine.
+ * @returns {Promise<void>} Completes weak-reference and native-allocation checks before window teardown.
+ */
+async function exerciseNodeComparisons(runtime) {
+  let dom = new runtime.JSDOM('<!doctype html><section>' + '<p a="value">text</p>'.repeat(20) + '</section>');
+  let document = dom.window.document;
+  let root = document.querySelector('section');
+  references.push(new WeakRef(document));
+  windowReferences.push(new WeakRef(dom.window));
+  const batches = 5;
+  const comparisonsPerBatch = 100;
+  try {
+    await settle();
+    const initial = runtime.getNativeTreeStatistics?.();
+    /** @returns {WeakRef<Node>[]} Compared nodes whose last strong test references end on return. */
+    function compareTransientNodes() {
+      const clone = root.cloneNode(true);
+      const doctype = document.implementation.createDocumentType('root', 'x'.repeat(8192), '\ud800');
+      const instruction = document.createProcessingInstruction('target', 'y'.repeat(8192));
+      assert.ok(root.isEqualNode(clone));
+      const copiedText = clone.textContent;
+      assert.equal(clone.firstChild.firstChild.getRootNode(), clone); assert.equal(clone.firstChild.isConnected, false);
+      assert.equal(copiedText, 'text'.repeat(20));
+      assert.equal(clone.firstChild.firstChild.nodeValue, 'text');
+      clone.firstChild.firstChild.nodeValue = 'text';
+      const rejectedText = document.createTextNode('invalid document child');
+      assert.throws(() => document.appendChild(rejectedText), { name: 'HierarchyRequestError' });
+      assert.equal(rejectedText.parentNode, null); comparisonReferences.push(new WeakRef(rejectedText));
+      retainedTextResults.push(copiedText);
+      for (const paragraph of clone.children) {
+        const empty = document.createTextNode('');
+        const tail = document.createTextNode('tail');
+        paragraph.append(empty, tail);
+        characterReferences.push(new WeakRef(empty), new WeakRef(tail));
+      }
+      clone.normalize();
+      assert.equal(clone.textContent, 'texttail'.repeat(20));
+      const wholeRange = document.createRange();
+      const firstRange = document.createRange();
+      wholeRange.selectNodeContents(clone);
+      firstRange.selectNode(clone.firstChild);
+      firstRange.setStartBefore(clone.firstChild);
+      firstRange.setEndAfter(clone.lastChild);
+      assert.equal(firstRange.commonAncestorContainer, clone);
+      firstRange.setStart(clone.firstChild.firstChild, 1);
+      firstRange.setEnd(clone.lastChild.firstChild, 2);
+      assert.equal(firstRange.commonAncestorContainer, clone);
+      firstRange.setStartAfter(clone.lastChild);
+      firstRange.setEndBefore(clone.firstChild);
+      assert.equal(firstRange.collapsed, true);
+      firstRange.selectNodeContents(clone.firstChild);
+      assert.equal(wholeRange.compareBoundaryPoints(dom.window.Range.START_TO_START, firstRange), -1);
+      assert.equal(wholeRange.comparePoint(clone.firstChild.firstChild, 0), 0);
+      assert.equal(wholeRange.isPointInRange(clone.lastChild.firstChild, 0), true);
+      assert.equal(wholeRange.intersectsNode(clone.lastChild), true);
+      const rangeText = wholeRange.toString();
+      assert.equal(rangeText, 'texttail'.repeat(20));
+      assert.equal(firstRange.toString(), 'texttail');
+      retainedTextResults.push(rangeText);
+      rangeReferences.push(new WeakRef(wholeRange), new WeakRef(firstRange));
+      const contentTree = clone.cloneNode(true);
+      const contentRange = document.createRange();
+      contentRange.setStart(contentTree.firstChild.firstChild, 1);
+      contentRange.setEnd(contentTree.lastChild.firstChild, 3);
+      const copiedContents = contentRange.cloneContents();
+      const extractedContents = contentRange.extractContents();
+      assert.equal(copiedContents.textContent, extractedContents.textContent);
+      assert.equal(contentTree.children.length, 2); assert.equal(contentRange.collapsed, true);
+      const surrounding = document.createElement('div');
+      contentRange.selectNodeContents(contentTree); contentRange.surroundContents(surrounding);
+      assert.equal(contentTree.firstChild, surrounding); assert.equal(surrounding.children.length, 2);
+      const inserted = document.createElement('i'); inserted.textContent = 'inserted';
+      const insertionFragment = document.createDocumentFragment(); insertionFragment.append(inserted);
+      contentRange.collapse(false); contentRange.insertNode(insertionFragment);
+      assert.equal(contentTree.lastChild, inserted); assert.equal(contentRange.endOffset, 2);
+      assert.equal(insertionFragment.childNodes.length, 0);
+      const replacement = document.createElement('strong'); replacement.textContent = 'replacement';
+      assert.equal(contentTree.replaceChild(replacement, inserted), inserted); assert.equal(inserted.parentNode, null);
+      comparisonReferences.push(new WeakRef(replacement));
+      const contextual = contentRange.createContextualFragment('<em>context</em>');
+      assert.equal(contextual.textContent, 'context'); assert.equal(contextual.firstChild.localName, 'em');
+      rangeReferences.push(new WeakRef(contentRange));
+      const removedParagraph = clone.children[10]; const removedText = removedParagraph.firstChild;
+      wholeRange.setStart(clone.firstChild.firstChild, 2);
+      wholeRange.setEnd(clone.lastChild.firstChild, 2);
+      wholeRange.deleteContents();
+      assert.equal(removedText.getRootNode(), removedParagraph); assert.equal(removedParagraph.isConnected, false);
+      assert.equal(clone.children.length, 2); assert.equal(clone.textContent, 'texttail');
+      assert.equal(wholeRange.collapsed, true); assert.equal(wholeRange.startOffset, 1);
+      const namespace = 'urn:' + 'n'.repeat(8192);
+      clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:transient', namespace);
+      assert.equal(clone.firstChild.lookupNamespaceURI('transient'), namespace);
+      assert.equal(clone.firstChild.lookupPrefix(namespace), 'transient');
+      assert.ok(clone.firstChild.isDefaultNamespace('http://www.w3.org/1999/xhtml'));
+      // Populate sibling-index caches in a subtree that must disappear while root stays alive.
+      assert.ok(clone.firstChild.compareDocumentPosition(clone.lastChild) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+      assert.equal(root.contains(clone), false);
+      assert.ok(root.compareDocumentPosition(clone) & dom.window.Node.DOCUMENT_POSITION_DISCONNECTED);
+      assert.ok(doctype.isEqualNode(doctype.cloneNode()));
+      instruction.data = 'changed';
+      assert.equal(instruction.target, 'target');
+      assert.equal(instruction.nodeValue, 'changed');
+      assert.equal(doctype.nodeValue, null);
+      return [new WeakRef(clone), new WeakRef(doctype), new WeakRef(instruction),
+        new WeakRef(removedParagraph), new WeakRef(removedText), new WeakRef(contentTree),
+        new WeakRef(copiedContents), new WeakRef(extractedContents), new WeakRef(surrounding),
+        new WeakRef(inserted), new WeakRef(insertionFragment), new WeakRef(contextual), new WeakRef(contextual.firstChild)];
+    }
+    for (let batch = 0; batch < batches; batch++) {
+      const compared = [];
+      for (let index = 0; index < comparisonsPerBatch; index++) compared.push(...compareTransientNodes());
+      const endpoint = await waitForMemoryQuiescence({ label: `node-comparison-${batch}`,
+        sample: () => captureMemoryState({ comparedNodes: compared }, runtime), expectedNative: initial });
+      quiescenceChecks.push(endpoint);
+      assert.equal(compared.filter((reference) => reference.deref()).length, 0, 'comparison retained transient nodes');
+      const current = runtime.getNativeTreeStatistics?.();
+      if (current) {
+        assert.equal(current.liveNodes, initial.liveNodes, 'comparison retained native nodes');
+        assert.equal(current.dataNodes, initial.dataNodes, 'comparison retained native metadata');
+      }
+      comparisonReferences.push(...compared);
+    }
+  } finally {
+    dom.window.close();
+    root = null;
+    document = null;
+    dom = null;
+  }
+}
+
+/**
+ * Run one isolated stress target and enforce conservative retained-growth budgets.
+ * @returns {Promise<void>} Emits a machine-readable report and fails observed leaks.
+ */
+async function main() {
+  assert.equal(typeof global.gc, 'function', 'memory checks require --expose-gc');
+  const mode = process.argv[2];
+  const runtime = mode === 'jsdom' ? require('jsdom') : mode === 'rustdom' ? require('../dist/index.cjs') : null;
+  const native = mode === 'native' ? require('../dist/native.cjs') : null;
+  const environment = mode.startsWith('vitest') ? (await import('../src/environments/vitest.mjs')).default : null;
+  const nativeRuntime = runtime?.getNativeTreeStatistics ? runtime
+    : environment ? require('../dist/index.cjs') : null;
+  const initialNativeNodes = nativeRuntime?.getNativeTreeStatistics().liveNodes;
+  const initialNativeData = nativeRuntime?.getNativeTreeStatistics().dataNodes;
+  const initialAttributeState = nativeRuntime?.getNativeTreeStatistics();
+  assert.ok(['jsdom', 'rustdom', 'native', 'vitest', 'vitest-vm'].includes(mode));
+  const markup = '<!doctype html><body>' + '<article data-index="1"><h2>Heading</h2><p>content &amp; text</p></article>'.repeat(100);
+  for (let batch = 0; batch < WARMUP_BATCHES + MEASURED_BATCHES; batch++) {
+    for (let operation = 0; operation < OPERATIONS_PER_BATCH; operation++) {
+      if (native) {
+        const tape = native.parseDocumentTape(markup + `<unique-${batch}-${operation} data-${batch}-${operation}="value"></unique-${batch}-${operation}>`);
+        assert.ok(tape.length > markup.length);
+      } else if (environment) {
+        let target = { setTimeout, clearTimeout, setInterval, clearInterval };
+        const session = mode === 'vitest-vm'
+          ? environment.setupVM({ jsdom: { runScripts: 'outside-only' } })
+          : environment.setup(target, { jsdom: { runScripts: 'outside-only' } });
+        if (mode === 'vitest-vm') target = session.getVmContext();
+        references.push(new WeakRef(target.document));
+        windowReferences.push(new WeakRef(target.jsdom.window));
+        target.document.body.innerHTML = '<p>created and released</p>';
+        exerciseEnvironmentRanges(target);
+        const controller = new AbortController();
+        target.document.querySelector('p').addEventListener('click', () => {}, { signal: controller.signal });
+        retainedControllers.push(controller);
+        target.URL.createObjectURL(new target.Blob(['x'.repeat(32 * 1024)]));
+        retainedWebConstructors.push(target.Request, target.Response, target.URL);
+        session.teardown();
+        retainedTeardowns.push(session);
+        target = null;
+        exerciseFailedEnvironment(environment, mode);
+      } else exerciseWindow(runtime, `${batch}-${operation}`);
+    }
+    await settle();
+    if (batch >= WARMUP_BATCHES) snapshots.push({ batch, ...process.memoryUsage() });
+  }
+  if (runtime) {
+    const preceding = await waitForMemoryQuiescence({ label: 'before-attribute-churn', expectedNative: initialAttributeState,
+      sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+    quiescenceChecks.push(preceding);
+    await exerciseAttributeChurn(runtime);
+    const beforeComparison = await waitForMemoryQuiescence({ label: 'before-node-comparison', expectedNative: initialAttributeState,
+      sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+    quiescenceChecks.push(beforeComparison);
+    await exerciseNodeComparisons(runtime);
+  }
+  const endpoint = await waitForMemoryQuiescence({ label: 'terminal', expectedNative: initialAttributeState,
+    sample: () => captureMemoryState(observedReferences, nativeRuntime) });
+  quiescenceChecks.push(endpoint);
+  const terminalMemory = endpoint.state.memory;
+  const { documents: survivingDocuments, windows: survivingWindows,
+    characterData: survivingCharacterData, attributes: survivingAttributes,
+    comparedNodes: survivingComparedNodes, ranges: survivingRanges } = endpoint.state.survivors;
+  const nativeTree = endpoint.state.nativeTree;
+  const first = snapshots[0];
+  const last = terminalMemory;
+  const growth = { heapUsed: last.heapUsed - first.heapUsed, external: last.external - first.external,
+    arrayBuffers: last.arrayBuffers - first.arrayBuffers, rss: last.rss - first.rss };
+  // These catch substantial retained growth, not every possible leak or peak allocation.
+  const budgets = { heapGrowthBytes: 8 * 1024 * 1024, externalGrowthBytes: 4 * 1024 * 1024,
+    nativeRssGrowthBytes: 24 * 1024 * 1024 };
+  const report = { mode, node: process.version, warmupBatches: WARMUP_BATCHES,
+    measuredBatches: MEASURED_BATCHES, operationsPerBatch: OPERATIONS_PER_BATCH,
+    totalOperations: (WARMUP_BATCHES + MEASURED_BATCHES) * OPERATIONS_PER_BATCH,
+    observedDocuments: references.length, survivingDocuments,
+    observedWindows: windowReferences.length, survivingWindows,
+    observedCharacterData: characterReferences.length, survivingCharacterData,
+    observedAttributes: attributeReferences.length, survivingAttributes,
+    observedComparedNodes: comparisonReferences.length, survivingComparedNodes,
+    observedRanges: rangeReferences.length, survivingRanges,
+    retainedTextResults: retainedTextResults.length,
+    retainedTeardownCallbacks: retainedTeardowns.length,
+    retainedWebConstructors: retainedWebConstructors.length,
+    retainedForeignSignals: retainedControllers.length,
+    nativeTree, initialNativeNodes, initialNativeData,
+    initialAttributeState,
+    snapshots, terminalMemory, growth, budgets, quiescenceChecks,
+    pass: quiescenceChecks.every((check) => check.reached) &&
+      survivingDocuments === 0 && survivingWindows === 0 && survivingCharacterData === 0 && survivingAttributes === 0 && survivingComparedNodes === 0 && survivingRanges === 0 &&
+      (!nativeTree || (nativeTree.liveNodes === initialNativeNodes &&
+        nativeTree.dataNodes === initialNativeData &&
+        nativeTree.attributeCollections === initialAttributeState.attributeCollections &&
+        nativeTree.attributeOwners === initialAttributeState.attributeOwners &&
+        nativeTree.attributeHolders === initialAttributeState.attributeHolders &&
+        nativeTree.rangeStates.live === initialAttributeState.rangeStates.live &&
+        nativeTree.rangeClones.live === initialAttributeState.rangeClones.live &&
+        nativeTree.rangeExtracts.live === initialAttributeState.rangeExtracts.live &&
+        nativeTree.rootHosts.hostedRoots === initialAttributeState.rootHosts.hostedRoots &&
+        nativeTree.rootHosts.hostOwners === initialAttributeState.rootHosts.hostOwners &&
+        nativeTree.slotableNames.namedNodes === initialAttributeState.slotableNames.namedNodes &&
+        nativeTree.slotAssignments.slots === initialAttributeState.slotAssignments.slots &&
+        nativeTree.slotAssignments.entries === initialAttributeState.slotAssignments.entries &&
+        nativeTree.slotAssignments.members === initialAttributeState.slotAssignments.members &&
+        nativeTree.slotBacklinks.assignedNodes === initialAttributeState.slotBacklinks.assignedNodes &&
+        nativeTree.slotBacklinks.slotOwners === initialAttributeState.slotBacklinks.slotOwners &&
+        nativeTree.slotSignals.pendingSlots === initialAttributeState.slotSignals.pendingSlots &&
+        nativeTree.slotSignals.queueEntries === initialAttributeState.slotSignals.queueEntries &&
+        nativeTree.slotAssignmentDrivers.live === initialAttributeState.slotAssignmentDrivers.live &&
+        nativeTree.mutationRecords.live === initialAttributeState.mutationRecords.live &&
+        nativeTree.mutationObservers.observers === initialAttributeState.mutationObservers.observers &&
+        nativeTree.mutationObservers.observedNodes === initialAttributeState.mutationObservers.observedNodes &&
+        nativeTree.mutationObservers.registrations === initialAttributeState.mutationObservers.registrations &&
+        nativeTree.mutationObservers.queuedRecords === initialAttributeState.mutationObservers.queuedRecords &&
+        nativeTree.mutationObservers.queueObservers === initialAttributeState.mutationObservers.queueObservers &&
+        nativeTree.mutationNotifications.pendingObservers === initialAttributeState.mutationNotifications.pendingObservers &&
+        nativeTree.mutationNotifications.microtaskQueued === initialAttributeState.mutationNotifications.microtaskQueued &&
+        nativeTree.observerDeliveries.live === initialAttributeState.observerDeliveries.live &&
+        nativeTree.eventStates.live === initialAttributeState.eventStates.live &&
+        nativeTree.listenerRegistries.live === initialAttributeState.listenerRegistries.live &&
+        nativeTree.listenerRegistries.listeners === initialAttributeState.listenerRegistries.listeners &&
+        nativeTree.listenerRegistries.eventTypes === initialAttributeState.listenerRegistries.eventTypes &&
+        nativeTree.abortStates.live === initialAttributeState.abortStates.live &&
+        nativeTree.abortStates.links === initialAttributeState.abortStates.links &&
+        nativeTree.abortStates.algorithms === initialAttributeState.abortStates.algorithms &&
+        nativeTree.xmlParsers.live === initialAttributeState.xmlParsers.live &&
+        nativeTree.xmlParsers.inputUnits === initialAttributeState.xmlParsers.inputUnits &&
+        nativeTree.xmlSerialization.live === initialAttributeState.xmlSerialization.live &&
+        nativeTree.xmlSerialization.references === initialAttributeState.xmlSerialization.references &&
+        nativeTree.xmlSerialization.cleanupErrors === initialAttributeState.xmlSerialization.cleanupErrors &&
+        nativeTree.traversals.live === initialAttributeState.traversals.live &&
+        nativeTree.traversals.operations === initialAttributeState.traversals.operations &&
+        nativeTree.tokenLists.live === initialAttributeState.tokenLists.live &&
+        nativeTree.tokenLists.sets === initialAttributeState.tokenLists.sets &&
+        nativeTree.tokenLists.tokenUnits === initialAttributeState.tokenLists.tokenUnits &&
+        nativeTree.indexedNodes === nativeTree.liveNodes &&
+        nativeTree.reservedHandles <= nativeTree.handleBatchSize)) && growth.heapUsed < budgets.heapGrowthBytes &&
+      growth.external < budgets.externalGrowthBytes && (mode !== 'native' || growth.rss < budgets.nativeRssGrowthBytes) };
+  process.stdout.write(JSON.stringify(report));
+  if (!report.pass) process.exitCode = 1;
+}
+
+main().catch((error) => { process.stderr.write(`${error.stack}\n`); process.exitCode = 1; });

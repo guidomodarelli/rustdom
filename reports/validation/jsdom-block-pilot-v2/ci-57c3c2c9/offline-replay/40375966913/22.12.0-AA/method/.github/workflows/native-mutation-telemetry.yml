@@ -1,0 +1,92 @@
+name: Diagnóstico nativo de MutationRecord
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: native-mutation-telemetry-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.event.action == 'labeled' && github.event.pull_request.number == 80 && github.event.label.name == 'ownership-native-mutation-telemetry-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exigir consumo único y QA del mismo commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_TELEMETRY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(((.path // "") | split("@")[0]) == ".github/workflows/native-mutation-telemetry.yml" and .conclusion != "skipped") | .id' > "$RUNNER_TEMP/native-telemetry-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/native-telemetry-runs.txt" "$GITHUB_RUN_ID"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$NATIVE_TELEMETRY_SOURCE_COMMIT/check-runs?per_page=100" --jq '.check_runs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/native-telemetry-checks.tsv"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs');
+          const checks = fs.readFileSync(`${process.env.RUNNER_TEMP}/native-telemetry-checks.tsv`, 'utf8').trim().split('\n').map((line) => line.split('\t'));
+          for (const version of ['22.12.0', '24.14.1']) assert.ok(checks.some(([name, status]) => name === `Contratos de telemetría nativa Node ${version}` && status === 'success'));
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - run: echo "NATIVE_TELEMETRY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - run: echo "NATIVE_TELEMETRY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Autenticar y extraer la preparación original
+        run: |
+          mkdir "$RUNNER_TEMP/native-mutation"
+          mkdir "$RUNNER_TEMP/native-mutation/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs'); const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync('reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip');
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip -d "$RUNNER_TEMP/native-mutation/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs'); const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync(`${process.env.RUNNER_TEMP}/native-mutation/preparation/ownership-build.tar.gz`);
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/native-mutation/preparation/ownership-build.tar.gz" -C "$RUNNER_TEMP/native-mutation/preparation"
+      - name: Capturar solo la secuencia nueva autorizada
+        timeout-minutes: 130
+        env:
+          NATIVE_TELEMETRY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          "$NATIVE_TELEMETRY_NODE24" reports/benchmarks/native-class-ownership/native-mutation-telemetry/run.cjs --capture "$RUNNER_TEMP/native-mutation/preparation/ownership-build" "$RUNNER_TEMP/native-mutation/capture" "$NATIVE_TELEMETRY_SOURCE_COMMIT" "$NATIVE_TELEMETRY_NODE22" "$NATIVE_TELEMETRY_NODE24" > "$RUNNER_TEMP/native-mutation/stdout.log" 2> "$RUNNER_TEMP/native-mutation/stderr.log"
+          capture_status=$?
+          printf '%s\n' "$capture_status" > "$RUNNER_TEMP/native-mutation/exit-code"
+          exit "$capture_status"
+      - name: Preservar datos completos o parciales
+        if: always()
+        timeout-minutes: 25
+        run: |
+          if [ -d "$RUNNER_TEMP/native-mutation" ]; then
+            cp "$RUNNER_TEMP/native-telemetry-runs.txt" "$RUNNER_TEMP/native-mutation/"
+            cp "$RUNNER_TEMP/native-telemetry-checks.tsv" "$RUNNER_TEMP/native-mutation/"
+            tar -cJf "$RUNNER_TEMP/native-mutation.tar.xz" -C "$RUNNER_TEMP" native-mutation
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 10
+        with:
+          name: native-mutation-telemetry-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-mutation.tar.xz

@@ -1,0 +1,63 @@
+name: Contratos de telemetría nativa
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/native-mutation-telemetry*.yml'
+      - 'reports/benchmarks/native-class-ownership/native-mutation-telemetry/**'
+      - 'reports/validation/native-class-ownership/native-telemetry-method/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  contracts:
+    name: Contratos de telemetría nativa Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer solo datos históricos autenticados
+        run: |
+          python3 -B reports/benchmarks/native-class-ownership/native-mutation-telemetry/historical-fixtures.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/native-historical"
+          mkdir "$RUNNER_TEMP/native-qualification"
+          python3 -B reports/validation/native-class-ownership/shared-fixture-worker/replay.py "$RUNNER_TEMP/native-qualification/raw"
+      - name: Generar copias CPU/JIT sin ejecutar workers
+        run: |
+          for mode in cpu jit; do
+            python3 -B reports/benchmarks/native-class-ownership/native-mutation-telemetry/prepare.py "$GITHUB_WORKSPACE" reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json "$RUNNER_TEMP/native-derived-$mode" "$mode"
+          done
+      - name: Probar agenda, derivaciones, lectores y rechazo del contexto de captura
+        env:
+          NATIVE_TELEMETRY_REPOSITORY: ${{ github.workspace }}
+          NATIVE_TELEMETRY_MANIFEST: ${{ github.workspace }}/reports/validation/native-class-ownership/native-telemetry-preparation/2026-10-23/source-manifest.json
+          NATIVE_TELEMETRY_HISTORICAL_CORPUS: ${{ runner.temp }}/native-historical/jsdom-telemetry/capture
+          NATIVE_TELEMETRY_DERIVED_PREFIX: ${{ runner.temp }}/native-derived
+          NATIVE_TELEMETRY_QUALIFICATION_CORPUS: ${{ runner.temp }}/native-qualification/raw/shared-worker-qualification
+        run: |
+          python3 -B reports/benchmarks/native-class-ownership/native-mutation-telemetry/contracts.spec.py 2>&1 | tee "$RUNNER_TEMP/native-contracts-python.log"
+          node --test reports/benchmarks/native-class-ownership/native-mutation-telemetry/contracts.spec.cjs 2>&1 | tee "$RUNNER_TEMP/native-contracts-node.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-telemetry-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/native-contracts-python.log
+            ${{ runner.temp }}/native-contracts-node.log

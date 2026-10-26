@@ -1,5 +1,52 @@
 # Continuar rustdom en otra máquina
 
+## Fix 57c3c2c9 calificado y evidencia complementaria — 2026-10-26 UTC
+
+La fuente de `feature/native-class-ownership` sigue en **57c3c2c9**. Su propio
+run **40375966913** aprobó **4/4** jobs (Node 22.12.0/24.14.1 y replays
+transportados) y el general **40375966302** aprobó **8/8**, incluido Valgrind.
+Los 14 artifacts originales se autenticaron por ID, run, intento, fuente,
+tamaño y SHA256; ocho replays offline con ambos SDK Linux aprobaron.
+
+Esta rama `feature/pilot-v2-ci-evidence` conserva la evidencia complementaria
+sin mover la fuente calificada ni provocar otra ronda de CI. Ver
+`reports/validation/jsdom-block-pilot-v2/ci-57c3c2c9/qualified-fix-summary.json`.
+Los ZIP, metadata, logs, inventarios, tar y árboles leídos se guardan íntegros.
+Dos ZIP superan el límite de archivo de GitHub: `storage-layout.json` registra
+sus partes de 32 MiB y los hashes originales. `restore-ci-artifact.py` los
+reconstruye en una salida nueva; ambos ZIP se reconstruyeron y compararon con
+los originales, con rechazo de partes alteradas y sin sobrescribir salidas.
+Los benchmarks ordinarios están en `reports/benchmarks/ci-general/40375966302/`:
+332 filas, 218 medianas rustdom más lentas y 114 más rápidas; veinte reportes
+adicionales separados. Fuente real del benchmark: merge e0a26852, Node 24.21.0.
+Son observaciones descriptivas de hosts separados, sin aceptación estadística.
+
+Recursos en `reports/memory/ci-general/40375966302/`: 311 tests Rust pasaron en
+diez batches con Valgrind 3.18.1. Cubre el ejecutable de tests Rust, no V8 ni
+el addon cargado; conservar posibles fugas y asignaciones alcanzables de logs.
+Los endpoints de cuatro criterios jsdom funcionales están aparte en
+`reports/memory/jsdom-block-pilot-v2/hosted-40375966913/`; los datos se cuentan
+una sola vez por criterio, no otra vez por cada lector. No prueban memoria
+pico, ausencia universal de fugas ni rendimiento del runtime Rust.
+
+**El PR continúa bloqueado por rendimiento.** El run 40375966327 pasó sus
+tests de contratos y autenticó la captura histórica 39921160254, pero conservó
+`accepted=false`: 13/32 controles sin calibración. Ambos lectores reprodujeron
+los mismos resultados y no ejecutaron mediciones. Este rechazo sigue íntegro
+en `ci-57c3c2c9/ownership-gate/`; no se lo sustituye por los verdes de CI.
+
+V1 40366685759 quedó consumido y preservado. El fix técnico v2 está calificado
+pero su captura permanece deshabilitada. Siguiente paso del objetivo activo:
+preparar/revisar la publicación íntegra v2 y calificar su propio SHA antes de
+su única secuencia, cubierta por la autorización permanente. No reaplicar
+etiquetas viejas, repetir estudios ni cambiar presupuestos. Su diagnóstico
+jsdom no acepta rendimiento Rust: `performanceAccepted=null`,
+`gateReevaluated=false`. Sin tag ni merge mientras ownership no esté aceptado.
+Conservar los 850 pins v1 y las 48 entradas ajenas. Engram no tiene identidad
+registrada; no usar memoria ni inventar identidad. Runtime híbrido y migración
+general pendientes. Integrar esta rama de evidencia en la próxima publicación
+de fuente revisada y eliminarla después de integrarla.
+
 ## Fallo de preparación v1 preservado; corrección v2 en calificación — 2026-10-26 UTC
 
 El SHA `1078e4fd` completó su CI original: **40357510100 (4/4)** y

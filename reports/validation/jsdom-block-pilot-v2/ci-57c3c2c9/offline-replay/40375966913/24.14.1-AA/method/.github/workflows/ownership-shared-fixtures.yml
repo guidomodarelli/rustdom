@@ -1,0 +1,93 @@
+name: Ownership con fixtures compartidos
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ownership-shared-fixtures-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.action == 'labeled' && github.event.label.name == 'ownership-shared-fixtures-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Impedir otra ejecución y exigir QA del SHA actual
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STUDY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ownership-shared-fixtures.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/shared-study-existing-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/shared-study-existing-runs.txt" "$GITHUB_RUN_ID"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$STUDY_SOURCE_COMMIT/check-runs?per_page=100" --jq '.check_runs[] | [.name, .conclusion] | @tsv' > "$RUNNER_TEMP/shared-study-existing-checks.tsv"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs');
+          const checks = fs.readFileSync(`${process.env.RUNNER_TEMP}/shared-study-existing-checks.tsv`, 'utf8').trim().split('\n').map((line) => line.split('\t'));
+          for (const name of ['Contratos prospectivos Node 22.12.0', 'Contratos prospectivos Node 24.14.1', 'Integración archivada Node 22.12.0', 'Integración archivada Node 24.14.1']) {
+            assert.ok(checks.some(([actualName, conclusion]) => actualName === name && conclusion === 'success'), `Shared fixture study: missing successful current check ${name}`);
+          }
+          JS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar Node 22
+        run: echo "SHARED_STUDY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar Node 24
+        run: echo "SHARED_STUDY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Autenticar y extraer preparación sin reconstruir paquetes
+        run: |
+          mkdir "$RUNNER_TEMP/shared-study"
+          mkdir "$RUNNER_TEMP/shared-study/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs'); const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync('reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip');
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip -d "$RUNNER_TEMP/shared-study/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict'); const fs = require('node:fs'); const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync(`${process.env.RUNNER_TEMP}/shared-study/preparation/ownership-build.tar.gz`);
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/shared-study/preparation/ownership-build.tar.gz" -C "$RUNNER_TEMP/shared-study/preparation"
+      - name: Ejecutar una única secuencia completa
+        env:
+          STUDY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          "$SHARED_STUDY_NODE24" reports/benchmarks/native-class-ownership/shared-fixture-study/study.cjs --capture "$RUNNER_TEMP/shared-study/preparation/ownership-build" "$RUNNER_TEMP/shared-study/capture" "$STUDY_SOURCE_COMMIT" "$SHARED_STUDY_NODE22" "$SHARED_STUDY_NODE24" > "$RUNNER_TEMP/shared-study/stdout.log" 2> "$RUNNER_TEMP/shared-study/stderr.log"
+          capture_status=$?
+          printf '%s\n' "$capture_status" > "$RUNNER_TEMP/shared-study/exit-code"
+          exit "$capture_status"
+      - name: Conservar íntegros el resultado y los parciales
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/shared-study" ]; then
+            cp "$RUNNER_TEMP/shared-study-existing-runs.txt" "$RUNNER_TEMP/shared-study/"
+            cp "$RUNNER_TEMP/shared-study-existing-checks.tsv" "$RUNNER_TEMP/shared-study/"
+            tar -cJf "$RUNNER_TEMP/shared-study.tar.xz" -C "$RUNNER_TEMP" shared-study
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-shared-fixtures-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/shared-study.tar.xz
