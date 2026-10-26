@@ -1,0 +1,79 @@
+"""Collect only functional package CI evidence for f2a87184; never run artifacts or restart jobs."""
+import datetime
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import subprocess
+import sys
+import types
+import zipfile
+
+if sys.flags.optimize:
+    raise RuntimeError('Package CI collection requires non-optimized Python')
+repository = Path(__file__).resolve().parent.parent
+head = 'f2a87184d7c0c439407716d1cbab05eb2965b275'
+run_id = 40277876693
+root = repository / '.cache/numeric-ci-collection-40277876693'
+root.mkdir(exist_ok=True)
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+location = repository / 'reports/validation/node-windows-shutdown/hosted-2a53/tools/transport.py'
+raw = location.read_bytes()
+assert hashlib.sha256(raw).hexdigest() == '51d4cf4415d2a745f889fa0bec96a2b6334d689c095e7f19f94014b63713dc44'
+transport = types.ModuleType('current_functional_transport')
+transport.__file__ = str(location)
+exec(compile(raw, str(location), 'exec'), transport.__dict__)
+def checksum(raw):
+    return hashlib.sha256(raw).hexdigest()
+def fetch(endpoint, target, expected=None):
+    return transport.fetch(endpoint, target, ['gh', 'api', 'repos/guidomodarelli/rustdom/' + endpoint], expected)
+run = json.loads(fetch(f'actions/runs/{run_id}', root / (stamp + '-run.json')))
+assert run['id'] == run_id and run['head_sha'] == head and run['run_attempt'] == 1
+assert run['path'] == '.github/workflows/numeric-composed-package-contracts.yml'
+jobs = json.loads(fetch(f'actions/runs/{run_id}/jobs?per_page=100', root / (stamp + '-jobs.json')))['jobs']
+artifacts = json.loads(fetch(f'actions/runs/{run_id}/artifacts?per_page=100', root / (stamp + '-artifacts.json')))['artifacts']
+expected_names = {f'numeric-package-{platform}-{head}': platform for platform in ['ubuntu-22.04', 'windows-latest']}
+assert len(artifacts) <= 2 and len({artifact['name'] for artifact in artifacts}) == len(artifacts)
+pins = {}
+for artifact in artifacts:
+    assert artifact['name'] in expected_names and artifact['workflow_run']['id'] == run_id and artifact['workflow_run']['head_sha'] == head
+    directory = root / ('artifact-' + str(artifact['id'])); directory.mkdir(exist_ok=True)
+    metadata_raw = fetch('actions/artifacts/' + str(artifact['id']), directory / 'metadata.json')
+    metadata = json.loads(metadata_raw)
+    assert all(metadata[key] == artifact[key] for key in ['id', 'name', 'digest', 'size_in_bytes', 'workflow_run'])
+    assert not metadata['expired']
+    platform = expected_names[artifact['name']]
+    job = next(job for job in jobs if job['name'] == 'Paquete numérico ' + platform)
+    if job['status'] != 'completed':
+        continue
+    job_raw = fetch('actions/jobs/' + str(job['id']), directory / 'job.json')
+    assert json.loads(job_raw) == job and job['head_sha'] == head and job['run_attempt'] == 1
+    log = fetch('actions/jobs/' + str(job['id']) + '/logs', directory / 'job.log')
+    raw = fetch('actions/artifacts/' + str(artifact['id']) + '/zip', directory / 'artifact.zip',
+                {'bytes': metadata['size_in_bytes'], 'sha256': metadata['digest'].removeprefix('sha256:')})
+    files = {}
+    with zipfile.ZipFile(directory / 'artifact.zip') as bundle:
+        assert bundle.testzip() is None
+        for member in bundle.infolist():
+            if member.is_dir():
+                continue
+            path = PurePosixPath(member.filename)
+            assert not path.is_absolute() and '..' not in path.parts and '\\' not in member.filename and member.filename not in files
+            contents = bundle.read(member)
+            files[member.filename] = {'bytes': len(contents), 'sha256': checksum(contents)}
+    members_raw = json.dumps({'files': files}, indent=2).encode() + b'\n'
+    members_path = directory / 'members.json'
+    if members_path.exists():
+        assert members_path.read_bytes() == members_raw
+    else:
+        members_path.write_bytes(members_raw)
+    pins[str(artifact['id'])] = {'name': artifact['name'], 'platform': platform, 'bytes': len(raw), 'sha256': checksum(raw),
+        'metadataSha256': checksum(metadata_raw), 'jobId': job['id'], 'jobSha256': checksum(job_raw),
+        'jobConclusion': job['conclusion'], 'logSha256': checksum(log), 'membersSha256': checksum(members_raw)}
+record = {'runId': run_id, 'head': head, 'attempt': 1, 'status': run['status'], 'conclusion': run['conclusion'],
+          'runSnapshot': stamp + '-run.json', 'jobsSnapshot': stamp + '-jobs.json', 'artifacts': pins,
+          'complete': run['status'] == 'completed' and len(pins) == len(artifacts) == 2}
+payload = json.dumps(record, indent=2).encode() + b'\n'
+with (root / (stamp + '-collection.json')).open('xb') as stream:
+    stream.write(payload)
+(root / 'latest-collection.json').write_bytes(payload)
+print(json.dumps({'runId': run_id, 'complete': record['complete'], 'artifacts': len(pins), 'status': run['status'], 'conclusion': run['conclusion']}))

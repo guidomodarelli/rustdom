@@ -1,0 +1,31 @@
+"""Check a suspected provenance hole in an agent-owned extracted copy, restoring every byte; no DOM execution."""
+import hashlib
+import json
+from pathlib import Path
+import types
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-numeric-roundtrip-20261026')
+location = repository / 'reports/benchmarks/native-class-ownership/numeric-composed-packages/assemble.py'
+module = types.ModuleType('current_numeric_reader_probe')
+module.__file__ = str(location)
+exec(compile(location.read_bytes(), str(location), 'exec'), module.__dict__)
+target = root / 'assembly-index.json'
+original = target.read_bytes()
+record = json.loads(original)
+assert record['canonicalReproductionIdentity']['sourceCommit'] == 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7'
+record['canonicalReproductionIdentity']['sourceCommit'] = '0' * 40
+output = repository / 'reports/validation/numeric-package-ci/20261026/canonical-index-rejection'
+assert not output.exists(); output.mkdir()
+try:
+    target.write_text(json.dumps(record), encoding='utf-8', newline='\n')
+    result = module.verify(root, Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node'))
+    observed = {'verifiedReturned': result['verified'], 'intentionallyForgedCanonicalCommit': '0' * 40,
+        'returnedCanonicalCommit': result['canonicalReproductionIdentity']['sourceCommit'],
+        'runtimeExecuted': False, 'benchmarkExecuted': False, 'performanceAccepted': None}
+finally:
+    target.write_bytes(original)
+    assert target.read_bytes() == original
+observed['originalRestoredSha256'] = hashlib.sha256(original).hexdigest()
+(output / 'probe.json').write_text(json.dumps(observed, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps(observed))

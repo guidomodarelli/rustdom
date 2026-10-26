@@ -7,6 +7,15 @@ en un checkout mínimo de Git nativo pasó; evidencia en
 `reports/validation/numeric-package-ci/20261026/`. Su confirmación hospedada
 requiere observar los dos jobs del SHA publicado. No es una captura científica.
 
+El CI de f2a87184 (run 40277876693) aprobó ambos jobs; su evidencia íntegra se
+conserva en `reports/validation/numeric-package-ci/hosted/40277876693/`. Ese run
+precede la regresión adicional de procedencia: el verificador actual autentica
+el índice completo contra el manifiesto externo antes de parsearlo. Sus trece
+contratos y probes locales están en
+`reports/validation/numeric-package-index-fix/20261026/`; falta el CI del fix.
+Un índice legítimamente diferente necesita un recibo nuevo; para trasladar el
+ensamble publicado se usa el tar existente, sin normalizar metadata Git.
+
 Selecciona exclusivamente Ubuntu/Node24.14.1, artefacto **12628261403** del run
 **40268999071**, intento1, head **2a53f88c**. Las seis combinaciones de esa matriz
 aprobaron. El ELF es

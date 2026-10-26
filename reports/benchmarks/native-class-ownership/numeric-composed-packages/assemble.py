@@ -116,7 +116,17 @@ def verify(root, node):
     for key in ['index', 'hosted']:
         member = root / POLICY['paths'][key]
         assert member.is_file() and not member.is_symlink() and member.stat().st_nlink == 1
-    index = json.loads((root / POLICY['paths']['index']).read_bytes())
+    manifest_path = REPOSITORY / POLICY['publishedArchiveManifest']['path']
+    assert manifest_path.is_file() and not manifest_path.is_symlink()
+    manifest_raw = manifest_path.read_bytes()
+    assert hashlib.sha256(manifest_raw).hexdigest() == POLICY['publishedArchiveManifest']['sha256']
+    manifest = json.loads(manifest_raw)
+    index_entries = [entry for entry in manifest['members'] if entry['path'] == POLICY['paths']['index']]
+    assert len(index_entries) == 1 and index_entries[0]['kind'] == 'file'
+    with (root / POLICY['paths']['index']).open('rb') as stream:
+        index_raw = stream.read(index_entries[0]['bytes'] + 1)
+    assert len(index_raw) == index_entries[0]['bytes'] and hashlib.sha256(index_raw).hexdigest() == index_entries[0]['sha256'], 'Changed published assembly index provenance'
+    index = json.loads(index_raw)
     assert index['complete'] is True and index['revision'] == POLICY['revision'] and 'failure' not in index
     for field in ['runtimeExecuted', 'benchmarkExecuted', 'installExecuted', 'rustRebuilt', 'gateReevaluated']:
         assert index[field] is False

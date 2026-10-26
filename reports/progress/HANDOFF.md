@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## CI f2 aprobado; cierre adicional del índice — 2026-10-26 UTC
+
+Run 40277876693, intento 1, head f2a87184: Windows y Linux aprobaron 2/2.
+ZIP/API/logs/manifiestos y lector offline están en
+`reports/validation/numeric-package-ci/hosted/40277876693/`; seis contratos de
+lectura por Windows/Linux pasan. Conserva doce contratos del productor f2 y
+doce endpoints de recursos; es anterior al nuevo guard del índice.
+
+Después se confirmó un P2: el verificador podía devolver un commit canónico
+falso desde assembly-index.json aunque runtime y fuentes fueran correctos.
+Ahora autentica ese índice de 47795 bytes contra archive.json SHA 4d68ad3b,
+antes de parsear, con una sola lectura acotada de 47796 bytes. Se actualizaron
+bindings de smoke/transporte. La regresión conserva el tamaño al alterar el
+commit; trece contratos y los probes Node 22.12.0/24.14.1 pasaron localmente.
+Evidencia en `reports/validation/numeric-package-index-fix/20261026/`; recursos
+en `reports/memory/numeric-package-index-fix/20261026/`.
+
+Tar fb06276a, ELF a277 y los 786 pins se conservan. No se normalizan errores Git;
+una procedencia legítima distinta exige otro recibo. Falta observar CI sobre el
+fix publicado, no reutilizar f2 como si probara la regresión nueva. Luego sigue
+fijar el protocolo de precisión. Sin captura nueva ni rendimiento aceptado;
+producción híbrida, objetivo general activo y sin tag/merge de ownership.
+
 ## Preparación CI del paquete numérico — 2026-10-26 UTC
 
 Se incorpora `numeric-composed-package-contracts.yml`, dos jobs: transporte y

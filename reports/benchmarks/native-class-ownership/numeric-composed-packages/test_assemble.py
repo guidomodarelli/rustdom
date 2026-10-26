@@ -65,6 +65,16 @@ class NumericPackageContracts(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 reader.verify(root, node24)
 
+    def test_fabricated_canonical_reproduction_commit_is_rejected(self):
+        relative = 'assembly-index.json'
+        index = json.loads((root / relative).read_bytes())
+        index['canonicalReproductionIdentity']['sourceCommit'] = '0' * 40
+        corrupted = (json.dumps(index, indent=2) + '\n').encode()
+        self.assertEqual(len(corrupted), (root / relative).stat().st_size)
+        with self.changed(relative, corrupted):
+            with self.assertRaises(AssertionError):
+                reader.verify(root, node24)
+
     def test_changed_hosted_receipt_is_rejected(self):
         receipt = json.loads((root / 'hosted-receipt.json').read_bytes())
         receipt['functionalQualified'] = False
