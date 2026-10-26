@@ -1,5 +1,21 @@
 # Continuar rustdom en otra máquina
 
+## Receptor incremental revisado — 2026-10-26 UTC
+
+Se mantienen runtime/stream de transporte con CLI Linux fijado, límites de
+bytes y cierre de procesos. Pasaron16casos reales, una lectura autenticada del
+ZIP104KB existente y cuatro guards actuales. La revisión cerró el fallback de
+credenciales local; se conservan también los intentos negativos. Evidencia en
+`stream-runtime/20261026/`; recursos en reports/memory/git-evidence-transport/.
+
+Sigue pendiente integrar/probar colección, publicación y replay por cada uno de
+los32criterios y el recibo del estudio. El receptor solo no califica ese flujo.
+No se aplicó etiqueta ni se capturó DOM. Fuente4196/903entradas/850pins estable;
+CI77/79 con13/32 controles históricos sin calibración. Autorización permanente,
+sin nuevas preguntas; sin tag/merge. Runtime híbrido, migración activa y48
+entradas ajenas preservadas.
+
+
 ## CLI Linux fijado y cancelación nativa probada — 2026-10-26 UTC
 
 La evidencia complementaria ahora incluye `native-cli/2.103.3/` y el lock
