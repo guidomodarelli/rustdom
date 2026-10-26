@@ -1,5 +1,46 @@
 # Continuar rustdom en otra máquina
 
+## Fix de preparación confirmado: seis jobs hosted verdes — 2026-10-26 UTC
+
+La matriz **40263224006**, intento1, commit **e6c4e6a9**, terminó **6/6 jobs
+aprobados**, Node22.12.0/24.14.1 × Linux/Windows/macOS. Ya no está pendiente
+comprobar el fix promisor/shallow. Evidencia íntegra y lector actual en
+`reports/validation/range-numeric-composed-candidate/hosted/`; recursos en
+`reports/memory/range-numeric-composed-candidate/hosted/40263224006/`.
+
+El CI general **Validate rustdom**, run **40263224090** del mismo commit,
+también terminó aprobado. Ambos checks ownership siguen rojos por rechazo
+numérico de rendimiento; sus logs y API se conservaron completos.
+
+Cada job pasó 18 comandos más un probe crudo:313 tests Rust, suites reales,
+tipos y consumidor ejecutado, corpus, WPT y memoria. WPT mantiene sus exclusiones,
+1203 resultados adversos compartidos por job y complete=false. Los 72 endpoints
+observaron Window/Document separados liberados; no prueban memoria pico ni
+ausencia universal de fugas. El lector offline tiene nueve contratos reales
+aprobados en Windows/Linux y pins de artefactos/jobs independientes; se cerró
+el P2 de reseñado coherente antes de publicar. Preserva el fallo previo del
+lector con fechas UTC/Python3.10 y su corrección probada.
+
+El artefacto Linux seleccionado es **12625768503**, ELF
+**a2777cbf00baa2cc7aa67c1098d6a5ceba4009aa6e514d558aac0b304e7ea583**,
+idéntico entre Node22/24 hosted. No usar el ELF local a6a21c3c ni tratar los dos
+binarios Windows diferentes como compilaciones reproducibles. Los 344 inputs
+fueron verificados por el qualifier;167 están presentes en cada ZIP y se
+recomprueban offline. No afirmar que todos están en el archivo.
+
+**Ownership sigue sin aceptación de rendimiento.** El fix de preparación y
+la calificación funcional no habilitan tag/merge. No se activó otra captura ni
+se repitieron estudios consumidos. No cambiar sus pins/presupuestos/resultados.
+El runtime sigue híbrido, el objetivo general continúa activo y la autorización
+permanente ya cubre las acciones necesarias sin nuevas preguntas.
+
+El análisis nuevo `control-precision/BLOCK-SENSITIVITY.md` aclara la inferencia
+estratificada y de bloques: una envolvente conservadora no soluciona por sí sola
+la precisión; los tamaños16/8 no tienen potencia demostrada. Sigue pendiente
+justificar el método nuevo y preparar el paquete exacto del candidato hospedado.
+No modificar los paquetes/capturas históricos. Preservar las48entradas ajenas
+del worktree native-collection-queries.
+
 ## Fix del preflight parcial de CI — 2026-10-26 UTC
 
 El run hosted nuevo **40260877389**, intento 1, head **8dc0513a**, falló antes de
