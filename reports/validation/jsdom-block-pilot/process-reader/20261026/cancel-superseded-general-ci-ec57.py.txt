@@ -1,0 +1,35 @@
+"""Cancel only the obsolete ordinary CI run for ec57; preserve current-head and scientific workflows."""
+import json
+from pathlib import Path
+import re
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / '.cache/superseded-general-ci-ec57-before-5be'; root.mkdir(exist_ok=False)
+expected_head = '5be2eebcd3b13bac03ce595eb8f5bc06758e2ccf'
+obsolete_head = 'ec57e3bc1ead7d80e5cf0374b68374ce22b04da1'
+endpoint = 'repos/guidomodarelli/rustdom/'
+
+def api(relative, filename):
+    raw = subprocess.check_output(['gh', 'api', endpoint + relative], cwd=repository, timeout=120)
+    (root / filename).write_bytes(raw)
+    return json.loads(raw)
+
+pull = api('pulls/80', 'pull-before.json'); assert pull['head']['sha'] == expected_head
+run = api('actions/runs/40286292282/attempts/1', 'run-before.json')
+assert run['id'] == 40286292282 and run['head_sha'] == obsolete_head and run['run_attempt'] == 1
+assert run['path'] == '.github/workflows/ci.yml' and run['event'] == 'pull_request'
+assert run['status'] in ['queued', 'in_progress']
+subprocess.check_call(['git', '-c', 'core.longpaths=true', 'merge-base', '--is-ancestor', obsolete_head, expected_head], cwd=repository)
+jobs = api('actions/runs/40286292282/attempts/1/jobs?per_page=100', 'jobs-before.json')
+assert jobs['total_count'] == len(jobs['jobs']) == 8
+assert all(re.fullmatch(r'validate \((ubuntu-22\.04|windows-latest|macos-latest)\)|Benchmark shard [0-3]|benchmarks', job['name']) for job in jobs['jobs'])
+assert api('pulls/80', 'pull-revalidated.json')['head']['sha'] == expected_head
+(root / 'intent.json').write_bytes(json.dumps({'runId': run['id'], 'obsoleteHead': obsolete_head,
+    'preservedCurrentHead': expected_head, 'ordinaryWorkflowOnly': True, 'scientificRunTouched': False}).encode() + b'\n')
+subprocess.check_call(['gh', 'api', '--method', 'POST', endpoint + 'actions/runs/40286292282/cancel', '--silent'], cwd=repository)
+after = api('actions/runs/40286292282/attempts/1', 'run-after.json')
+(root / 'receipt.json').write_bytes(json.dumps({'runId': run['id'], 'cancellationRequestedOnce': True,
+    'status': after['status'], 'conclusion': after['conclusion'], 'currentHeadPreserved': expected_head,
+    'scientificRunTouched': False}, indent=2).encode() + b'\n')
+print(json.dumps({'runId': run['id'], 'cancellationRequestedOnce': True, 'status': after['status'], 'conclusion': after['conclusion']}))

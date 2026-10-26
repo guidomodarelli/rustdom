@@ -6,12 +6,14 @@ on:
       - '.github/workflows/jsdom-block-pilot-contracts.yml'
       - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
       - 'reports/validation/jsdom-block-pilot/hosted/**'
+      - 'reports/validation/jsdom-block-pilot/process-reader/fixtures/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/jsdom-block-pilot-contracts.yml'
       - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
       - 'reports/validation/jsdom-block-pilot/hosted/**'
+      - 'reports/validation/jsdom-block-pilot/process-reader/fixtures/**'
 
 permissions:
   contents: read
@@ -49,6 +51,7 @@ jobs:
             /reports/validation/owner-batch-capture-method/review.json
             /reports/benchmarks/native-class-ownership/control-precision/pilot/
             /reports/validation/jsdom-block-pilot/hosted/
+            /reports/validation/jsdom-block-pilot/process-reader/fixtures/
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -60,11 +63,12 @@ jobs:
         run: |
           python -B "$READER/verify.spec.py" > "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stderr.log"
           python -B "$READER/verify.py" reports/validation/jsdom-block-pilot/hosted/40286292347 > "$RUNNER_TEMP/pilot-blocks-qa/reader.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader.stderr.log"
+          python -B "$READER/verify.py" reports/validation/jsdom-block-pilot/hosted/40288143186 40288143186 > "$RUNNER_TEMP/pilot-blocks-qa/reader-variance.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader-variance.stderr.log"
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Probar calendario y agregación con escalares sintéticos
-        run: node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
+      - name: Probar calendario, dispersión y tareas históricas sin ejecutar DOM
+        run: node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" "$PILOT/process-reader.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
       - name: Guardar el calendario completo sin activar captura
         run: node "$PILOT/plan.cjs" "$RUNNER_TEMP/pilot-blocks-qa/calendar.json" > "$RUNNER_TEMP/pilot-blocks-qa/plan.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/plan.stderr.log"
       - uses: actions/upload-artifact@v4

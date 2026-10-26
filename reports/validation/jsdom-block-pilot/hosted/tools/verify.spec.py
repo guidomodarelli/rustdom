@@ -59,4 +59,18 @@ class HostedCalendarContracts(unittest.TestCase):
         result = subprocess.run([sys.executable, '-O', str(location), str(dataset)], capture_output=True)
         self.assertNotEqual(result.returncode, 0); self.assertIn(b'non-optimized Python', result.stderr)
 
+    def test_registered_variance_producer_has_eleven_plus_six_contracts(self):
+        result = reader.verify(dataset.with_name('40288143186'), '40288143186')
+        self.assertEqual(result['runId'], 40288143186)
+        self.assertEqual(sum(item['testsPassed'] for item in result['artifacts']), 22)
+        self.assertEqual(sum(item['readerTestsPassed'] for item in result['artifacts']), 12)
+        self.assertFalse(result['scientificCaptureExecuted'])
+
+    def test_old_producer_cannot_satisfy_variance_policy(self):
+        with self.assertRaises(AssertionError): reader.verify(dataset, '40288143186')
+
+    def test_policy_selector_cannot_escape_registered_current_code(self):
+        for selector in ['../policy', '/absolute', '40288143186.json', '４０２８８１４３１８６']:
+            with self.subTest(selector=selector), self.assertRaises(ValueError): reader.verify(dataset, selector)
+
 if __name__ == '__main__': unittest.main()

@@ -1,0 +1,21 @@
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+output = repository / 'reports/validation/jsdom-block-pilot/process-reader/20261026/registered-reader'
+output.mkdir(exist_ok=False)
+relative = 'reports/validation/jsdom-block-pilot/hosted/tools/verify'
+commands = [
+    ('windows', ['python', '-B', relative + '.spec.py']),
+    ('linux', ['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd', '/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom', '--', 'python3', '-B', relative + '.spec.py']),
+    ('verified-5be', ['python', '-B', relative + '.py', 'reports/validation/jsdom-block-pilot/hosted/40288143186', '40288143186'])]
+outcomes = []
+for label, command in commands:
+    result = subprocess.run(command, cwd=repository, capture_output=True, timeout=120)
+    (output / (label + '.stdout.log')).write_bytes(result.stdout); (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    outcomes.append({'label': label, 'exitCode': result.returncode}); assert result.returncode == 0, label
+(output / 'qa.json').write_bytes(json.dumps({'commands': outcomes, 'testsPerPlatform': 9,
+    'originalProducerContractsPerSdk': 6, 'varianceProducerScalarContractsPerSdk': 11, 'varianceProducerReaderContractsPerSdk': 6,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')
+print(json.dumps(outcomes))

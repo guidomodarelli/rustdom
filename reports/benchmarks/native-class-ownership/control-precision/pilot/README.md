@@ -1,7 +1,7 @@
 # Calendario y agregación del piloto jsdom
 
-Implementación de preparación, **sin capturador ni activación**. El CI solo
-comprueba contratos con escalares sintéticos y escribe el calendario completo.
+Implementación de preparación, **sin capturador ni activación**. El CI
+comprueba escalares sintéticos, relee datos funcionales históricos y escribe el calendario completo.
 No ejecuta DOM, no produce tiempos de rendimiento y no reevalúa el gate.
 
 Se fija como propuesta del piloto la opción r16 de VARIANCE-PILOT-DRAFT.md:
@@ -50,9 +50,24 @@ cuantiles tabulados de NIST. No se agrega dependencia matemática al runtime:
 Node usa constantes explícitas y módulos estándar. Ver metodología, generador,
 lock de referencia y resultados en `reports/validation/jsdom-block-pilot/variance/`.
 
+`process-reader.replayProcess` reutiliza el validador probado de tareas y recursos
+sin reescribir sus payloads. La revisión raw identifica un contrato de formato;
+no atribuye al productor nuevo el commit de un estudio anterior. Exige el tuple
+completo del calendario, SDK y ventana monotónica del padre; valida cada tarea,
+warmup, salida pública, afinidad y teardown por separado. El contexto de pruebas
+del padre es sintético y está identificado; no correlaciona relojes físicos.
+
+Los 32 casos jsdom históricos se conservan íntegros para probar ese contrato.
+Son AB/factor0, ocho filas, dos labels y ambos SDK. No califican factores nuevos,
+el candidato Rust a277 ni un piloto nuevo. La salida funcional tiene
+`analysisObservation=null`; capture permanece bloqueado por executionReady=false.
+El transporte y la identidad del productor no se autentican dentro de esta
+función: debe hacerlo el futuro lector integral antes de analizar observaciones.
+
 ```sh
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/blocks.spec.cjs
 node --test reports/benchmarks/native-class-ownership/control-precision/pilot/variance.spec.cjs
+node --test reports/benchmarks/native-class-ownership/control-precision/pilot/process-reader.spec.cjs
 node reports/benchmarks/native-class-ownership/control-precision/pilot/plan.cjs /nuevo/calendar.json
 ```
 
@@ -60,6 +75,6 @@ La salida usa creación exclusiva y conserva cualquier archivo previo. Las
 pruebas validan comportamiento, calendario completo, estimando, errores y CLI
 real. Los arrays escalares están acotados por el diseño; no se cargan runtimes,
 wrappers, realms ni referencias DOM. Esto no sustituye las pruebas de memoria
-del capturador futuro. Faltan lector autenticado de tareas/recursos,
+del capturador futuro. Faltan transporte/lector integral autenticado y capturador,
 diagnósticos de dependencia, empaquetado, límites, revisión integral y evidencia
 hosted antes de cualquier captura. No tag/merge; ownership sigue rechazado.

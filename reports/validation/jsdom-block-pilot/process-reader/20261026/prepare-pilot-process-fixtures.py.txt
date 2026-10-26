@@ -1,0 +1,42 @@
+"""Copy authenticated historical jsdom functional data; never run DOM or promote it to a new study."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+
+repository = Path(__file__).resolve().parent.parent
+base = 'reports/validation/owner-batch-worker/20261025'
+original = json.loads((repository / 'reports/benchmarks/native-class-ownership/owner-batch-study/constants/replay-fixtures.json').read_bytes())
+manifest_raw = (repository / original['manifestPath']).read_bytes()
+assert hashlib.sha256(manifest_raw).hexdigest() == original['manifestSha256']
+source_files = json.loads(manifest_raw)['files']
+destination = repository / 'reports/validation/jsdom-block-pilot/process-reader/fixtures'
+destination.mkdir(parents=True, exist_ok=False)
+files = {}; cases = []
+
+def copy(relative, target):
+    full = base + '/' + relative; raw = (repository / full).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == source_files[full]
+    path = destination / target; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(raw)
+    files[target] = {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'originalPath': full}
+    return json.loads(raw)
+
+copy(original['physicalManifest'], 'physical-manifest.json')
+for node, directory in original['versions'].items():
+    summary = copy(directory + '/workers/summary.json', directory + '/summary.json')
+    assert summary['complete'] and summary['node'] == node and summary['functionalOnly'] and not summary['performanceStudyExecuted']
+    for case in summary['cases']:
+        if not case['name'].isdecimal() or case['input']['engine'] != 'jsdom': continue
+        assert case['exitCode'] == 0 and case['signal'] is None and case['error'] is None
+        target = directory + '/workers/' + case['name'] + '/report.json'
+        report = copy(directory + '/workers/' + case['name'] + '/report.json', target)
+        assert report['pid'] == case['pid'] and report['functionalOnly'] and report['engine'] == 'jsdom'
+        cases.append({'path': target, 'input': case['input'], 'node': node, 'pid': case['pid']})
+assert len(cases) == 32
+(destination / 'original-manifest.json').write_bytes(manifest_raw)
+files['original-manifest.json'] = {'bytes': len(manifest_raw), 'sha256': original['manifestSha256'], 'originalPath': original['manifestPath']}
+policy = {'scope': 'historical-jsdom-functional-contract-data-only', 'maximumFixtureBytes': 16777216,
+    'files': files, 'cases': cases, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+constants = repository / 'reports/benchmarks/native-class-ownership/control-precision/pilot/constants'
+(constants / 'process-fixtures.json').write_bytes(json.dumps(policy, indent=2).encode() + b'\n')
+print(json.dumps({'cases': len(cases), 'files': len(files), 'bytes': sum(item['bytes'] for item in files.values())}))

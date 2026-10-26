@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## CI de dispersión cerrado y lector de procesos probado — 2026-10-26 UTC
+
+Run **40288143186**, intento1, head **5be2eebc**, terminó **2/2 aprobado**.
+Cada SDK aprobó once contratos escalares y seis de lectura. Archivo completo
+en `reports/validation/jsdom-block-pilot/hosted/40288143186/`; políticas del
+lector separan ese productor del ec57 anterior de seis contratos. Registro
+numérico ASCII, nueve contratos del lector aprobados Windows/Linux.
+
+Nuevo `control-precision/pilot/process-reader.cjs`: replay de tareas y recursos
+reutilizando el contrato raw original sin reescribir payloads ni identidades.
+Valida calendario/SDK/reloj parental, 144 tareas/48 warmup y cleanup separado.
+Funcional devuelve analysisObservation=null; capture sigue bloqueado. El lector
+integral aún debe autenticar transporte/fuente y la colección completa.
+
+Fixtures: 32 casos jsdom funcionales históricos AB/factor0, ocho filas, dos
+labels y ambos SDK. 4608 duraciones/1536 warmup/384 Window/384 Document del
+dataset anterior, no muestras nuevas ni prueba del candidato a277. Contexto
+parental sintético identificado; sin falsa correlación física de relojes.
+
+Pasaron 19 contratos por Windows/Linux × Node22.12.0/24.14.1 (76), nueve lectores
+por plataforma y ocho órdenes del workflow ampliado en Git Linux real cde8bf60,
+888 inputs preservados/Git limpio. Logs/QA/fuentes/casos en
+`reports/validation/jsdom-block-pilot/process-reader/`. El CI hosted nuevo de
+19 contratos queda pendiente; no usar el verde5be para darlo por probado.
+
+Se canceló una vez el CI general obsoleto ec57 (run40286292282, únicamente
+ci.yml; cancelación confirmada), conservando CI actual5be y todos los estudios.
+No se relanzó workflow, midió DOM ni activó secuencia científica.
+
+Siguiente: calificar CI de este lector e implementar productor/capturador y
+transporte/envelope integral con límites y revisión antes de activar un piloto.
+executionReady=false, performanceAccepted=null, gateReevaluated=false. Gate
+ownership rechazado, runtime híbrido y migración general activa; sin tag/merge.
+Preservar las 48 entradas ajenas del otro worktree.
+
 ## Archivo CI del calendario y análisis de dispersión — 2026-10-26 UTC
 
 El run **40286292347**, intento1, head **ec57e3bc**, terminó **2/2 aprobado**.
