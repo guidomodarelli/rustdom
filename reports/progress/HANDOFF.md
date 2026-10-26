@@ -1,5 +1,52 @@
 # Continuar rustdom en otra máquina
 
+## Fallo de preparación v1 preservado; corrección v2 en calificación — 2026-10-26 UTC
+
+El SHA `1078e4fd` completó su CI original: **40357510100 (4/4)** y
+**40357510284 (8/8)**. Sus 14 artifacts autenticados y replays están en
+`reports/validation/jsdom-block-pilot/final-readiness/`. Esto calificó la fuente
+anterior; no demuestra que una captura posterior haya completado.
+
+La única etiqueta v1 se aplicó y el run **40366685759, intento 1**, falló:
+preflight aprobado, 32 criterios fallidos. `source.snapshot()` creó
+`inputs/packages.tar.xz`; el padre volvió a crear `inputs/` y recibió `EEXIST`
+antes del índice, marcador y bucle de workers. La auditoría de los 33 artifacts
+y 64 replays parciales confirmó **cero workers de benchmark y cero muestras**.
+ZIP, tar, metadata, logs, inventarios y límites íntegros están en
+`reports/benchmarks/native-class-ownership/jsdom-block-pilot-results/40366685759/`.
+El lector actual verificó los 2866 archivos de `preservation.json`. No repetir
+el run, reaplicar su etiqueta ni completar datos faltantes. V1 está consumido.
+
+El sucesor independiente `control-precision/pilot-v2/` crea `inputs/` y
+`workers/` una vez antes del snapshot. Ambos roles usan ese mismo setup;
+las pruebas funcionales copian el grafo y paquete reales. Conserva 850 pins v1,
+calendario, factores, filas, semillas, warmup, estimador y presupuestos.
+La captura sigue **deshabilitada**. No modificar los archivos de v1.
+
+Calificación privada Linux real `73c8f58b1cbb051c55e978839cc6da1f69c666e8`:
+54 contratos y dos pruebas de integridad por SDK, un bloque completo de 32
+procesos por SDK, cuatro replays cruzados y regresiones de datos aprobados.
+Los tar conservan muestras, warmup y snapshots. Fuente limpia y commit privado
+identificados sin normalizar Git; no es un commit publicado ni una captura
+científica. Evidencia y fallos previos del arnés sparse preservados en
+`reports/validation/jsdom-block-pilot-v2/layout-fix/20261026/`.
+
+La revisión aislada detectó y se corrigió la carga de un hydrator por importlib:
+se verifica el SHA independiente y se compila el mismo buffer, ignorando pyc.
+Tres pruebas reales adicionales verificaron hidratación Git con cache maliciosa,
+rechazo de fuente alterada y rechazo de enlaces. Este fix posterior cambia
+checkout/política/prueba/CI respecto del commit privado anterior; el nuevo SHA
+publicado requiere su propia calificación hosted. No atribuirle el verde viejo.
+
+Próximo paso: publicar el fix deshabilitado, revisar su propio CI de contratos
+Node 22/24 y el CI general, preservar sus artifacts y corregir fallos reales.
+Solo después preparar la publicación íntegra del método v2 y calificar ese SHA
+antes de su única secuencia, sin pedir otra autorización. No ejecutar código
+archivado. El gate histórico de ownership sigue rechazado: **sin tag ni merge**.
+El runtime sigue híbrido y la migración general continúa activa. Las 48 entradas
+ajenas de `native-collection-queries/rustdom` siguen intactas. Engram permanece
+sin identidad registrada y no se usó.
+
 ## Método habilitado; calificar el SHA final antes de ejecutar — 2026-10-26 UTC
 
 La base `7148577d` terminó **4/4** en el run **40344594967** y **8/8** en

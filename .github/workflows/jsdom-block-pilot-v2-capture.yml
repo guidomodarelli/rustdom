@@ -1,0 +1,159 @@
+name: Piloto prospectivo de bloques jsdom v2
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ownership-jsdom-block-pilot-v2-global
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GIT_CONFIG_COUNT: '1'
+  GIT_CONFIG_KEY_0: core.autocrlf
+  GIT_CONFIG_VALUE_0: 'false'
+  TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+  PILOT: reports/benchmarks/native-class-ownership/control-precision/pilot-v2
+  RUSTDOM_JSDOM_BLOCK_PILOT_HEAD: ${{ github.event.pull_request.head.sha }}
+  RUSTDOM_JSDOM_BLOCK_PILOT_PR: ${{ github.event.pull_request.number }}
+  RUSTDOM_JSDOM_BLOCK_PILOT_LABEL: ${{ github.event.label.name }}
+
+jobs:
+  preflight:
+    if: github.event.pull_request.number == 80 && github.event.label.name == 'ownership-jsdom-block-pilot-v2'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      consumption-artifact: ${{ steps.publish.outputs.artifact-id }}
+      consumption-sha: ${{ steps.once.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/benchmarks/native-class-ownership/control-precision/pilot-v2/
+            /reports/validation/jsdom-block-pilot-v2/capture-method/
+            /.github/workflows/jsdom-block-pilot-v2-capture.yml
+            /.github/workflows/jsdom-block-pilot-v2-contracts.yml
+            /.github/workflows/ci.yml
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.12.0'
+      - name: Materializar los inputs autenticados del método publicado
+        run: |
+          mkdir "$RUNNER_TEMP/pilot-preflight"
+          python -B "$PILOT/capture/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/pilot-preflight/checkout.json"
+      - name: Exigir una única secuencia y CI previo del mismo SHA antes de cualquier DOM
+        id: once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node "$PILOT/capture/once.cjs" "$RUSTDOM_JSDOM_BLOCK_PILOT_HEAD" "$GITHUB_RUN_ID" "$RUNNER_TEMP/pilot-preflight/capture-consumption.json" > "$RUNNER_TEMP/pilot-preflight/receipt-sha.txt" 2> "$RUNNER_TEMP/pilot-preflight/once.stderr.log"
+          printf 'sha256=%s\n' "$(cat "$RUNNER_TEMP/pilot-preflight/receipt-sha.txt")" >> "$GITHUB_OUTPUT"
+      - name: Derivar los 32 criterios del calendario fijo
+        id: plan
+        run: |
+          matrix=$(node -e 'const {calendar}=require("./"+process.env.PILOT+"/blocks.cjs"); process.stdout.write(JSON.stringify({include:calendar().map((criterion, ordinal)=>({node:criterion.node.slice(1),criterion:criterion.criterionId,ordinal}))}));')
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: publish
+        if: always()
+        with:
+          name: jsdom-pilot-consumption-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pilot-preflight/
+          if-no-files-found: error
+          retention-days: 90
+  capture:
+    needs: preflight
+    name: Criterio ${{ matrix.ordinal }} Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    env:
+      CRITERION: ${{ matrix.criterion }}
+      RUSTDOM_JSDOM_BLOCK_PILOT_CONSUMPTION_SHA256: ${{ needs.preflight.outputs.consumption-sha }}
+    steps:
+      - name: Registrar el inicio real del presupuesto global de setup
+        run: |
+          read -r started_uptime unused </proc/uptime
+          printf 'RUSTDOM_JSDOM_BLOCK_PILOT_JOB_STARTED_UPTIME=%s\n' "$started_uptime" >> "$GITHUB_ENV"
+          printf 'RUSTDOM_JSDOM_BLOCK_PILOT_CONSUMPTION=%s/pilot-consumption/capture-consumption.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/benchmarks/native-class-ownership/control-precision/pilot-v2/
+            /reports/validation/jsdom-block-pilot-v2/capture-method/
+            /.github/workflows/jsdom-block-pilot-v2-capture.yml
+            /.github/workflows/jsdom-block-pilot-v2-contracts.yml
+            /.github/workflows/ci.yml
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Hidratar fuente y extraer el paquete sellado sin construirlo
+        run: |
+          mkdir "$RUNNER_TEMP/pilot-job"
+          python -B "$PILOT/capture/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/pilot-job/checkout.json"
+          python -B "$TOOLS/transport.py" --extract reports/validation/range-numeric-composed-package/20261026/packages.tar.xz "$RUNNER_TEMP/pilot-package" > "$RUNNER_TEMP/pilot-job/package-extraction.json"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.preflight.outputs.consumption-artifact }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/pilot-consumption
+      - name: Fijar la expectativa del controller desde el Git real y el recibo autenticado
+        run: node "$PILOT/capture/expectation.cjs" capture "$CRITERION" "$RUNNER_TEMP/pilot-job/expected.json" --supervised
+      - name: Capturar exactamente 512 procesos sin reintentos ni sustituciones
+        timeout-minutes: 183
+        run: python -B "$PILOT/capture/supervise.py" --capture "$RUNNER_TEMP/pilot-job/supervisor.json" "$(command -v node)" --expose-gc "$GITHUB_WORKSPACE/$PILOT/capture/run.cjs" --capture "$RUNNER_TEMP/pilot-package" "$RUNNER_TEMP/pilot-criterion" "$CRITERION" > "$RUNNER_TEMP/pilot-job/capture.stdout.log" 2> "$RUNNER_TEMP/pilot-job/capture.stderr.log"
+      - name: Conservar íntegramente datos, parciales y diagnóstico del controller
+        if: always()
+        timeout-minutes: 10
+        run: |
+          mkdir -p "$RUNNER_TEMP/pilot-criterion"
+          for name in supervisor.json capture.stdout.log capture.stderr.log; do
+            if test -f "$RUNNER_TEMP/pilot-job/$name"; then
+              node "$PILOT/capture/io.cjs" --copy-new "$RUNNER_TEMP/pilot-job/$name" "$RUNNER_TEMP/pilot-criterion/$name"
+            fi
+          done
+          python -B "$PILOT/capture/archive.py" --pack "$RUNNER_TEMP/pilot-criterion" "$RUNNER_TEMP/pilot-job/criterion.tar.gz" > "$RUNNER_TEMP/pilot-job/archive.json"
+          if test -f "$RUNNER_TEMP/pilot-job/expected.json"; then
+            node "$PILOT/capture/verify.cjs" "$RUNNER_TEMP/pilot-criterion" "$RUNNER_TEMP/pilot-job/expected.json" "$RUNNER_TEMP/pilot-job/replay.json" --allow-partial
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: jsdom-pilot-criterion-${{ matrix.ordinal }}-${{ github.event.pull_request.head.sha }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pilot-job/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
