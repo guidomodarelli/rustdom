@@ -1,0 +1,8 @@
+'use strict';
+module.exports = Object.freeze({
+  CHILD_TIMEOUT_MS: 20_000,
+  MAX_PROCESS_OUTPUT_BYTES: 1024 * 1024,
+  PROCESS_REPETITIONS: 2,
+  LOCAL_HOST: '127.0.0.1',
+  REDIRECT_STATUS_CODE: 302,
+});

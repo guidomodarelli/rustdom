@@ -1,5 +1,31 @@
 # Continuar rustdom en otra máquina
 
+## Aborto de Node puro en Windows: actualizar SDK funcional — 2026-10-26 UTC
+
+Después de publicar6953f006 apareció otro fallo del head e6c4e6a9: run 40263224047,
+job 121379871534, candidato combinado Windows/Node 24.14.1. WPT abortó en File-constructor-endings
+con UV_HANDLE_CLOSING, sin timeout. Se conservó artifact 12625996310 íntegro y
+autenticado; no se ignoró el fallo ni se relanzó ese run.
+
+Diagnóstico fijo de 48 procesos en Windows: el mismo aborto ocurrió 8/8 veces
+con Node 24.14.1 **sin addon ni Rust**; Node 22.12.0 y24.20.0 terminaron8/8 normales.
+Los24 procesos de la fixture original por engine/SDK pasaron 45 aserciones cada uno;
+no reprodujeron el fallo intermitente de WPT. Node 24.20.0 incluye el fix oficial
+nodejs/node#61999; SDK autenticado con SHASUMS256. Evidencia y límites en
+`reports/validation/node-windows-shutdown/`.
+
+Las matrices funcionales activas combinado/numérico/owners seleccionan ahora
+Windows/Node 24.20.0; mantienen Windows/Node 22.12.0 y Linux/macOS22.12.0/24.14.1. El contrato
+NodeHTTP real pasó en los SDK corregidos y falla con el anterior. Nueve contratos
+de preparación y actionlint pasaron. También pasaron Jest (22 tests), Vitest (33) y VM (34)
+con Node 24.20.0 Windows, sobre una copia con los mismos archivos y el DLL local,
+sin reconstruir el candidato hospedado. Se conservaron los fallos locales de
+setup y dependencias, con los límites de evidencia explicitados. Las tres matrices
+funcionales cancelan runs obsoletos del mismo workflow/PR; no las capturas.
+Falta verificar la nueva matriz hosted.
+No cambiar los SDK, pins, paquetes ni capturas de estudios históricos. Los786 pins
+siguen intactos. El runtime no cambió; ownership sigue sin aceptación de rendimiento.
+
 ## Fix de preparación confirmado: seis jobs hosted verdes — 2026-10-26 UTC
 
 La matriz **40263224006**, intento1, commit **e6c4e6a9**, terminó **6/6 jobs

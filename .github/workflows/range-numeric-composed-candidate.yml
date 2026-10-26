@@ -3,18 +3,24 @@ name: Inicialización y colapso numérico de Range en plataformas
 on:
   pull_request:
     paths:
+      - '.github/scripts/**/windows-node-exit*.cjs'
       - '.github/workflows/range-numeric-composed-candidate.yml'
       - 'reports/implementation/range-initialization-candidate/**'
       - 'reports/implementation/range-numeric-composed-candidate/**'
   push:
     branches: [main]
     paths:
+      - '.github/scripts/**/windows-node-exit*.cjs'
       - '.github/workflows/range-numeric-composed-candidate.yml'
       - 'reports/implementation/range-initialization-candidate/**'
       - 'reports/implementation/range-numeric-composed-candidate/**'
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   qualify:
@@ -26,6 +32,13 @@ jobs:
       matrix:
         os: [ubuntu-22.04, windows-latest, macos-latest]
         node: ['22.12.0', '24.14.1']
+        # Node 24.20.0 includes nodejs/node#61999; keep scientific SDKs unchanged.
+        exclude:
+          - os: windows-latest
+            node: '24.14.1'
+        include:
+          - os: windows-latest
+            node: '24.20.0'
     defaults:
       run:
         shell: bash
@@ -76,6 +89,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Comprobar cierre real de Node sin cargar el addon
+        if: runner.os == 'Windows'
+        run: node --test .github/scripts/windows-node-exit.spec.cjs
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: '1.99.1'

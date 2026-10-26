@@ -1,0 +1,15 @@
+'use strict';
+const { createServer } = require('node:http');
+const server = createServer((request, response) => {
+  response.statusCode = 302;
+  response.setHeader('Location', '/');
+  response.end();
+});
+server.listen(0, '127.0.0.1', async () => {
+  let redirectRejected = false;
+  try { await fetch(`http://127.0.0.1:${server.address().port}/`); }
+  catch (error) { redirectRejected = error instanceof TypeError; }
+  const report = { node: process.version, pid: process.pid, redirectRejected,
+    loadedAddonFiles: Object.keys(require.cache).filter((filename) => filename.endsWith('.node')) };
+  process.stdout.write(JSON.stringify(report) + '\n', () => process.exit(redirectRejected ? 0 : 2));
+});
