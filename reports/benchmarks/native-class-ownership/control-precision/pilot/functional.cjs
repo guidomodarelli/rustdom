@@ -3,10 +3,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { performance } = require('node:perf_hooks');
-const { createHash } = require('node:crypto');
 const policy = require('./constants/worker.json');
+const { authenticatePackage } = require('./preflight.cjs');
 const repository = path.resolve(__dirname, '../../../../..');
 
 /**
@@ -24,25 +23,7 @@ async function run(prepared, destination) {
   assert.equal(fs.existsSync(destination), false, 'Pilot qualifier: preserve existing evidence');
   for (const root of [repository, prepared]) assert.ok(destination !== root && !destination.startsWith(root + path.sep) && !root.startsWith(destination + path.sep));
   fs.mkdirSync(destination);
-  function authenticatePackage(label) {
-    for (const binding of Object.values(policy.authenticator)) {
-      const location = path.join(repository, binding.path); const status = fs.lstatSync(location);
-      assert.ok(status.isFile() && !status.isSymbolicLink() && status.size <= policy.maximumAuthenticatorBytes);
-      const raw = fs.readFileSync(location);
-      assert.ok(raw.length <= policy.maximumAuthenticatorBytes);
-      assert.equal(createHash('sha256').update(raw).digest('hex'), binding.sha256,
-        'Pilot qualifier: authenticator binding changed before execution: ' + binding.path);
-    }
-    const verification = spawnSync('python3', ['-B', path.join(repository, policy.authenticator.script.path),
-      '--verify', prepared, process.execPath], { encoding: 'utf8', timeout: policy.authenticationTimeoutMs, maxBuffer: policy.maximumReportBytes });
-    fs.writeFileSync(path.join(destination, label + '.stdout.log'), verification.stdout ?? '', { flag: 'wx' });
-    fs.writeFileSync(path.join(destination, label + '.stderr.log'), verification.stderr ?? '', { flag: 'wx' });
-    assert.ifError(verification.error); assert.equal(verification.status, 0, verification.stderr);
-    const result = JSON.parse(verification.stdout);
-    assert.equal(result.verified, true); assert.equal(result.artifactId, policy.selectedArtifactId);
-    return result;
-  }
-  const authentication = authenticatePackage('package-verification');
+  const authentication = authenticatePackage(prepared, destination, 'package-verification');
   // All transitive historical inputs have now been authenticated by the current assembler, before these imports.
   const { calendar } = require('./blocks.cjs');
   const { createFunctionalManifest } = require('./packages.cjs');
@@ -54,7 +35,8 @@ async function run(prepared, destination) {
   const source = require('../../owner-batch-study/source.cjs');
   const sampling = require('../../owner-batch-study/constants/sampler.json');
   const historical = source.currentFiles();
-  const ownNames = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'functional.cjs', 'process-reader.cjs', 'envelope.cjs',
+  const ownNames = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'worker-engine.cjs', 'capture/worker.cjs', 'capture/binding.cjs',
+    'capture/source.cjs', 'capture/io.cjs', 'functional.cjs', 'preflight.cjs', 'process-reader.cjs', 'envelope.cjs', 'constants/capture.json',
     'constants/design.json', 'constants/worker.json', 'constants/envelope.json', 'fixtures/progress-failure.cjs'];
   const ownFiles = () => Object.fromEntries(ownNames.map((name) => [name, hashFile(path.join(__dirname, name))]));
   const sourceIdentity = source.gitIdentity();
@@ -104,7 +86,8 @@ async function run(prepared, destination) {
       const report = readJSON(reportPath); const context = readJSON(reportPath + '.context.json');
       const replay = replayEnvelope(report, context, manifest, input, { mode: 'functional', node: process.version, pid: observed.command.pid,
         hostId: 'functional-parent-' + process.pid, startMonotonicMs: observed.startMonotonicMs, endMonotonicMs: observed.endMonotonicMs },
-      { parentPid: process.pid, workerSourceSha256: index.ownSourceFiles['worker.cjs'] });
+      { parentPid: process.pid, workerSourceSha256: index.ownSourceFiles['worker.cjs'],
+        workerEngineSourceSha256: index.ownSourceFiles['worker-engine.cjs'] });
       if (index.randomProbePrefix === undefined) index.randomProbePrefix = [...report.randomProbe];
       else assert.deepEqual(report.randomProbe, index.randomProbePrefix, 'Pilot functional qualifier: matched factor has a different startup RNG prefix');
       assert.equal(replay.analysisObservation, null);
@@ -151,7 +134,7 @@ async function run(prepared, destination) {
     }
     assert.deepEqual([hashFile(firstReport), hashFile(firstContext)], originalFiles, 'Pilot functional qualifier: prior evidence was overwritten');
     await snapshot(policy.parentStages[2]);
-    index.packageVerificationAfter = authenticatePackage('package-verification-after');
+    index.packageVerificationAfter = authenticatePackage(prepared, destination, 'package-verification-after');
     assert.deepEqual(index.packageVerificationAfter, authentication, 'Pilot functional qualifier: sealed package identity changed during qualification');
     assert.deepEqual(source.gitIdentity(), sourceIdentity); assert.deepEqual(source.currentFiles(), historical); assert.deepEqual(ownFiles(), index.ownSourceFiles);
     index.complete = true; index.elapsedMs = performance.now() - started; save();

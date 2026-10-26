@@ -1,127 +1,13 @@
-/** @module pilot-functional-worker Exercises one real jsdom control in a fresh process; scientific capture has no entry point. */
+/** @module pilot-functional-worker Qualifies the shared worker engine without enabling a scientific sequence. */
 'use strict';
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { createHash } = require('node:crypto');
-const { getHeapStatistics } = require('node:v8');
-const { calendar } = require('./blocks.cjs');
+const { workerArguments, run } = require('./worker-engine.cjs');
+const { failureView } = require('../../owner-batch-study/batches.cjs');
 const policy = require('./constants/worker.json');
-const rawPolicy = require('../../owner-batch-study/constants/worker.json');
-const sampling = require('../../owner-batch-study/constants/sampler.json');
-const original = require('../../combined-process-study/model.cjs');
-const { createSinglePackageWorker } = require('../../single-package-worker.cjs');
-const { schedule: pairSchedule, inspectDistributions } = require('../../paired-main-worker.cjs');
-const { fixture: fixtureHTML, loadRuntime } = require('../../paired-worker.cjs');
-const { configureAffinity, affinities } = require('../../thread-worker.cjs');
-const { createBatchSampler, failureView } = require('../../owner-batch-study/batches.cjs');
-const { readJSON } = require('../../owner-batch-study/io.cjs');
-const fixtures = require('../../shared-fixture-candidate/fixtures.cjs');
-const operations = require('../../../../../benchmarks/ownership-operations.cjs');
-const { warmOwnership } = require('../../../../../benchmarks/ownership-warmup.cjs');
-const { collectGarbage } = require('../../../../../scripts/memory-endpoint.cjs');
-const settings = { ...original.settings, revision: rawPolicy.revision, distributionHashes: policy.distributions };
-const scheduler = createSinglePackageWorker(settings);
-const sampler = createBatchSampler({ fixtureHTML, fixtures, operations, warmOwnership, collectGarbage });
+const method = require('./constants/capture.json');
 
-/** @param {number} factor - Original fixed factor, never its rotated temporal slot. @returns {string[]} Unchanged V8 flags. */
-function workerArguments(factor) { return scheduler.workerArguments(factor); }
-
-/**
- * Produce one functional raw-format report and an explicit new-producer sidecar, preserving partials and original failures.
- * @param {string[]} args - Parent-authenticated manifest, exact planned-input JSON and new report output.
- * @param {function(object):void} [onProgress] - Caller-owned scalar observer; cannot receive a DOM reference.
- * @returns {Promise<object>} Functional payload; no statistical eligibility or performance acceptance.
- */
-async function main(args, onProgress = () => {}) {
-  assert.equal(args.length, 3, 'Pilot functional worker: provide manifest, input and new report');
-  assert.equal(process.platform, 'linux', 'Pilot functional worker: Linux affinity evidence required');
-  assert.equal(typeof global.gc, 'function', 'Pilot functional worker: use --expose-gc');
-  assert.equal(Object.hasOwn(process.env, 'NODE_OPTIONS'), false); assert.equal(typeof onProgress, 'function');
-  const [manifestPath, inputPath, outputText] = args;
-  const manifest = readJSON(manifestPath); const input = readJSON(inputPath);
-  assert.equal(input.engine, 'jsdom'); assert.equal(input.node, process.version);
-  const shard = calendar().find((entry) => entry.criterionId === [input.node, input.phase, input.engine, input.row].join('/'));
-  assert.ok(shard && Number.isSafeInteger(input.ordinal));
-  assert.deepEqual(input, shard.processes[input.ordinal], 'Pilot functional worker: changed calendar tuple');
-  assert.deepEqual(process.execArgv, workerArguments(input.factor), 'Pilot functional worker: changed startup flags');
-  assert.equal(manifest.numericPackageVerifiedByParent, true); assert.equal(manifest.selectedArtifactId, policy.selectedArtifactId);
-  assert.equal(manifest.nativeBinarySha256, policy.nativeBinarySha256); assert.equal(manifest.archiveSha256, policy.archiveSha256);
-  const output = path.join(fs.realpathSync(path.dirname(path.resolve(outputText))), path.basename(outputText));
-  const sourceRoot = path.resolve(__dirname, '../../../../..');
-  for (const protectedRoot of [sourceRoot, manifest.packageRoot, ...Object.values(manifest.copies)]) {
-    const root = fs.realpathSync(protectedRoot);
-    assert.ok(output !== root && !output.startsWith(root + path.sep), 'Pilot functional worker: output must be outside source/packages');
-  }
-  const contextPath = output + '.context.json';
-  assert.equal(fs.existsSync(output), false); assert.equal(fs.existsSync(contextPath), false);
-  const plan = scheduler.schedule(manifest, input.phase, input.engine, input.factor, input.label, input.rowIndex);
-  const report = { revision: rawPolicy.revision, complete: false, functionalOnly: true,
-    purpose: rawPolicy.purpose, performanceStudyExecuted: false, performanceAccepted: null, gateReevaluated: false,
-    phase: input.phase, engine: input.engine, position: input.factor, label: input.label, rowIndex: input.rowIndex,
-    key: input.row, schedule: plan, pid: process.pid, node: process.version, v8: process.versions.v8,
-    execArgv: process.execArgv, heapLimitBytes: getHeapStatistics().heap_size_limit,
-    v8Seed: settings.v8Seeds[input.factor], randomProbe: Array.from({ length: settings.v8SeedProbeSamples }, () => Math.random()),
-    sampling: { tasksPerBlock: sampling.logicalTasksPerBlock, warmupBlocks: sampling.warmupBlocksPerProcess,
-      measuredBlocks: sampling.measuredBlocksPerProcess, withinRealmWarmupRounds: sampling.withinRealmWarmupRounds }, blocks: [] };
-  const context = { workerRevision: policy.revision, rawPayloadContractRevision: rawPolicy.revision,
-    workerSourceSha256: createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
-    complete: false, mode: 'functional', plannedInput: input, pid: process.pid, parentPid: process.ppid,
-    node: process.version, numericPackageArtifactId: policy.selectedArtifactId,
-    packageAuthenticationPerformedHere: false, producerSourceAuthenticationPerformedHere: false,
-    scientificCaptureExecuted: false, analysisObservation: null, performanceAccepted: null, gateReevaluated: false };
-  function write(filename, value, flag) {
-    const raw = JSON.stringify(value, null, 2) + '\n';
-    assert.ok(Buffer.byteLength(raw) <= policy.maximumReportBytes, 'Pilot functional worker: report exceeds bound');
-    fs.writeFileSync(filename, raw, { flag });
-  }
-  write(output, report, 'wx'); write(contextPath, context, 'wx');
-  const save = () => { write(output, report, 'w'); write(contextPath, context, 'w'); };
-  const owners = { window: [], document: [] };
-  let runtime; let failed = false; let originalFailure;
-  const loaded = () => {
-    const packages = scheduler.loadedPackages(manifest);
-    for (const [physical, filenames] of Object.entries(packages)) assert.equal(filenames.length > 0, physical === plan.physical);
-    return packages;
-  };
-  try {
-    const pair = pairSchedule(manifest, input.phase, input.engine, input.factor, settings);
-    report.distributionsBefore = inspectDistributions(manifest, pair, input.engine, settings); save();
-    report.affinity = await configureAffinity('main');
-    assert.ok(Object.values(scheduler.loadedPackages(manifest)).every((filenames) => filenames.length === 0));
-    runtime = loadRuntime(plan.root, input.engine);
-    assert.equal(runtime.native, null); assert.equal(runtime.api.getNativeTreeStatistics, undefined);
-    report.loadedBefore = loaded();
-    for (let round = 0; round < settings.cleanupRounds; round += 1) await collectGarbage();
-    report.nativeBaseline = null; save();
-    report.measurement = await sampler.measureRow({ runtime, engine: input.engine, key: input.row, owners,
-      purpose: sampling.purposes.functional, onProgress: (block) => {
-        if (!report.blocks.includes(block)) report.blocks.push(block);
-        save(); onProgress({ blockIndex: block.blockIndex, complete: block.complete, tasks: block.tasks.length });
-      } });
-    report.loadedAfter = loaded();
-    report.distributionsAfter = inspectDistributions(manifest, pair, input.engine, settings);
-    report.affinitiesAfter = affinities();
-    assert.equal(report.affinitiesAfter.find((entry) => entry.tid === process.pid).mask, String(settings.cpu));
-    assert.ok(report.affinitiesAfter.some((entry) => entry.tid !== process.pid && !entry.disappeared && entry.mask !== String(settings.cpu)));
-  } catch (error) { failed = true; originalFailure = error; report.failure = failureView(error); }
-  finally {
-    report.trackedOwners = { window: owners.window.length, document: owners.document.length };
-    if (runtime) {
-      try {
-        report.cleanupTrace = await scheduler.observeCleanup(owners, runtime);
-        for (const endpoint of report.cleanupTrace.slice(-sampling.requiredFinalClearStates)) assert.equal(endpoint.clear, true, 'Pilot functional worker: retained Window/Document');
-      } catch (error) {
-        report.cleanupFailure = failureView(error);
-        if (!failed) { failed = true; originalFailure = error; }
-      }
-    }
-    report.complete = !failed; context.complete = !failed;
-    save();
-  }
-  if (failed) throw originalFailure;
-  return report;
-}
+/** @param {string[]} args - Manifest, calendar tuple and new report path. @param {function(object):void} [onProgress] - Scalar observer. @returns {Promise<object>} Functional report, never scientific observations. */
+function main(args, onProgress = () => {}) { return run(args, method.functionalMode, onProgress); }
 
 if (require.main === module) {
   Promise.resolve().then(() => {

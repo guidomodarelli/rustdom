@@ -75,7 +75,7 @@ test('Rust payload roles cannot enter a jsdom-only criterion', () => {
 
 test('historical functional data cannot be promoted into the unpublished scientific method', () => {
   const entry = structuredClone(cases[0]); entry.invocation.mode = 'capture';
-  assert.throws(() => replay(entry), /integral scientific method is not published/);
+  assert.throws(() => replay(entry), { code: 'ERR_ASSERTION' });
   assert.equal(replay(cases[0]).analysisObservation, null);
 });
 

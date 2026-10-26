@@ -15,7 +15,7 @@ const digestPattern = new RegExp(policy.sha256Pattern);
  * @param {object} manifest - Package manifest authenticated by the caller.
  * @param {object} plannedInput - Original process in the prospective calendar.
  * @param {object} invocation - Independent SDK/PID/host/clock observations from the process executor.
- * @param {{parentPid:number,workerSourceSha256:string}} producer - Parent PID and digest of authenticated worker bytes.
+ * @param {{parentPid:number,workerSourceSha256:string,workerEngineSourceSha256?:string}} producer - Parent and authenticated adapter/engine bytes; the legacy single-module profile has no separate engine.
  * @returns {object} Functional replay with explicit limits; no scientific observation or performance acceptance.
  */
 function replayEnvelope(report, context, manifest, plannedInput, invocation, producer) {
@@ -25,6 +25,7 @@ function replayEnvelope(report, context, manifest, plannedInput, invocation, pro
   assert.ok(producer && Number.isSafeInteger(producer.parentPid) && producer.parentPid > 0,
     'Pilot envelope: independently observed parent PID required');
   assert.equal(typeof producer.workerSourceSha256, 'string');
+  assert.equal(producer.workerSourceSha256.length, policy.sha256HexLength);
   assert.match(producer.workerSourceSha256, digestPattern);
   assert.ok(context && typeof context === 'object' && !Array.isArray(context));
   assert.equal(context.complete, true, 'Pilot envelope: incomplete producer sidecar');
@@ -32,6 +33,15 @@ function replayEnvelope(report, context, manifest, plannedInput, invocation, pro
   assert.equal(context.workerRevision, worker.revision);
   assert.equal(context.rawPayloadContractRevision, report.revision);
   assert.equal(context.workerSourceSha256, producer.workerSourceSha256, 'Pilot envelope: worker source binding differs');
+  if (producer.workerEngineSourceSha256 !== undefined || context.workerEngineSourceSha256 !== undefined) {
+    assert.equal(typeof producer.workerEngineSourceSha256, 'string');
+    assert.equal(producer.workerEngineSourceSha256.length, policy.sha256HexLength);
+    assert.match(producer.workerEngineSourceSha256, digestPattern);
+    assert.equal(context.workerEngineSourceSha256, producer.workerEngineSourceSha256, 'Pilot envelope: worker engine binding differs');
+  }
+  if (invocation.methodBindingSha256 !== undefined) {
+    assert.equal(context.methodBindingSha256, invocation.methodBindingSha256);
+  }
   assert.equal(context.pid, invocation.pid, 'Pilot envelope: worker PID differs from observed child');
   assert.equal(context.parentPid, producer.parentPid, 'Pilot envelope: parent PID differs from executor');
   assert.equal(context.node, invocation.node, 'Pilot envelope: producer SDK differs from invocation');

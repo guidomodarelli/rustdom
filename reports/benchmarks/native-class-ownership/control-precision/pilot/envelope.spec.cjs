@@ -120,3 +120,24 @@ test('continues checking raw task correctness and cleanup after the sidecar pass
   const retained = structuredClone(fixtures[0]); retained.report.cleanupTrace.at(-1).clear = false;
   assert.throws(() => replay(retained));
 });
+
+test('requires the separately authenticated engine whenever the producer declares a split worker profile', () => {
+  const fixture = structuredClone(fixtures[0]);
+  fixture.producer.workerEngineSourceSha256 = '0'.repeat(policy.sha256HexLength);
+  assert.throws(() => replay(fixture), /worker engine binding differs/);
+  fixture.context.workerEngineSourceSha256 = '1'.repeat(policy.sha256HexLength);
+  assert.throws(() => replay(fixture), /worker engine binding differs/);
+});
+
+test('rejects noncanonical worker digests even when sidecar and expected metadata share a trailing newline', () => {
+  const fixture = structuredClone(fixtures[0]);
+  fixture.producer.workerSourceSha256 += '\n'; fixture.context.workerSourceSha256 += '\n';
+  assert.throws(() => replay(fixture));
+});
+
+test('rejects an engine declared only by the sidecar instead of treating it as the legacy profile', () => {
+  const fixture = structuredClone(fixtures[0]);
+  // Synthetic extra metadata exercises the boundary; it is not a hash from the archived producer.
+  fixture.context.workerEngineSourceSha256 = '0'.repeat(policy.sha256HexLength);
+  assert.throws(() => replay(fixture));
+});

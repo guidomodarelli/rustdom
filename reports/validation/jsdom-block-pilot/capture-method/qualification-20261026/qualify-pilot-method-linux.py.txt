@@ -1,0 +1,78 @@
+"""Qualify the complete non-enabled method from a clean native Git fixture, preserving every attempted command."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source = Path('/dev/shm/rustdom-pilot-method-source-20261026')
+package = Path('/dev/shm/rustdom-envelope-package-20261026')
+output = repository / '.cache/pilot-method-qualification-20261026'
+scratch = Path('/dev/shm/rustdom-pilot-method-qualification-20261026')
+assert not output.exists() and not scratch.exists()
+output.mkdir(); scratch.mkdir()
+head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source).decode().strip()
+assert head == '5bd2e200019b54f9b333cec5c6b7b5e0de85ce41'
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''
+pilot = source / 'reports/benchmarks/native-class-ownership/control-precision/pilot'
+commands = []
+
+def run(label, argv, environment=None, timeout=960):
+    started = time.monotonic()
+    record = {'label': label, 'argv': list(map(str, argv)), 'sourceCommit': head,
+              'sourceIsPublishedCommit': False, 'started': True, 'scientificCaptureExecuted': False}
+    commands.append(record)
+    (output / 'commands.json').write_bytes(json.dumps(commands, indent=2).encode() + b'\n')
+    with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+        child = subprocess.Popen(record['argv'], cwd=source, env=environment, stdout=stdout, stderr=stderr)
+        record['pid'] = child.pid
+        print(json.dumps({'label': label, 'pid': child.pid, 'started': True}), flush=True)
+        code = child.wait(timeout=timeout)
+    record.update(exitCode=code, elapsedSeconds=time.monotonic() - started)
+    (output / 'commands.json').write_bytes(json.dumps(commands, indent=2).encode() + b'\n')
+    assert code == 0, label + ': ' + (output / (label + '.stderr.log')).read_text(errors='replace')
+    print(json.dumps({'label': label, 'exitCode': code, 'elapsedSeconds': record['elapsedSeconds']}), flush=True)
+    return (output / (label + '.stdout.log')).read_bytes()
+
+run('archive-contracts', ['python3', '-B', pilot / 'capture/test_archive.py'], timeout=120)
+run('receipt-contracts', ['python3', '-B', pilot / 'capture/test_supervise.py'], timeout=120)
+for version, relative, checksum in [
+    ('22.12.0', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    node = primary / relative
+    assert hashlib.sha256(node.read_bytes()).hexdigest() == checksum
+    sdk = scratch / version; sdk.mkdir()
+    tests = ['blocks.spec.cjs', 'variance.spec.cjs', 'process-reader.spec.cjs', 'worker.spec.cjs',
+             'envelope.spec.cjs', 'capture/binding.spec.cjs', 'capture/once.spec.cjs', 'capture/io.spec.cjs']
+    run(version + '-contracts', [node, '--test', *[pilot / name for name in tests]], timeout=120)
+    run(version + '-integrity', [node, '--test', pilot / 'integrity.spec.cjs'],
+        {**os.environ, 'RUSTDOM_JSDOM_BLOCK_FUNCTIONAL_PACKAGE': str(package)}, timeout=120)
+    run(version + '-legacy', [node, '--expose-gc', pilot / 'functional.cjs', '--functional', package, sdk / 'legacy'])
+    for phase in ['AA', 'AB']:
+        label = version + '-' + phase; target = sdk / phase
+        criterion = 'v' + version + '/' + phase + '/jsdom/mutation-records-collect/100'
+        expected = output / (label + '-expected.json'); supervisor = output / (label + '-supervisor.json')
+        run(label + '-expectation', [node, pilot / 'capture/expectation.cjs', 'functional', criterion, expected, '--supervised'], timeout=120)
+        run(label + '-supervised', ['python3', '-B', pilot / 'capture/supervise.py', '--functional', supervisor,
+            node, '--expose-gc', pilot / 'capture/run.cjs', '--functional', package, target, criterion])
+        run(label + '-copy', [node, pilot / 'capture/io.cjs', '--copy-new', supervisor, target / 'supervisor.json'], timeout=120)
+        archive = output / (label + '.tar.gz')
+        receipt = json.loads(run(label + '-archive', ['python3', '-B', pilot / 'capture/archive.py', '--pack', target, archive], timeout=120))
+        extracted = sdk / (phase + '-extracted')
+        run(label + '-extract', ['python3', '-B', pilot / 'capture/archive.py', '--extract', archive, receipt['archiveSha256'], extracted], timeout=120)
+        run(label + '-replay', [node, pilot / 'capture/verify.cjs', extracted, expected, output / (label + '-result.json')], timeout=120)
+    run(version + '-reader-contracts', [node, '--test', pilot / 'capture/verify.spec.cjs'],
+        {**os.environ, 'RUSTDOM_JSDOM_PILOT_CRITERION_FIXTURE': str(sdk / 'AA-extracted'),
+         'RUSTDOM_JSDOM_PILOT_CRITERION_EXPECTED': str(output / (version + '-AA-expected.json'))}, timeout=120)
+    run(version + '-lifecycle', ['python3', '-B', pilot / 'capture/qualify-lifecycle.py', node, package, sdk / 'lifecycle'], timeout=240)
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''
+summary = {'sourceCommit': head, 'sourceIsPublishedCommit': False, 'sourceClean': True,
+    'coordinatorPositiveWorkers': 128, 'legacyPositiveWorkers': 32, 'legacyAdverseWorkers': 12,
+    'supervisedCancellationCases': 4, 'nodeContractsPerSdk': 60, 'pythonContracts': 10,
+    'sourceCodeIsEnabledForScience': False, 'scientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False, 'commands': commands}
+(output / 'summary.json').write_bytes(json.dumps(summary, indent=2).encode() + b'\n')
+print(json.dumps({key: value for key, value in summary.items() if key != 'commands'}), flush=True)

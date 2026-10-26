@@ -1,5 +1,40 @@
 # Continuar rustdom en otra máquina
 
+## Checkout en verde y capturador funcional calificado — 2026-10-26 UTC
+
+Confirmado el fix publicado en `6a8f541c`: integración archivada
+**40320141130, intento 1, 2/2 aprobados**, y CI general **40320139639,
+8/8 aprobados**. Los ZIP, API, logs y manifiestos del primero están en
+`reports/validation/jsdom-block-pilot/capture-method/qualification-20261026/hosted-checkout-40320141130/`.
+El único bloqueo rojo sigue siendo ownership Node 22/24 por el presupuesto
+histórico rechazado; no se relajó el gate ni se repitió esa captura.
+
+El capturador prospectivo ahora tiene supervisor Linux, manejo de
+cancelaciones, archivo limitado y replay independiente. Pasaron 60 contratos
+Node por SDK en Windows y Linux, 10 Python por plataforma, 128 workers
+coordinados, 32 legacy positivos y 12 adversos. Cuatro cancelaciones o muertes
+forzadas reales conservaron parciales y dejaron cero descendientes propios.
+Fuente calificada: Git Linux limpio privado `5bd2e200`, no publicado.
+Los YAML posteriores corrigen extracción por ID con `merge-multiple: true`;
+actionlint y revisión aislada final aprobados. El CI funcional del nuevo SHA
+ejercerá también esa ruta exacta de transporte.
+
+Datos y warmup íntegros en `reports/benchmarks/native-class-ownership/jsdom-block-method-functional/20261026/`;
+QA, fuente y límites en `reports/validation/jsdom-block-pilot/capture-method/qualification-20261026/`;
+endpoints y snapshots en `reports/memory/jsdom-block-pilot/capture-method/20261026/`.
+Las épocas previas están separadas; no hacer pooling ni usarlas como estudio.
+Los snapshots no prueban memoria pico ni ausencia universal de fugas.
+
+El método sigue **deshabilitado y PREVIEW**. Verificar los cuatro jobs de
+contratos/transporte y ocho generales del SHA publicado antes de habilitar
+el método completo, actualizar sus hashes y volver a calificar ese SHA.
+La autorización permanente cubre los siguientes pasos: no pedir permiso.
+No reaplicar etiquetas históricas ni reiniciar estudios consumidos. El piloto
+solo mide controles jsdom y nunca acepta ownership: performanceAccepted=null,
+gateReevaluated=false. Sin tag/merge; runtime híbrido y objetivo general activo.
+Las 48 entradas ajenas permanecen intactas. Engram continúa sin identidad
+registrada; no usar memoria ni inventar IDs.
+
 ## Timeout del checkout archivado corregido localmente — 2026-10-26 UTC
 
 El último rojo adicional fue `Integración archivada Node 24.14.1`, job
