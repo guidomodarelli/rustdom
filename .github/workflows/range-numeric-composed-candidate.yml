@@ -82,6 +82,7 @@ jobs:
           components: rustfmt, clippy
       - name: Probar preparación real y preservar entradas ajenas
         run: |
+          python -B reports/implementation/range-initialization-candidate/tools/checkout.spec.py "$RUNNER_TEMP/range-initialization-filtered-contracts" > "$RUNNER_TEMP/range-initialization-filtered.stdout.log" 2> "$RUNNER_TEMP/range-initialization-filtered.stderr.log"
           python -B reports/implementation/range-initialization-candidate/tools/prepare.spec.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/range-initialization-source" "$RUNNER_TEMP/range-initialization-contracts" > "$RUNNER_TEMP/range-initialization-contracts.stdout.log" 2> "$RUNNER_TEMP/range-initialization-contracts.stderr.log"
           python -B reports/implementation/range-combined-candidate/tools/command.spec.py > "$RUNNER_TEMP/range-initialization-command.stdout.log" 2> "$RUNNER_TEMP/range-initialization-command.stderr.log"
       - name: Aplicar patch y autenticar los 344 inputs
@@ -98,6 +99,7 @@ jobs:
             ${{ runner.temp }}/range-initialization-*.log
             ${{ runner.temp }}/range-initialization-proof/
             ${{ runner.temp }}/range-initialization-contracts/
+            ${{ runner.temp }}/range-initialization-filtered-contracts/
             artifacts/range-initialization-source/dist/
             artifacts/range-initialization-source/types/
             artifacts/range-initialization-source/src/

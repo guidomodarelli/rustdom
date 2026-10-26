@@ -1,5 +1,25 @@
 # Continuar rustdom en otra máquina
 
+## Fix del preflight parcial de CI — 2026-10-26 UTC
+
+El run hosted nuevo **40260877389**, intento 1, head **8dc0513a**, falló antes de
+compilar: `git clone --shared` no puede servir blobs ausentes del repositorio
+promisor/sparse de actions/checkout. Linux y Windows muestran el mismo error;
+ZIP/API/stderr autenticados conservados en
+`reports/validation/range-numeric-composed-candidate/ci-checkout-fix/`.
+
+Se corrigió solo la preparación de los contratos: metadatos Git independientes,
+alternates a objetos locales, shallow/promisor preservados y checkout real del
+SHA existente. Sin HEAD ficticio ni normalización de campos fuente. La regresión
+filtered+shallow con remoto desconectado pasó en Linux/Windows, incluido fsck;
+los cinco contratos de preparación y actionlint pasaron. Review aislada 0 hallazgos.
+
+Rust, binding, tipos y patch compuesto no cambiaron; la calificación local completa
+de Node22/24 sigue válida. Falta comprobar la nueva matriz hosted sobre el fix.
+No relanzar estudios consumidos ni tratar este preflight como aceptación de
+rendimiento. Los dos gates ownership aún requieren evidencia aceptada.
+No reescribir los manifiestos históricos: auditar cada uno contra su commit.
+
 ## Composición numérica calificada en Linux; siguiente CI de plataformas — 2026-10-26 UTC
 
 El PR80 todavía tiene pendientes los dos gates ownership: falta aceptación de

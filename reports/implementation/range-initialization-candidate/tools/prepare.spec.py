@@ -2,12 +2,12 @@
 import json
 from pathlib import Path
 import shutil
-import subprocess
 import sys
 
 if sys.flags.optimize:
     raise RuntimeError('Preparation contracts require non-optimized Python')
 from candidate import POLICY, check_inputs, digest, identity, inputs, prepare
+from checkout import checkout as checkout_from_objects
 
 
 def run(repository, native_source, output):
@@ -19,17 +19,7 @@ def run(repository, native_source, output):
 
     def checkout(label):
         target = output / label
-        for argv in [
-            ['git', 'clone', '--shared', '--no-checkout', str(native_source), str(target)],
-            ['git', '-C', str(target), 'sparse-checkout', 'set', '--no-cone', '/*', '!/*/', '/src/', '/scripts/',
-             '/benchmarks/', '/third-party/', '/types/', '/tests/',
-             '/reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz',
-             '/reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz',
-             '/reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz'],
-            ['git', '-C', str(target), 'checkout', '--detach', POLICY['baseCommit']],
-        ]:
-            observed = subprocess.run(argv, capture_output=True, timeout=60)
-            assert observed.returncode == 0, observed.stderr.decode(errors='replace')
+        checkout_from_objects(native_source, target, POLICY['baseCommit'], POLICY['checkoutPatterns'], POLICY['gitTimeoutSeconds'])
         assert identity(target)['sourceChangesRaw'] == ''
         return target
 
