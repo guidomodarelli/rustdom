@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Paquete e índice confirmados en CI: ff07406d — 2026-10-26 UTC
+
+Run **40281778101**, intento 1, head **ff07406d**, terminó **2/2 aprobado**.
+Windows: job121436450215, artefacto12633165029. Ubuntu: job121436450409,
+artefacto12633200602. ZIP/API/logs/manifiestos y lector offline en
+`reports/validation/numeric-package-ci/hosted/40281778101/`.
+
+Se verificaron siete contratos Git por plataforma, transporte 5 Linux/3 Windows
+con 2 skips, trece contratos de ensamblado y seis ciclos de runtime por SDK Linux
+22.12.0/24.14.1, doce endpoints claros. La regresión del índice de igual tamaño
+está incluida; no confundir con los doce contratos del anterior CI f2.
+El lector selecciona solo políticas registradas junto al código por ID numérico
+ASCII y nunca confía en policy.json del dataset. Pasaron seis contratos del
+dataset viejo y cinco del nuevo en Windows y Linux. Recursos hosted en
+`reports/memory/numeric-package-ci/hosted/40281778101/`.
+
+Esto cierra preparación y procedencia del paquete a277/fb06276a, sin reconstruir,
+sin cambiar los 786 pins y sin aceptar rendimiento. **Próximo trabajo técnico:
+fijar/revisar e implementar el protocolo prospectivo de precisión**, tomando
+`control-precision/VARIANCE-PILOT-DRAFT.md` como borrador, no como método activado.
+No hubo captura nueva. Ownership conserva su rechazo; no tag/merge. Runtime
+híbrido, migración general pendiente y las 48 entradas ajenas protegidas.
+
 ## CI f2 aprobado; cierre adicional del índice — 2026-10-26 UTC
 
 Run 40277876693, intento 1, head f2a87184: Windows y Linux aprobaron 2/2.

@@ -31,8 +31,15 @@ def tests(raw, count, skipped=0):
     assert ('OK (skipped=' + str(skipped) + ')' if skipped else 'OK') in lines
     return {'run': count, 'passed': count - skipped, 'skipped': skipped}
 
-def verify(directory):
-    policy = POLICY
+def verify(directory, policy_id=None):
+    """Select only a registered policy beside current code; never use a policy supplied by inspected data."""
+    if policy_id is None:
+        policy = POLICY
+    else:
+        if not policy_id.isascii() or not policy_id.isdecimal():
+            raise ValueError('Hosted package verification requires a numeric registered policy ID')
+        policy = json.loads((Path(__file__).resolve().parent / 'constants' / (policy_id + '.json')).read_bytes())
+        assert policy['runId'] == int(policy_id)
     expected = policy['expected']
     assert policy['complete'] is True and policy['status'] == 'completed' and policy['conclusion'] == 'success'
     assert policy['attempt'] == 1 and len(policy['artifacts']) == 2
@@ -102,5 +109,5 @@ def verify(directory):
         'newScientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
 
 if __name__ == '__main__':
-    assert len(sys.argv) == 2, 'Provide authenticated hosted dataset directory'
-    print(json.dumps(verify(Path(sys.argv[1]).resolve(strict=True)), indent=2))
+    assert len(sys.argv) in [2, 3], 'Provide authenticated hosted dataset directory and optional registered policy ID'
+    print(json.dumps(verify(Path(sys.argv[1]).resolve(strict=True), sys.argv[2] if len(sys.argv) == 3 else None), indent=2))

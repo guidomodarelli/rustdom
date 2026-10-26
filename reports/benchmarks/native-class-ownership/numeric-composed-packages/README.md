@@ -16,6 +16,12 @@ contratos y probes locales están en
 Un índice legítimamente diferente necesita un recibo nuevo; para trasladar el
 ensamble publicado se usa el tar existente, sin normalizar metadata Git.
 
+La confirmación del fix terminó: **run 40281778101, head ff07406d, dos jobs
+aprobados**, incluidos los trece contratos. ZIP/API/logs completos y lectura
+offline por política independiente en
+`reports/validation/numeric-package-ci/hosted/40281778101/`. Esto cierra la
+preparación del paquete; el protocolo de precisión y su captura siguen pendientes.
+
 Selecciona exclusivamente Ubuntu/Node24.14.1, artefacto **12628261403** del run
 **40268999071**, intento1, head **2a53f88c**. Las seis combinaciones de esa matriz
 aprobaron. El ELF es
