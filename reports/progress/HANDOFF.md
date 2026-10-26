@@ -1,5 +1,38 @@
 # Continuar rustdom en otra máquina
 
+## Publicación revisada del método v2; CI propio pendiente — 2026-10-26 UTC
+
+La rama integra la evidencia publicada en **b348202b** y habilita la preparación
+revisada de `ownership-jsdom-block-pilot-v2`. Esto no activa ninguna captura:
+la etiqueta v2 todavía no se aplicó. Antes de aplicarla una única vez, el nuevo
+SHA publicado debe aprobar sus propios 4 checks específicos y 8 generales.
+No atribuirle el CI verde anterior de **57c3c2c9**.
+
+La revisión aislada no encontró hallazgos accionables: grafo de 902 fuentes,
+903 entradas de publicación y 850 pins históricos conservados. Evidencia:
+`reports/validation/jsdom-block-pilot-v2/method-readiness/20261026/`.
+El perfil privado sin revisión (900ce24d) pasó 54 contratos por SDK y rechazó
+la revisión incompleta. El perfil revisado (00df5134), en un checkout Linux
+Git real y limpio, admitió las 903 entradas en Node 22.12.0 y 24.14.1 y rechazó
+la ausencia del controller antes de iniciar workers. Se conservaron ambos
+snapshots, los logs y el fallo inicial del fixture sparse sin metadata de
+archivo. Son pruebas de preparación, sin DOM ni secuencia científica.
+
+El recibo revisado tiene SHA256
+`dd019dc36e3921287f8bf1d7591f196e5a62866401d37cae7236ad2197aa3beb`.
+Las banderas habilitadas y la revisión completa no sustituyen la calificación
+hosted del nuevo commit. No reconstruir el paquete sellado ni repetir v1.
+Resolver y probar almacenamiento de transporte antes de activar: el disco
+local tiene poco espacio; preservar originales completos mediante archivos
+o partes verificadas, sin borrar evidencia ni objetos Git ajenos.
+
+El gate histórico conserva `accepted=false` (13/32 controles sin calibración).
+Este diagnóstico jsdom mantiene `performanceAccepted=null` y
+`gateReevaluated=false`; no permite tag ni merge de ownership. Continúa el
+objetivo general y el runtime híbrido. Autorización permanente vigente, sin
+otra pregunta. Las 48 entradas ajenas deben seguir intactas.
+
+
 ## Fix 57c3c2c9 calificado y evidencia complementaria — 2026-10-26 UTC
 
 La fuente de `feature/native-class-ownership` sigue en **57c3c2c9**. Su propio
