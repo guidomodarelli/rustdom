@@ -1,13 +1,20 @@
 {
-  "moduleOrder": ["runtime", "stream", "artifacts", "publish"],
+  "moduleOrder": ["runtime", "stream", "artifacts", "publish", "storage", "replay", "coordinator"],
   "requiredFiles": [
     "runtime.py",
     "stream.py",
     "artifacts.py",
     "constants/runtime.json",
     "constants/artifacts.json",
+    "constants/coordinator.json",
     "constants/loader.json",
     "native-cli.lock.json"
   ],
-  "optionalFiles": ["publish.py"]
+  "optionalFiles": ["publish.py", "storage.py", "replay.py", "coordinator.py"],
+  "dependencies": {
+    "publish.py": ["runtime.py", "artifacts.py"],
+    "storage.py": ["constants/coordinator.json"],
+    "replay.py": ["runtime.py", "storage.py", "constants/coordinator.json"],
+    "coordinator.py": ["runtime.py", "artifacts.py", "publish.py", "storage.py", "replay.py", "constants/coordinator.json"]
+  }
 }

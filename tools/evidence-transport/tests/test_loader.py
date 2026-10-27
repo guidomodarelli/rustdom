@@ -19,14 +19,14 @@ def suite(arguments):
     original = Path(__file__).resolve().parent.parent
     loader_path = original/'loader.py'
     loader_raw = loader_path.read_bytes()
-    if hashlib.sha256(loader_raw).hexdigest() != '698d0a9a2b2edbf2217fbc4966791a14405534dc2cc8d96e902268a55edce0cd':
+    if hashlib.sha256(loader_raw).hexdigest() != '10b3570d0cf7927a8db31d63bf54bd5a7901f07231d12201d358a5fcb75b7d0a':
         raise ValueError('Reviewed loader changed')
     bootstrap = {'__name__':'reviewed_loader_test','__file__':str(loader_path)}
     exec(compile(loader_raw,str(loader_path),'exec'),bootstrap)
     fixture = root/'own-source-fixture'
     fixture.mkdir()
     files = ['runtime.py','stream.py','artifacts.py','constants/runtime.json','constants/artifacts.json',
-        'constants/loader.json','native-cli.lock.json']
+        'constants/coordinator.json','constants/loader.json','native-cli.lock.json']
     pins = {}
     for relative in files:
         raw = (original/relative).read_bytes()
@@ -94,14 +94,27 @@ def suite(arguments):
         raise AssertionError('Incomplete policy/lock closure executed transport modules')
     if any(name in sys.modules for name in modules):
         raise AssertionError('Incomplete closure imported transport modules')
+    partial = dict(pins)
+    module_raw = (original/'coordinator.py').read_bytes()
+    (fixture/'coordinator.py').write_bytes(module_raw)
+    partial['coordinator.py'] = {'bytes':len(module_raw),'sha256':hashlib.sha256(module_raw).hexdigest()}
+    try:
+        bootstrap['load'](fixture,partial)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Selected coordinator without pinned dependency closure executed')
+    if any(name in sys.modules for name in modules) or marker.read_bytes() != previous_effect:
+        raise AssertionError('Missing selected-module dependency rejection happened after effects')
     summary = {'validTimestampBytecodeControlPassed':True,'cachedReplacementIgnoredByPinnedLoader':True,
         'actualPinnedCancellationBehaviorPassed':True,'preloadedAliasesRefused':True,
         'changedPolicyRejectedBeforeImports':True,'incompleteClosureRejectedBeforeImports':True,
+        'missingSelectedModuleDependencyRejectedBeforeImports':True,
         'sourcePins':pins,'loaderSha256':hashlib.sha256(loader_raw).hexdigest(),
         'newDOMExecuted':False,'GitHubInvoked':False,'realCredentialsRead':False,
         'fixturePayloadWasInnocuousAndLocal':True,'scientificCaptureExecuted':False}
     (root/'summary.json').write_bytes(json.dumps(summary,indent=2).encode()+b'\n')
-    print(json.dumps({'allSixLoaderChecksPassed':True}),flush=True)
+    print(json.dumps({'allSevenLoaderChecksPassed':True}),flush=True)
 
 
 if __name__ == '__main__':

@@ -71,7 +71,7 @@ def suite(arguments):
         raise AssertionError('Partial run did not preserve all missing criteria explicitly')
     records.append({'case':'partial-run-never-claims-completeness','passed':True})
     item = plan['records'][1]
-    original_zip = arguments.collection/(str(item['metadata']['id'])+'.zip')
+    original_zip = arguments.zip if arguments.zip is not None else arguments.collection/(str(item['metadata']['id'])+'.zip')
     if runtime.checksum_path(original_zip) != item['metadata']['digest'][7:]:
         raise ValueError('Real preserved ZIP differs from the original API digest')
     inventory = artifacts.inventory_zip(original_zip)
@@ -146,4 +146,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     for name in ['source','root','cli','collection']:
         parser.add_argument('--'+name,type=Path,required=True)
+    parser.add_argument('--zip',type=Path)
     suite(parser.parse_args())

@@ -1,5 +1,30 @@
 # Continuar rustdom en otra máquina
 
+## Transporte secuencial calificado; activación v2 pendiente — 2026-10-27 UTC
+
+La fuente calificada del PR #80 permanece en 4196c496. La rama de evidencia
+feature/pilot-v2-ci-evidence publica el coordinador probado con 34 artifacts,
+37 partes y 68 replays offline en ambos Node fijados. Sus datos únicos completos
+son 64 procesos funcionales ya existentes; los 64 replays históricos siguen
+parciales. No se ejecutó DOM nuevo ni se aceptó rendimiento Rust.
+
+Ver reports/validation/jsdom-block-pilot-v2/coordinator-qualification/20261026/.
+El descriptor d959 documenta la integración completa; el overlay 89dd corrige
+el scan previo a publicación y pasó una regresión con ZIP real, cuatro casos
+de entrada y seis límites filesystem. Se conservan archivos íntegros,
+manifest, fuentes as-run, resultados desfavorables y errores del exportador.
+No ejecutar scripts archivados. La entrada mantenida es
+tools/evidence-transport/collect.py; usa Git Linux real limpio 4196, SDK 22.12.0/
+24.14.1 fijados, API terminal explícita y publicación secuencial de originales.
+
+La etiqueta ownership-jsdom-block-pilot-v2 todavía no se aplicó. Verificar
+SHA, CI propio 4+8, 903 bindings/850 pins, paquete sellado, historial único y
+ventana antes de aplicarla UNA vez. Autorización permanente: no preguntar.
+El diagnóstico es jsdom-only, performanceAccepted=null/gateReevaluated=false;
+no reemplaza rechazos ni permite tag/merge de ownership. Mantener el runtime
+híbrido y objetivo general activo. Preservar las 48 entradas ajenas.
+
+
 ## Componentes de transporte probados sobre33artifacts — 2026-10-26 UTC
 
 Se autenticaron33ZIP/408198146bytes del v1 consumido y64replays parciales en

@@ -1,0 +1,159 @@
+"""Preserve reviewed sequential transport QA, without rerunning DOM or changing published source."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import tarfile
+
+if __import__('sys').flags.optimize or __import__('sys').platform != 'linux':
+    raise RuntimeError('Qualification preservation requires ordinary Linux Python')
+SOURCE = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+DATA = Path('/mnt/c/Users/guido/.codex/worktrees/pilot-v2-ci-evidence/rustdom')
+TOOL = DATA/'tools/evidence-transport'
+NATIVE_SOURCE = Path('/dev/shm/rustdom-pilot-v2-published-525e2be6')
+BASE = DATA/'reports/validation/jsdom-block-pilot-v2/coordinator-qualification/20261026'
+ROOTS = {
+    'negative':Path('/run/rustdom-coordinator-negative-20261026'),
+    'positive':Path('/run/rustdom-coordinator-positive-20261026'),
+    'loader':Path('/run/rustdom-coordinator-loader-20261026'),
+    'artifact-boundaries':Path('/run/rustdom-coordinator-artifact-boundaries-20261026'),
+    'boundaries-first':Path('/run/rustdom-coordinator-boundaries-20261026'),
+    'boundaries-current':Path('/run/rustdom-coordinator-boundaries-v2-20261026'),
+    'entry-first':Path('/run/rustdom-production-collector-qualification-20261027'),
+    'entry-first-rejected':Path('/run/rustdom-production-collector-qualification-20261027-wrong-source'),
+    'entry-second':Path('/run/rustdom-production-collector-qualification-v2-20261027'),
+    'entry-second-rejected':Path('/run/rustdom-production-collector-qualification-v2-20261027-wrong-source'),
+    'entry-current':Path('/run/rustdom-production-collector-qualification-v3-20261027'),
+    'entry-current-rejected':Path('/run/rustdom-production-collector-qualification-v3-20261027-wrong-source'),
+    'entry-current-namespace-refused':Path('/run/rustdom-production-collector-qualification-v3-20261027-namespace'),
+    'publication-scan':Path('/run/rustdom-coordinator-prepublication-scan-20261027'),
+    'boundaries-prepublication':Path('/run/rustdom-coordinator-boundaries-v3-20261027'),
+    'reader-epoch-first':SOURCE/'.cache/coordinator-reader-epoch-1',
+    'reader-epoch-reviewed':SOURCE/'.cache/coordinator-reviewed-driver',
+}
+
+
+def digest(filename):
+    checksum = hashlib.sha256()
+    with filename.open('rb') as reader:
+        for chunk in iter(lambda:reader.read(1048576),b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+
+
+def write(filename, value):
+    filename.parent.mkdir(parents=True,exist_ok=True)
+    with filename.open('xb') as writer:
+        writer.write(json.dumps(value,indent=2,ensure_ascii=False).encode()+b'\n')
+
+
+negative = json.loads((ROOTS['negative']/'summary.json').read_bytes())
+positive = json.loads((ROOTS['positive']/'summary.json').read_bytes())
+if digest(ROOTS['negative']/'summary.json') != 'c5af58a23c0fd7cd1e3d038ff33a8201b9e3eff8d60a5919f6ffd49dce6277bb':
+    raise ValueError('Reviewed negative result changed')
+if digest(ROOTS['positive']/'summary.json') != 'dca4fd98ee9096b1c26359fb70efade9efded3863338e2d50e4e3fefaa4dcf3a':
+    raise ValueError('Reviewed positive result changed')
+descriptor = json.loads((TOOL/'constants/coordinator-reader.lock.json').read_bytes())
+if digest(TOOL/'constants/coordinator-reader.lock.json') != '89dd18494ca723b0cd91cec8ea807e69877919ac8a7cdd2a52ce7ab502592ff6':
+    raise ValueError('Coordinator qualified code lock changed')
+for relative,pin in {**descriptor['files'],'loader.py':descriptor['loader']}.items():
+    if (TOOL/relative).stat().st_size != pin['bytes'] or digest(TOOL/relative) != pin['sha256']:
+        raise ValueError('Qualified code changed: '+relative)
+if positive['coordinatedArtifacts'] != 34 or positive['boundedParts'] != 37 or list((ROOTS['positive']/'work').iterdir()):
+    raise ValueError('Reviewed sequential qualification is incomplete')
+if not negative['originalAndSlotRetained'] or not negative['wholeOriginalPublishedBeforeFailure']:
+    raise ValueError('Reviewed controlled rejection did not retain its originals')
+git = ['git','--no-optional-locks','-C',str(NATIVE_SOURCE)]
+if subprocess.check_output(git+['rev-parse','HEAD']).strip() != b'4196c496187c88c92304516287a7e644659a8536' or subprocess.check_output(git+['status','--porcelain']) != b'':
+    raise ValueError('Actual native reader source changed')
+token = subprocess.check_output(['/mnt/c/Program Files/GitHub CLI/gh.exe','auth','token','--hostname','github.com'],stderr=subprocess.PIPE,timeout=30).strip()
+if not token:
+    raise ValueError('Credential safety scan requires the existing opaque credential in memory')
+files = []
+for role,root in ROOTS.items():
+    for filename in sorted(root.rglob('*')):
+        if filename.is_symlink():
+            raise ValueError('Qualification preservation refuses linked entries')
+        if filename.is_file():
+            name = role+'/'+filename.relative_to(root).as_posix()
+            files.append((name,filename))
+for name in ['qualify-coordinator-linux.py','coordinator-current-descriptor.json','coordinator-descriptor-v2.json','coordinator-descriptor-v3.json',
+        'coordinator-sync-audit.json','coordinator-sync-verification.json','audit-coordinator-sync.py',
+        'verify-coordinator-sync.py','preserve-coordinator-qualification.py']:
+    files.append(('readers-as-run/'+name,SOURCE/'.cache'/name))
+for name in ['collect.py','tests/test_collect.py','tests/test_publication_scan.py','coordinator.py','constants/coordinator-reader.lock.json']:
+    files.append(('production-entry/'+name,TOOL/name))
+BASE.mkdir(parents=True,exist_ok=True)
+archive_path = BASE/'transport-receipts.tar.gz'
+inventory = {}
+resume = __import__('sys').argv[1:] == ['--resume']
+if resume:
+    existing = json.loads((BASE/'transport-inventory.json').read_bytes())
+    if archive_path.stat().st_size != existing['bytes'] or digest(archive_path) != existing['sha256']:
+        raise ValueError('Previously preserved archive changed before metadata-only continuation')
+    inventory = existing['files']
+else:
+    with archive_path.open('xb') as writer,tarfile.open(fileobj=writer,mode='w:gz') as archive:
+        for name,filename in files:
+            tail = b''
+            with filename.open('rb') as reader:
+                for chunk in iter(lambda:reader.read(1048576),b''):
+                    joined = tail+chunk
+                    if token in joined:
+                        raise ValueError('Credential bytes found; no publication is permitted')
+                    tail = joined[-len(token):]
+            if name in inventory:
+                raise ValueError('Duplicate preservation member')
+            inventory[name] = {'bytes':filename.stat().st_size,'sha256':digest(filename)}
+            archive.add(filename,arcname=name,recursive=False)
+with tarfile.open(archive_path,'r:gz') as archive:
+    members = archive.getmembers()
+    if len(members) != len(inventory):
+        raise ValueError('Preserved archive member count differs')
+    for member in members:
+        if not member.isfile() or member.size != inventory[member.name]['bytes']:
+            raise ValueError('Preserved archive member type/size differs')
+        checksum = hashlib.sha256()
+        with archive.extractfile(member) as reader:
+            for chunk in iter(lambda:reader.read(1048576),b''):
+                checksum.update(chunk)
+        if checksum.hexdigest() != inventory[member.name]['sha256']:
+            raise ValueError('Preserved archive failed independent byte verification')
+if not resume:
+    write(BASE/'transport-inventory.json',{'archive':'transport-receipts.tar.gz','bytes':archive_path.stat().st_size,
+        'sha256':digest(archive_path),'files':inventory,'allMembersIndependentlyReadBack':True,
+        'archivedCodeMustNotExecute':True,'credentialsPersisted':False})
+processes = [json.loads(filename.read_bytes()) for filename in (ROOTS['positive']/'journals').glob('*.process.json')]
+if len(processes) != 1597 or any(type(process['exitCode']) is not int or process.get('directChildReaped',True) is not True or process['subtree']['ownedDescendantsRemaining'] for process in processes):
+    raise ValueError('Positive transport supervision receipts are incomplete')
+if resume:
+    write(BASE/'preservation-error.json',{'stage':'resource summary after verified archive publication to local report',
+        'errors':[{'errorType':'KeyError','message':"'directChildReaped'"},
+            {'errorType':'ValueError','message':'Positive transport supervision receipts are incomplete'}],
+        'cause':'37 streaming readback receipts use exitCode plus subtree closure; 1560 command receipts also carry directChildReaped. Exactly64 intentional partial-reader exits1 are closed processes, not supervision failures.',
+        'originalArchiveAndInventoryUnchanged':True,'metadataOnlyContinuation':True,'scientificCaptureRepeated':False})
+    (BASE/'preservation-resume.py.txt').write_bytes(Path(__file__).read_bytes())
+resources = {'scope':'Finite transport QA plus existing jsdom functional fixture endpoints; no native Rust leak certification.',
+    'supervisedPositiveProcesses':len(processes),'allPositiveProcessTreesClosed':True,'emptyOwnedPositiveWorkspace':True,
+    'discardableGitRepositoriesConfirmedThenRetired':74,'originalBorrowedInputsNotRemoved':True,
+    'negativeOriginalAndSlotRetained':True,'peakMemoryMeasured':False,'universalLeakFreedomDemonstrated':False,
+    'uniqueExistingFunctionalDataTotals':positive['uniqueExistingFunctionalDataTotals'],
+    'criteria':[{'phase':phase,'result':positive['records'][-1]['inspection']['readers'][index]['result']}
+        for phase,index in [('AA',0),('AB',2)]],
+    'performanceAccepted':None,'gateReevaluated':False}
+write(DATA/'reports/memory/git-evidence-transport/20261026/coordinator.json',resources)
+qualification = {'sourceCommit':'4196c496187c88c92304516287a7e644659a8536','sourceBindings':903,'historicalPinsPreserved':850,
+    'coordinatorDescriptorAsIntegratedSha256':positive['descriptorSha256'],
+    'productionDescriptorSha256':digest(TOOL/'constants/coordinator-reader.lock.json'),
+    'productionOverlay':'Optional callback before publication; bounded scan and namespace refusal qualified separately with a real authenticated ZIP and synthetic credentials.',
+    'rawPartsFinalCommit':positive['finalEvidenceCommit'],'coordinatedArtifacts':34,'boundedParts':37,
+    'authenticatedOriginalBytes':sum(record['original']['bytes'] for record in positive['records']),
+    'historicalPartialReplays':64,'completeFunctionalReplays':4,'uniqueExistingFunctionalDataTotals':positive['uniqueExistingFunctionalDataTotals'],
+    'metadataAndArchiveBoundaryCasesPassed':31,'loaderControlsPassed':7,'filesystemBoundaryCasesPassed':6,
+    'productionEntryRefusalCasesPassed':4,'prepublicationCredentialScanCasePassed':True,'realWrongSourceRunRejected':40366685759,
+    'controlledInspectorRejectionPreservedOriginal':True,'isolatedReviewRequiredBeforePublication':True,
+    'coordinatorIntegrationQualified':True,'scientificCaptureActivatedByQualification':False,
+    'newDOMExecuted':False,'archivedCodeExecuted':False,'performanceAccepted':None,'gateReevaluated':False}
+write(BASE/'qualification.json',qualification)
+print(json.dumps({'archiveBytes':archive_path.stat().st_size,'files':len(inventory),'archiveSha256':digest(archive_path),
+    'qualifiedArtifacts':34,'newDOMExecuted':False}))

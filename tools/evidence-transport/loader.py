@@ -44,6 +44,9 @@ def load(root, pins):
     optional = set(policy['optionalFiles']) & set(pins)
     if set(pins) != required|optional:
         raise ValueError('Evidence loader pin closure is incomplete or contains undeclared files')
+    for relative,dependencies in policy.get('dependencies',{}).items():
+        if relative in raw_files and not set(dependencies).issubset(raw_files):
+            raise ValueError('Evidence loader selected module has unpinned dependencies: '+relative)
     names = [name for name in policy['moduleOrder'] if name+'.py' in raw_files]
     if any(name in sys.modules for name in names):
         raise ValueError('Evidence loader requires a dedicated process with no preloaded transport aliases')

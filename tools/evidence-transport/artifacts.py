@@ -197,8 +197,8 @@ def inventory_zip(filename, destination=None):
     return records
 
 
-def receive(record):
-    """Reauthenticate immutable artifact metadata and retain every partial download on failure."""
+def receive_original(record):
+    """Authenticate opaque original bytes before interpreting ZIP structure; retain every partial."""
     metadata = record['metadata']
     identity = str(metadata['id'])
     if json.loads(api('actions/artifacts/'+identity,'metadata-'+identity)) != metadata:
@@ -209,8 +209,14 @@ def receive(record):
     checksum = runtime.checksum_path(filename)
     if metadata['digest'] != 'sha256:'+checksum:
         raise ValueError('Pilot original ZIP differs from its API digest; raw bytes retained')
-    members = inventory_zip(filename)
     return {'id':metadata['id'],'name':metadata['name'],'bytes':metadata['size_in_bytes'],'sha256':checksum,
         'ordinal':record['ordinal'],'jobId':record['jobId'],'jobConclusion':record['jobConclusion'],
-        'originalPath':filename.relative_to(runtime.OUTPUT).as_posix(),'members':members,
+        'originalPath':filename.relative_to(runtime.OUTPUT).as_posix(),
         'measurementExecuted':False,'archivedCodeExecuted':False}
+
+
+def receive(record):
+    """Retain the existing combined receipt contract for callers that require a valid ZIP."""
+    original = receive_original(record)
+    original['members'] = inventory_zip(runtime.OUTPUT/original['originalPath'])
+    return original
