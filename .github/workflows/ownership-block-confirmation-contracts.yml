@@ -70,10 +70,19 @@ jobs:
     env:
       METHOD: reports/benchmarks/native-class-ownership/block-confirmation
       PACKAGE_TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE: ${{ github.workspace }}/historical-authentication-source
+    defaults:
+      run:
+        working-directory: producer
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: producer
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+          path: historical-authentication-source
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -83,14 +92,19 @@ jobs:
       - name: Extraer el paquete autenticado sin instalar ni reconstruir
         run: |
           mkdir -p "$RUNNER_TEMP/confirmation-functional"
-          python -B "$PACKAGE_TOOLS/transport.py" --extract reports/validation/range-numeric-composed-package/20261026/packages.tar.xz "$RUNNER_TEMP/confirmation-package" > "$RUNNER_TEMP/confirmation-functional/extraction.json" 2> "$RUNNER_TEMP/confirmation-functional/extraction.stderr.log"
+          node "$METHOD/authentication.cjs" --inspect "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE" > "$RUNNER_TEMP/confirmation-functional/historical-source.json"
+          python -B "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/$PACKAGE_TOOLS/transport.py" --extract "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/reports/validation/range-numeric-composed-package/20261026/packages.tar.xz" "$RUNNER_TEMP/confirmation-package" > "$RUNNER_TEMP/confirmation-functional/extraction.json" 2> "$RUNNER_TEMP/confirmation-functional/extraction.stderr.log"
       - name: Probar los 64 workers reales de Rust y jsdom con cleanup separado
         run: |
           node --expose-gc "$METHOD/functional.cjs" --functional "$RUNNER_TEMP/confirmation-package" "$RUNNER_TEMP/confirmation-functional/qualification" > "$RUNNER_TEMP/confirmation-functional/qualification.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/qualification.stderr.log"
       - name: Rechazar alteraciones de datos reales y cancelaciones durante el cierre
         env:
           RUSTDOM_CONFIRMATION_FUNCTIONAL_FIXTURE: ${{ runner.temp }}/confirmation-functional/qualification
-        run: node --test "$METHOD/envelope.spec.cjs" "$METHOD/finalize.spec.cjs" > "$RUNNER_TEMP/confirmation-functional/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/tests.stderr.log"
+          RUSTDOM_CONFIRMATION_FUNCTIONAL_PACKAGE: ${{ runner.temp }}/confirmation-package
+          RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE: ${{ github.workspace }}/producer
+          RUSTDOM_CONFIRMATION_BASELINE_SOURCES: ${{ github.workspace }}/historical-authentication-source
+          RUSTDOM_CONFIRMATION_CANDIDATE_SOURCES: ${{ runner.temp }}/confirmation-package/candidate-sources
+        run: node --test "$METHOD/authentication.spec.cjs" "$METHOD/production.spec.cjs" "$METHOD/envelope.spec.cjs" "$METHOD/finalize.spec.cjs" > "$RUNNER_TEMP/confirmation-functional/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/tests.stderr.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

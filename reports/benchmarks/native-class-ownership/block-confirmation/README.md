@@ -82,6 +82,43 @@ snapshots no permiten afirmar memoria pico ni ausencia universal de fugas.
 
 ## Uso y alcance probado
 
+### Separación de fuentes históricas y producción — 2026-10-27
+
+`authentication.cjs` autentica el paquete sellado desde un checkout Git Linux
+real, limpio y separado del commit original `4196c496`, verificando los 903
+bindings publicados y la igualdad de los tres lectores revisados. Conserva
+`sourceCommit`, `sourceChangesRaw` y `sourceGitErrors` originales. Ese contexto
+describe el paquete histórico; no reemplaza la identidad del productor actual.
+El workflow crea ambos checkouts como directorios hermanos. No se ejecuta
+código extraído de los archivos de resultados.
+
+`production.cjs` contrasta todos los 344 inputs de compilación declarados
+contra el candidato seleccionado. Rechaza también configuraciones locales
+ausentes en ese candidato: `.cargo`, `.npmrc`, `npm-shrinkwrap.json` y nombres
+con prefijo `rust-toolchain`, incluso enlaces colgantes. Las pruebas crean
+archivos reales; no inspeccionan strings de implementación. Esto verifica
+ese conjunto de fuentes y configuraciones opcionales; no autentica el entorno
+de build, configuraciones globales, identidad Git ni equivalencia de binarios.
+
+Con este adaptador pasaron nuevamente 64 workers reales y seis casos adversos
+por SDK, más 26 tests Node y tres Python por SDK. Los 128 procesos funcionales
+conservaron 18.432 medidas, 6.144 warmup, 1.536 Window y Document por separado,
+diez primeras rondas no claras y 256 estados finales claros. Este nuevo
+conjunto está separado de la calificación anterior publicada en `54831a7e`;
+no se combina con ella para producir una decisión estadística.
+
+Evidencia íntegra: `../block-confirmation-authentication/20261027/`, con
+19.338.673 bytes, 961 miembros y SHA-256
+`7ca309745d3515384d25632d1804df7037711b8cbfa2aff6b094218b7de5921e`.
+Se conservan fallos de desarrollo de fixtures de metadata, versiones anteriores
+de los tests y los lectores finales. La matriz real no se repitió por los
+cambios posteriores del guard de fuentes, que no modifica ni carga el DOM.
+
+El guard actual detecta las cuatro diferencias de producción y bloquea su
+equivalencia. La integración del candidato, productor científico, lector
+integral y confirmación de rendimiento siguen pendientes. `executionReady`
+sigue en `false`; no se activó una captura ni se reevaluó el gate.
+
 ```sh
 METHOD=reports/benchmarks/native-class-ownership/block-confirmation
 node --test "$METHOD/compare.spec.cjs" "$METHOD/plan.spec.cjs"

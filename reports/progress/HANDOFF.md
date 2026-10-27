@@ -1,5 +1,44 @@
 # Continuar rustdom en otra máquina
 
+## Dos checks de rendimiento pendientes; frontera de fuentes cerrada — 2026-10-27 UTC
+
+En HEAD54831a7e GitHub confirma 81 checks SUCCESS y dos FAILURE: Native class
+ownership Node22/24, run40453212706. Ambos fallan solamente en el replay de la
+captura39921160254 rechazada. Los cuatro jobs nuevos de block-confirmation,
+run40453212589, terminaron SUCCESS. No atribuirlos al adaptador aún sin publicar.
+
+Se separó la autenticación del paquete histórico de la fuente del productor:
+block-confirmation/authentication.cjs exige un checkout Linux Git real y limpio
+del SHA4196c496, conserva identidad/diagnósticos originales y verifica los903
+bindings y los lectores revisados. El workflow crea dos checkouts hermanos.
+No se cambiaron pins, paquetes, presupuestos ni estudios históricos consumidos.
+
+production.cjs contrasta los344 inputs completos y rechaza configuraciones
+opcionales ausentes del candidato: .cargo, .npmrc, npm-shrinkwrap.json y
+rust-toolchain*. La revisión aislada cerró dos P2 con archivos y enlace reales.
+No autentica entorno/config globales/Git/binario; tampoco acepta rendimiento.
+Actualmente detecta correctamente las cuatro diferencias de producción.
+
+Nueva matriz funcional del adaptador:64 procesos y6 adversos por SDK fijado,
+26 tests Node y3 Python por SDK. Totales128/18.432 medidas/6.144 warmup,
+1.536 Window y Document separados,10 primeras rondas no claras y256 finales
+claros. Los140 comandos de workers y ambos padres terminaron. No sumar este
+conjunto al anterior para inferencia estadística. El guard metadata posterior
+se probó sin repetir DOM. Evidencia19.338.673B/961 miembros, SHA
+7ca309745d3515384d25632d1804df7037711b8cbfa2aff6b094218b7de5921e, en
+reports/benchmarks/native-class-ownership/block-confirmation-authentication/20261027/.
+Recursos en reports/memory/block-confirmation-authentication/20261027/.
+No demuestra memoria pico ni ausencia universal de fugas. Runtime híbrido.
+
+Siguiente: integrar los cuatro archivos del candidato a277, verificar los344
+inputs y sus contratos reales en producción, preservar lectura histórica desde
+fuentes auténticas separadas, terminar productor/lector científico, revisar y
+publicar método antes de una sola confirmación. executionReady=false; el gate
+sigue rechazado, sin tag/merge. Autorización permanente: no preguntar de nuevo.
+Preservar48 entradas ajenas; Engram sin identidad registrada. Objetivo ACTIVE.
+
+---
+
 ## Productor funcional Rust/jsdom probado; integración y gate pendientes — 2026-10-27 UTC
 
 Desde la base 27cbe891 se implementó block-confirmation/{worker,worker-engine,

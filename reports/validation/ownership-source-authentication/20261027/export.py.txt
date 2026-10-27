@@ -1,0 +1,157 @@
+"""Preserve functional authentication QA without running archived code or sampling a DOM."""
+import hashlib
+import json
+import pathlib
+import sys
+import tarfile
+
+if sys.flags.optimize:
+    raise RuntimeError('Authentication QA export requires non-optimized Python')
+
+root = pathlib.Path('/run/rustdom-confirmation-functional-20261027')
+metadata = pathlib.Path('/run/rustdom-confirmation-authentication-20261027')
+current = pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+output = root / 'authentication-export'
+output.mkdir(exist_ok=False)
+method = pathlib.Path('reports/benchmarks/native-class-ownership/block-confirmation')
+
+def digest(filename):
+    checksum = hashlib.sha256()
+    with filename.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1048576), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+
+def read(filename):
+    return json.loads(filename.read_bytes())
+
+profile = read(root / 'source-profile-authentication.json')
+for section in ['frozenFiles', 'additionalFrozenFiles']:
+    for relative, expected in profile[section].items():
+        assert digest(root / 'source' / relative) == expected, relative
+
+summary = dict(scope='functional-historical-authentication-and-production-source-guard',
+               scientificCaptureExecuted=False, performanceAccepted=None, gateReevaluated=False,
+               cohorts=[], nodeTestsPerSdk=26, pythonTestsPerSdk=3,
+               productionVariantIntegrated=False, peakMemoryMeasured=False,
+               universalLeakFreedomEstablished=False)
+resources = dict(scope=summary['scope'], cohorts=[], peakMemoryMeasured=False,
+                 universalLeakFreedomEstablished=False, performanceAccepted=None, gateReevaluated=False)
+files = {}
+
+def select(location, prefix):
+    assert location.exists(), str(location)
+    members = [location] if location.is_file() else sorted(location.rglob('*'))
+    for member in members:
+        assert not member.is_symlink(), str(member)
+        if member.is_file():
+            relative = prefix if location.is_file() else prefix + '/' + member.relative_to(location).as_posix()
+            assert relative not in files
+            files[relative] = member
+
+for name in ['node22', 'node24']:
+    cohort = root / (name + '-authentication')
+    index = read(cohort / 'index.json')
+    assert index['complete'] and index['functionalOnly'] and not index['scientificCaptureExecuted']
+    assert index['performanceAccepted'] is None and not index['gateReevaluated']
+    assert not pathlib.Path('/proc/' + str(index['parentPid'])).exists()
+    assert len(index['processes']) == 64 and len(index['adverse']) == 6 and len(index['parentMemory']) == 3
+    for relative, expected in index['ownSourceFiles'].items():
+        assert digest(current / method / relative) == expected
+    totals = dict(processes=0, measured=0, warmup=0, windows=0, documents=0,
+                  firstUnclearStates=0, finalClearStates=0, nativeWorkers=0)
+    endpoints = []
+    for entry in index['processes']:
+        command = entry['invocation']['command']
+        assert entry['complete'] and command['complete'] and command['exitCode'] == 0
+        assert not command['timedOut'] and not command['cancelled'] and not command.get('leftoverProcessGroupDetected', False)
+        assert not pathlib.Path('/proc/' + str(command['pid'])).exists()
+        report = read(cohort / entry['directory'] / 'report.json')
+        assert report['complete'] and report['functionalOnly'] and not report['performanceStudyExecuted']
+        assert len(report['measurement']['measuredSamplesMs']) == 144 and len(report['measurement']['warmupSamplesMs']) == 48
+        assert report['trackedOwners'] == dict(window=12, document=12)
+        assert len(report['cleanupTrace']) == 3 and all(state['clear'] for state in report['cleanupTrace'][-2:])
+        totals['processes'] += 1
+        totals['measured'] += 144
+        totals['warmup'] += 48
+        totals['windows'] += 12
+        totals['documents'] += 12
+        totals['firstUnclearStates'] += int(not report['cleanupTrace'][0]['clear'])
+        totals['finalClearStates'] += 2
+        if report['engine'] == 'rustdom':
+            assert report['nativeBaseline'] is not None
+            totals['nativeWorkers'] += 1
+        else:
+            assert report['nativeBaseline'] is None
+        endpoints.append(dict(input=entry['input'], nativeBaseline=report['nativeBaseline'], cleanupTrace=report['cleanupTrace']))
+    for entry in index['adverse']:
+        command = entry['command']
+        assert command['complete'] and command['exitCode'] == 2 and not command['timedOut'] and not command['cancelled']
+        assert not command.get('leftoverProcessGroupDetected', False)
+        assert not pathlib.Path('/proc/' + str(command['pid'])).exists()
+    failure = read(cohort / 'adverse/progress-failure/report.json')
+    assert not failure['complete'] and failure['trackedOwners'] == dict(window=1, document=1)
+    assert all(state['clear'] for state in failure['cleanupTrace'][-2:])
+    tests = root / (name + '-authentication-tests-final')
+    receipt = read(tests / 'receipts.json')
+    assert len(receipt['commands']) == 5 and all(command['exitCode'] == 0 for command in receipt['commands'])
+    production = read(tests / 'production.stdout.log')
+    assert len(production['observedInputs']) == 344 and len(production['differences']) == 4
+    assert not production['matchesSelectedCompilerInputs'] and not production['unregisteredBuildInputs']
+    summary['cohorts'].append(dict(node=index['node'], totals=totals, elapsedMs=index['elapsedMs'],
+                                   parentGone=True, workerCommandsClosed=70, sourceFiles=index['ownSourceFiles']))
+    resources['cohorts'].append(dict(node=index['node'], totals=totals, parentMemory=index['parentMemory'], workers=endpoints,
+                                    deliberateFailureCleanup=failure['cleanupTrace']))
+    select(cohort, cohort.name)
+    select(tests, tests.name)
+
+assert (root / 'node22-authentication-tests-final/plan.stdout.log').read_bytes() == (root / 'node24-authentication-tests-final/plan.stdout.log').read_bytes()
+summary['totals'] = {key: sum(cohort['totals'][key] for cohort in summary['cohorts']) for key in summary['cohorts'][0]['totals']}
+assert summary['totals']['processes'] == 128 and summary['totals']['measured'] == 18432 and summary['totals']['warmup'] == 6144
+assert summary['totals']['windows'] == summary['totals']['documents'] == 1536
+summary['additionalDeliberateFailureTotals'] = dict(warmup=32, windows=2, documents=2)
+summary['plansByteIdentical'] = True
+summary['developmentFailures'] = [
+    'Initial disposable git clone attempted an unnecessary history transfer; owned metadata processes were stopped; no DOM executed.',
+    'An initial sparse metadata fixture needed index population; no production or historical source was changed.',
+    'A sparse historical checkout lacked six type inputs; a complete 344-file baseline fixture was independently hashed against the published declaration.',
+    'The first 25-test Node22 qualification preceded the closed optional-build-configuration guard; final 26-test receipts supersede it.',
+    'A review added rejection of npm-shrinkwrap.json; both final SDK contracts include it.'
+]
+summary['limitations'] = ['No scientific sequence or performance acceptance.', 'Snapshots are not peak memory or universal leak proof.',
+                          'Outer local progress stdout is not in this archive; every worker stream is preserved.',
+                          'Some early metadata-only development console output was not retained in full.']
+for relative in ['source-profile-authentication.json', 'node22-authentication-tests', 'node22-authentication-tests-v2', 'node24-authentication-tests-v2']:
+    select(root / relative, relative)
+for name in ['source-profile.json', 'source-profile-v2.json', 'attempt1.json', 'attempt1-source', 'baseline-inputs.json',
+             'node22-attempt3', 'node22-attempt4', 'node22-source-boundaries-final', 'node24-final',
+             'node22-source-boundaries-verified', 'node24-source-boundaries-verified']:
+    select(metadata / name, 'metadata-development/' + name)
+select(metadata / 'source', 'metadata-development/pre-guard-reader-source')
+for relative, expected in profile['ownFiles'].items():
+    member = current / relative
+    select(member, 'current-reader-source/' + relative + '.txt')
+summary['currentSourceProfile'] = {relative: digest(current / relative) for relative in profile['ownFiles']}
+for name, value in [('summary.json', summary), ('resources.json', resources)]:
+    filename = output / name
+    filename.write_text(json.dumps(value, indent=2) + '\n')
+    select(filename, name)
+manifest = {relative: dict(bytes=member.stat().st_size, sha256=digest(member)) for relative, member in sorted(files.items())}
+(output / 'manifest.json').write_text(json.dumps(dict(files=manifest, manifestExcludedFromItself=True), indent=2) + '\n')
+select(output / 'manifest.json', 'manifest.json')
+archive = output / 'evidence.tar.gz'
+with tarfile.open(archive, 'w:gz') as bundle:
+    for relative, member in sorted(files.items()):
+        bundle.add(member, arcname=relative, recursive=False)
+with tarfile.open(archive, 'r:gz') as bundle:
+    members = bundle.getmembers()
+    assert len(members) == len(files)
+    for member in members:
+        assert member.isfile()
+        raw = bundle.extractfile(member).read()
+        if member.name != 'manifest.json':
+            assert manifest[member.name] == dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+receipt = dict(bytes=archive.stat().st_size, sha256=digest(archive), members=len(files), allMembersReadBack=True,
+               scientificCaptureExecuted=False, performanceAccepted=None, gateReevaluated=False)
+(output / 'archive.json').write_text(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps(dict(totals=summary['totals'], archive=receipt)))

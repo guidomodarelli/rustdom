@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const policy = require('./constants/worker.json');
-const { authenticatePackage } = require('../control-precision/pilot-v2/preflight.cjs');
+const { authenticatePackage } = require('./authentication.cjs');
 const repository = path.resolve(__dirname, '../../../..');
 
 /**
@@ -31,11 +31,11 @@ async function run(prepared, destination) {
   const { execute } = require('../owner-batch-study/process.cjs');
   const { readJSON, writeJSON, hashFile } = require('../owner-batch-study/io.cjs');
   const { collectGarbage } = require('../../../../scripts/memory-endpoint.cjs');
-  const source = require('../owner-batch-study/source.cjs');
   const sampling = require('../owner-batch-study/constants/sampler.json');
-  const historical = source.currentFiles();
+  const historical = authentication.historicalSource.files;
   const ownNames = ['calendar.cjs', 'compare.cjs', 'worker.cjs', 'worker-engine.cjs', 'raw-reader.cjs',
-    'functional.cjs', 'finalize.cjs', 'envelope.cjs', 'constants/design.json', 'constants/worker.json', 'fixtures/progress-failure.cjs'];
+    'functional.cjs', 'finalize.cjs', 'envelope.cjs', 'authentication.cjs', 'constants/authentication.json',
+    'constants/design.json', 'constants/worker.json', 'fixtures/progress-failure.cjs'];
   const ownFiles = () => Object.fromEntries(ownNames.map((name) => [name, hashFile(path.join(__dirname, name))]));
   const manifest = createFunctionalManifest(prepared, authentication);
   const manifestPath = path.join(destination, 'manifest.json'); writeJSON(manifestPath, manifest);
@@ -138,7 +138,8 @@ async function run(prepared, destination) {
       timeoutMs: policy.functionalTimeoutMs, snapshot: () => snapshot(policy.parentStages[2]), recheck: () => {
         index.packageVerificationAfter = authenticatePackage(prepared, destination, 'package-verification-after');
         assert.deepEqual(index.packageVerificationAfter, authentication, 'Confirmation functional qualifier: sealed package identity changed during qualification');
-        assert.deepEqual(source.currentFiles(), historical); assert.deepEqual(ownFiles(), index.ownSourceFiles);
+        assert.deepEqual(index.packageVerificationAfter.historicalSource.files, historical);
+        assert.deepEqual(ownFiles(), index.ownSourceFiles);
       } });
     index.complete = true; index.elapsedMs = finalization.elapsedMs; save();
     return index;
