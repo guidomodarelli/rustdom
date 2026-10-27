@@ -1,5 +1,39 @@
 # Continuar rustdom en otra máquina
 
+## CI de ownership y publicación acotada — 2026-10-27 UTC
+
+Los dos checks rojos de SOURCE 4196 siguen siendo Native class ownership Node
+22 y 24, run 40395416797. El paso final devuelve exit1 porque el replay íntegro
+39921160254 conserva accepted=false: 13 controles jsdom no calibraron dentro
+de ±2%. Sus puntos Rust no excedieron el presupuesto de ese estudio; no son
+13 regresiones Rust certificadas. El CI general 40395416750 aprobó sus ocho
+jobs, incluido Valgrind. Esto no resuelve ni permite ocultar el rechazo.
+
+El piloto jsdom-only 40426500725 sigue siendo la única captura v2, intento 1,
+fuente 4196 y candidato sellado sin cambios. Observación 01:42:56 UTC: preflight
+y 22 criterios aprobados,10 en ejecución, 0 fallos. No repetirlo ni sumar el criterio
+0 leído anticipadamente otra vez al total global. El diagnóstico conserva
+performanceAccepted=null/gateReevaluated=false y no acepta rendimiento Rust.
+
+Se preparó una extensión separada tools/evidence-transport/metadata.py para
+actualizar este documento mediante Git nativo, sin importar el piloto completo
+al Git compartido de Windows. La prueba previa conservó todos los bytes del
+documento anterior, exigió un único diff M y rechazó diez casos inválidos con
+Git real; siete tests pasaron en Windows y Linux. El escritor seco solo tuvo
+un blob pequeño y quedó retenido como evidencia, sin publicación ni limpieza.
+La operación publicada exige lectura remota independiente antes de retirar
+únicamente sus dos clones propios. Ver reports/validation/bounded-handoff/
+20261027/ para los recibos y la revisión; no ejecutar código archivado.
+
+Los doce archivos del core, su lock 89dd1849 y collect 36e2cd0e permanecen
+intactos. Al terminar el run, el recolector exige terminalidad real, conserva
+todos los ZIP antes de decodificarlos y utiliza ambos Node fijados. Publicar
+también parciales/rechazos y recursos; los snapshots no son memoria pico.
+No descargar la captura completa al Git compartido ni tocar limpiezas
+rechazadas. Siguen intactas 48 entradas ajenas. Sin tag/merge de ownership;
+runtime híbrido y objetivo general activo. Autorización permanente vigente.
+
+
 ## Primer criterio v2 autenticado y releído — 2026-10-27 UTC
 
 El run 40426500725 sigue siendo la única captura v2. Se leyó exclusivamente
