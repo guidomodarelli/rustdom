@@ -96,9 +96,41 @@ cronología, salidas públicas distintas y imposibilidad de aceptar rendimiento
 desde este módulo. El CLI y la auditoría usan los archivos publicados reales;
 un cambio de bytes se rechaza antes de producir un informe. No ejecutan DOM.
 
-Faltan el productor Rust, autenticación integral, pruebas funcionales y
-teardown reales en ambos SDK, revisión del método completo, publicación y
-una captura única. Después habrá que integrar su decisión íntegra al gate.
+El productor funcional y su lector ya ejercen Rust y jsdom en ambos SDK.
+La matriz final tiene 64 workers por SDK: AA/AB, ocho cargas, ambos motores
+y labels A/B, con el factor 0. Verifica las cinco copias físicas, todos los
+outputs públicos, 144 tareas medidas y 48 warmup por proceso, baselines
+nativos y tres rondas de cleanup con Window/Document separados. La variación
+de factores y rotación del calendario se prueba aparte; esta matriz funcional
+no ejecuta todos los bloques de la futura secuencia científica.
+
+El nuevo `raw-reader.cjs` adapta el contrato de tareas/recursos anterior a los
+hashes del paquete sellado actual, sin reescribir los reportes ni modificar
+los lectores históricos congelados. `envelope.cjs` contrasta el contexto
+contra la invocación y fuentes observadas por el padre. Los datos funcionales
+nunca producen una observación estadística ni aceptación. El cierre del
+controlador comprueba cancelación y plazo después del GC y del postflight;
+cinco regresiones usan GC, SIGTERM y esperas reales, sin mocks de plataforma.
+
+Pasaron 17 tests Node y tres Python por SDK, más las matrices reales y seis
+casos adversos por SDK. Los resultados completos están en
+`../block-confirmation-functional/20261027/`; los endpoints en
+`reports/memory/block-confirmation-functional/20261027/` desde la raíz del repo.
+Se conservan dos preflight locales fallidos antes de DOM por un staging
+incompleto y una matriz Node22 anterior al arreglo de cancelación; esta última
+no se suma a los 128 procesos finales. No se repitió una secuencia científica.
+
+La fuente de producción todavía difiere del candidato en cuatro archivos:
+`src/dom/native-tree.cjs`, `src/dom/range_state.rs`,
+`src/dom/range_state_binding.rs` y `types/native.d.cts`. La integración y su
+equivalencia con los 344 inputs compilados deben verificarse antes de atribuir
+al PR la aceptación del candidato. No reconstruir ni sustituir paquetes
+consumidos. Los verificadores históricos deben conservar sus fuentes/pins;
+no adaptar esas pruebas para ocultar la diferencia de producción.
+
+Faltan el productor científico, autenticación integral, integración del
+candidato y su revisión, publicación del método completo y una captura única.
+Después habrá que integrar su decisión íntegra al gate.
 No hay tag ni merge de ownership antes de aceptación. La autorización
 permanente cubre el trabajo restante sin nuevas preguntas.
 

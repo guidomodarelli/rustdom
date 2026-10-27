@@ -1,5 +1,73 @@
 # Continuar rustdom en otra máquina
 
+## Productor funcional Rust/jsdom probado; integración y gate pendientes — 2026-10-27 UTC
+
+Desde la base 27cbe891 se implementó block-confirmation/{worker,worker-engine,
+raw-reader,envelope,functional,finalize}.cjs. No se modificaron los 903 bindings
+históricos ni los paquetes sellados. El productor sigue siendo exclusivamente
+funcional: no acepta --capture, executionReady=false, performanceAccepted=null
+y gateReevaluated=false. No se lanzó una secuencia científica nueva.
+
+Ambos SDK fijados 22.12.0/24.14.1 terminaron 64 workers positivos y seis casos
+adversos cada uno: AA/AB, ocho cargas, Rust/jsdom, A/B, factor0. Los 128 finales
+conservan 18.432 duraciones medidas, 6.144 warmup, 1.536 Window y Document
+separados, 11 primeras rondas no claras y 256 finales claros requeridos.
+Los dos errores deliberados del productor RustB añaden aparte 32 warmup y dos
+Window/Document con cleanup final claro. Pasaron 17 tests Node y tres Python
+por SDK; planes byte idénticos y revisión local final sin hallazgos.
+
+Se corrigió un P2 real: SIGTERM durante el último GC podía terminar presentado
+como éxito. El controlador verifica señal/plazo después de GC y postflight,
+y cede un turno para señales pendientes. Cinco regresiones usan GC, señales
+y esperas reales. La primera matriz Node22 anterior al arreglo se conserva
+aparte, excluida de los 128 finales; se repitió solo QA funcional por ese cambio.
+Dos preflight locales habían fallado antes de DOM por nueve archivos de
+metadata del staging ausentes: se copiaron de la fuente congelada verificada.
+El staging local usa un perfil real de archivos, sin inventar identidad Git.
+
+Archivo íntegro: reports/benchmarks/native-class-ownership/
+block-confirmation-functional/20261027/evidence.tar.gz, 28.472.207 bytes,
+1.317 miembros, SHA a78084c765e5c2db2530c0d8722171c143ed5a11be6cc00fc489a2292ddc94db.
+Incluye datos, tareas/warmup, logs de hijos, ambas versiones del método y
+perfiles de fuente. No ejecutar scripts archivados. El stdout exterior del
+progreso local no se exportó; los streams y datos de los workers están completos.
+El exportador normal se releyó íntegro. Después se agregó guard contra Python
+optimizado a los tres wrappers de QA: nueve rechazos reales sin modificar el
+archivo válido; fuentes as-run/current y review en reports/validation/
+block-confirmation-functional/20261027/. No reexportar ni normalizar el tar.
+
+Memoria: reports/memory/block-confirmation-functional/20261027/endpoints.json
+conserva baselines, tres estados por worker y tres snapshots parentales por
+SDK (0/32/64 completados), auditados. No demuestra memoria pico ni ausencia
+universal de fugas. Se comprobaron 210 comandos de workers cerrados contando
+historial y adversos, más tres controladores terminados; no son todos los
+subprocesos internos del autenticador. El runtime sigue híbrido.
+
+Pendiente concreto descubierto: producción difiere del candidato a277 en
+cuatro de sus 344 inputs: src/dom/native-tree.cjs, src/dom/range_state.rs,
+src/dom/range_state_binding.rs y types/native.d.cts. Ver candidate-production-
+difference.json junto al tar e inputs.json de range-numeric-composed-candidate.
+Antes de atribuir al PR una futura aceptación, integrar/revisar y probar esos
+cuatro archivos y verificar equivalencia completa con el candidato. Resolver
+la lectura de los verificadores históricos congelados sin mutar sus pins ni
+falsear sourceCommit/sourceChanges/sourceGitErrors; no reconstruir ni sustituir
+un paquete consumido. Después cerrar el productor científico, bindings y
+lector integral, publicar método completo y CI, y ejecutar una única secuencia
+nueva con los límites ya declarados. La autorización permanente está concedida.
+
+El gate ownership continúa rechazado: el SHA 27cbe891 vuelve a tener dos fallos
+en el replay histórico 39921160254, run40449880260. No se ha resuelto el PR80.
+El CI nuevo publicado en 27cbe891 es run40449880270; confirmar su estado real
+antes de atribuir éxito hospedado. Los checks funcionales nuevos se ejecutarán
+al publicar este incremento. Sin tag/merge hasta aceptar rendimiento. Mantener
+48 entradas ajenas intactas; Engram sigue sin identidad registrada. Objetivo
+general ACTIVE, no completo ni pausado. Linux QA: /run/rustdom-confirmation-
+functional-20261027, los handles 56993/28169/86771/65446 terminaron con exit0.
+
+---
+
+# Continuar rustdom en otra máquina
+
 ## CI ownership sigue rechazado; núcleo de confirmación probado — 2026-10-27 UTC
 
 El SHA 4196c496 tiene únicamente dos checks fallidos: Native class ownership

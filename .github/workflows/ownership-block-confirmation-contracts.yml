@@ -58,3 +58,44 @@ jobs:
           path: ${{ runner.temp }}/confirmation-contracts/
           if-no-files-found: error
           retention-days: 90
+  functional:
+    name: Addon y teardown Node ${{ matrix.node }}
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+      PACKAGE_TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer el paquete autenticado sin instalar ni reconstruir
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-functional"
+          python -B "$PACKAGE_TOOLS/transport.py" --extract reports/validation/range-numeric-composed-package/20261026/packages.tar.xz "$RUNNER_TEMP/confirmation-package" > "$RUNNER_TEMP/confirmation-functional/extraction.json" 2> "$RUNNER_TEMP/confirmation-functional/extraction.stderr.log"
+      - name: Probar los 64 workers reales de Rust y jsdom con cleanup separado
+        run: |
+          node --expose-gc "$METHOD/functional.cjs" --functional "$RUNNER_TEMP/confirmation-package" "$RUNNER_TEMP/confirmation-functional/qualification" > "$RUNNER_TEMP/confirmation-functional/qualification.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/qualification.stderr.log"
+      - name: Rechazar alteraciones de datos reales y cancelaciones durante el cierre
+        env:
+          RUSTDOM_CONFIRMATION_FUNCTIONAL_FIXTURE: ${{ runner.temp }}/confirmation-functional/qualification
+        run: node --test "$METHOD/envelope.spec.cjs" "$METHOD/finalize.spec.cjs" > "$RUNNER_TEMP/confirmation-functional/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-functional-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-functional/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,84 @@
+import pathlib,json,hashlib,os,tarfile
+root=pathlib.Path('/run/rustdom-confirmation-functional-20261027')
+output=root/'export';output.mkdir(exist_ok=False)
+source=root/'source'
+profile=json.loads((root/'source-profile-v2.json').read_bytes())
+for section in ['frozenFiles','additionalFrozenFiles','ownFiles']:
+ for relative,digest in profile[section].items(): assert hashlib.sha256((source/relative).read_bytes()).hexdigest()==digest,relative
+summary={'revision':'ownership-block-confirmation-functional-worker-v1','scope':'functional-addon-and-resource-qualification-not-performance','scientificCaptureExecuted':False,'newDOMExecutedForFunctionalTests':True,'performanceAccepted':None,'gateReevaluated':False,'final':[],'preFix':None,'preflightFailuresBeforeDOM':[],'peakMemoryMeasured':False,'universalLeakFreedomEstablished':False,'productionVariantIntegrated':False}
+resources={'scope':summary['scope'],'criteria':[],'peakMemoryMeasured':False,'universalLeakFreedomEstablished':False,'performanceAccepted':None,'gateReevaluated':False}
+all_commands=0
+for name,final in [('node22-ready',False),('node22-final',True),('node24-final',True)]:
+ cohort=root/name;index=json.loads((cohort/'index.json').read_bytes())
+ assert index['complete'] is True and index['functionalOnly'] is True and index['scientificCaptureExecuted'] is False
+ assert len(index['processes'])==64 and len(index['adverse'])==6
+ assert index['performanceAccepted'] is None and index['gateReevaluated'] is False
+ assert not pathlib.Path('/proc/'+str(index['parentPid'])).exists()
+ totals=dict(processes=0,measured=0,warmup=0,windows=0,documents=0,firstUnclearStates=0,finalClearStates=0,nativeWorkers=0)
+ traces=[]
+ for entry in index['processes']:
+  command=entry['invocation']['command'];assert command['complete'] and command['exitCode']==0 and not command['timedOut'] and not command['cancelled']; assert command.get('leftoverProcessGroupDetected') is not True
+  assert not pathlib.Path('/proc/'+str(command['pid'])).exists()
+  report=json.loads((cohort/entry['directory']/'report.json').read_bytes())
+  assert report['complete'] and report['functionalOnly'] and report['performanceStudyExecuted'] is False
+  assert len(report['blocks'])==12 and len(report['measurement']['measuredSamplesMs'])==144 and len(report['measurement']['warmupSamplesMs'])==48
+  assert report['trackedOwners']==dict(window=12,document=12)
+  assert len(report['cleanupTrace'])==3 and all(state['clear'] for state in report['cleanupTrace'][-2:])
+  totals['processes']+=1;totals['measured']+=144;totals['warmup']+=48;totals['windows']+=12;totals['documents']+=12;totals['finalClearStates']+=2
+  totals['firstUnclearStates']+=int(not report['cleanupTrace'][0]['clear'])
+  if report['engine']=='rustdom': assert report['nativeBaseline'] is not None;totals['nativeWorkers']+=1
+  else: assert report['nativeBaseline'] is None
+  traces.append({'input':entry['input'],'nativeBaseline':report['nativeBaseline'],'cleanupTrace':report['cleanupTrace']})
+ for entry in index['adverse']:
+  command=entry['command'];assert command['complete'] and command['exitCode']==2 and not command['timedOut'] and not command['cancelled']; assert command.get('leftoverProcessGroupDetected') is not True
+  assert not pathlib.Path('/proc/'+str(command['pid'])).exists()
+ partial=json.loads((cohort/'adverse/progress-failure/report.json').read_bytes())
+ assert not partial['complete'] and partial['engine']=='rustdom' and partial['schedule']['physical']=='B'
+ assert partial['trackedOwners']==dict(window=1,document=1) and len(partial['blocks'])==1
+ assert all(state['clear'] for state in partial['cleanupTrace'][-2:])
+ result={'cohort':name,'node':index['node'],'parentPid':index['parentPid'],'totals':totals,'adverseCases':len(index['adverse']),'elapsedMs':index['elapsedMs'],'parentGone':True,'workerCommandsClosed':70,'producerFiles':index['ownSourceFiles'],'preFixExcludedFromFinalTotals':not final}
+ if final:
+  summary['final'].append(result)
+  resources['criteria'].append({'node':index['node'],'totals':totals,'parentMemory':index['parentMemory'],'workers':traces,'failureCleanup':partial['cleanupTrace']})
+ else: summary['preFix']=result
+ all_commands+=70
+for name in ['node22','node22-qualified']:
+ directory=root/name
+ assert not (directory/'index.json').exists() and not (directory/'workers').exists()
+ summary['preflightFailuresBeforeDOM'].append({'directory':name,'reason':'incomplete local staging of immutable package verifier metadata; corrected without package/source-policy changes','newDOMExecuted':False})
+assert (root/'node22-reader-tests/plan.stdout.log').read_bytes()==(root/'node24-reader-tests/plan.stdout.log').read_bytes()
+for name in ['node22-reader-tests','node24-reader-tests']:
+ receipt=json.loads((root/name/'receipts.json').read_bytes());assert len(receipt['commands'])==4 and all(entry['exitCode']==0 for entry in receipt['commands'])
+summary['finalTotals']={key:sum(entry['totals'][key] for entry in summary['final']) for key in summary['final'][0]['totals']}
+assert summary['finalTotals']['processes']==128 and summary['finalTotals']['measured']==18432 and summary['finalTotals']['warmup']==6144
+assert summary['finalTotals']['windows']==summary['finalTotals']['documents']==1536
+summary['workerCommandsClosedIncludingPreFixAndAdverses']=all_commands
+summary['readerNodeTestsPerSDK']=17;summary['readerPythonTestsPerSDK']=3;summary['plansByteIdentical']=True
+summary['outerProgressStdoutWasNotExportedFromLocalExecTool']=True
+(output/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+(output/'resources.json').write_text(json.dumps(resources,indent=2)+'\n')
+selected=['source-profile.json','source-profile-v2.json','extraction.stdout.log','extraction.stderr.log','node22','node22-qualified','node22-ready','node22-final','node24-final','node22-reader-tests','node24-reader-tests','finalization-tests','method-before-cancel-fix']
+files={}
+for name in selected:
+ current=root/name
+ members=[current] if current.is_file() else list(current.rglob('*'))
+ for member in members:
+  assert not member.is_symlink()
+  if member.is_file(): files[member.relative_to(root).as_posix()]=member
+for relative in profile['ownFiles']:
+ files['producer-source/'+relative+'.txt']=source/relative
+for name in ['summary.json','resources.json']: files[name]=output/name
+manifest={relative:{'bytes':member.stat().st_size,'sha256':hashlib.sha256(member.read_bytes()).hexdigest()} for relative,member in sorted(files.items())}
+(output/'manifest.json').write_text(json.dumps({'files':manifest,'manifestExcludedFromItself':True},indent=2)+'\n')
+files['manifest.json']=output/'manifest.json'
+archive=output/'evidence.tar.gz'
+with tarfile.open(archive,'w:gz') as bundle:
+ for relative,member in sorted(files.items()): bundle.add(member,arcname=relative,recursive=False)
+with tarfile.open(archive,'r:gz') as bundle:
+ members=bundle.getmembers();assert len(members)==len(files)
+ for member in members:
+  assert member.isfile();raw=bundle.extractfile(member).read()
+  if member.name!='manifest.json': assert manifest[member.name]=={'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+receipt={'archive':archive.name,'bytes':archive.stat().st_size,'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'members':len(files),'allMembersReadBack':True,'scientificCaptureExecuted':False,'performanceAccepted':None,'gateReevaluated':False}
+(output/'archive.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({'totals':summary['finalTotals'],'archive':receipt}))

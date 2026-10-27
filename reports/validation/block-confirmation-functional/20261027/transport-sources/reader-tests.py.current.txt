@@ -1,0 +1,25 @@
+import pathlib,json,hashlib,subprocess,os,time,sys
+if sys.flags.optimize:
+ raise RuntimeError('Confirmation QA transport requires non-optimized Python')
+root=pathlib.Path('/run/rustdom-confirmation-functional-20261027')
+source=root/'source';method='reports/benchmarks/native-class-ownership/block-confirmation'
+name=sys.argv[1]; assert name in ['node22','node24']
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+node=tools/('node-22/bin/node' if name=='node22' else 'node/bin/node')
+fixture=root/(name+'-final')
+index=json.loads((fixture/'index.json').read_bytes());assert index['complete'] is True
+assert not pathlib.Path('/proc/'+str(index['parentPid'])).exists()
+policy=json.loads((source/method/'constants/design.json').read_bytes())
+assert hashlib.sha256(node.read_bytes()).hexdigest()==policy['nodeExecutableSha256'][index['node']]
+output=root/(name+'-reader-tests');output.mkdir(exist_ok=False)
+commands=[('tests',[str(node),'--test',method+'/compare.spec.cjs',method+'/plan.spec.cjs',method+'/envelope.spec.cjs',method+'/finalize.spec.cjs']),('plan',[str(node),method+'/plan.cjs',method+'/planning-inputs']),('audit',['python3','-B',method+'/audit.py',str(output/'plan.stdout.log')]),('audit-tests',['python3','-B',method+'/test_audit.py'])]
+receipts={'node':index['node'],'executableSha256':hashlib.sha256(node.read_bytes()).hexdigest(),'commands':[],'scientificCaptureExecuted':False}
+for label,argv in commands:
+ environment=dict(os.environ);environment['RUSTDOM_CONFIRMATION_FUNCTIONAL_FIXTURE']=str(fixture);environment['RUSTDOM_CONFIRMATION_PLAN']=str(output/'plan.stdout.log')
+ start=time.monotonic()
+ with (output/(label+'.stdout.log')).open('wb') as stdout,(output/(label+'.stderr.log')).open('wb') as stderr:
+  result=subprocess.run(argv,cwd=source,env=environment,stdout=stdout,stderr=stderr,timeout=120,check=False)
+ receipts['commands'].append({'name':label,'argv':argv,'exitCode':result.returncode,'elapsedSeconds':time.monotonic()-start})
+ (output/'receipts.json').write_text(json.dumps(receipts,indent=2)+'\n')
+ assert result.returncode==0,label
+print(json.dumps({'node':index['node'],'nodeTests':17,'pythonTests':3,'passed':True}))
