@@ -1,5 +1,119 @@
 # Continuar rustdom en otra máquina
 
+## Piloto v2 completo; ownership sigue pendiente — 2026-10-27 UTC
+
+El único run 40426500725, intento 1, fuente 4196c496, terminó con éxito:
+preflight y 32/32 criterios. Los lectores actuales Node 22.12.0/24.14.1
+verificaron íntegramente los 32 y coinciden. El criterio 0 anticipado no se
+cuenta otra vez. Totales: 16.384 procesos únicos, 2.359.296 duraciones medidas,
+786.432 warmup, 196.608 Window y 196.608 Document separados. Se conservan
+312 primeras rondas no claras, 32.768 estados finales claros, tres rondas
+por proceso y 96 snapshots parentales. Son controles jsdom, no certificación
+de ownership Rust, memoria pico ni ausencia universal de fugas.
+
+Los 33 ZIP originales (2.575.392.074 bytes) están en 97 partes autenticadas,
+tip b75c8fb4680260bb8a4f275e683ecdf6bc4b1ac3. Se preservaron antes de abrirlos;
+194 clientes Git propios se retiraron solo tras lecturas remotas independientes.
+Los 3.953 procesos del transporte cerraron sin descendientes pendientes.
+No se reconstruyeron paquetes ni se ejecutaron scripts archivados o DOM nuevo.
+
+El informe sellado contiene 12.734 miembros y conserva todos los datos de
+análisis, muestras/warmup originales por referencias Git, manifiestos, API,
+logs completos, fuentes de lectores y pruebas de metadata. Sus dos SDK
+coinciden; Python contrastó medias, razón de medias aritméticas, covarianza,
+contrastes y SD de los 16 bloques. Pasaron diez rechazos del lector y dos
+del empaquetador, además del caso positivo real. La revisión final no dejó
+hallazgos. Las fixtures negativas están identificadas; no son muestras nuevas.
+
+Todas las filas ejecutan jsdom 27.4.0 en ambos labels. Las diferencias B/A
+observadas van de −0,849664% a +0,532273%; son descriptivas. El máximo
+U95(SD(B−A))/media observada A es 4,516896% en Node 22 AA observer/1000.
+Esta normalización no es un intervalo de una razón. Los intervalos de SD
+son condicionales y puntuales bajo el modelo iid-normal declarado: no se
+establecen independencia, potencia, cobertura conjunta ni variación entre
+hosts. Se conservan todos los q=0,98/1/1,02 y diagnósticos temporales en CSV/JSON.
+
+### Las 32 observaciones, sin decisión de presupuesto
+
+U95* es el límite superior unilateral nominal de SD(B−A), dividido por la
+media observada A, en porcentaje; tiene los límites de modelo anteriores.
+No es el IC de B/A ni una aceptación. El archivo conserva también la escala
+original en milisegundos y los 96 contrastes.
+
+| Node | Fase | Carga | Media A ms | Media B ms | B/A−1 % | U95* % |
+|---|---|---|---:|---:|---:|---:|
+| v22.12.0 | AA | mutation-records-collect/100 | 0.867312237 | 0.861008853 | -0.726772 | 2.361010 |
+| v22.12.0 | AA | mutation-records-collect/1000 | 7.269410012 | 7.240692015 | -0.395053 | 1.038277 |
+| v22.12.0 | AA | observer-delivery-records/100 | 0.339457114 | 0.340147803 | +0.203469 | 2.947450 |
+| v22.12.0 | AA | observer-delivery-records/1000 | 5.350116581 | 5.306597007 | -0.813432 | 4.516896 |
+| v22.12.0 | AA | range-control-1000/1000 | 1.428496757 | 1.432085613 | +0.251233 | 1.257453 |
+| v22.12.0 | AA | range-control-1000/250 | 2.481942276 | 2.486422125 | +0.180498 | 1.038404 |
+| v22.12.0 | AA | range-state-lifecycle-1000/1000 | 5.908531234 | 5.931030047 | +0.380785 | 1.200514 |
+| v22.12.0 | AA | range-state-lifecycle-1000/250 | 5.968832610 | 5.918117578 | -0.849664 | 2.409036 |
+| v22.12.0 | AB | mutation-records-collect/100 | 1.364453133 | 1.359551510 | -0.359237 | 2.304832 |
+| v22.12.0 | AB | mutation-records-collect/1000 | 7.447582203 | 7.445854576 | -0.023197 | 0.620096 |
+| v22.12.0 | AB | observer-delivery-records/100 | 0.342600641 | 0.339967156 | -0.768675 | 3.340343 |
+| v22.12.0 | AB | observer-delivery-records/1000 | 6.431294273 | 6.446173800 | +0.231361 | 1.079732 |
+| v22.12.0 | AB | range-control-1000/1000 | 2.173397578 | 2.173019531 | -0.017394 | 0.836808 |
+| v22.12.0 | AB | range-control-1000/250 | 2.407731726 | 2.409201589 | +0.061048 | 1.293060 |
+| v22.12.0 | AB | range-state-lifecycle-1000/1000 | 4.643213020 | 4.661124343 | +0.385753 | 1.275796 |
+| v22.12.0 | AB | range-state-lifecycle-1000/250 | 5.520068533 | 5.520188301 | +0.002170 | 0.938425 |
+| v24.14.1 | AA | mutation-records-collect/100 | 1.307144248 | 1.303044560 | -0.313637 | 1.044561 |
+| v24.14.1 | AA | mutation-records-collect/1000 | 4.655593630 | 4.655857586 | +0.005670 | 2.626418 |
+| v24.14.1 | AA | observer-delivery-records/100 | 0.162531500 | 0.162272214 | -0.159530 | 0.755198 |
+| v24.14.1 | AA | observer-delivery-records/1000 | 12.892221029 | 12.901220140 | +0.069803 | 1.195706 |
+| v24.14.1 | AA | range-control-1000/1000 | 2.345878473 | 2.346259206 | +0.016230 | 0.898295 |
+| v24.14.1 | AA | range-control-1000/250 | 2.075239109 | 2.075114000 | -0.006029 | 1.548959 |
+| v24.14.1 | AA | range-state-lifecycle-1000/1000 | 6.412260563 | 6.397561726 | -0.229230 | 1.476796 |
+| v24.14.1 | AA | range-state-lifecycle-1000/250 | 5.762232384 | 5.764577666 | +0.040701 | 1.216228 |
+| v24.14.1 | AB | mutation-records-collect/100 | 1.300461409 | 1.305926986 | +0.420280 | 0.796674 |
+| v24.14.1 | AB | mutation-records-collect/1000 | 7.598203609 | 7.596797474 | -0.018506 | 1.001538 |
+| v24.14.1 | AB | observer-delivery-records/100 | 0.214393954 | 0.215535115 | +0.532273 | 1.246133 |
+| v24.14.1 | AB | observer-delivery-records/1000 | 12.667369746 | 12.681652569 | +0.112753 | 0.964822 |
+| v24.14.1 | AB | range-control-1000/1000 | 2.649649581 | 2.640265980 | -0.354145 | 0.953320 |
+| v24.14.1 | AB | range-control-1000/250 | 1.636018911 | 1.636963303 | +0.057725 | 1.580100 |
+| v24.14.1 | AB | range-state-lifecycle-1000/1000 | 6.003289951 | 5.989268486 | -0.233563 | 1.197407 |
+| v24.14.1 | AB | range-state-lifecycle-1000/250 | 5.171620845 | 5.147669473 | -0.463131 | 2.739052 |
+
+### Lectura del paquete, sin descargar el piloto al Git compartido de Windows
+
+Paquete de 20.796.312 bytes, SHA256
+`d76d89c6b2a5cd63e49d790c7ff34ab2d3610f34b4dddcd68649ebc96d5eea57`.
+Su MANIFEST.json autentica todos los miembros salvo sí mismo; SHA del manifiesto
+`1f6b1d8a556a9c7362c2e4a901c8532d006e0162c5e2b94cb60cd7625d171b32`.
+Las partes del paquete y su descriptor están bajo
+reports/benchmarks/native-class-ownership/jsdom-block-pilot-v2-results/40426500725/final/.
+Commit de ambos: ccc7781545c5ce3bc2e66e1eb3804bbbfd935bc1. El paquete ocupa una parte (0000.bin).
+Para leer solo el informe, usar un repositorio bare Linux nuevo, separado del
+Git compartido; el filtro se aplica exclusivamente a ese cliente descartable:
+
+```sh
+git -c gc.auto=0 -c maintenance.auto=false clone --bare --filter=blob:none --depth=1 --single-branch --no-tags --branch feature/pilot-v2-ci-evidence https://github.com/guidomodarelli/rustdom.git /ruta/nueva/evidence.git
+git -C /ruta/nueva/evidence.git show HEAD:reports/benchmarks/native-class-ownership/jsdom-block-pilot-v2-results/40426500725/final/packet.parts/0000.bin > complete-results.tar.gz
+printf 'd76d89c6b2a5cd63e49d790c7ff34ab2d3610f34b4dddcd68649ebc96d5eea57  complete-results.tar.gz\n' | sha256sum --check -
+tar -xzf complete-results.tar.gz
+```
+
+El código archivado es evidencia: no ejecutarlo. Leer analysis/analysis.json,
+analysis/criteria.csv, analysis/resource-endpoints.json y collection/summary.json;
+analysis/originals.json contiene todas las referencias/hashes de ZIP y partes.
+No hacer fetch del piloto entero al Git compartido local sin resolver su
+capacidad. La publicación nativa usa clientes temporales separados y lecturas
+independientes; conserva todos los bytes previos de este documento.
+
+El diagnóstico mantiene performanceAccepted=null y gateReevaluated=false.
+Los rechazos históricos permanecen y los checks de ownership Node 22/24
+continúan rojos; este piloto no los reemplaza ni demuestra rendimiento Rust.
+Próximo paso: utilizar el conjunto completo para dimensionar y revisar un
+método prospectivo de ownership que mida el candidato Rust y sus controles,
+con los presupuestos originales ±2%/±5%, antes de una ejecución nueva.
+No repetir esta secuencia ni completar muestras. Fuente, 903 bindings, 850 pins
+y paquete sellado se conservaron. Sin tag/merge mientras falte aceptación.
+Pausar solo el seguimiento programado de este piloto tras publicar su cierre;
+la migración general permanece activa, runtime híbrido y sin porcentaje válido.
+Preservar las 48 entradas ajenas. Autorización permanente, sin otra pregunta.
+
+
 ## CI de ownership y publicación acotada — 2026-10-27 UTC
 
 Los dos checks rojos de SOURCE 4196 siguen siendo Native class ownership Node
