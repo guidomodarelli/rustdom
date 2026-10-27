@@ -1,0 +1,31 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const root = process.cwd();
+const { SURFACE_EXCLUSION, REFERENCE_GLOBALS_FILE, SURFACE_DOCUMENT_URL } = require(path.join(root, 'scripts/constants/migration-inventory.cjs'));
+for (const name of ['reference.json', 'surface.json', 'implementation-units.json', 'classification.json', 'summary.json']) {
+  const actual = JSON.parse(fs.readFileSync(path.join(process.argv[2], name)));
+  const expected = JSON.parse(fs.readFileSync(path.join(root, 'reports/progress/inventory', name)));
+  if (name === 'surface.json') {
+    assert.equal(actual.profile.node, process.version);
+    const reference = require.resolve('jsdom/package.json', { paths: [root] });
+    const globals = JSON.parse(fs.readFileSync(path.join(path.dirname(reference), REFERENCE_GLOBALS_FILE)));
+    const dom = new (require(path.dirname(reference)).JSDOM)('', { url: SURFACE_DOCUMENT_URL });
+    const excluded = actual.exclusions.filter((entry) => entry.reason === SURFACE_EXCLUSION.ecmascriptGlobal);
+    for (const entry of expected.exclusions.filter((entry) => entry.reason === SURFACE_EXCLUSION.ecmascriptGlobal)) {
+      assert.ok(Object.hasOwn(globals, entry.name));
+      assert.deepEqual(entry, { name: entry.name, reason: SURFACE_EXCLUSION.ecmascriptGlobal });
+    }
+    try {
+      const observed = Reflect.ownKeys(dom.window).filter((key) => typeof key === 'string' && Object.hasOwn(globals, key));
+      assert.deepEqual(excluded.map((entry) => entry.name).sort(), observed.sort());
+      for (const entry of excluded) assert.deepEqual(entry, { name: entry.name, reason: SURFACE_EXCLUSION.ecmascriptGlobal });
+    } finally { dom.window.close(); }
+    actual.exclusions = actual.exclusions.filter((entry) => entry.reason !== SURFACE_EXCLUSION.ecmascriptGlobal);
+    expected.exclusions = expected.exclusions.filter((entry) => entry.reason !== SURFACE_EXCLUSION.ecmascriptGlobal);
+    actual.profile.node = expected.profile.node;
+  }
+  assert.deepEqual(actual, expected, 'Regenerated inventory differs: ' + name);
+}
+process.stdout.write(JSON.stringify({ node: process.version, fiveCatalogFilesVerified: true, rawReportsModified: false, hostGlobalExclusionsVerifiedInRealRealm: true, sourceIdentityNormalized: false }) + '\n');

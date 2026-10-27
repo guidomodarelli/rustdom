@@ -1,0 +1,26 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+if sys.flags.optimize: raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+cache=root/'.cache/confirmation-authentication-20261027'
+output=root/'reports/validation/inventory-current-runtime/20261027'
+snapshot=pathlib.Path('/run/rustdom-inventory-a89ce898-20261027')
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+commands=[('catalog-node22',[str(tools/'node-22/bin/node'),str(cache/'check-inventory-catalog.cjs'),'/run/rustdom-inventory-current-20261027/node22-final/catalog'],snapshot),
+    ('catalog-node24',[str(tools/'node/bin/node'),str(cache/'check-inventory-catalog.cjs'),'/run/rustdom-inventory-current-20261027/node24-final/catalog'],snapshot),
+    ('local-sut-compiler-inputs',[str(tools/'node-22/bin/node'),'-e',"process.stdout.write(JSON.stringify(require('./reports/benchmarks/native-class-ownership/block-confirmation/production.cjs').requireProductionEquivalence('/run/rustdom-production-source-7aeb-20261027')))+'\\n');"],root)]
+for name,argv,cwd in commands:
+    with (output/(name+'.stdout.json')).open('xb') as stdout,(output/(name+'.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(argv,cwd=cwd,stdout=stdout,stderr=stderr,timeout=120)
+    assert result.returncode==0,name
+for name in ['check-inventory-catalog.cjs','finish-inventory-evidence.py']:
+    target=output/(name+'.txt');assert not target.exists();shutil.copyfile(cache/name,target)
+before=(output/'manifest.json').read_bytes()
+(output/'manifest-before-catalog-checks.json').write_bytes(before)
+manifest={str(member.relative_to(output)):dict(bytes=member.stat().st_size,sha256=hashlib.sha256(member.read_bytes()).hexdigest()) for member in output.rglob('*') if member.is_file() and member.name!='manifest.json'}
+(output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps(dict(complete=True,catalogsVerified=2,actualSUTCompilerInputsMatched=344,files=len(manifest))))

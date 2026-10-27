@@ -1,5 +1,54 @@
 # Continuar rustdom en otra máquina
 
+## Correcciones adicionales y gates que requieren evidencia nueva — 2026-10-27 UTC
+
+El CI de5caa3ea9 terminó detectando fallos adicionales a los dos de ownership:
+dos recursoscombinados, dos sharedfixture, XMLbuild, dos inventario y dos Range.
+Se corrigieron contratos/checkout y se calificaron en ambos SDK. El nuevo job
+Range necesitaba instalar rustfmt explícitamente; no era un error de Rust.
+La correspondencia del inventario permite solo el bridge Range exacto, exige
+344inputs y registra los hashes distintos sin equipararlos. Ocho contratos+
+279tests públicos por SDK y los dos helpers de memoria aprobaron. Propuesta
+a89ce898 y ledger intactos; evidencia en reports/validation/inventory-current-runtime/20261027/.
+
+La review detectó que un recolector local sobrescribía functional.json con el
+recibo del proceso. Se declararon perdidos los endpoints de esos dos intentos.
+Se repitieron solo cuatro tests funcionales por SDK con functional.process.json
+separado:38casos completos por SDK quedaron conservados y verificados. Los
+datos anteriores no se reconstruyeron y no se repitió ciencia.
+
+XMLSerializer Node24 también falla: el gate conserva fuentes fijas5ef668c4
+del estudio39907233079 y no puede aceptar el runtime integrado78fcc857.
+No cambiar ese hash para reutilizar su aceptación. Además de la confirmación
+ownership pendiente, hace falta evidencia XML nueva que corresponda a las
+fuentes actuales. Los estudios anteriores y sus decisiones se conservan.
+No afirmar que todos los rojos son únicamente ownership ni que CI está resuelto.
+
+## Ajuste del replay histórico de recursos combinados — 2026-10-27 UTC
+
+La integración Range está publicada en5caa3ea9, con los52archivos propios y el
+blob de evidencia releído desde GitHub. Se preservaron las48entradas ajenas.
+El CI nuevo detectó dos fallos adicionales de Recursos combinados: su catálogo
+de738dependencias incluye workflows originales, modificados al separar la
+historia. Se corrigió el checkout al Git limpio4196c496 y se reprodujeron los
+tres tests reales de exportación en ambos SDK fijados, sin DOM ni muestras.
+El lector/configuración son byte-idénticos a HEAD. Actionlint aprobó; evidencia
+y artifact original autenticado en reports/validation/combined-resource-checkout/20261027/.
+También se corrigió la inspección de XML actual: inspect-xml-preparation.cjs
+valida el preparado real sin conceder elegibilidad al experimento histórico.
+El CLI histórico conserva su hash fijo y rechaza la fuente nueva. Once tests
+por SDK verifican identidad, CLI, fuentes/distribuciones/dependencias alteradas
+y ausencia de captura. El artifact fallido12719061087 está autenticado/íntegro
+en reports/validation/current-preparation-decoupling/20261027/.
+El workflow de fixtures compartidos ahora prueba su paquete consumido desde
+el Git4196 original, con head real y eventHead separados: cuatro contratos de
+DOM real y cinco de evidencia por SDK aprobaron. Endpoints completos en
+reports/memory/current-preparation-decoupling/20261027/. No muestras científicas.
+No se modifica el catálogo científico ni los presupuestos. Ahora son17workflows
+históricos separados; CI general, inventario, Range integrado y gate ownership
+siguen sobre HEAD. Falta observar su ejecución hospedada y cerrar productor/
+lector integral para la confirmación. executionReady=false; gate sin aceptación.
+
 ## Range integrado y probado en ambos SDK; falta el gate de rendimiento — 2026-10-27 UTC
 
 Desde7aeb2075 se aplicaron a producción los cuatro archivos exactos del

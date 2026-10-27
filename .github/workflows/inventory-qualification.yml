@@ -6,6 +6,10 @@ on:
       - '.github/workflows/inventory-qualification.yml'
       - 'src/**'
       - 'scripts/**'
+      - 'reports/benchmarks/native-class-ownership/inventory-runtime-sources/**'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/production.cjs'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/constants/production.json'
+      - 'reports/implementation/range-numeric-composed-candidate/inputs.json'
       - 'third-party/**'
       - 'benchmarks/sources.cjs'
       - 'package.json'
@@ -67,6 +71,11 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/build.log"
+      - name: Probar la correspondencia entre auditoría histórica y fuentes actuales
+        env:
+          RUSTDOM_INVENTORY_SOURCE_SNAPSHOT: ${{ github.workspace }}/.inventory
+          RUSTDOM_INVENTORY_RUNTIME_SOURCE: ${{ github.workspace }}
+        run: node --test reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.spec.cjs > "$RUSTDOM_INVENTORY_OUTPUT/source-contracts.stdout.log" 2> "$RUSTDOM_INVENTORY_OUTPUT/source-contracts.stderr.log"
       - name: Vincular el SUT real tras verificar las fuentes propuestas
         id: context
         run: |
@@ -84,15 +93,9 @@ jobs:
           const gitHead = (cwd) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim();
           assert.equal(process.version, `v${process.env.RUSTDOM_EXPECTED_NODE}`);
           assert.equal(gitHead(snapshot), process.env.RUSTDOM_INVENTORY_SNAPSHOT);
-          const sources = new Map();
-          for (const family of ['dom-token-list', 'dom-string-map']) {
-            const receipt = read(path.join(snapshot, `reports/validation/inventory-${family}-audit/receipt.json`));
-            for (const entry of receipt.mappedLocalSources) {
-              assert.equal(hash(path.join(snapshot, entry.path)), entry.sha256, entry.path);
-              assert.equal(hash(path.join(root, entry.path)), entry.sha256, entry.path);
-              sources.set(entry.path, entry.sha256);
-            }
-          }
+          const { verifyMappedSources } = require('./reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.cjs');
+          const correspondence = verifyMappedSources(snapshot, root);
+          const sources = new Map(correspondence.sources.map((entry) => [entry.path, entry.runtimeSha256]));
           for (const name of ['dist', 'node_modules']) {
             const destination = path.join(snapshot, name);
             assert.equal(fs.existsSync(destination), false);
@@ -104,7 +107,8 @@ jobs:
           const context = { capturedAt: new Date().toISOString(), runtimeHead: gitHead(root), snapshotHead: gitHead(snapshot),
             node: process.version, npm: execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim(),
             rustc: execFileSync('rustc', ['-Vv'], { encoding: 'utf8' }).trim(),
-            sourceCorrespondence: Object.fromEntries(sources), packageLockSha256: hash(path.join(root, 'package-lock.json')),
+            sourceCorrespondence: Object.fromEntries(sources), auditRuntimeCorrespondence: correspondence,
+            packageLockSha256: hash(path.join(root, 'package-lock.json')),
             nativeBinarySha256: hash(path.join(root, 'dist/rustdom.node')), nativeBuild: read(path.join(root, 'dist/native-build.json')),
             canonicalRuntimeSources: require('./benchmarks/sources.cjs').captureSourceIdentity(root),
             baselineReports, runtimeFrom: root, toolsAndTestsFrom: snapshot,

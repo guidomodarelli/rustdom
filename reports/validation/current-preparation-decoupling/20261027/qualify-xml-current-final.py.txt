@@ -1,0 +1,26 @@
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+if sys.flags.optimize: raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+output=pathlib.Path('/run/rustdom-xml-ci-5caa-20261027')
+prepared=output/'tar-data-v2/xml-build'
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+rust=tools/'rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin'
+environment=dict(os.environ,PATH=str(rust)+os.pathsep+os.environ.get('PATH',''),RUSTUP_TOOLCHAIN='1.99.1',
+    RUSTDOM_XML_BUILD_ARCHIVE=str(prepared),RUSTDOM_XML_RUN_BASELINE=str(output/'runtime-A'),RUSTDOM_XML_RUN_CANDIDATE=str(output/'runtime-B'))
+method=root/'reports/benchmarks/native-class-ownership'
+qa=output/'final-reader-qa'; qa.mkdir(exist_ok=False)
+for name,node,checksum in [('node22',tools/'node-22/bin/node','177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),('node24',tools/'node/bin/node','bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    assert hashlib.sha256(node.read_bytes()).hexdigest()==checksum
+    argv=[str(node),'--test','--test-concurrency=1',str(method/'xml-current-run.spec.cjs')]
+    started=time.monotonic()
+    with (qa/(name+'.stdout.log')).open('xb') as stdout,(qa/(name+'.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(argv,cwd=root,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+    (qa/(name+'.json')).write_text(json.dumps(dict(command=argv,nodeExecutableSha256256=checksum,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,DOMExecuted=False,newSamples=0),indent=2)+'\n')
+    assert result.returncode==0,name
+print(json.dumps(dict(complete=True,qa=str(qa),newSamples=0,archiveCodeExecuted=False)))

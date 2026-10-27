@@ -1,0 +1,59 @@
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+
+if sys.flags.optimize:
+    raise RuntimeError('XML qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+output=pathlib.Path('/run/rustdom-xml-ci-5caa-20261027')
+extraction=output/'tar-data-v2'; extraction.mkdir(exist_ok=False)
+with tarfile.open(output/'zip-data/_temp/xml-build.tar.gz','r:gz') as archive:
+    members=archive.getmembers()
+    assert sum(member.size for member in members)<=1024*1024*1024
+    assert len(set(member.name.rstrip('/') for member in members))==len(members)
+    for member in members:
+        name=pathlib.PurePosixPath(member.name)
+        assert not name.is_absolute() and '..' not in name.parts and name.parts[0]=='xml-build'
+        assert member.isfile() or member.isdir() or member.issym()
+        destination=extraction/member.name
+        assert destination.resolve().is_relative_to(extraction)
+        if member.isdir(): destination.mkdir(parents=True,exist_ok=True)
+        elif member.isfile():
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            with destination.open('xb') as stream: shutil.copyfileobj(archive.extractfile(member),stream)
+            destination.chmod(0o700 if member.mode & 0o100 else 0o600)
+    for member in members:
+        if not member.issym(): continue
+        destination=extraction/member.name; target=pathlib.Path(member.linkname)
+        assert not target.is_absolute() and (destination.parent/target).resolve().is_relative_to(extraction/'xml-build')
+        assert not destination.exists() and not destination.is_symlink()
+        destination.parent.mkdir(parents=True,exist_ok=True); destination.symlink_to(member.linkname)
+prepared=extraction/'xml-build'
+roots={}
+for label,relative in [('A','baseline-sources'),('B','sources')]:
+    directory=output/('runtime-'+label)
+    shutil.copytree(prepared/relative,directory,symlinks=True)
+    shutil.copytree(prepared/'packages'/('A0' if label=='A' else 'B')/'dist',directory/'dist',symlinks=True)
+    shutil.copytree(prepared/'node_modules',directory/'node_modules',symlinks=True)
+    roots[label]=directory
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+rust=tools/'rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin'
+environment=dict(os.environ,PATH=str(rust)+os.pathsep+os.environ.get('PATH',''),RUSTUP_TOOLCHAIN='1.99.1',
+    RUSTDOM_XML_BUILD_ARCHIVE=str(prepared),RUSTDOM_XML_RUN_BASELINE=str(roots['A']),RUSTDOM_XML_RUN_CANDIDATE=str(roots['B']))
+method=root/'reports/benchmarks/native-class-ownership'
+qa=output/'current-reader-qa';qa.mkdir(exist_ok=False)
+for name,node,checksum in [('node22',tools/'node-22/bin/node','177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),('node24',tools/'node/bin/node','bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    assert hashlib.sha256(node.read_bytes()).hexdigest()==checksum
+    argv=[str(node),'--test','--test-concurrency=1',str(method/'xml-current-run.spec.cjs')]
+    started=time.monotonic()
+    with (qa/(name+'.stdout.log')).open('xb') as stdout,(qa/(name+'.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(argv,cwd=root,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+    (qa/(name+'.json')).write_text(json.dumps(dict(command=argv,nodeExecutableSha256=checksum,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,DOMExecuted=False,newSamples=0),indent=2)+'\n')
+    assert result.returncode==0,name
+print(json.dumps(dict(complete=True,qa=str(qa),newSamples=0,archiveCodeExecuted=False)))

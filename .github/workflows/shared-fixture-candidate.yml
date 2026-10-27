@@ -1,4 +1,6 @@
-name: Calificar fixtures compartidos
+# Contratos del candidato histórico, ligados al paquete ya consumido y su fuente original.
+# La integración actual se verifica en CI general y Range integrado del PR.
+name: Histórico — Calificar fixtures compartidos
 
 on:
   pull_request:
@@ -34,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: 4196c496187c88c92304516287a7e644659a8536
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -70,9 +72,12 @@ jobs:
           node <<'JS'
           const fs = require('node:fs');
           const os = require('node:os');
+          const { execFileSync } = require('node:child_process');
           const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
           fs.writeFileSync(`${process.env.RUNNER_TEMP}/shared-fixtures/results/host.json`, JSON.stringify({
-            head: process.env.QUALIFICATION_HEAD, runId: process.env.QUALIFICATION_RUN_ID,
+            head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            eventHead: process.env.QUALIFICATION_HEAD, sourceRole: 'historical-functional-qualification',
+            runId: process.env.QUALIFICATION_RUN_ID,
             runAttempt: process.env.QUALIFICATION_ATTEMPT,
             functionalOnly: true, performanceAccepted: null, node: process.version,
             platform: process.platform, architecture: process.arch, release: os.release(),

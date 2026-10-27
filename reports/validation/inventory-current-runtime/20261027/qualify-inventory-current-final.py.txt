@@ -1,0 +1,43 @@
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+if sys.flags.optimize: raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+snapshot=pathlib.Path('/run/rustdom-inventory-a89ce898-20261027')
+output=pathlib.Path('/run/rustdom-inventory-current-20261027')
+def evidence_names(value):
+    if isinstance(value,dict):
+        return [name for entry in value.values() for name in evidence_names(entry)]
+    if isinstance(value,list):
+        return [name for entry in value for name in evidence_names(entry)]
+    if isinstance(value,str) and value.startswith('reports/') and not any(character.isspace() for character in value):
+        assert '..' not in pathlib.PurePosixPath(value).parts
+        return [value]
+    return []
+names=evidence_names(json.loads((snapshot/'reports/progress/inventory/audits.json').read_bytes()))
+subprocess.run(['git','-C',str(snapshot),'sparse-checkout','add','--no-cone',*['/'+name for name in sorted(set(names))]],check=True,capture_output=True)
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+runtime=pathlib.Path('/run/rustdom-production-source-7aeb-20261027')
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    directory=output/(label+'-final');directory.mkdir(exist_ok=False)
+    environment=dict(os.environ,RUSTDOM_INVENTORY_SOURCE_SNAPSHOT=str(snapshot),RUSTDOM_INVENTORY_RUNTIME_SOURCE=str(root))
+    commands=[]
+    if label=='node24':
+        commands.append(('source-tests',[str(node),'--test',str(root/'reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.spec.cjs')],root))
+    commands.extend([
+        ('source-proof',[str(node),str(root/'reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.cjs'),str(snapshot),str(root)],root),
+        ('public-contracts',[str(node),'--expose-gc','--test','--test-concurrency=1','tests/validation/migration-inventory.spec.mjs','tests/dom-token-list.spec.cjs','tests/dom-token-list-native.spec.cjs','tests/dom-string-map.spec.cjs','tests/dom-string-map-native.spec.cjs'],snapshot),
+        ('catalog',[str(node),'scripts/migration-inventory.cjs','--output',str(directory/'catalog')],snapshot),
+        ('token-list-memory',[str(node),'--expose-gc','tests/helpers/token-list-memory.cjs'],snapshot),
+        ('dataset-memory',[str(node),'--expose-gc','tests/helpers/dataset-memory.cjs'],snapshot)])
+    for name,argv,cwd in commands:
+        started=time.monotonic()
+        with (directory/(name+'.stdout.log')).open('xb') as stdout,(directory/(name+'.stderr.log')).open('xb') as stderr:
+            result=subprocess.run(argv,cwd=cwd,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+        (directory/(name+'.process.json')).write_text(json.dumps(dict(command=argv,cwd=str(cwd),exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),runtimeRoot=str(runtime),runtimeNativeBinarySha256=hashlib.sha256((runtime/'dist/rustdom.node').read_bytes()).hexdigest(),scientificCapture=False))+'\n')
+        assert result.returncode==0,(label,name)
+print(json.dumps(dict(complete=True,snapshotCommit='a89ce8980c41a400e05860c36c50f09e31159741',runtimeHead=subprocess.check_output(['git','-C',str(runtime),'rev-parse','HEAD']).decode().strip(),output=str(output))))

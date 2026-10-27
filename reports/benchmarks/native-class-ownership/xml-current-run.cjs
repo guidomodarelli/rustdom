@@ -13,13 +13,13 @@ const { fingerprint } = require('./paired-experiment.cjs');
 const settings = require('./constants/xml-current-run.cjs');
 
 /**
- * Inspect the actual roots that the unchanged experiment will execute, without measuring.
+ * Verify actual prepared roots independently of a historical experiment's fixed candidate scope.
  * @param {string} baseline - Full checkpoint066 source/build tree.
  * @param {string} candidate - Full candidate source/build tree.
  * @param {string} archive - Complete, immutable XML preparation.
  * @returns {object} Observed identities, with no performance decision.
  */
-function inspect(baseline, candidate, archive) {
+function inspectPreparation(baseline, candidate, archive) {
   assert.ok(settings.nodeVersions.includes(process.version), 'XML current run: unsupported Node version');
   assert.equal(process.platform, 'linux', 'XML current run: Linux is required');
   assert.equal(process.arch, 'x64', 'XML current run: x64 is required');
@@ -29,7 +29,6 @@ function inspect(baseline, candidate, archive) {
   const roots = { A: fs.realpathSync(baseline), B: fs.realpathSync(candidate) };
   const inputs = captureXmlBuildInputs(roots.A, roots.B);
   assert.deepEqual(inputs, index.inputsBefore, 'XML current run: actual source/build inputs differ from the preparation');
-  assert.equal(inputs.sources.B, settings.candidateSourceHash, 'XML current run: candidate is outside the declared source scope');
   const distributions = {}, dependencies = {}, sources = {};
   for (const [label, root] of Object.entries(roots)) {
     sources[label] = captureSourceIdentity(root);
@@ -55,6 +54,21 @@ function inspect(baseline, candidate, archive) {
     runtime: { executableSha256, v8: process.versions.v8, glibc },
     machine: { cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, release: os.release(), totalMemoryBytes: os.totalmem() },
     measurementExecuted: false, performanceAccepted: null };
+}
+
+/**
+ * Preserve the consumed experiment's exact source restriction, after checking real prepared inputs.
+ * A verified new preparation is not permission to reuse historical measurement eligibility.
+ * @param {string} baseline - Full checkpoint066 source/build tree.
+ * @param {string} candidate - Full candidate source/build tree.
+ * @param {string} archive - Complete immutable preparation.
+ * @returns {object} The historical method's unchanged identity contract.
+ */
+function inspect(baseline, candidate, archive) {
+  const identity = inspectPreparation(baseline, candidate, archive);
+  assert.equal(identity.inputs.sources.B, settings.candidateSourceHash,
+    'XML current run: candidate is outside the declared source scope');
+  return identity;
 }
 
 /** @param {string} directory - Original experiment output. @returns {object} Original complete/acceptance states, preserving null when AB did not run. */
@@ -126,4 +140,4 @@ if (require.main === module) {
     if (mode === '--run' && (!result.complete || result.performanceAccepted !== true)) process.exitCode = 1;
   } catch (error) { process.stderr.write(`${error.stack}\n`); process.exitCode = 2; }
 }
-module.exports = { inspect, readExperimentOutcome, run };
+module.exports = { inspectPreparation, inspect, readExperimentOutcome, run };

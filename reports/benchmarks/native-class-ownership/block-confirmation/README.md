@@ -114,8 +114,9 @@ Se conservan fallos de desarrollo de fixtures de metadata, versiones anteriores
 de los tests y los lectores finales. La matriz real no se repitió por los
 cambios posteriores del guard de fuentes, que no modifica ni carga el DOM.
 
-El guard actual detecta las cuatro diferencias de producción y bloquea su
-equivalencia. La integración del candidato, productor científico, lector
+En la calificación de `7aeb2075`, el guard detectaba cuatro diferencias de
+producción y bloqueaba su equivalencia. Esas diferencias se integraron en
+`5caa3ea9`, con la validación descrita abajo. El productor científico, lector
 integral y confirmación de rendimiento siguen pendientes. `executionReady`
 sigue en `false`; no se activó una captura ni se reevaluó el gate.
 
@@ -157,16 +158,19 @@ Se conservan dos preflight locales fallidos antes de DOM por un staging
 incompleto y una matriz Node22 anterior al arreglo de cancelación; esta última
 no se suma a los 128 procesos finales. No se repitió una secuencia científica.
 
-La fuente de producción todavía difiere del candidato en cuatro archivos:
+En `5caa3ea9` se integraron los cuatro archivos del candidato en producción:
 `src/dom/native-tree.cjs`, `src/dom/range_state.rs`,
-`src/dom/range_state_binding.rs` y `types/native.d.cts`. La integración y su
-equivalencia con los 344 inputs compilados deben verificarse antes de atribuir
-al PR la aceptación del candidato. No reconstruir ni sustituir paquetes
-consumidos. Los verificadores históricos deben conservar sus fuentes/pins;
-no adaptar esas pruebas para ocultar la diferencia de producción.
+`src/dom/range_state_binding.rs` y `types/native.d.cts`. Los 344 inputs
+compilados coinciden, sin diferencias. Su calificación real en ambos SDK,
+incluidos Jest/Vitest, corpus, WPT con límites explícitos, memoria y benchmarks
+adversos, está en `reports/validation/range-native-production/20261027/`.
+El binario local a6a21c3c es distinto del sellado a2777cbf; esta equivalencia
+de fuentes no prueba igualdad de binarios ni del entorno de compilación.
+No se reconstruyeron ni sustituyeron paquetes consumidos. Los verificadores
+históricos conservan sus fuentes y pins originales en un checkout separado.
 
-Faltan el productor científico, autenticación integral, integración del
-candidato y su revisión, publicación del método completo y una captura única.
+Faltan el productor científico, autenticación integral, revisión y publicación
+del método completo y una captura única.
 Después habrá que integrar su decisión íntegra al gate.
 No hay tag ni merge de ownership antes de aceptación. La autorización
 permanente cubre el trabajo restante sin nuevas preguntas.

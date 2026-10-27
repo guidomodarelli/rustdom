@@ -1,0 +1,27 @@
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+if sys.flags.optimize: raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+output=pathlib.Path('/run/rustdom-shared-historical-20261027')
+receipt=json.loads((source/'reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json').read_bytes())
+names=['/'+name for name,checksum in receipt['identity']['inputs']['buildInputHashes']['B'].items() if checksum is not None]
+subprocess.run(['git','-C',str(source),'sparse-checkout','add','--no-cone',*names],check=True,capture_output=True)
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain'])==b''
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    directory=output/(label+'-final');directory.mkdir(exist_ok=False)
+    environment=dict(os.environ,RUSTDOM_SHARED_FIXTURE_PREPARATION=str(output/'preparation/ownership-build'),RUSTDOM_SHARED_FIXTURE_EVIDENCE=str(directory/'functional.json'))
+    for stage,args in [('functional',['--expose-gc','--test','reports/benchmarks/native-class-ownership/shared-fixture-candidate/contracts.spec.cjs']),('evidence',['--test','reports/benchmarks/native-class-ownership/shared-fixture-candidate/evidence.spec.cjs'])]:
+        started=time.monotonic()
+        with (directory/(stage+'.stdout.log')).open('xb') as stdout,(directory/(stage+'.stderr.log')).open('xb') as stderr:
+            result=subprocess.run([str(node),*args],cwd=source,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+        (directory/(stage+'.json')).write_text(json.dumps(dict(exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),scientificCapture=False))+'\n')
+        assert result.returncode==0,(label,stage)
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain'])==b''
+print(json.dumps(dict(complete=True,sourceCommit='4196c496187c88c92304516287a7e644659a8536',headClean=True,scientificCapture=False,output=str(output))))

@@ -7,6 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { inspect, readExperimentOutcome, run } = require('./xml-current-run.cjs');
+const { inspectPrepared } = require('./inspect-xml-preparation.cjs');
 const recipe = require('./constants/xml-hosted-build.cjs');
 const settings = require('./constants/xml-current-run.cjs');
 const archive = process.env.RUSTDOM_XML_BUILD_ARCHIVE;
@@ -30,9 +31,12 @@ after(() => {
 });
 
 test('observes full distributions, locked dependencies and inputs from actual prepared runtimes', () => {
-  const identity = inspect(baseline, candidate, archive);
+  const identity = inspectPrepared(baseline, candidate, archive);
   assert.equal(identity.measurementExecuted, false);
   assert.equal(identity.performanceAccepted, null);
+  assert.equal(identity.scientificCaptureEligible, false);
+  assert.equal(identity.gateReevaluated, false);
+  assert.equal(identity.scope, 'preparation-only');
   assert.equal(identity.node, process.version);
   assert.equal(identity.inputs.sources.A, identity.sources.A.sourceHash);
   assert.equal(identity.inputs.sources.B, identity.sources.B.sourceHash);
@@ -41,10 +45,42 @@ test('observes full distributions, locked dependencies and inputs from actual pr
 });
 
 test('the actual CLI inspects matching physical roots without starting an experiment', () => {
-  const child = spawnSync(process.execPath, [path.join(__dirname, 'xml-current-run.cjs'), '--inspect', baseline, candidate, archive],
+  const child = spawnSync(process.execPath, [path.join(__dirname, 'inspect-xml-preparation.cjs'), '--inspect', baseline, candidate, archive],
     { encoding: 'utf8', timeout: recipe.validationTimeoutMs, maxBuffer: settings.maxOutputBytes });
   assert.ifError(child.error); assert.equal(child.status, 0, child.stderr);
-  assert.deepEqual(JSON.parse(child.stdout), inspect(baseline, candidate, archive));
+  assert.deepEqual(JSON.parse(child.stdout), inspectPrepared(baseline, candidate, archive));
+});
+
+test('preparation qualification does not widen the consumed XML method source scope or start a capture', () => {
+  const identity = inspectPrepared(baseline, candidate, archive);
+  const child = spawnSync(process.execPath, [path.join(__dirname, 'xml-current-run.cjs'), '--inspect', baseline, candidate, archive],
+    { encoding: 'utf8', timeout: recipe.validationTimeoutMs, maxBuffer: settings.maxOutputBytes });
+  assert.ifError(child.error);
+  if (identity.inputs.sources.B === settings.candidateSourceHash) {
+    assert.equal(child.status, 0, child.stderr);
+    assert.deepEqual(JSON.parse(child.stdout), inspect(baseline, candidate, archive));
+  } else {
+    assert.equal(child.status, 2); assert.match(child.stderr, /candidate is outside the declared source scope/);
+    assert.throws(() => inspect(baseline, candidate, archive), /candidate is outside the declared source scope/);
+    const destination = path.join(temporary, 'forbidden-capture');
+    if (process.version === settings.measurementNode) {
+      assert.throws(() => run(baseline, candidate, archive, destination), /candidate is outside the declared source scope/);
+    }
+    assert.equal(fs.existsSync(destination), false);
+  }
+});
+
+test('the preparation CLI rejects measurement modes and output arguments without creating a capture', () => {
+  const destination = path.join(temporary, 'invalid-cli-capture');
+  for (const args of [
+    ['--run', baseline, candidate, archive], ['--capture', baseline, candidate, archive],
+    ['--inspect', baseline, candidate, archive, destination],
+  ]) {
+    const child = spawnSync(process.execPath, [path.join(__dirname, 'inspect-xml-preparation.cjs'), ...args],
+      { encoding: 'utf8', timeout: recipe.validationTimeoutMs });
+    assert.ifError(child.error); assert.equal(child.status, 2); assert.equal(child.stdout, '');
+    assert.equal(fs.existsSync(destination), false);
+  }
 });
 
 for (const [name, relativePath] of [
@@ -58,13 +94,16 @@ for (const [name, relativePath] of [
     const original = fs.readFileSync(filename);
     try {
       fs.appendFileSync(filename, '\n');
-      assert.throws(() => inspect(baseline, copiedCandidate, archive), /XML current run:/);
+      const message = relativePath.startsWith('dist/') ? /actual B distribution differs/ :
+        relativePath.startsWith('node_modules/') ? /actual B dependencies differ/ : /actual source\/build inputs differ/;
+      assert.throws(() => inspectPrepared(baseline, copiedCandidate, archive), message);
+      assert.throws(() => inspect(baseline, copiedCandidate, archive), message);
     } finally { fs.writeFileSync(filename, original); }
   });
 }
 
 test('rejects undeclared Node runtime flags before selecting a measurement', () => {
-  const child = spawnSync(process.execPath, [path.join(__dirname, 'xml-current-run.cjs'), '--inspect', baseline, candidate, archive],
+  const child = spawnSync(process.execPath, [path.join(__dirname, 'inspect-xml-preparation.cjs'), '--inspect', baseline, candidate, archive],
     { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '--no-warnings' }, timeout: recipe.validationTimeoutMs });
   assert.ifError(child.error); assert.equal(child.status, 2);
   assert.match(child.stderr, /XML current run: undeclared NODE_OPTIONS/);
@@ -74,7 +113,9 @@ test('refuses an overlapping capture before starting a worker or changing its ru
   if (process.version !== 'v24.14.1') {
     assert.throws(() => run(baseline, candidate, archive, copiedCandidate), /measurement requires the declared Node/);
   } else {
-    assert.throws(() => run(baseline, copiedCandidate, archive, path.join(copiedCandidate, 'capture')), /capture must not overlap/);
+    const identity = inspectPrepared(baseline, copiedCandidate, archive);
+    const expected = identity.inputs.sources.B === settings.candidateSourceHash ? /capture must not overlap/ : /candidate is outside the declared source scope/;
+    assert.throws(() => run(baseline, copiedCandidate, archive, path.join(copiedCandidate, 'capture')), expected);
     assert.equal(fs.existsSync(path.join(copiedCandidate, 'capture')), false);
   }
 });
