@@ -1,0 +1,56 @@
+"""Import only the independently verified one-path metadata commit; never fetch a whole pilot capture."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+SOURCE = Path(__file__).resolve().parent.parent
+DATA = Path('C:/Users/guido/.codex/worktrees/pilot-v2-ci-evidence/rustdom')
+GIT = ['git', '-c', 'core.longpaths=true', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false']
+PARENT = 'aee07fde0c456d2a988f6e21b2d6a95d22baf074'
+receipt = json.loads(subprocess.check_output(['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--',
+    'cat', '/run/rustdom-handoff-publication-20261027/summary.json']))['receipt']
+
+
+def git(*arguments):
+    return subprocess.check_output(GIT + list(arguments), cwd=DATA, stderr=subprocess.PIPE)
+
+
+if (receipt['parent'] != PARENT or receipt['path'] != 'reports/progress/HANDOFF.md'
+        or receipt['bytes'] > 1048576 or receipt['independentRemoteDigestVerified'] is not True
+        or git('rev-parse', 'HEAD').decode().strip() != PARENT or git('diff', '--cached', '--name-only')):
+    raise ValueError('Bounded handoff import identity or local parent differs')
+api_commit = json.loads(subprocess.check_output(['gh', 'api', 'repos/guidomodarelli/rustdom/git/commits/' + receipt['commit']]))
+if api_commit['sha'] != receipt['commit'] or [entry['sha'] for entry in api_commit['parents']] != [PARENT]:
+    raise ValueError('Remote metadata commit is not the single reviewed child')
+comparison = json.loads(subprocess.check_output(['gh', 'api', 'repos/guidomodarelli/rustdom/compare/' + PARENT + '...' + receipt['commit']]))
+if (comparison['ahead_by'] != 1 or comparison['behind_by'] != 0 or len(comparison['files']) != 1
+        or comparison['files'][0]['filename'] != receipt['path'] or comparison['files'][0]['status'] != 'modified'
+        or comparison['files'][0]['sha'] != receipt['newBlob']):
+    raise ValueError('Remote metadata diff exceeds the single selected document')
+flags = git('config', '--local', '--list').decode().splitlines()
+if any(line.partition('=')[0].lower() in ['remote.origin.promisor', 'remote.origin.partialclonefilter', 'extensions.partialclone'] for line in flags):
+    raise ValueError('Shared Git configuration must remain an ordinary full repository')
+free = shutil.disk_usage(DATA).free
+if free < 268435456 + receipt['bytes'] * 8:
+    raise ValueError('Metadata-only import cannot preserve the fixed storage reserve')
+blocked = Path('C:/Users/guido/ghq/projects/rustdom/.git/objects/pack/tmp_pack_IyiPK4')
+before = (blocked.stat().st_size, blocked.stat().st_mtime_ns)
+result = {'parent': PARENT, 'commit': receipt['commit'], 'path': receipt['path'], 'freeBytesBefore': free,
+    'onlyOneSmallDocumentImported': True, 'wholePilotImportPerformed': False, 'sharedFilteredFetch': False}
+out = SOURCE / '.cache/handoff-qualification-input/import.json'
+with out.with_suffix('.intent.json').open('xb') as writer:
+    writer.write(json.dumps(result, indent=2).encode() + b'\n')
+git('fetch', '--no-tags', '--no-auto-maintenance', 'origin', receipt['commit'])
+git('merge', '--ff-only', receipt['commit'])
+content = git('show', receipt['commit'] + ':' + receipt['path'])
+if len(content) != receipt['bytes'] or hashlib.sha256(content).hexdigest() != receipt['sha256']:
+    raise ValueError('Locally imported handoff differs from independent remote readback')
+if before != (blocked.stat().st_size, blocked.stat().st_mtime_ns):
+    raise ValueError('Previously blocked temporary pack changed')
+result.update(freeBytesAfter=shutil.disk_usage(DATA).free, priorBlockedPackUnchanged=True,
+    importedDocumentSha256=receipt['sha256'], actualLocalReadbackVerified=True)
+with out.open('xb') as writer:
+    writer.write(json.dumps(result, indent=2).encode() + b'\n')
+print(json.dumps(result))
