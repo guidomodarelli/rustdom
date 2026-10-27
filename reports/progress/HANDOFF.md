@@ -1,5 +1,45 @@
 # Continuar rustdom en otra máquina
 
+## Controlador vinculado validado; rendimiento todavía pendiente — 2026-10-27 UTC
+
+Base publicada antes de este incremento: 748f57ac. Su CI terminó con 82 SUCCESS y tres
+FAILURE: ownership Node 22/24 y XMLSerializer Node 24. Son gates de evidencia
+incompatible con las fuentes actuales; no se trasladó una aceptación histórica.
+El objetivo general sigue ACTIVE y el runtime híbrido. Sin tag ni merge.
+
+Se implementaron binding/worker, controlador de criterio, lector integral,
+supervisor Linux, consumo condicionado a publicación y calificación funcional.
+La v2 completa pasó cuatro criterios de 32 procesos por SDK (256 en total),
+36.864 medidas y 12.288 warmup; 3.072 Window/Document por separado, 512 estados
+finales claros y 24 snapshots parentales. El lector/supervisor verifican todos
+los comandos y los subárboles propios sin cargar código archivado. También
+pasó la regresión anterior de 128 workers; sus datos permanecen separados.
+
+Pasaron 37 contratos Node, 16 Python y 13 de fuentes por SDK. La revisión aislada
+cerró cinco P2 y terminó sin hallazgos materiales. Se preservan el desarrollo,
+los fallos de tests y la v1 detenida tras la review (32+5 workers completos y
+una sexta invocación interrumpida en el segundo criterio). No es una repetición
+de estudios científicos consumidos. No se activó ninguna captura científica.
+
+Archivos íntegros, manifiestos, alcances y hashes:
+
+- reports/validation/block-confirmation-bound-development/20261027/
+- reports/benchmarks/native-class-ownership/block-confirmation-bound-functional/20261027/
+- reports/memory/block-confirmation-bound-development/20261027/
+
+La fuente Linux real de esta calificación es HEAD 748f57ac más WIP propio; su
+Git/errores/rutas quedan sin normalizar. No reconstruir el paquete sellado a277.
+Los 903 archivos históricos y 344 inputs permanecen verificados. Las 48 entradas
+ajenas de native-collection-queries deben seguir intactas. Engram permanece sin
+identidad del hook; no usarlo ni inventar una sesión. Autorización permanente.
+
+Siguiente: obtener/verificar los artifacts del job bound actual de CI y probar
+los lectores de transporte con ellos; cerrar lector de 64 criterios, transporte,
+archivo íntegro y workflow científico. Revisar/publicar el método completo y
+ejecutar una única confirmación fija. executionReady sigue false, aceptación
+null y gateReevaluated false. También falta evidencia XML nueva para runtime 78fcc857.
+No relanzar estudios consumidos, pedir otra autorización ni bajar presupuestos.
+
 ## Perfil de fuentes para la confirmación; CI de7b600278 en seguimiento — 2026-10-27 UTC
 
 Las correcciones de contratos están publicadas en7b600278. Su CI terminó con

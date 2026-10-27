@@ -1,4 +1,4 @@
-/** @module confirmation-worker-engine Executes the new sealed Rust/jsdom functional treatments; scientific execution is not implemented. */
+/** @module confirmation-worker-engine Executes the sealed Rust/jsdom treatments with unchanged tasks and cleanup; capture requires an independently published binding. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,6 +8,8 @@ const { getHeapStatistics } = require('node:v8');
 const { schedule } = require('./calendar.cjs');
 const policy = require('./constants/worker.json');
 const design = require('./constants/design.json');
+const capture = require('./constants/capture.json');
+const { requireMode, childBinding } = require('./binding.cjs');
 const rawPolicy = require('../owner-batch-study/constants/worker.json');
 const sampling = require('../owner-batch-study/constants/sampler.json');
 const original = require('../combined-process-study/model.cjs');
@@ -31,13 +33,15 @@ function workerArguments(factor) { return scheduler.workerArguments(factor); }
 /**
  * Produce one raw-format report and sidecar, preserving partials and original failures.
  * @param {string[]} args - Parent-authenticated manifest, exact planned-input JSON and new report output.
- * @param {'functional'} mode - Functional qualification only; scientific mode is rejected before file reads.
+ * @param {'functional'|'capture'} mode - Actual role; unpublished scientific mode is rejected before file reads.
  * @param {function(object):void} [onProgress] - Caller-owned scalar observer; cannot receive a DOM reference.
+ * @param {{bound?:boolean}} [options] - The actual bound entry requires parent identity even in functional qualification.
  * @returns {Promise<object>} Tasks and resource endpoints; acceptance is always null.
  */
-async function run(args, mode, onProgress = () => {}) {
-  assert.equal(mode, 'functional', 'Confirmation worker: scientific producer is not implemented');
-  const functionalOnly = true;
+async function run(args, mode, onProgress = () => {}, { bound = false } = {}) {
+  requireMode(mode); assert.equal(typeof bound, 'boolean');
+  const functionalOnly = mode === capture.functionalMode;
+  assert.ok(functionalOnly || bound, 'Confirmation worker: scientific invocation requires an independent parent binding');
   assert.equal(args.length, 3, 'Confirmation functional worker: provide manifest, input and new report');
   assert.equal(process.platform, 'linux', 'Confirmation functional worker: Linux affinity evidence required');
   assert.equal(typeof global.gc, 'function', 'Confirmation functional worker: use --expose-gc');
@@ -49,6 +53,7 @@ async function run(args, mode, onProgress = () => {}) {
   assert.ok(Number.isSafeInteger(input.ordinal));
   assert.deepEqual(input, shard.processes[input.ordinal], 'Confirmation functional worker: changed calendar tuple');
   assert.deepEqual(process.execArgv, workerArguments(input.factor), 'Confirmation functional worker: changed startup flags');
+  const binding = bound ? childBinding(mode, manifestPath, input) : null;
   assert.equal(manifest.numericPackageVerifiedByParent, true); assert.equal(manifest.selectedArtifactId, policy.selectedArtifactId);
   assert.equal(manifest.nativeBinarySha256, policy.nativeBinarySha256); assert.equal(manifest.archiveSha256, policy.archiveSha256);
   assert.equal(manifest.functionalOnly, functionalOnly, 'Confirmation worker: package manifest role differs from invocation');
@@ -70,14 +75,17 @@ async function run(args, mode, onProgress = () => {}) {
     v8Seed: settings.v8Seeds[input.factor], randomProbe: Array.from({ length: settings.v8SeedProbeSamples }, () => Math.random()),
     sampling: { tasksPerBlock: sampling.logicalTasksPerBlock, warmupBlocks: sampling.warmupBlocksPerProcess,
       measuredBlocks: sampling.measuredBlocksPerProcess, withinRealmWarmupRounds: sampling.withinRealmWarmupRounds }, blocks: [] };
-  const workerFile = path.join(__dirname, 'worker.cjs');
-  const context = { workerRevision: policy.revision, methodRevision: design.revision, rawPayloadContractRevision: rawPolicy.revision,
+  const workerFile = bound ? path.join(sourceRoot, capture.workerPath) : path.join(__dirname, 'worker.cjs');
+  if (binding !== null) { report.methodBindingSha256 = binding.sha256; report.methodParentPid = binding.parentPid; }
+  const context = { workerRevision: bound ? capture.workerRevision : policy.revision, methodRevision: design.revision, rawPayloadContractRevision: rawPolicy.revision,
     workerSourceSha256: createHash('sha256').update(fs.readFileSync(workerFile)).digest('hex'),
     workerEngineSourceSha256: createHash('sha256').update(fs.readFileSync(__filename)).digest('hex'),
     complete: false, mode, plannedInput: input, pid: process.pid, parentPid: process.ppid,
     node: process.version, numericPackageArtifactId: policy.selectedArtifactId,
     packageAuthenticationPerformedHere: false, producerSourceAuthenticationPerformedHere: false,
     scientificCaptureExecuted: !functionalOnly, analysisObservation: null, performanceAccepted: null, gateReevaluated: false };
+  if (binding !== null) Object.assign(context, { methodBindingSha256: binding.sha256, methodParentPid: binding.parentPid,
+    criterionId: binding.criterionId, hostId: binding.hostId, manifestSha256: binding.manifestSha256 });
   function write(filename, value, flag) {
     const raw = JSON.stringify(value, null, 2) + '\n';
     assert.ok(Buffer.byteLength(raw) <= policy.maximumReportBytes, 'Confirmation functional worker: report exceeds bound');

@@ -194,3 +194,56 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 90
+  bound:
+    name: Controlador y replay integral Node ${{ matrix.node }}
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+      PACKAGE_TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE: ${{ github.workspace }}/historical-authentication-source
+    defaults:
+      run:
+        working-directory: producer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: producer
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+          path: historical-authentication-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer el paquete sellado sin reconstruirlo
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-bound"
+          python -B "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/$PACKAGE_TOOLS/transport.py" --extract "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/reports/validation/range-numeric-composed-package/20261026/packages.tar.xz" "$RUNNER_TEMP/confirmation-bound-package" > "$RUNNER_TEMP/confirmation-bound/extraction.json" 2> "$RUNNER_TEMP/confirmation-bound/extraction.stderr.log"
+      - name: Probar cuatro bloques funcionales completos con supervisor y lector independientes
+        run: |
+          python -B "$METHOD/qualify.py" --functional "$(command -v node)" "$RUNNER_TEMP/confirmation-bound-package" "$RUNNER_TEMP/confirmation-bound/qualification" > "$RUNNER_TEMP/confirmation-bound/qualification.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/qualification.stderr.log"
+      - name: Rechazar alteraciones del binding, relojes, fuente, tareas, recursos y consumo
+        env:
+          RUSTDOM_CONFIRMATION_BOUND_FIXTURE: ${{ runner.temp }}/confirmation-bound/qualification/0/criterion
+          RUSTDOM_CONFIRMATION_BOUND_EXPECTED: ${{ runner.temp }}/confirmation-bound/qualification/0/replay/expected-context.json
+        run: node --test "$METHOD/bound-replay.spec.cjs" "$METHOD/criterion-reader.spec.cjs" "$METHOD/consumption.spec.cjs" "$METHOD/publication-data.spec.cjs" > "$RUNNER_TEMP/confirmation-bound/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/tests.stderr.log"
+      - name: Probar timeout, terminación y descendientes reales sin datos científicos
+        run: RUSTDOM_CONFIRMATION_NODE="$(command -v node)" python -B "$METHOD/test_supervise.py" > "$RUNNER_TEMP/confirmation-bound/supervisor-tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/supervisor-tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-bound-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-bound/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
