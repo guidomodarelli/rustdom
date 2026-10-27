@@ -12,9 +12,9 @@ objetivo de migrar toda la implementación ni demuestra compatibilidad completa.
 | Archivos de referencia | 531 | 528 JavaScript, dos datos de `lib` y `package.json` |
 | Entradas de API observadas | 4.331 | Descriptores propios de objetos públicos, incluidos globals, constantes, accesores, métodos y símbolos públicos |
 | Cuerpos ejecutables | 7.246 | Funciones, callbacks, métodos, constructores y accesores con cuerpo, con archivo/línea/columna |
-| Módulos con clasificación revisada | 7 | Node-impl, Element-impl, XMLSerializer-impl, AbstractRange-impl, Range-impl, StaticRange-impl y DOMImplementation-impl: híbridos, con pruebas y pendientes |
-| APIs con clasificación revisada | 37 | XMLSerializer, 31 entradas de Range y cinco de DOMImplementation: 32 híbridas y cinco pendientes; no acreditan candidatos aislados |
-| Anclas con clasificación revisada | 6 | Dos cuerpos Rust completos —serializeToString y hasFeature—, tres creaciones híbridas y un constructor pendiente; no acreditan dependencias ni APIs completas |
+| Módulos con clasificación revisada | 8 | Los siete anteriores más MutationRecord-impl: híbridos, con fuentes, pruebas y pendientes por fila |
+| APIs con clasificación revisada | 47 | XMLSerializer, 31 entradas de Range, cinco de DOMImplementation y diez de MutationRecord: 41 híbridas y seis pendientes |
+| Anclas con clasificación revisada | 9 | Dos cuerpos Rust completos, seis híbridos y uno pendiente; no acreditan dependencias ni APIs completas |
 
 Las tres primeras dimensiones se solapan y **no se suman**. Las APIs se cuentan
 por exposición propia: la herencia y los aliases se registran aparte para no
@@ -112,3 +112,12 @@ cerrar las brechas de contratos dinámicos. Auditar cada clasificación con prue
 de comportamiento y evidencia por SHA antes de habilitar un porcentaje. El
 índice histórico de 45,8% por áreas está retirado y no debe recuperarse como
 aproximación del avance actual.
+
+## Auditoría de MutationRecord
+
+La [auditoría de la fuente 4196c496](mutation-record-audit-20261027/README.md)
+agrega un módulo, nueve getters públicos, su constructor ilegal y tres anclas.
+El payload es Rust; el módulo y los getters siguen híbridos por WebIDL y
+consumidores NodeList/factories. El constructor público permanece pendiente.
+No se reclasifica toStringTag ni se suma una implementación Rust nueva.
+Los denominadores se conservan y migrationPercent sigue null.

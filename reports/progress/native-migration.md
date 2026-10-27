@@ -1,45 +1,44 @@
 # Migración a Rust: estado verificable del catálogo
 
-El índice histórico de 45,8% por áreas queda retirado como medida de migración.
-Sus pesos no representan APIs, algoritmos ni esfuerzo. Se conserva abajo como
-historia de planificación; no es el porcentaje actual del proyecto.
-
-El [catálogo versionado](inventory/README.md) enumera la referencia fijada
-jsdom 27.4.0 con fuentes, dependencias, APIs observadas, herencia y anclas de
-implementación. El [resumen canónico](inventory/summary.json) registra:
+El índice histórico de 45,8% por áreas está retirado. Sus pesos no representan
+APIs, algoritmos ni esfuerzo. El [catálogo versionado](inventory/README.md) usa
+jsdom 27.4.0 y mantiene denominadores separados y alcance abierto.
 
 | Dimensión | Total catalogado | Filas auditadas | Rust completo | Híbrido | Pendiente |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Módulos/archivos | 531 | 6 | 0 | 6 | 525 |
-| Entradas de API | 4331 | 32 | 0 | 28 | 4303 |
-| Anclas ejecutables | 7246 | 1 | 1 | 0 | 7245 |
+| Módulos/archivos | 531 | 8 | 0 | 8 | 523 |
+| Entradas de API | 4331 | 47 | 0 | 41 | 4290 |
+| Anclas ejecutables | 7246 | 9 | 2 | 6 | 7238 |
 
-Son dimensiones separadas: no se suman ni estiman esfuerzo. Las seis filas de
-módulo auditadas son Node, Element, XMLSerializer, AbstractRange, Range y
-StaticRange. Entre las32APIs auditadas hay28híbridas y cuatro pendientes;
-las4299APIs restantes todavía no tienen una clasificación auditada. `pending`
-sin auditoría no demuestra ausencia de trabajo Rust ni permite interpretar los
-recuentos como0% de implementación. Auditar más filas tampoco aumenta por sí
-mismo la implementación Rust.
+Los módulos auditados son Node, Element, XMLSerializer, AbstractRange, Range,
+StaticRange, DOMImplementation y MutationRecord. Entre las 47 APIs auditadas,
+41 son híbridas y seis pendientes; las otras 4284 todavía no tienen una
+clasificación auditada. Pending sin auditoría no demuestra ausencia de Rust.
+Los recuentos no se suman ni estiman esfuerzo; auditar no implementa algoritmos.
 
-La única ancla clasificada como Rust completo cubre el control declarado de
-`XMLSerializer.serializeToString`. Su API pública sigue híbrida por WebIDL y la
-factory de DOMException. Un cuerpo ejecutable no equivale a un algoritmo
-normativo completo ni acredita todo el módulo. Las fuentes, pruebas y límites
-se registran por fila en [audits.json](inventory/audits.json).
+Las dos anclas Rust completas cubren controles declarados de serializeToString
+y hasFeature, sin acreditar sus dependencias ni sus APIs públicas completas.
+Los cuerpos ejecutables son anclas para agrupar algoritmos, no algoritmos
+normativos completos. Fuentes, contratos y pendientes: [audits.json](inventory/audits.json).
 
-`summary.json` mantiene `scopeClosed=false` y `migrationPercent=null`: faltan
-algoritmos de dependencias de plataforma, contratos dinámicos, opciones y
-diccionarios, otros perfiles de realms y agrupaciones semánticas. No existe
-todavía un porcentaje defendible del objetivo completo. Implementación,
-compatibilidad verificada, rendimiento y memoria son dimensiones distintas.
+La [auditoría de MutationRecord](inventory/mutation-record-audit-20261027/README.md)
+clasifica la fuente 4196c496: el snapshot es Rust; el constructor interno
+retiene owners/payload/WeakRef en JavaScript, el constructor público ilegal
+arroja TypeError en WebIDL y las NodeLists estáticas usan factories/consumidores
+JavaScript. Los getters escalares no construyen NodeList. Esta entrega agrega
+14 clasificaciones y cero implementaciones nuevas; el runtime sigue híbrido.
 
-El catálogo se inició sobre `271221abbfeafebebb7dd817b98fd559592696d3`,
-`checkpoint-065-attribute-reads` (PR77). Las auditorías posteriores conservan sus
-propias fuentes y evidencias; la [auditoría integrada de Range](inventory/range-audit-20261024/README.md)
-agregó tres módulos y31APIs a las filas anteriores. Los candidatos aislados,
-incluido el prototipo StaticRange, no cuentan como migración de producción.
-El runtime continúa híbrido y el objetivo general sigue incompleto.
+La página anterior estaba desactualizada respecto al resumen canónico: omitía
+DOMImplementation y mostraba seis módulos y 32 APIs en vez de siete y 37.
+Ahora ambos documentos reflejan la misma auditoría; los denominadores no cambian.
+El catálogo se inició sobre 271221abbfeafebebb7dd817b98fd559592696d3 y cada
+ampliación conserva sus fuentes/evidencia, sin atribuir candidatos a producción.
+
+summary.json mantiene scopeClosed=false y migrationPercent=null: faltan
+algoritmos de dependencias, contratos dinámicos, diccionarios/opciones,
+perfiles de realms y agrupaciones semánticas. No hay un porcentaje defendible
+del objetivo completo. Implementación, compatibilidad, rendimiento y memoria
+son dimensiones distintas. El objetivo general continúa incompleto.
 
 ## Registro histórico
 

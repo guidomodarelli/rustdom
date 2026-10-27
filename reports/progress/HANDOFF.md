@@ -1,5 +1,28 @@
 # Continuar rustdom en otra máquina
 
+## Auditoría de MutationRecord y recuentos corregidos — 2026-10-27 UTC
+
+La rama de evidencia conserva una auditoría de la fuente 4196c496: un módulo,
+diez APIs y tres anclas adicionales. El catálogo registra ocho módulos,
+47 APIs y nueve anclas auditadas, sin cambiar denominadores ni añadir Rust
+completo. Sigue scopeClosed=false/migrationPercent=null; el payload nativo
+no completa WebIDL, NodeList ni factories. Se corrige también la página de
+progreso que omitía la auditoría previa de DOMImplementation.
+
+Ambos Node fijados aprobaron ocho contratos, CLI real y memoria finita del
+inventario (Window/Document separados). Se conservan timeout inicial, helper
+omitido, corrección sin mocks y todas las salidas/vistas. No se modificó la
+fuente ni el paquete del piloto activo. Evidencia y límites:
+reports/validation/inventory-mutation-record-audit/20261027/.
+
+Continúa el mismo run 40426500725, intento 1, fuente 4196c496; no relanzar,
+aplicar etiquetas ni completar muestras. Usar los IDs y ledger de la sección
+siguiente y el recolector 94d37f90 cuando sea terminal. Cero hilos de review
+abiertos en la lectura real actual; cuota remota agotada, no pedir @codex review.
+Los dos checks ownership siguen rechazados. Sin tag/merge; migración híbrida
+activa y las 48 entradas ajenas preservadas.
+
+
 ## Piloto v2 activado una vez: run 40426500725 — 2026-10-27 UTC
 
 La etiqueta ownership-jsdom-block-pilot-v2 YA fue aplicada una vez. No volver

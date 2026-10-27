@@ -67,10 +67,10 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 7);
+  assert.equal(audited.summary.counts.files.states.hybrid, 8);
   assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 2);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 32);
-  assert.equal(audited.summary.counts.apis.audited, 37);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 41);
+  assert.equal(audited.summary.counts.apis.audited, 47);
   for (const id of ['api:Window.AbstractRange', 'api:Window.AbstractRange.prototype.startContainer',
     'api:Window.AbstractRange.prototype.endContainer', 'api:Window.Range.prototype.detach']) {
     const entry = audited.classification.find((candidate) => candidate.id === id);
@@ -138,4 +138,23 @@ test('should release Window and Document while retaining complete scalar surface
   const memory = JSON.parse(result.stdout);
   assert.equal(memory.cycles, 3); assert.equal(memory.reportsRetained, 3);
   assert.equal(memory.released, true); assert.deepEqual(memory.survivors, { windows: 0, documents: 0 });
+});
+
+test('should distinguish immutable native payloads from the hybrid public MutationRecord surface', () => {
+  const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
+  const actual = buildInventory({ referenceRoot, repositoryRoot, audits });
+  const byId = new Map(actual.classification.map((entry) => [entry.id, entry]));
+  const illegalConstructor = byId.get('api:Window.MutationRecord');
+  assert.equal(illegalConstructor.status, 'pending');
+  assert.equal(illegalConstructor.auditComplete, true);
+  assert.deepEqual(illegalConstructor.rustSources, []);
+  for (const name of ['type','target','addedNodes','removedNodes','previousSibling','nextSibling','attributeName','attributeNamespace','oldValue']) {
+    const getter = byId.get(`api:Window.MutationRecord.prototype.${name}`);
+    assert.equal(getter.auditComplete, true, name);
+    assert.equal(getter.status, 'hybrid', name);
+    assert.ok(getter.rustSources.length && getter.javascriptSources.length && getter.pending.length, name);
+  }
+  assert.equal(byId.get('api:Window.MutationRecord.prototype.@@toStringTag').auditComplete, false);
+  assert.equal(actual.summary.scopeClosed, false);
+  assert.equal(actual.summary.migrationPercent, null);
 });
