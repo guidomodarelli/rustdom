@@ -1,0 +1,60 @@
+name: Contratos de la confirmación de ownership por bloques
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ownership-block-confirmation-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ownership-block-confirmation-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Comparación de bloques Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar el SDK fijado
+        run: |
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto"),assert=require("node:assert/strict"); const policy=require("./"+process.env.METHOD+"/constants/design.json"); assert.equal(crypto.createHash("sha256").update(fs.readFileSync(process.execPath)).digest("hex"),policy.nodeExecutableSha256[process.version]);'
+      - name: Probar calendario completo, presupuestos y rechazos sin ejecutar DOM
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-contracts"
+          node --test "$METHOD/compare.spec.cjs" "$METHOD/plan.spec.cjs" > "$RUNNER_TEMP/confirmation-contracts/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-contracts/tests.stderr.log"
+      - name: Contrastar el plan con los datos reales y una cuenta independiente
+        run: |
+          node "$METHOD/plan.cjs" "$METHOD/planning-inputs" > "$RUNNER_TEMP/confirmation-contracts/plan.json"
+          python -B "$METHOD/audit.py" "$RUNNER_TEMP/confirmation-contracts/plan.json" > "$RUNNER_TEMP/confirmation-contracts/audit.json"
+          RUSTDOM_CONFIRMATION_PLAN="$RUNNER_TEMP/confirmation-contracts/plan.json" python -B "$METHOD/test_audit.py" > "$RUNNER_TEMP/confirmation-contracts/audit-tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-contracts/audit-tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-contracts/
+          if-no-files-found: error
+          retention-days: 90

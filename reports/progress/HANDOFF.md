@@ -1,5 +1,52 @@
 # Continuar rustdom en otra máquina
 
+## CI ownership sigue rechazado; núcleo de confirmación probado — 2026-10-27 UTC
+
+El SHA 4196c496 tiene únicamente dos checks fallidos: Native class ownership
+Node 22/24, último paso del replay de 39921160254. No es un error nuevo de
+compilación: la evidencia histórica conserva accepted=false porque 13/32
+controles jsdom no calibraron dentro de ±2%. El CI general está aprobado.
+No omitir ese rechazo, relanzar sus muestras ni presentar los pilotos como
+aceptación de Rust. El PR todavía no está resuelto.
+
+El piloto jsdom v2 40426500725 terminó con sus 33 jobs aprobados y se publicó
+íntegro: 16.384 procesos, 2.359.296 medidas, 786.432 warmup, 196.608 Window y
+Document por separado. La evidencia íntegra está en feature/pilot-v2-ci-evidence,
+HEAD 9c6a4c8a; el informe final tiene SHA d76d89c6b2a5cd63e49d790c7ff34ab2d3610f34b4dddcd68649ebc96d5eea57.
+No hacer fetch de toda esa cadena en el Git compartido Windows. El seguimiento
+programado del piloto quedó PAUSED; el objetivo general sigue ACTIVE. Los
+resultados son diagnósticos: performanceAccepted=null/gateReevaluated=false.
+
+Este incremento agrega block-confirmation/ sin modificar los 903 bindings
+históricos. Implementa calendario de 64 criterios y reducción por bloques
+completos, Fieller y presupuestos originales. Propone 32 bloques jsdom y 16
+Rust por capacidad temporal: 49.152 procesos; todavía executionReady=false.
+Forecasts con margen: 273,70/314 minutos, captura 320 y job 350. Son estimaciones,
+no garantías ni potencia transferida desde jsdom. El escenario desfavorable
+Node22 AA observer/1000 se publica también. Ver README.md del método.
+
+Pasaron ocho contratos Node y tres tests Python por SDK fijado 22.12.0/24.14.1;
+planes byte idénticos, auditoría independiente de 64 límites y revisión local
+final sin hallazgos. Un P2 del auditor con Python optimizado fue corregido y
+probado. Evidencia en reports/validation/ownership-block-confirmation/20261027/.
+Los tests numéricos usan fixtures sintéticas; el plan usa inputs publicados
+reales autenticados. No se ejecutó DOM nuevo ni se acepta rendimiento.
+
+Siguiente trabajo concreto: productor Rust y lector integral para la nueva
+confirmación, pruebas reales funcionales/teardown de ambos SDK, revisión y
+publicación del método completo antes de una única captura. Después integrar
+su decisión íntegra al gate. No activar nada desde este núcleo ni reemplazar
+la evidencia rechazada con un resultado numérico sin autenticación. No pedir
+autorización otra vez: AGENTS.md ya registra la autorización permanente.
+
+Runtime híbrido, migración pendiente. Sin tag ni merge hasta aceptar ownership.
+Siguen intactas 48 entradas ajenas de native-collection-queries. Engram sigue
+sin identidad registrada; no inventar una ni usar memoria de otra sesión.
+
+---
+
+# Continuar rustdom en otra máquina
+
 ## Fix del checkout Windows con evidencia íntegra — 2026-10-26 UTC
 
 La calificación de 525e2be6 detectó un fallo real adicional: run40391590431,
