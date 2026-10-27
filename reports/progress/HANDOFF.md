@@ -1,5 +1,31 @@
 # Continuar rustdom en otra máquina
 
+## Piloto v2 activado una vez: run 40426500725 — 2026-10-27 UTC
+
+La etiqueta ownership-jsdom-block-pilot-v2 YA fue aplicada una vez. No volver
+a pedir autorización, aplicar etiquetas ni ejecutar activadores. Run real
+40426500725, intento 1, commit 4196c496; preflight 121933460641 aprobado y
+32 criterios creados. Límites fijos: 170 minutos de captura y 200 de job.
+Consultar solo este run y los 33 IDs de binding.json. La vista queued mientras
+hay jobs vivos es transitoria y no autoriza reiniciar.
+
+Evidencia de activación: reports/validation/jsdom-block-pilot-v2/activation/40426500725/.
+Ledger autoritativo .cache/pilot-v2-trigger-4196/label-intent.json y sidecar
+.codex-autofix/watch-80-v2-run.json del checkout principal. El activador dejó
+watch-80.json compartido en solo lectura: sus flags previos pendientes no
+permiten repetir la activación. Hay 46 archivos de API/intención/recibo/código
+as-run, con segunda lectura y hashes; no ejecutar scripts archivados.
+
+Al terminar usar tools/evidence-transport/collect.py, publicado en 94d37f90,
+con fuente Git Linux real limpia 4196, ambos Node fijados y SHA padre remoto
+actual de feature/pilot-v2-ci-evidence. No ejecutar DOM ni reconstruir paquetes
+para leer. Conservar ZIP/tar/metadata/logs/inventario y muestras/warmup íntegros,
+aunque haya fallos o parcialidad. Este diagnóstico no acepta rendimiento Rust:
+performanceAccepted=null/gateReevaluated=false. Los dos checks ownership siguen
+rojos por rechazo histórico; no hay tag/merge. Continúa la migración general,
+el runtime híbrido y la preservación de las 48 entradas ajenas.
+
+
 ## Transporte secuencial calificado; activación v2 pendiente — 2026-10-27 UTC
 
 La fuente calificada del PR #80 permanece en 4196c496. La rama de evidencia
