@@ -1,0 +1,27 @@
+import pathlib,json,hashlib,subprocess
+mounted=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+frozen=pathlib.Path('/dev/shm/rustdom-pilot-v2-published-525e2be6')
+root=pathlib.Path('/run/rustdom-confirmation-functional-20261027')
+root.mkdir(exist_ok=False)
+source=root/'source';source.mkdir()
+publication=json.loads((frozen/'reports/validation/jsdom-block-pilot-v2/capture-method/review.json').read_bytes())
+files=dict(publication['files'])
+publication_relative='reports/validation/jsdom-block-pilot-v2/capture-method/review.json'
+files[publication_relative]=hashlib.sha256((frozen/publication_relative).read_bytes()).hexdigest()
+for relative,digest in files.items():
+ raw=(frozen/relative).read_bytes();assert hashlib.sha256(raw).hexdigest()==digest,relative
+ target=source/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+method='reports/benchmarks/native-class-ownership/block-confirmation'
+own={}
+for item in (mounted/method).rglob('*'):
+ if item.is_file():
+  relative=item.relative_to(mounted).as_posix();raw=item.read_bytes()
+  target=source/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+  own[relative]=hashlib.sha256(raw).hexdigest()
+(root/'source-profile.json').write_text(json.dumps({'baseCommit':'27cbe89147dbbfcc93454ed79c03821e3dd80332','qualificationStagingOnly':True,'gitIdentityClaimed':False,'frozenFiles':files,'ownFiles':own},indent=2)+'\n')
+archive=source/'reports/validation/range-numeric-composed-package/20261026/packages.tar.xz'
+transport=source/'reports/benchmarks/native-class-ownership/numeric-composed-packages/transport.py'
+with (root/'extraction.stdout.log').open('wb') as stdout,(root/'extraction.stderr.log').open('wb') as stderr:
+ result=subprocess.run(['python3','-B',str(transport),'--extract',str(archive),str(root/'package')],cwd=source,stdout=stdout,stderr=stderr,timeout=120,check=False)
+assert result.returncode==0,result.returncode
+print(json.dumps({'staged':True,'frozenFiles':len(files),'newFiles':len(own),'packageExtractedWithoutExecution':True}))

@@ -1,0 +1,20 @@
+"""Record observed local context after functional qualification; no hostname, secrets, DOM or measurements are added."""
+import datetime
+import json
+import os
+from pathlib import Path
+import platform
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+cpu = Path('/proc/cpuinfo').read_text()
+model = next((line.split(':', 1)[1].strip() for line in cpu.splitlines() if line.startswith('model name')), None)
+memory = dict(line.split(':', 1) for line in Path('/proc/meminfo').read_text().splitlines())
+record = {'observedAtUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'observationStage': 'after-functional-qualification',
+    'system': platform.system(), 'release': platform.release(), 'machine': platform.machine(),
+    'cpuModel': model, 'logicalCpus': os.cpu_count(), 'observerAllowedCpus': sorted(os.sched_getaffinity(0)),
+    'memoryTotalKiB': int(memory['MemTotal'].strip().split()[0]),
+    'workerAffinities': 'Preserved individually before/after in each raw report; not inferred from this observer.',
+    'peakMemoryMeasured': False, 'scientificCaptureExecuted': False}
+target = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/host-context.json'
+assert not target.exists(); target.write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps({key: record[key] for key in ['system', 'release', 'machine', 'logicalCpus', 'cpuModel']}))

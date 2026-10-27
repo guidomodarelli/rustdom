@@ -1,0 +1,33 @@
+"""Copy only this increment's authenticated transport and resource endpoints into new report paths."""
+import hashlib
+import json
+import pathlib
+import shutil
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Authentication QA preservation requires non-optimized Python')
+
+source = pathlib.Path('/run/rustdom-confirmation-functional-20261027/authentication-export')
+repository = pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+benchmark = repository / 'reports/benchmarks/native-class-ownership/block-confirmation-authentication/20261027'
+memory = repository / 'reports/memory/block-confirmation-authentication/20261027'
+validation = repository / 'reports/validation/ownership-source-authentication/20261027'
+benchmark.mkdir(exist_ok=False, parents=True)
+memory.mkdir(exist_ok=False, parents=True)
+validation.mkdir(exist_ok=True, parents=True)
+
+def copy(original, target):
+    assert not target.exists()
+    shutil.copyfile(original, target)
+    assert hashlib.sha256(original.read_bytes()).digest() == hashlib.sha256(target.read_bytes()).digest()
+
+receipt = json.loads((source / 'archive.json').read_bytes())
+assert hashlib.sha256((source / 'evidence.tar.gz').read_bytes()).hexdigest() == receipt['sha256']
+for name in ['evidence.tar.gz', 'archive.json', 'summary.json', 'manifest.json']:
+    copy(source / name, benchmark / name)
+copy(source / 'resources.json', memory / 'endpoints.json')
+for name in ['export.py', 'preserve.py', 'qualify-readers-final.py']:
+    copy(repository / '.cache/confirmation-authentication-20261027' / name, validation / (name + '.txt'))
+copy(pathlib.Path('/run/rustdom-confirmation-functional-20261027/node22-authentication-tests-final/production.stdout.log'), validation / 'production-before-integration.json')
+print(json.dumps(dict(preserved=True, receipt=receipt)))

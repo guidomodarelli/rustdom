@@ -1,0 +1,63 @@
+# Replay del método histórico: sus dependencias incluyen workflows y runtime congelados.
+# La producción actual se verifica en CI general y en Range integrado del PR.
+name: Histórico — Recursos combinados sin nuevas mediciones
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/combined-resource-exports.yml'
+      - 'reports/benchmarks/native-class-ownership/combined-process-exports/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/combined-resource-exports.yml'
+      - 'reports/benchmarks/native-class-ownership/combined-process-exports/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Recursos combinados Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      READER: reports/benchmarks/native-class-ownership/combined-process-exports
+      METHOD: reports/benchmarks/native-class-ownership/combined-process-study
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /reports/benchmarks/native-class-ownership/combined-process-exports/
+      - name: Autenticar lector y método congelado
+        timeout-minutes: 5
+        run: |
+          proof_directory="$RUNNER_TEMP/combined-resource-contracts"
+          mkdir -p "$proof_directory"
+          printf 'PROOF=%s\n' "$proof_directory" >> "$GITHUB_ENV"
+          python3 -B "$READER/tools/configure-checkout.py" "$GITHUB_WORKSPACE" > "$proof_directory/checkout.stdout.log" 2> "$proof_directory/checkout.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verificar SDK y contratos reales de lectura
+        timeout-minutes: 5
+        run: |
+          node "$METHOD/tools/runtime.cjs" '${{ matrix.node }}' > "$PROOF/runtime.json"
+          set +e
+          node --test "$READER/resources.spec.cjs" > "$PROOF/tests.stdout.log" 2> "$PROOF/tests.stderr.log"
+          validation_status=$?
+          printf '%s\n' "$validation_status" > "$PROOF/tests.exit-code"
+          exit "$validation_status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: combined-resource-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/combined-resource-contracts
+          if-no-files-found: error

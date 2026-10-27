@@ -1,0 +1,237 @@
+diff --git a/scripts/build.mjs b/scripts/build.mjs
+index 4fd5a1a1..f0c035d3 100644
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -84,0 +85,3 @@ await cp('src/dom/range-state.cjs', 'dist/range-state.cjs');
++const staticRangeAdapter = await readFile('src/dom/static-range.cjs', 'utf8');
++await writeFile('dist/static-range.cjs', substituteOnce(staticRangeAdapter,
++  "require('../../dist/native.cjs')", "require('./native.cjs')"));
+@@ -586,0 +590,7 @@ await writeFile(abstractRangePath, '"use strict";\n' +
++const staticRangePath = resolve(destination, 'lib/jsdom/living/range/StaticRange-impl.js');
++await writeFile(staticRangePath, '"use strict";\n' +
++  'const { implementation: AbstractRange } = require("./AbstractRange-impl");\n' +
++  'const { domSymbolTree } = require("../helpers/internal-constants");\n' +
++  'const DOMException = require("../generated/DOMException");\n' +
++  'const { createStaticRange } = require("../../../../../static-range.cjs");\n' +
++  'module.exports = { implementation: createStaticRange(AbstractRange, domSymbolTree, DOMException) };\n');
+diff --git a/src/dom/constants.rs b/src/dom/constants.rs
+index b327944d..57129a43 100644
+--- a/src/dom/constants.rs
++++ b/src/dom/constants.rs
+@@ -12,0 +13,4 @@ pub const ATTRIBUTE_NODE: u16 = 2;
++/// Pinned jsdom StaticRange constructor diagnostic.
++pub const STATIC_RANGE_INVALID_NODE_MESSAGE: &str = "The supplied node is incorrect.";
++/// Internal diagnostic while preserving an already pending original exception.
++pub const STATIC_RANGE_OPERATION_FAILURE: &str = "StaticRange native construction failed";
+diff --git a/src/dom/mod.rs b/src/dom/mod.rs
+index 332f1819..c971a0b8 100644
+--- a/src/dom/mod.rs
++++ b/src/dom/mod.rs
+@@ -101,0 +102,2 @@ mod slots;
++#[cfg_attr(test, allow(dead_code))]
++mod static_range_controller;
+diff --git a/src/dom/range_state.rs b/src/dom/range_state.rs
+index c6072506..d7f5d0c3 100644
+--- a/src/dom/range_state.rs
++++ b/src/dom/range_state.rs
+@@ -19,0 +20,12 @@ impl RangeState {
++    /// Construct both numeric endpoints without imposing live-Range boundary constraints.
++    pub(super) fn from_endpoints(
++        start_node: f64,
++        start_offset: f64,
++        end_node: f64,
++        end_offset: f64,
++    ) -> Result<Self> {
++        let mut state = Self::default();
++        state.set_start(start_node, start_offset)?;
++        state.set_end(end_node, end_offset)?;
++        Ok(state)
++    }
+@@ -82,0 +95,31 @@ mod tests {
++    fn should_construct_static_endpoints_without_live_range_constraints() {
++        let state = RangeState::from_endpoints(2.0, -0.0, 1.0, 9999.0).unwrap();
++        assert_eq!(state.start().unwrap().node, 2);
++        assert_eq!(state.end().unwrap().node, 1);
++        assert_eq!(
++            state.start().unwrap().offset.to_bits(),
++            (-0.0_f64).to_bits()
++        );
++        assert_eq!(state.end().unwrap().offset, 9999.0);
++        assert!(!state.collapsed().unwrap());
++        assert!(
++            RangeState::from_endpoints(1.0, 4.0, 1.0, 4.0)
++                .unwrap()
++                .collapsed()
++                .unwrap()
++        );
++    }
++    #[test]
++    fn should_reject_invalid_endpoint_handles_without_returning_partial_state() {
++        for invalid in [0.0, -1.0, 1.5, f64::NAN, f64::INFINITY] {
++            assert!(matches!(
++                RangeState::from_endpoints(invalid, 0.0, 1.0, 0.0),
++                Err(TreeError::InvalidHandle)
++            ));
++            assert!(matches!(
++                RangeState::from_endpoints(1.0, 0.0, invalid, 0.0),
++                Err(TreeError::InvalidHandle)
++            ));
++        }
++    }
++    #[test]
+diff --git a/src/dom/range_state_binding.rs b/src/dom/range_state_binding.rs
+index 5da5e0c9..cd2e269f 100644
+--- a/src/dom/range_state_binding.rs
++++ b/src/dom/range_state_binding.rs
+@@ -119 +119 @@ impl NativeRange {
+-    fn with_state(state: RangeState) -> Self {
++    pub(super) fn with_state(state: RangeState) -> Self {
+diff --git a/src/dom/static-range.cjs b/src/dom/static-range.cjs
+new file mode 100644
+index 00000000..b01dda86
+--- /dev/null
++++ b/src/dom/static-range.cjs
+@@ -0,0 +1,27 @@
++/** @file Keeps realm factories and GC-visible endpoints while Rust constructs StaticRange state. */
++'use strict';
++const { initializeStaticRange } = require('../../dist/native.cjs');
++
++/**
++ * Bind native StaticRange construction to the existing realm and tree adapters.
++ * @param {Function} AbstractRange - Existing base implementation with traced node references.
++ * @param {object} tree - Private NativeSymbolTree instance.
++ * @param {object} exceptionFactory - Original DOMException namespace.
++ * @returns {Function} StaticRange implementation consumed by the real WebIDL wrapper.
++ */
++function createStaticRange(AbstractRange, tree, exceptionFactory) {
++  const helpers = {
++    nodeId(node) { return tree._ensure(node); },
++    exception(globalObject, message, name) { return exceptionFactory.create(globalObject, [message, name]); },
++  };
++  return class StaticRangeImpl extends AbstractRange {
++    /** @param {object} globalObject - Owning realm. @param {object[]} args - Converted WebIDL arguments. */
++    constructor(globalObject, args) {
++      const { startContainer, startOffset, endContainer, endOffset } = args[0];
++      const nativeCopy = initializeStaticRange(globalObject, startContainer, startOffset, endContainer, endOffset, helpers);
++      super(globalObject, [], { nativeCopy, startNode: startContainer, endNode: endContainer });
++    }
++  };
++}
++
++module.exports = { createStaticRange };
+diff --git a/src/dom/static_range_controller.rs b/src/dom/static_range_controller.rs
+new file mode 100644
+index 00000000..d7f16f1e
+--- /dev/null
++++ b/src/dom/static_range_controller.rs
+@@ -0,0 +1,92 @@
++//! StaticRange construction decisions with scoped host references and numeric native ownership.
++use super::{
++    constants::{
++        ATTRIBUTE_NODE, DOCUMENT_TYPE_NODE, STATIC_RANGE_INVALID_NODE_MESSAGE,
++        STATIC_RANGE_OPERATION_FAILURE,
++    },
++    napi_error::capture_pending_error,
++    range_state::RangeState,
++    range_state_binding::NativeRange,
++};
++use napi::{
++    Env, Error, JsValue, Result, Status, ValueType,
++    bindgen_prelude::{FnArgs, Function, JsObjectValue, Unknown},
++};
++use napi_derive::napi;
++
++fn has_kind(node: Unknown<'_>, kind: u16) -> Result<bool> {
++    let value: Unknown = node.coerce_to_object()?.get_c_named_property(c"nodeType")?;
++    // Strict equality does not coerce strings, objects, bigint or other host values.
++    Ok(value.get_type()? == ValueType::Number
++        && value.coerce_to_number()?.get_double()? == f64::from(kind))
++}
++
++fn invalid_node(node: Unknown<'_>) -> Result<bool> {
++    // Match the reference's repeated property reads and short-circuit ordering.
++    Ok(has_kind(node, DOCUMENT_TYPE_NODE)? || has_kind(node, ATTRIBUTE_NODE)?)
++}
++
++fn construct<'env>(
++    global: Unknown<'env>,
++    start_node: Unknown<'env>,
++    start_offset: f64,
++    end_node: Unknown<'env>,
++    end_offset: f64,
++    helpers: Unknown<'env>,
++) -> Result<NativeRange> {
++    let host = helpers.coerce_to_object()?;
++    if invalid_node(start_node)? || invalid_node(end_node)? {
++        let reject: Function<FnArgs<(Unknown, String, String)>, Unknown> =
++            host.get_c_named_property(c"exception")?;
++        let exception = reject.apply(
++            helpers,
++            (
++                global,
++                STATIC_RANGE_INVALID_NODE_MESSAGE.to_owned(),
++                "InvalidNodeTypeError".to_owned(),
++            )
++                .into(),
++        )?;
++        return Err(Error::from_unknown_without_coercion(exception));
++    }
++    // No TreeStore borrow or native box exists when either host callback runs.
++    let identify: Function<Unknown, f64> = host.get_c_named_property(c"nodeId")?;
++    let start = identify.apply(helpers, start_node)?;
++    let end = identify.apply(helpers, end_node)?;
++    let state = RangeState::from_endpoints(start, start_offset, end, end_offset)
++        .map_err(super::napi_error::to_napi_error)?;
++    Ok(NativeRange::with_state(state))
++}
++
++/// Validate the converted StaticRange nodes and create one numeric state after all host reads.
++/// Host callbacks are synchronous; no JavaScript reference escapes this invocation.
++#[napi]
++pub fn initialize_static_range<'env>(
++    env: &'env Env,
++    global: Unknown<'env>,
++    start_node: Unknown<'env>,
++    start_offset: f64,
++    end_node: Unknown<'env>,
++    end_offset: f64,
++    helpers: Unknown<'env>,
++) -> Result<NativeRange> {
++    match construct(
++        global,
++        start_node,
++        start_offset,
++        end_node,
++        end_offset,
++        helpers,
++    ) {
++        Ok(state) => Ok(state),
++        Err(error) => {
++            // The generic native error wrapper reconstructs Error; throw the original
++            // value explicitly, as the existing XMLSerializer controller does.
++            env.throw(capture_pending_error(env, error))?;
++            Err(Error::new(
++                Status::PendingException,
++                STATIC_RANGE_OPERATION_FAILURE,
++            ))
++        }
++    }
++}
+diff --git a/src/native.mjs b/src/native.mjs
+index de41508d..1f4f1aa3 100644
+--- a/src/native.mjs
++++ b/src/native.mjs
+@@ -5 +5 @@ export const {
+-  NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, NodeTextWriteAction, NodeInsertionStatus,
++  initializeStaticRange, NativeTree, NativeRange, QueryMode, AttributeField, DocumentTypeField, NodeTextWriteAction, NodeInsertionStatus,
+diff --git a/types/native.d.cts b/types/native.d.cts
+index 758e2cd4..fb5b368b 100644
+--- a/types/native.d.cts
++++ b/types/native.d.cts
+@@ -362,0 +363,6 @@ export interface RangeInsertionPlan { startNode: number; startOffset: number; pa
++/** Construct native StaticRange state after converted-node validation in Rust. */
++export function initializeStaticRange(globalObject: object, startNode: object, startOffset: number,
++  endNode: object, endOffset: number, helpers: {
++    nodeId(node: object): number;
++    exception(globalObject: object, message: string, name: string): unknown;
++  }): NativeRange;

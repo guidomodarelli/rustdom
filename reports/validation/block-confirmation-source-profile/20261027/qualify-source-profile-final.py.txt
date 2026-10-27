@@ -1,0 +1,28 @@
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import time
+if sys.flags.optimize:raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+historical=pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+current=pathlib.Path('/run/rustdom-current-source-profile-7b60-20261027')
+output=pathlib.Path('/run/rustdom-source-profile-qualification-20261027/final');output.mkdir(exist_ok=False)
+for name in ['source.cjs','source.spec.cjs','constants/source.json']:
+    relative='reports/benchmarks/native-class-ownership/block-confirmation/'+name
+    shutil.copyfile(root/relative,current/relative)
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+environment=dict(os.environ,RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE=str(current),RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE=str(historical))
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    commands=[('tests',[str(node),'--test',str(root/'reports/benchmarks/native-class-ownership/block-confirmation/source.spec.cjs')]),
+        ('profile',[str(node),str(root/'reports/benchmarks/native-class-ownership/block-confirmation/source.cjs'),'--inspect',str(current),str(historical)])]
+    for name,args in commands:
+        started=time.monotonic()
+        with (output/(label+'-'+name+'.stdout.log')).open('xb') as stdout,(output/(label+'-'+name+'.stderr.log')).open('xb') as stderr:
+            result=subprocess.run(args,cwd=root,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+        (output/(label+'-'+name+'.process.json')).write_text(json.dumps(dict(command=args,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),DOMExecuted=False,scientificSamplesCollected=0))+'\n')
+        assert result.returncode==0,(label,name)
+print(json.dumps(dict(complete=True,output=str(output),testsPerSDK=8,currentNativeGitHead='7b60027838f729ea46bc2eab6212f0351d6e05cf',historicalNativeGitHead='4196c496187c88c92304516287a7e644659a8536',ownNewSourceFilesAreUntrackedInFunctionalFixture=True,scientificCapture=False)))

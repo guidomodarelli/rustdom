@@ -1,0 +1,122 @@
+name: Prepare ownership packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ownership-build.yml'
+      - 'reports/benchmarks/native-class-ownership/*.cjs'
+      - 'reports/benchmarks/native-class-ownership/constants/**'
+      - 'reports/benchmarks/native-class-ownership/*PROTOCOL.md'
+      - 'src/**'
+      - 'scripts/**'
+      - 'benchmarks/**'
+      - 'third-party/**'
+      - 'tests/integration/read-dom-file.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
+      - '.npmrc'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - '.cargo/**'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ownership-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-067-xml-serializer-controller
+          path: .baseline
+      - name: Autenticar y extraer el archivo histórico para contratos de compatibilidad
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/ownership-legacy"
+          node <<'JS'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/hosted-build-ci/39720077911/receipt.json');
+          const archive = fs.readFileSync('reports/validation/native-class-ownership/hosted-build-ci/39720077911/artifact-12400802735.zip');
+          assert.equal(createHash('sha256').update(archive).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/hosted-build-ci/39720077911/artifact-12400802735.zip -d "$RUNNER_TEMP/ownership-legacy"
+          node <<'JS'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/hosted-build-ci/39720077911/receipt.json');
+          assert.equal(createHash('sha256').update(fs.readFileSync(`${process.env.RUNNER_TEMP}/ownership-legacy/ownership-build.tar.gz`)).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/ownership-legacy/ownership-build.tar.gz" -C "$RUNNER_TEMP/ownership-legacy"
+          echo "RUSTDOM_LEGACY_HOSTED_BUILD_ARCHIVE=$RUNNER_TEMP/ownership-legacy/ownership-build" >> "$GITHUB_ENV"
+      - name: Declarar las rutas temporales del build y su evidencia
+        run: |
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/ownership-build-target"
+            echo "RUSTDOM_HOSTED_BUILD_ARCHIVE=$RUNNER_TEMP/ownership-build"
+            echo "RUSTDOM_CURRENT_INPUTS_BASELINE=$RUNNER_TEMP/ownership-build/baseline-sources"
+            echo "RUSTDOM_CURRENT_INPUTS_CANDIDATE=$RUNNER_TEMP/ownership-build/sources"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Construir y conservar fuentes, herramientas y paquetes completos
+        run: node reports/benchmarks/native-class-ownership/prepare-current-hosted-build.cjs .baseline . "$RUNNER_TEMP/ownership-build"
+      - name: Validar comportamiento público y liberación en Node 24
+        run: node --expose-gc reports/benchmarks/native-class-ownership/current-hosted-build-worker.cjs "$RUNNER_TEMP/ownership-build" > "$RUNNER_TEMP/ownership-node24.json" 2> "$RUNNER_TEMP/ownership-node24.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Validar comportamiento público y liberación en Node 22
+        run: node --expose-gc reports/benchmarks/native-class-ownership/current-hosted-build-worker.cjs "$RUNNER_TEMP/ownership-build" > "$RUNNER_TEMP/ownership-node22.json" 2> "$RUNNER_TEMP/ownership-node22.stderr.log"
+      - name: Verificar integridad, portabilidad y rechazos en Node 22
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test reports/benchmarks/native-class-ownership/current-build-inputs.spec.cjs reports/benchmarks/native-class-ownership/prepare-current-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-contracts-node22.log"
+          RUSTDOM_HOSTED_BUILD_ARCHIVE="$RUSTDOM_LEGACY_HOSTED_BUILD_ARCHIVE" node --test reports/benchmarks/native-class-ownership/prepare-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-legacy-contracts-node22.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Verificar integridad, portabilidad y rechazos en Node 24
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test reports/benchmarks/native-class-ownership/current-build-inputs.spec.cjs reports/benchmarks/native-class-ownership/prepare-current-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-contracts-node24.log"
+          RUSTDOM_HOSTED_BUILD_ARCHIVE="$RUSTDOM_LEGACY_HOSTED_BUILD_ARCHIVE" node --test reports/benchmarks/native-class-ownership/prepare-hosted-build.spec.cjs 2>&1 | tee "$RUNNER_TEMP/ownership-legacy-contracts-node24.log"
+      - name: Conservar los symlinks relativos del archivo preparado
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/ownership-build" ]; then
+            tar -czf "$RUNNER_TEMP/ownership-build.tar.gz" -C "$RUNNER_TEMP" ownership-build
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-prepared-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/ownership-build.tar.gz
+            ${{ runner.temp }}/ownership-node22.json
+            ${{ runner.temp }}/ownership-node24.json
+            ${{ runner.temp }}/ownership-node*.stderr.log
+            ${{ runner.temp }}/ownership-contracts-*.log
+            ${{ runner.temp }}/ownership-legacy-contracts-*.log
+            ${{ runner.temp }}/relocated-*.json
+            ${{ runner.temp }}/relocated-*.stderr.log

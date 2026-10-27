@@ -1,0 +1,164 @@
+diff --git a/src/dom/native-tree.cjs b/src/dom/native-tree.cjs
+index da7cc979f2048c06aeb39411f32bf9ffd2b0cb3b..1717688f41d80cddcf840b8044de23f6c1b68b61 100644
+--- a/src/dom/native-tree.cjs
++++ b/src/dom/native-tree.cjs
+@@ -201,11 +201,15 @@ class NativeSymbolTree extends SymbolTree {
+       return;
+     }
+     const { start, end } = data;
+-    range._nativeRange = new NativeRange();
++    range._nativeRange = start && end
++      ? NativeRange.fromEndpoints(this._ensure(start.node), start.offset, this._ensure(end.node), end.offset)
++      : new NativeRange();
+     range._rangeStartNode = start?.node;
+     range._rangeEndNode = end?.node;
+-    if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+-    if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
++    if (!start || !end) {
++      if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
++      if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
++    }
+   }
+   /** @param {object} range - Source Range implementation. @returns {object} Independent numeric state with GC-visible endpoint identities. */
+   cloneRangeData(range) {
+@@ -221,6 +225,12 @@ class NativeSymbolTree extends SymbolTree {
+   }
+   /** @param {object} range - Live Range implementation. @param {boolean} toStart - Public converted direction. @returns {void} Applies the native collapse decision to the correct ownership edge. */
+   collapseRange(range, toStart) {
++    // Equal owner identities require no change to V8 edges or weak registrations.
++    // Rust still selects and updates the offsets; the binding only avoids replaying unchanged edges.
++    if (range._rangeStartNode === range._rangeEndNode) {
++      range._nativeRange.collapse(Boolean(toStart));
++      return;
++    }
+     const plan = range._nativeRange.collapsePlan(Boolean(toStart));
+     const node = this._object(plan.node);
+     if (plan.updateStart) range._setLiveRangeStart(node, plan.offset);
+diff --git a/src/dom/range_state.rs b/src/dom/range_state.rs
+index c6072506121478a0770688ca333522904868f41d..533015dc34c71d78ddd6a7537cbf6a0940fa12b4 100644
+--- a/src/dom/range_state.rs
++++ b/src/dom/range_state.rs
+@@ -55,6 +55,14 @@ impl RangeState {
+         let (start, end) = self.points()?;
+         Ok(start.node == end.node && start.offset == end.offset)
+     }
++    /// Collapse both numeric endpoints in one native operation.
++    /// Returns the host edge selected by the existing plan, preserving errors atomically.
++    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
++        let (point, update_start) = self.collapse_plan(to_start)?;
++        self.apply_point(update_start, point);
++        Ok(update_start)
++    }
++
+     /// Select the retained point and which host ownership edge must be moved.
+     pub fn collapse_plan(&self, to_start: bool) -> Result<(BoundaryPoint, bool)> {
+         let (start, end) = self.points()?;
+@@ -102,6 +110,51 @@ mod tests {
+         assert_eq!(clone.start().unwrap().offset, 3.0);
+         assert!(RangeState::default().collapse_plan(true).is_err());
+     }
++    #[test]
++    fn should_collapse_both_directions_without_changing_an_independent_copy() {
++        let mut original = RangeState::default();
++        original.set_start(1.0, -0.0).unwrap();
++        original.set_end(2.0, 7.5).unwrap();
++        for to_start in [true, false] {
++            let mut copy = original.clone();
++            let retained = if to_start {
++                original.start().unwrap()
++            } else {
++                original.end().unwrap()
++            };
++            assert_eq!(copy.collapse(to_start).unwrap(), !to_start);
++            let (start, end) = copy.points().unwrap();
++            assert_eq!(start.node, retained.node);
++            assert_eq!(end.node, retained.node);
++            assert_eq!(start.offset.to_bits(), retained.offset.to_bits());
++            assert_eq!(end.offset.to_bits(), retained.offset.to_bits());
++            assert!(copy.collapsed().unwrap());
++        }
++        assert_eq!(original.start().unwrap().node, 1);
++        assert_eq!(original.end().unwrap().node, 2);
++    }
++
++    #[test]
++    fn should_preserve_partial_state_when_native_collapse_rejects_it() {
++        for (has_start, has_end) in [(false, false), (true, false), (false, true)] {
++            let mut state = RangeState::default();
++            if has_start {
++                state.set_start(1.0, 2.0).unwrap();
++            }
++            if has_end {
++                state.set_end(2.0, 3.0).unwrap();
++            }
++            let before = (state.start(), state.end());
++            for to_start in [true, false] {
++                assert!(matches!(
++                    state.collapse(to_start),
++                    Err(TreeError::UninitializedRange)
++                ));
++                assert_eq!((state.start(), state.end()), before);
++            }
++        }
++    }
++
+     #[test]
+     fn should_preserve_independent_endpoint_snapshots_and_collapsed_state() {
+         let mut state = RangeState::default();
+diff --git a/src/dom/range_state_binding.rs b/src/dom/range_state_binding.rs
+index 5da5e0c98bc80d80e2c37bcb9ea13ae4a72003a5..5474dc594711c0a5ded93df95786056bb74752e3 100644
+--- a/src/dom/range_state_binding.rs
++++ b/src/dom/range_state_binding.rs
+@@ -143,10 +143,30 @@ impl NativeRange {
+     pub fn new() -> Self {
+         Self::with_state(RangeState::default())
+     }
++    /// Construct both validated numeric endpoints before exposing a V8-owned state.
++    #[napi]
++    pub fn from_endpoints(
++        start_node: f64,
++        start_offset: f64,
++        end_node: f64,
++        end_offset: f64,
++    ) -> Result<Self> {
++        let mut state = RangeState::default();
++        state
++            .set_start(start_node, start_offset)
++            .map_err(to_napi_error)?;
++        state.set_end(end_node, end_offset).map_err(to_napi_error)?;
++        Ok(Self::with_state(state))
++    }
+     #[napi]
+     pub fn copy(&self) -> Self {
+         Self::with_state(self.state.clone())
+     }
++    /// Apply collapse without transporting a point object back through JavaScript.
++    #[napi]
++    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
++        self.state.collapse(to_start).map_err(to_napi_error)
++    }
+     #[napi]
+     pub fn collapse_plan(&self, to_start: bool) -> Result<NativeCollapsePlan> {
+         let (point, update_start) = self.state.collapse_plan(to_start).map_err(to_napi_error)?;
+diff --git a/types/native.d.cts b/types/native.d.cts
+index 758e2cd406e428a8d79e1722e306b0a92abd26bb..f90e51b4a0ec45199c2fe0155caa6c29b004feb9 100644
+--- a/types/native.d.cts
++++ b/types/native.d.cts
+@@ -363,6 +363,8 @@ export interface RangeInsertionPlan { startNode: number; startOffset: number; pa
+ export class NativeRange {
+   constructor();
+   static statistics(): NativeRangeStatistics;
++  /** Validate both endpoint identities before allocating a native state. */
++  static fromEndpoints(startNode: number, startOffset: number, endNode: number, endOffset: number): NativeRange;
+   readonly start: NativeBoundaryPoint | null;
+   readonly end: NativeBoundaryPoint | null;
+   readonly startOffset: number;
+@@ -371,6 +373,8 @@ export class NativeRange {
+   setStart(node: number, offset: number): void;
+   setEnd(node: number, offset: number): void;
+   copy(): NativeRange;
++  /** Collapse numeric endpoints; returns whether the start edge was selected for update. */
++  collapse(toStart: boolean): boolean;
+   collapsePlan(toStart: boolean): NativeCollapsePlan;
+   /** Mutation inputs come from the host's validated DOM operation. Handles must be positive safe integers; no tree is owned or consulted. */
+   characterDataPlan(node: number, offset: number, count: number, insertedLength: number): NativeRangeUpdate[];

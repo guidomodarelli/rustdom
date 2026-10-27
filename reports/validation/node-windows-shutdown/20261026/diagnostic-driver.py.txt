@@ -1,0 +1,47 @@
+"""Fixed functional diagnosis, not a performance capture: Node-only reproducer and one original WPT fixture."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import time
+
+repository = Path(__file__).resolve().parent.parent
+sdk_root = Path(r'C:\Users\guido\ghq\projects\rustdom\.tools\node-win')
+output = repository / '.cache/windows-node-exit-diagnosis-20261026'
+assert not output.exists()
+output.mkdir()
+plan = {'purpose': 'Diagnóstico funcional de cierre Windows; sin decisión ni medición de rendimiento',
+        'versions': ['22.12.0', '24.14.1', '24.20.0'], 'nodeOnlyProcessesPerSdk': 8,
+        'wptProcessesPerEngineSdk': 4, 'engines': ['jsdom', 'rustdom'],
+        'fixture': 'FileAPI/file/File-constructor-endings.html', 'performanceAccepted': None, 'gateReevaluated': False}
+(output / 'plan.json').write_text(json.dumps(plan, indent=2) + '\n', encoding='utf-8')
+records = []
+for version in plan['versions']:
+    node = sdk_root / f'node-v{version}-win-x64/node.exe'
+    checksum = hashlib.sha256(node.read_bytes()).hexdigest()
+    assert subprocess.check_output([str(node), '--version']).decode().strip() == 'v' + version
+    for case, count in [('node-only', 8), ('jsdom', 4), ('rustdom', 4)]:
+        for repetition in range(count):
+            directory = output / f'{version}-{case}-{repetition}'
+            directory.mkdir()
+            if case == 'node-only':
+                argv = [node, repository / '.cache/node-windows-exit-worker.cjs']
+            else:
+                argv = [node, '--max-old-space-size=2048', repository / 'tests/wpt/fixture.cjs',
+                        case, plan['fixture'], directory / 'result.json']
+            started = time.monotonic()
+            result = subprocess.run(list(map(str, argv)), cwd=repository, capture_output=True, timeout=60)
+            (directory / 'stdout.log').write_bytes(result.stdout)
+            (directory / 'stderr.log').write_bytes(result.stderr)
+            record = {'case': case, 'repetition': repetition, 'node': version, 'nodeSha256': checksum,
+                      'argv': list(map(str, argv)), 'exitCode': result.returncode,
+                      'seconds': time.monotonic() - started,
+                      'uvHandleClosingAssertion': b'UV_HANDLE_CLOSING' in result.stderr}
+            if case != 'node-only' and (directory / 'result.json').stat().st_size:
+                report = json.loads((directory / 'result.json').read_bytes())
+                record.update(fixtureStatus=report['result']['status'], fixtureTests=len(report['result']['tests']))
+            (directory / 'command.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+            records.append(record)
+        print(json.dumps({'node': version, 'case': case, 'processes': count,
+                          'exitCodes': [record['exitCode'] for record in records if record['node'] == version and record['case'] == case]}), flush=True)
+(output / 'results.json').write_text(json.dumps({'plan': plan, 'processes': records}, indent=2) + '\n', encoding='utf-8')

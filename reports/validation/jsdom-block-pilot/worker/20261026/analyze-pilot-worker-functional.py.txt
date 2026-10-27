@@ -1,0 +1,76 @@
+"""Summarize preserved fixed-auth functional data only; never rerun a task or decide performance."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import zipfile
+import datetime
+
+repository = Path(__file__).resolve().parent.parent
+validation = repository / 'reports/validation/jsdom-block-pilot/worker/20261026'
+fixed = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/fixed-auth'
+totals = {'positiveWorkers': 0, 'adverseWorkers': 0, 'measuredDurations': 0, 'positiveWarmupDurations': 0,
+    'adverseWarmupDurations': 0, 'windows': 0, 'documents': 0, 'domProcessesWithThreeRounds': 0,
+    'firstUnclearCleanupRounds': 0, 'requiredFinalClearEndpoints': 0, 'parentSnapshots': 0}
+versions = []
+unclear = []
+for version in ['22.12.0', '24.14.1']:
+    root = fixed / ('node-' + version); index = json.loads((root / 'index.json').read_bytes())
+    assert index['complete'] and index['functionalOnly'] and not index['scientificCaptureExecuted']
+    assert index['sourceIdentity']['sourceCommit'] == 'c5298ad15859a54ef2ef76feb02b3f557c560243'
+    assert index['packageVerification'] == index['packageVerificationAfter']
+    assert len(index['processes']) == 16 and len(index['adverse']) == 6
+    totals['positiveWorkers'] += len(index['processes']); totals['adverseWorkers'] += len(index['adverse'])
+    totals['parentSnapshots'] += len(index['parentMemory'])
+    for entry in index['processes']:
+        assert entry['complete'] and entry['invocation']['command']['exitCode'] == 0
+        assert not entry['invocation']['command'].get('leftoverProcessGroupDetected', False)
+        totals['measuredDurations'] += entry['observed']['measured']; totals['positiveWarmupDurations'] += entry['observed']['warmup']
+    for relative in [entry['directory'] + '/report.json' for entry in index['processes']] + ['adverse/progress-failure/report.json']:
+        report = json.loads((root / relative).read_bytes()); trace = report['cleanupTrace']
+        assert len(trace) == 3 and all(endpoint['clear'] for endpoint in trace[-2:])
+        totals['windows'] += report['trackedOwners']['window']; totals['documents'] += report['trackedOwners']['document']
+        totals['domProcessesWithThreeRounds'] += 1; totals['requiredFinalClearEndpoints'] += 2
+        totals['firstUnclearCleanupRounds'] += int(not trace[0]['clear'])
+        if not trace[0]['clear']:
+            unclear.append({'node': version, 'relativeReport': relative, 'survivors': trace[0]['survivors'], 'finalTwoClear': True})
+        if relative.startswith('adverse/'):
+            assert not report['complete']
+            totals['adverseWarmupDurations'] += sum(len(block['tasks']) for block in report['blocks'] if block['stage'] == 'warmup')
+    versions.append({'node': version, 'producerGitCommit': index['sourceIdentity']['sourceCommit'],
+        'sourceGitChangesRaw': index['sourceIdentity']['sourceChangesRaw'], 'sourceGitErrors': index['sourceIdentity']['sourceGitErrors'],
+        'fixtureIsPublishedCommit': False, 'ownSourceFiles': index['ownSourceFiles'], 'packageIdentityRechecked': True,
+        'matchedRandomPrefix': index['randomProbePrefix'], 'executableSha256': index['executableSha256']})
+assert totals['positiveWorkers'] == 32 and totals['adverseWorkers'] == 12 and totals['measuredDurations'] == 4608
+assert totals['positiveWarmupDurations'] == 1536 and totals['adverseWarmupDurations'] == 32
+assert totals['windows'] == totals['documents'] == 386 and totals['parentSnapshots'] == 6
+record = {'scope': 'fixed-auth-development-functional-qualification-only', 'totals': totals, 'versions': versions, 'firstUnclearCases': unclear,
+    'preliminaryEpochPreservedSeparately': True, 'epochsPooled': False, 'domExecuted': True,
+    'rustCandidateExecuted': False, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(validation / 'analysis.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+ci_source = repository / '.cache/jsdom-block-pilot-hosted-40291196724'
+ci_target = validation / 'previous-ci-8e9'
+if not ci_target.exists(): shutil.copytree(ci_source, ci_target)
+for original in ci_source.iterdir():
+    if original.is_file(): assert (ci_target / original.name).read_bytes() == original.read_bytes()
+ci_receipt = json.loads((ci_target / 'receipt.json').read_bytes())
+assert ci_receipt['jobsPassed'] == 2 and ci_receipt['qualifiedHead'] == '8e9d68d0011a847d09122684af0738edca4a239b'
+jobs = json.loads((ci_target / 'jobs.json').read_bytes())['jobs']
+for version in ['22.12.0', '24.14.1']:
+    pin = next(item for item in ci_receipt['artifacts'] if item['node'] == version)
+    job = next(item for item in jobs if item['id'] == pin['jobId'])
+    metadata = json.loads((ci_target / (version + '-metadata.json')).read_bytes())
+    parse = lambda value: datetime.datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
+    assert job['run_attempt'] == 1 and parse(job['started_at']) <= parse(metadata['created_at']) <= parse(job['completed_at'])
+    with zipfile.ZipFile(ci_target / (version + '-artifact.zip')) as bundle:
+        assert len(bundle.infolist()) == 13
+        raw = bundle.read('tests.stdout.log').decode()
+        for field, count in [('tests', 19), ('pass', 19), ('fail', 0)]:
+            assert re.findall(r'(?m)^(?:#|ℹ) ' + field + r' (\d+)\r?$', raw) == [str(count)]
+        reader = bundle.read('reader-tests.stderr.log').decode()
+        assert re.findall(r'Ran (\d+) tests in', reader) == ['9'] and 'OK' in reader.splitlines()
+(ci_target / 'analysis.json').write_bytes(json.dumps({'jobsPassed': 2, 'testsPerSdk': 19, 'readerTestsPerSdk': 9, 'zipMembersPerSdk': 13,
+    'workerRuntimeIntegrationTestedByThisProducer': False, 'scientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')
+print(json.dumps(totals))

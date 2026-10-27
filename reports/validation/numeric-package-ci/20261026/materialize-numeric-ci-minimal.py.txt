@@ -1,0 +1,34 @@
+"""Copy exactly the proposed sparse input set as current reviewed source/data, not from an archive."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import types
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+location = repository / 'reports/benchmarks/native-class-ownership/numeric-composed-packages/checkout.py'
+reader = types.ModuleType('current_sparse_inputs')
+reader.__file__ = str(location)
+exec(compile(location.read_bytes(), str(location), 'exec'), reader.__dict__)
+files = reader.required(repository)
+output = Path('/dev/shm/rustdom-numeric-ci-minimal-20261026')
+assert not output.exists() and not output.is_symlink()
+needed = sum((repository / relative).stat().st_size for relative in files)
+assert shutil.disk_usage(output.parent).free > needed + 67108864
+output.mkdir()
+entries = {}
+for relative in files:
+    source = repository / relative
+    assert source.is_file() and not source.is_symlink()
+    raw = source.read_bytes()
+    target = output / relative; target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+    assert target.read_bytes() == raw
+    entries[relative] = {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+receipt = {'files': entries, 'count': len(entries), 'bytes': needed,
+    'currentSourceCopy': True, 'archivedCodeExecuted': False, 'runtimeExecuted': False,
+    'harnessGitRepositoryPresent': False, 'sourceCommitFabricated': False}
+target = repository / 'reports/validation/numeric-package-ci/20261026/minimal-snapshot.json'
+with target.open('x', encoding='utf-8', newline='\n') as stream:
+    stream.write(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps({'files': len(entries), 'bytes': needed, 'currentSourceCopy': True}))

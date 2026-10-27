@@ -1,0 +1,128 @@
+"""Preserve current production QA, ordinary benchmarks, finite resource observations and failed infrastructure attempts."""
+import hashlib
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import tarfile
+if sys.flags.optimize:
+    raise RuntimeError('Production evidence export requires non-optimized Python')
+root = pathlib.Path('/run/rustdom-range-production-integration-20261027')
+repository = pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+cache = repository / '.cache/confirmation-authentication-20261027'
+output = root / 'export-v2'; output.mkdir(exist_ok=False)
+def read(path):
+    return json.loads(path.read_bytes())
+def digest(path):
+    checksum = hashlib.sha256()
+    with path.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1048576), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+summary = dict(scope='integrated-native-range-functional-qualification-not-ownership-performance-acceptance',
+               build=read(root / 'build.json'), sdks=[], ordinaryBenchmarks=[],
+               compilerInputMatches=344, productionCandidateDifferences=0, runtimeRemainsHybrid=True,
+               scientificCaptureExecuted=False, performanceAccepted=None, gateReevaluated=False,
+               completeStandardsConformanceEstablished=False, peakMemoryMeasured=False, universalLeakFreedomEstablished=False)
+resources = dict(scope=summary['scope'], sdks=[], peakMemoryMeasured=False, universalLeakFreedomEstablished=False,
+                 performanceAccepted=None, gateReevaluated=False)
+for name in ['node22', 'node24']:
+    directory = root / (name + '-linux-installed'); receipt = read(directory / 'receipt.json')
+    assert receipt['complete'] and len(receipt['commands']) == 5 and all(command['exitCode'] == 0 for command in receipt['commands'])
+    corpus = read(directory / 'corpus.json'); wpt = read(next(directory.glob('*-wpt.json')))
+    assert corpus['passed'] == 1784 and corpus['excludedScriptOn'] == 8 and not corpus['mismatches']
+    assert wpt['pass'] and len(wpt['results']) == 240 and all(result['pass'] for result in wpt['results'])
+    assert not wpt['complete'] and wpt['blockedSuites'] and wpt['excludedFixtures']
+    actualTests = sum(len(result['actual']['tests']) for result in wpt['results'])
+    actualPassed = sum(test['status'] == 0 for result in wpt['results'] for test in result['actual']['tests'])
+    assert actualTests == 83007 and actualPassed == 81804
+    memory = read(directory / 'range-memory.json'); assert memory['pass'] and len(memory['cycles']) == 6
+    for cycle in memory['cycles']:
+        assert not cycle['retained']['reached'] and cycle['released']['reached']
+        assert cycle['released']['state']['survivors'] == dict(window=0, document=0, ranges=0, native=0)
+        assert cycle['released']['state']['nativeTree']['napiClasses']['live'] == memory['baseline']['napiClasses']['live']
+        assert cycle['released']['state']['nativeTree']['rangeStates']['live'] == memory['baseline']['rangeStates']['live']
+    summary['sdks'].append(dict(node=receipt['node'], commands=receipt['commands'], nodeCompatibilityTests=3784,
+                                processFixtureTests=9, jestTests=22, vitestTests=33, vitestVmTests=34,
+                                corpusPassed=1784, corpusExcluded=8, wptFixtures=240, wptAssertions=actualTests,
+                                wptAssertionsPassed=actualPassed, sharedAdverseWptAssertions=actualTests-actualPassed,
+                                wptComplete=False, blockedSuites=wpt['blockedSuites'], excludedFixtures=wpt['excludedFixtures']))
+    resources['sdks'].append(memory)
+    benchmarkDirectory = root / (name + '-benchmarks')
+    benchmarkReceipt = read(benchmarkDirectory / 'receipt.json'); assert benchmarkReceipt['exitCode'] == 0
+    benchmark = read(next(benchmarkDirectory.glob('*-linux-x64.json')))
+    assert benchmark['complete'] and not benchmark['sourceGitErrors'] and len(benchmark['comparisons']) == 4
+    assert benchmark['nativeBinarySha256'] == receipt['nativeBinarySha256']
+    summary['ordinaryBenchmarks'].append(dict(node=benchmark['node'], comparisons=benchmark['comparisons'],
+                                             rawMeasuredDurations=sum(len(workload['samplesMs']) for run in benchmark['runs'] for workload in run['workloads']),
+                                             warmupRoundsPerWorkerWorkload=3, rawWarmupDurationsRetained=False,
+                                             performanceAccepted=None, gateReevaluated=False))
+summary['additionalTypedConsumerChecks'] = read(root / 'consumer-counter-isolation/receipt.json')
+assert len(summary['additionalTypedConsumerChecks']) == 4 and all(result['exitCode'] == 0 for result in summary['additionalTypedConsumerChecks'])
+summary['privateRuntimeRebuild'] = read(root / 'js-rebuild-v2/runtime-audit.json')
+assert summary['privateRuntimeRebuild']['allBuiltRuntimeBytesMatch']
+summary['infrastructureLimitations'] = [
+    'The first NTFS QA was stopped after an observed p9_client_rpc IO stall; its exit -15 was preserved.',
+    'Sparse QA copies initially omitted three historical diagnostic data fixtures; failed runs are separate from the complete final run.',
+    'Windows dependency transport lost executable modes and Linux resolver bindings; actual npm ci from the unchanged lockfile fixed the environment.',
+    'Disk exhaustion broke WSL process launch. Compiler cache compression recovered capacity. Only the owned temporary distro was restarted after rescue.',
+    'The rescue retained 169 files / 54332958 bytes; seven guest files were unreadable. Three original NTFS reports were backed up separately. The rescue failure manifest is preserved.',
+    'The first scratch JS build lacked a license input. Its repaired build reproduced 568 runtime files exactly, but the previously packaged distribution has 153 extra native-license assets.',
+    'Ordinary benchmarks are descriptive: all eight Rust medians exceed independent jsdom; they do not estimate the optimization gain or accept the original ownership budgets.'
+]
+for name, value in [('summary.json', summary), ('resources.json', resources)]:
+    (output / name).write_text(json.dumps(value, indent=2) + '\n')
+files = {}
+def select(directory, prefix):
+    assert directory.exists()
+    members = [directory] if directory.is_file() else sorted(directory.rglob('*'))
+    for member in members:
+        assert not member.is_symlink(), str(member)
+        if member.is_file():
+            relative = prefix if directory.is_file() else prefix + '/' + member.relative_to(directory).as_posix()
+            assert relative not in files; files[relative] = member
+for directory in root.iterdir():
+    if directory != output:
+        select(directory, 'qualification/' + directory.name)
+for name, source in [('node22', '/run/rustdom-production-source-7aeb-20261027'), ('node24', '/run/rustdom-production-source-7aeb-node24-20261027')]:
+    select(pathlib.Path(source) / 'reports', name + '-runtime-reports')
+recovery = cache / 'runtime-recovery-20261027'
+select(recovery / 'streamed', 'before-recovery')
+for name in ['manifest.json', 'recovery-decision.json']:
+    select(recovery / name, 'before-recovery/' + name)
+select(recovery / 'original-ntfs-reports', 'before-recovery/original-ntfs-reports')
+scripts = ['build-production.py', 'qualify-production.py', 'stage-production-linux.py', 'stream-production-linux.py',
+           'stop-ntfs-qualification.py', 'recover-runtime.ps1', 'prepare-production-recovered.py',
+           'qualify-production-linux-installed.py', 'qualify-production-node24-installed.py',
+           'resume-production.py', 'install-linux-qa-dependencies.py', 'benchmark-production.py',
+           'verify-js-rebuild.py', 'verify-js-rebuild-v2.py', 'export-production.py', 'export-production-attempt1.py.txt', 'consumer-before-placement.cts.txt']
+for name in scripts:
+    select(cache / name, 'transport-source/' + name + '.txt')
+git = ['/mnt/c/Program Files/Git/cmd/git.exe', '-C', 'C:/Users/guido/.codex/worktrees/native-class-ownership/rustdom', '-c', 'core.longpaths=true']
+modified = subprocess.check_output([*git, 'diff', '--name-only', '-z']).decode().strip('\0').split('\0')
+added = subprocess.check_output([*git, 'ls-files', '--others', '--exclude-standard', '-z']).decode().strip('\0').split('\0')
+for relative in modified + added:
+    if relative and (relative.startswith('src/') or relative.startswith('types/') or relative.startswith('tests/') or relative.startswith('.github/workflows/')):
+        select(repository / relative, 'current-source/' + relative + '.txt')
+for name in ['summary.json', 'resources.json']:
+    select(output / name, name)
+manifest = {name: dict(bytes=member.stat().st_size, sha256=digest(member)) for name, member in sorted(files.items())}
+assert sum(record['bytes'] for record in manifest.values()) < 1024 * 1024 * 1024
+(output / 'manifest.json').write_text(json.dumps(dict(files=manifest, manifestExcludedFromItself=True), indent=2) + '\n')
+select(output / 'manifest.json', 'manifest.json')
+archive = output / 'evidence.tar.gz'
+with tarfile.open(archive, 'w:gz') as bundle:
+    for name, member in sorted(files.items()):
+        bundle.add(member, arcname=name, recursive=False)
+with tarfile.open(archive, 'r:gz') as bundle:
+    members = bundle.getmembers(); assert len(members) == len(files)
+    for member in members:
+        assert member.isfile(); raw = bundle.extractfile(member).read()
+        if member.name != 'manifest.json':
+            assert manifest[member.name] == dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+receipt = dict(bytes=archive.stat().st_size, sha256=digest(archive), members=len(files), allMembersReadBack=True,
+               earlierRescueHadSevenUnreadableFiles=True, currentFinalQualificationComplete=True,
+               scientificCaptureExecuted=False, performanceAccepted=None, gateReevaluated=False)
+(output / 'archive.json').write_text(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps(receipt), flush=True)

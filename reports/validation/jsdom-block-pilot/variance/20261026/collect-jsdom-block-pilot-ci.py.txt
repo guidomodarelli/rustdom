@@ -1,0 +1,67 @@
+"""Read the one functional CI run; never activates a workflow or executes downloaded members."""
+import hashlib
+import io
+import json
+from pathlib import Path, PurePosixPath
+import subprocess
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / '.cache/jsdom-block-pilot-hosted-40286292347'
+root.mkdir(exist_ok=False)
+source = 'ec57e3bc1ead7d80e5cf0374b68374ce22b04da1'
+prefix = 'repos/guidomodarelli/rustdom/'
+
+def read(endpoint, name):
+    raw = subprocess.check_output(['gh', 'api', prefix + endpoint], cwd=repository, timeout=120)
+    (root / name).write_bytes(raw)
+    return json.loads(raw)
+
+run = read('actions/runs/40286292347/attempts/1', 'run.json')
+assert run['id'] == 40286292347 and run['head_sha'] == source and run['run_attempt'] == 1
+assert run['path'] == '.github/workflows/jsdom-block-pilot-contracts.yml'
+assert run['status'] == 'completed' and run['conclusion'] == 'success' and run['event'] == 'pull_request'
+jobs = read('actions/runs/40286292347/attempts/1/jobs?per_page=100', 'jobs.json')
+assert jobs['total_count'] == 2
+assert {job['id'] for job in jobs['jobs']} == {121450623506, 121450623592}
+assert all(job['conclusion'] == 'success' and job['head_sha'] == source for job in jobs['jobs'])
+artifacts = read('actions/runs/40286292347/artifacts?per_page=100', 'artifacts.json')
+assert artifacts['total_count'] == 2
+records = []
+for version in ['22.12.0', '24.14.1']:
+    expected_name = f'jsdom-block-calendar-{version}-{source}'
+    matches = [artifact for artifact in artifacts['artifacts'] if artifact['name'] == expected_name]
+    assert len(matches) == 1
+    artifact = matches[0]
+    assert not artifact['expired'] and artifact['workflow_run']['id'] == run['id'] and artifact['workflow_run']['head_sha'] == source
+    metadata = read(f"actions/artifacts/{artifact['id']}", f'{version}-metadata.json')
+    assert metadata == artifact
+    raw = subprocess.check_output(['gh', 'api', prefix + f"actions/artifacts/{artifact['id']}/zip"], cwd=repository, timeout=120)
+    (root / f'{version}-artifact.zip').write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    assert len(raw) == artifact['size_in_bytes'] and artifact['digest'] == 'sha256:' + digest
+    members = {}
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        names = archive.namelist(); assert len(names) == len(set(names))
+        for member in archive.infolist():
+            path = PurePosixPath(member.filename)
+            assert not path.is_absolute() and '..' not in path.parts and '\\' not in member.filename
+            assert not member.is_dir() and member.file_size < 16777216
+            contents = archive.read(member)
+            members[member.filename] = {'bytes': len(contents), 'sha256': hashlib.sha256(contents).hexdigest()}
+            if member.filename == 'calendar.json':
+                assert members[member.filename]['sha256'] == '6e6c0daf78493567b9ad8723b6ea3d09ea59d33821f05a68163ccb9a69b5fc9a'
+                calendar = json.loads(contents)
+                assert calendar['criteria'] == 32 and calendar['blocks'] == 512 and calendar['processes'] == 16384
+                assert calendar['scientificCaptureExecuted'] is False and calendar['executionReady'] is False
+    assert {'calendar.json', 'tests.stdout.log', 'tests.stderr.log', 'plan.json', 'checkout.json'} <= members.keys()
+    (root / f'{version}-members.json').write_text(json.dumps(members, indent=2) + '\n', encoding='utf-8')
+    job = next(job for job in jobs['jobs'] if version in job['name'])
+    log = subprocess.check_output(['gh', 'api', prefix + f"actions/jobs/{job['id']}/logs"], cwd=repository, timeout=120)
+    (root / f'{version}-job.log').write_bytes(log)
+    records.append({'node': version, 'artifactId': artifact['id'], 'jobId': job['id'], 'bytes': len(raw), 'sha256': digest})
+record = {'qualifiedHead': source, 'runId': run['id'], 'attempt': 1, 'jobsPassed': 2, 'artifacts': records,
+    'calendarMatchesLocalBytes': True, 'archivedCodeExecuted': False, 'scientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False, 'publicationOfHostedArchivePending': True}
+(root / 'receipt.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(record))

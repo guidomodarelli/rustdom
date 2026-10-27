@@ -1,0 +1,34 @@
+import datetime,hashlib,json,os,shutil,subprocess,sys
+from pathlib import Path
+working=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=Path('/home/guido/rustdom-validation/range-collapse-study-method-f06')
+relative=Path('reports/benchmarks/native-class-ownership/range-collapse-study')
+version=sys.argv[1]; attempt=sys.argv[2]
+output=Path('/home/guido/rustdom-validation/range-collapse-study-qa')/attempt
+output.mkdir(parents=True,exist_ok=True)
+for filename in (working/relative).rglob('*'):
+ if filename.is_file() and '__pycache__' not in filename.parts:
+  target=source/relative/filename.relative_to(working/relative); target.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(filename,target)
+for name in ['range-collapse-study-contracts.yml','ownership-range-collapse-study.yml']:
+ target=source/'.github/workflows'/name; target.parent.mkdir(parents=True,exist_ok=True); shutil.copyfile(working/'.github/workflows'/name,target)
+node_root=Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')/('node-22' if version=='22' else 'node')
+node=node_root/'bin/node'; actual=subprocess.check_output([node,'--version'],text=True).strip()
+policy=json.loads((source/'reports/benchmarks/native-class-ownership/constants/current-ownership.json').read_bytes())
+assert actual=={'22':'v22.12.0','24':'v24.14.1'}[version]
+assert hashlib.sha256(node.read_bytes()).hexdigest()==policy['runtimeExecutableHashes'][actual]
+environment={**os.environ,'PATH':str(node_root/'bin')+os.pathsep+os.environ.get('PATH',''),
+ 'RUSTDOM_RANGE_STUDY_PREPARATION':'/home/guido/rustdom-validation/range-collapse-packages-20261024/roundtrip/range-collapse-packages',
+ 'RUSTDOM_RANGE_STUDY_HISTORY':'/home/guido/rustdom-validation/shared-study-result-40012710923/archive/shared-study/capture'}
+command=[str(node),'--test',str(source/relative/'contracts.spec.cjs')]
+with (output/('node'+version+'.stdout.log')).open('xb') as stdout,(output/('node'+version+'.stderr.log')).open('xb') as stderr:
+ result=subprocess.run(command,cwd=source,env=environment,stdout=stdout,stderr=stderr)
+receipt={'argv':command,'environment':{name:value for name,value in environment.items() if name.startswith('RUSTDOM_RANGE_')},
+ 'node':actual,'nodeSha256':hashlib.sha256(node.read_bytes()).hexdigest(),'exitCode':result.returncode,
+ 'sourceCommit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=source,text=True).strip(),
+ 'files':{filename.relative_to(source).as_posix():hashlib.sha256(filename.read_bytes()).hexdigest() for filename in sorted((source/relative).rglob('*')) if filename.is_file() and '__pycache__' not in filename.parts},
+ 'benchmarkExecuted':False,'performanceAccepted':None,'finishedAtUTC':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+(output/('node'+version+'.command.json')).write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps({'node':actual,'exitCode':result.returncode,'output':str(output)}),flush=True)
+if result.returncode:
+ print((output/('node'+version+'.stdout.log')).read_text()[-12000:]);print((output/('node'+version+'.stderr.log')).read_text()[-4000:])
+raise SystemExit(result.returncode)

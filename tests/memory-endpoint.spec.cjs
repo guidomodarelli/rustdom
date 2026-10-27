@@ -20,6 +20,9 @@ for (const mode of ['jsdom', 'rustdom']) {
       assert.equal(cycle.released.reached, true);
       assert.equal(cycle.released.state.survivors.documents, 0);
       assert.equal(cycle.released.state.survivors.windows, 0);
+      assert.ok(cycle.released.trace.length >= 5);
+      assert.ok(cycle.released.trace.slice(0, 3).every((observation) => observation.survivors.documents === 1 && !observation.clear));
+      assert.ok(cycle.released.trace.slice(-2).every((observation) => observation.clear));
     }
     context.diagnostic(JSON.stringify({ mode, node: report.node, cycles: report.cycles.map((cycle) => ({
       cycle: cycle.cycle, retainedAccepted: cycle.retained.reached,

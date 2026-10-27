@@ -1,0 +1,60 @@
+"""Describe every completed main CI partition; preserve contract controls separately and never pool hosts."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Benchmark analysis requires non-optimized Python')
+import csv
+import json
+import math
+from pathlib import Path
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / 'reports/benchmarks/ci-general/40344594060'
+rows = []; inputs = []; controls = []
+for shard in range(4):
+    with zipfile.ZipFile(root / ('benchmark-linux-' + str(shard) + '.zip')) as archive:
+        candidates = []
+        for name in archive.namelist():
+            if not name.endswith('.json') or name == 'artifact-manifest.json': continue
+            report = json.loads(archive.read(name))
+            if report.get('complete') is True and report.get('shard') == {'index': shard, 'count': 4}:
+                candidates.append((name, report))
+            else:
+                controls.append({'shard': shard, 'member': name, 'complete': report.get('complete'),
+                    'partition': report.get('shard'), 'requestedWorkloads': report.get('requestedWorkloads'),
+                    'failure': report.get('failure'), 'role': 'Other actual contract invocation retained; never a replacement main partition'})
+        assert len(candidates) == 1
+        name, report = candidates[0]
+        assert report['sourceCommit'] == '88b893a888b5cebd37b532b7a0eeb0c142fab1b6'
+        assert report['sourceChanges'] == [] and report['sourceGitErrors'] == []
+        assert report['node'] == 'v24.21.0' and report['comparisons']
+        inputs.append({'shard': shard, 'member': name, 'sourceCommit': report['sourceCommit'],
+            'sourceChanges': report['sourceChanges'], 'sourceGitErrors': report['sourceGitErrors'],
+            'node': report['node'], 'machine': report['machine'], 'nativeBinarySha256': report['nativeBinarySha256'],
+            'completionScope': report['completionScope'], 'methodology': report['methodology'],
+            'rows': len(report['comparisons'])})
+        for comparison in report['comparisons']:
+            baseline = comparison['jsdom']['medianMs']; candidate = comparison['rustdom']['medianMs']
+            assert math.isfinite(baseline) and baseline > 0 and math.isfinite(candidate) and candidate > 0
+            ratio = candidate / baseline
+            rows.append({'shard': shard, 'workload': comparison['workload'], 'rows': comparison['rows'],
+                'jsdomSamples': comparison['jsdom']['samples'], 'rustdomSamples': comparison['rustdom']['samples'],
+                'jsdomMedianMs': baseline, 'rustdomMedianMs': candidate, 'rustdomOverJsdomMedianRatio': ratio,
+                'rustdomMedianSlower': ratio > 1})
+assert len({(row['workload'], row['rows']) for row in rows}) == len(rows)
+with (root / 'all-main-comparisons.csv').open('x', encoding='utf-8', newline='') as stream:
+    writer = csv.DictWriter(stream, fieldnames=list(rows[0])); writer.writeheader(); writer.writerows(rows)
+record = {'runId': 40344594060, 'runAttempt': 1,
+    'prHeadCommit': '7148577dcf1eeffda2ebf95a3ccd1eb173a6082b',
+    'actualBenchmarkCheckoutCommit': '88b893a888b5cebd37b532b7a0eeb0c142fab1b6',
+    'benchmarkCheckoutIsPrMerge': True, 'sourceIdentityNormalized': False,
+    'selection': 'Exactly one complete count=4 partition matching each declared matrix index; not selected by timing or filename',
+    'mainRows': len(rows), 'rowsWithSlowerRustdomMedian': sum(row['rustdomMedianSlower'] for row in rows),
+    'rowsWithFasterRustdomMedian': sum(row['rustdomOverJsdomMedianRatio'] < 1 for row in rows),
+    'descriptiveOnly': True, 'hostsPooled': False, 'statisticalRegressionCertified': False,
+    'inputs': inputs, 'otherContractReportsPreserved': controls,
+    'worstMedianRatios': sorted(rows, key=lambda row: row['rustdomOverJsdomMedianRatio'], reverse=True)[:10],
+    'scientificCaptureExecutedByReader': False, 'ownershipPerformanceAccepted': None, 'ownershipGateReevaluated': False}
+(root / 'analysis.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps({'mainRows': len(rows), 'slowerRustdomMedians': record['rowsWithSlowerRustdomMedian'],
+    'otherContractReportsPreserved': len(controls), 'hostsPooled': False, 'sourceIdentityNormalized': False}))

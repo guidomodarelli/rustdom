@@ -1,0 +1,29 @@
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+if sys.flags.optimize: raise RuntimeError('Qualification requires non-optimized Python')
+source=pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+output=pathlib.Path('/run/rustdom-shared-historical-20261027')
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    directory=output/(label+'-resource-preservation');directory.mkdir(exist_ok=False)
+    evidence=directory/'functional.json';receipt=directory/'functional.process.json'
+    assert evidence!=receipt
+    environment=dict(os.environ,RUSTDOM_SHARED_FIXTURE_PREPARATION=str(output/'preparation/ownership-build'),RUSTDOM_SHARED_FIXTURE_EVIDENCE=str(evidence))
+    argv=[str(node),'--expose-gc','--test','reports/benchmarks/native-class-ownership/shared-fixture-candidate/contracts.spec.cjs']
+    started=time.monotonic()
+    with (directory/'functional.stdout.log').open('xb') as stdout,(directory/'functional.stderr.log').open('xb') as stderr:
+        result=subprocess.run(argv,cwd=source,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+    assert evidence.is_file(), 'The functional report must exist before its separate process receipt'
+    digest=hashlib.sha256(evidence.read_bytes()).hexdigest()
+    with receipt.open('x') as stream:
+        json.dump(dict(command=argv,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),scientificCapture=False,functionalReportSha256=digest,previousReportOverwrittenByEarlierQualifier=True),stream,indent=2)
+    assert result.returncode==0,label
+    report=json.loads(evidence.read_bytes())
+    assert report['functionalOnly'] is True and report['performanceAccepted'] is None and len(report['cases'])>=16
+    assert hashlib.sha256(evidence.read_bytes()).hexdigest()==digest
+print(json.dumps(dict(complete=True,scientificCapture=False,priorFunctionalEndpointDataLost=True,newFunctionalChecksWithSeparateReceipts=True)))

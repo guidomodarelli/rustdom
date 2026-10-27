@@ -1,0 +1,25 @@
+"""Exercise real byte-corruption boundaries before the corrected functional matrix; restore the private fixture exactly."""
+import json
+import os
+from pathlib import Path
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source = Path('/dev/shm/rustdom-pilot-worker-source-20261026')
+prepared = Path('/dev/shm/rustdom-pilot-worker-functional-20261026')
+output = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/authenticator-integrity'
+output.mkdir(exist_ok=False)
+environment = {**os.environ, 'RUSTDOM_JSDOM_BLOCK_FUNCTIONAL_PACKAGE': str(prepared)}
+outcomes = []
+for version, relative in [('22.12.0', '.tools/node-22/bin/node'), ('24.14.1', '.tools/node/bin/node')]:
+    result = subprocess.run([str(primary / relative), '--test', 'reports/benchmarks/native-class-ownership/control-precision/pilot/integrity.spec.cjs'],
+        cwd=source, env=environment, capture_output=True, timeout=180)
+    (output / (version + '.stdout.log')).write_bytes(result.stdout); (output / (version + '.stderr.log')).write_bytes(result.stderr)
+    outcomes.append({'node': version, 'exitCode': result.returncode})
+    assert result.returncode == 0, version
+    assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''
+(output / 'summary.json').write_bytes(json.dumps({'outcomes': outcomes, 'probesPerSdk': 2,
+    'changedInputsRestoredByteIdentical': True, 'domExecuted': False, 'scientificCaptureExecuted': False,
+    'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')
+print(json.dumps(outcomes))

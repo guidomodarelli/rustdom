@@ -1,0 +1,72 @@
+"""Qualify the real partial-clone replay without executing any archived producer."""
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+output = repository / 'reports/validation/shared-worker-sparse-checkout/20261026/local-fixed-environment'
+fixture = Path('/dev/shm/rustdom-shared-worker-sparse-fixed-20261026')
+assert not output.exists() and not fixture.exists()
+output.mkdir(parents=True)
+environment = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'GIT_TERMINAL_PROMPT': '0',
+               'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.autocrlf', 'GIT_CONFIG_VALUE_0': 'false'}
+records = []
+
+
+def execute(label, command, cwd=None, input_bytes=None, timeout=180):
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=cwd, input=input_bytes, env=environment,
+                            capture_output=True, timeout=timeout)
+    (output / (label + '.stdout.log')).write_bytes(result.stdout)
+    (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    records.append({'label': label, 'command': command, 'exitCode': result.returncode,
+                    'elapsedSeconds': time.monotonic() - started})
+    assert result.returncode == 0, label + ': ' + result.stderr.decode(errors='replace')
+    return result.stdout
+
+
+git = ['git', '-c', 'core.autocrlf=false', '-c', 'core.longpaths=true', '-c', 'gc.auto=0']
+execute('clone', [*git, 'clone', '--filter=blob:none', '--no-checkout', '--depth=1', '--single-branch',
+                  '--branch', 'feature/native-class-ownership', 'https://github.com/guidomodarelli/rustdom', str(fixture)])
+head = execute('head', [*git, 'rev-parse', 'HEAD'], fixture).decode().strip()
+assert head == '527439d6170dbd736436002b7b7fb5b7a987cef0'
+patterns = b'''/*
+!/*/
+/reports/benchmarks/native-class-ownership/numeric-composed-packages/
+/reports/validation/range-numeric-composed-package/20261026/archive.json
+/reports/validation/owner-batch-capture-method/review.json
+/reports/validation/native-class-ownership/shared-fixture-worker/
+'''
+execute('sparse-set', [*git, 'sparse-checkout', 'set', '--no-cone', '--stdin'], fixture, patterns)
+execute('checkout', [*git, 'checkout', '--detach', head], fixture)
+assert execute('clean-initial', [*git, 'status', '--porcelain=v1'], fixture) == b''
+assert execute('promisor', [*git, 'config', '--get', 'remote.origin.promisor'], fixture).strip() == b'true'
+assert execute('filter', [*git, 'config', '--get', 'remote.origin.partialclonefilter'], fixture).strip() == b'blob:none'
+execute('hydrate', ['python3', '-B', 'reports/benchmarks/native-class-ownership/numeric-composed-packages/checkout.py', str(fixture)], fixture)
+raw = output / 'raw'
+execute('extract', ['python3', '-B', 'reports/validation/native-class-ownership/shared-fixture-worker/replay.py', str(raw)], fixture)
+environment['SHARED_WORKER_EVIDENCE'] = str(raw / 'shared-worker-qualification')
+for version, relative, expected in [
+    ('22.12.0', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    node = primary / relative
+    assert hashlib.sha256(node.read_bytes()).hexdigest() == expected
+    assert execute(version + '-version', [str(node), '--version'], fixture).decode().strip() == 'v' + version
+    execute(version + '-replay', [str(node), 'reports/benchmarks/native-class-ownership/shared-fixture-worker/verify.cjs',
+                                 environment['SHARED_WORKER_EVIDENCE'], str(output / (version + '-replay.json'))], fixture)
+    execute(version + '-contracts', [str(node), '--test', 'reports/benchmarks/native-class-ownership/shared-fixture-worker/contracts.spec.cjs'], fixture)
+assert execute('clean-final', [*git, 'status', '--porcelain=v1'], fixture) == b''
+execute('lint', [str(primary / '.tools/actionlint/actionlint'), '.github/workflows/shared-fixture-worker.yml'], repository)
+summary = {'qualifiedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'sourceCommit': head,
+           'sourceChanged': False, 'partialClone': True, 'cloneFilter': 'blob:none', 'sparseCone': False,
+           'checkoutInputs': json.loads((output / 'hydrate.stdout.log').read_bytes()),
+           'nodes': ['22.12.0', '24.14.1'], 'processesReplayedPerSdk': 80, 'contractsPerSdk': 15,
+           'newDomExecuted': False, 'scientificCaptureExecuted': False,
+           'performanceAccepted': None, 'gateReevaluated': False, 'commands': records}
+(output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+print(json.dumps(summary))

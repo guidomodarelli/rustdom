@@ -1,0 +1,66 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+
+if sys.flags.optimize: raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+cache=root/'.cache/confirmation-authentication-20261027'
+xml=pathlib.Path('/run/rustdom-xml-ci-5caa-20261027')
+shared=pathlib.Path('/run/rustdom-shared-historical-20261027')
+output=root/'reports/validation/current-preparation-decoupling/20261027'
+output.mkdir(exist_ok=False,parents=True)
+def copy(source,destination):
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    assert not destination.exists()
+    shutil.copyfile(source,destination)
+    assert hashlib.sha256(source.read_bytes()).digest()==hashlib.sha256(destination.read_bytes()).digest()
+for name in ['artifact.zip','metadata.json']:
+    copy(xml/name,output/'xml'/name)
+for directory in ['current-reader-qa','final-reader-qa','zip-data/_temp']:
+    for source in (xml/directory).rglob('*'):
+        if source.is_file() and not source.is_symlink():
+            copy(source,output/'xml'/directory/source.relative_to(xml/directory))
+for directory in ['node22','node22-final','node24-final']:
+    for source in (shared/directory).iterdir():
+        assert source.is_file() and not source.is_symlink()
+        copy(source,output/'shared'/directory/source.name)
+for name in ['qualify-xml-current.py','qualify-xml-current-final.py','qualify-shared-historical.py','qualify-shared-historical-final.py','preserve-ci-decoupling.py']:
+    copy(cache/name,output/(name+'.txt'))
+for name in ['ci-5caa-xml-full.log','ci-5caa-qualify24-full.log','ci-5caa-ownership22-full.log']:
+    copy(cache/name,output/name)
+gh='/mnt/c/Program Files/GitHub CLI/gh.exe'
+run=json.loads(subprocess.check_output([gh,'api','repos/guidomodarelli/rustdom/actions/runs/40471170258']))
+assert run['head_sha']=='5caa3ea90a394584e33c661ad7ddaf4c6654b515' and run['run_attempt']==1
+artifacts=json.loads(subprocess.check_output([gh,'api','repos/guidomodarelli/rustdom/actions/runs/40471170258/artifacts']))['artifacts']
+for artifact in artifacts:
+    if 'node24-' not in artifact['name']:continue
+    assert artifact['workflow_run']['head_sha']==run['head_sha']
+    filename=output/'shared'/(str(artifact['id'])+'.zip')
+    with filename.open('xb') as stream:
+        subprocess.run([gh,'api','repos/guidomodarelli/rustdom/actions/artifacts/'+str(artifact['id'])+'/zip'],stdout=stream,stderr=subprocess.PIPE,check=True,timeout=120)
+    assert filename.stat().st_size==artifact['size_in_bytes']
+    assert 'sha256:'+hashlib.sha256(filename.read_bytes()).hexdigest()==artifact['digest']
+    (output/'shared'/(str(artifact['id'])+'-metadata.json')).write_text(json.dumps(artifact,indent=2)+'\n')
+executable='/run/rustdom-resource-actionlint-20261027/actionlint'
+workflows=['.github/workflows/combined-resource-exports.yml','.github/workflows/shared-fixture-candidate.yml']
+with (output/'actionlint.stdout.log').open('xb') as stdout,(output/'actionlint.stderr.log').open('xb') as stderr:
+    result=subprocess.run([executable,'-no-color','-shellcheck=','-pyflakes=',*workflows],cwd=root,stdout=stdout,stderr=stderr,timeout=60)
+assert result.returncode==0
+names=['reports/benchmarks/native-class-ownership/'+name for name in ['xml-current-run.cjs','xml-current-run.spec.cjs','inspect-xml-preparation.cjs','constants/xml-preparation-inspection.cjs']]
+receipt=dict(parentCommit=run['head_sha'],xmlArtifact=12719061087,xmlArtifactDigest='f1d734322ccc06866f1d4bf4f9af38057d5e4ba7d9d17048dbfa62d4f2c27329',
+    xmlPreparationTarSha256=hashlib.sha256((xml/'zip-data/_temp/xml-build.tar.gz').read_bytes()).hexdigest(),
+    historicalSourceCommit='4196c496187c88c92304516287a7e644659a8536',nodeVersions=['22.12.0','24.14.1'],
+    xmlTestsPerSDK=11,sharedFunctionalTestsPerSDK=4,sharedEvidenceTestsPerSDK=5,
+    sources={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in names+workflows},
+    actionlintVersion='1.7.7',actionlintExitCode=result.returncode,
+    measurementModesRejected=True,historicalXMLSourceRestrictionPreserved=True,
+    scientificCaptures=0,performanceAccepted=None,gateReevaluated=False,
+    negativeAttemptsPreserved=['Python3.10-data-filter-rejected-valid-relative-link-before-runtime-loading','sparse-historical-checkout-omitted-root-build-inputs-before-runtime-loading'],
+    limits=['Current ownership gate still rejects stale source identity and historical performance rejection remains.','No peak-memory or universal leak-freedom claim.','No binary was rebuilt or borrowed to claim new performance acceptance.'])
+(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+manifest={str(source.relative_to(output)):dict(bytes=source.stat().st_size,sha256=hashlib.sha256(source.read_bytes()).hexdigest()) for source in output.rglob('*') if source.is_file()}
+(output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps(dict(preserved=True,files=len(manifest),bytes=sum(entry['bytes'] for entry in manifest.values()),receipt=receipt)))

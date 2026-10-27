@@ -1,0 +1,25 @@
+"""Plan a source-only isolated ownership candidate without changing any frozen runtime input."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parents[1]
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=repository, text=True).strip() == ''
+commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repository, text=True).strip()
+assert commit == 'f44f5dd0f9317cfaa24bc9e7e59574fad632ac98'
+directories = ['src', 'third-party', 'scripts', 'tests', 'benchmarks', 'types']
+roots = ['Cargo.toml', 'Cargo.lock', 'build.rs', 'package.json', 'package-lock.json', 'README.md', 'LICENSE',
+    'AGENTS.md', 'jest.config.cjs', 'vitest.config.mjs', 'vitest.vm.config.mjs', 'tsconfig.json']
+names = subprocess.check_output(['git', 'ls-files', '-z', '--', *directories, *roots], cwd=repository).decode('utf-8').strip('\0').split('\0')
+files = []
+for name in names:
+    source = repository / name
+    assert source.is_file() and not source.is_symlink(), name
+    files.append({'path': name, 'bytes': source.stat().st_size, 'sha256': hashlib.sha256(source.read_bytes()).hexdigest()})
+plan = {'originCommit': commit, 'sourceRepository': '/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom',
+    'destination': '/home/guido/rustdom-validation/ownership-cold-cleanup-prototype', 'files': files,
+    'newBenchmarkProcessesAuthorized': 0, 'measurementExecuted': False}
+with (repository / '.cache/cold-ownership-copy-plan.json').open('x', encoding='utf-8', newline='\n') as output:
+    output.write(json.dumps(plan, indent=2) + '\n')
+print(json.dumps({'sourceFiles': len(files), 'sourceBytes': sum(entry['bytes'] for entry in files), 'runtimeChanged': False}))

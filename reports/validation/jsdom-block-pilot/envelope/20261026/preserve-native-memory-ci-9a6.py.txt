@@ -1,0 +1,37 @@
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Memory evidence preservation requires non-optimized Python')
+import hashlib
+import json
+from pathlib import Path
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+evidence = repository / 'reports/validation/jsdom-block-pilot/envelope/20261026/previous-general-ci-9a6'
+receipt = json.loads((evidence / 'receipt.json').read_bytes())
+assert receipt['jobsPassed'] == 8 and receipt['conclusion'] == 'success'
+artifact = next(entry for entry in receipt['artifacts'] if entry['platform'] == 'ubuntu-22.04')
+archive_path = evidence / 'ubuntu-22.04.zip'
+assert hashlib.sha256(archive_path.read_bytes()).hexdigest() == artifact['zipSha256']
+inventory = json.loads((evidence / 'ubuntu-22.04-members.json').read_bytes())
+root = repository / 'reports/memory/ci-general/40304459936'
+root.mkdir(parents=True, exist_ok=False)
+members = {}
+with zipfile.ZipFile(archive_path) as archive:
+    for member in archive.infolist():
+        if not member.filename.startswith('memory/') or member.is_dir(): continue
+        raw = archive.read(member)
+        expected = inventory[member.filename]
+        assert len(raw) == expected['bytes'] and hashlib.sha256(raw).hexdigest() == expected['sha256']
+        relative = member.filename.removeprefix('memory/')
+        path = root / relative; assert path.resolve().is_relative_to(root.resolve())
+        path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(raw)
+        members[relative] = expected
+record = {'runId': receipt['runId'], 'sourcePrHead': receipt['headCommit'],
+    'actualCiMergeCommit': receipt['benchmarkCheckoutCommit'], 'artifactId': artifact['artifactId'],
+    'artifactZipSha256': artifact['zipSha256'], 'members': members, 'nativeReports': artifact['nativeMemoryReports'],
+    'scope': 'Existing ordinary CI runtime; finite Rust Memcheck and Node resource scenarios, not the later envelope changes',
+    'archivedCodeExecuted': False, 'peakMemoryDemonstrated': False, 'universalLeakFreedomDemonstrated': False,
+    'ownershipPerformanceAccepted': None, 'ownershipGateReevaluated': False}
+(root / 'source.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps({'memoryFilesPreserved': len(members), 'nativeTestsUnderMemcheck': 311, 'nativeBatches': 10}))

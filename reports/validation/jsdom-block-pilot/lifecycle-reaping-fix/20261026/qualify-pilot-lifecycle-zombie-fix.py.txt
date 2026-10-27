@@ -1,0 +1,51 @@
+"""Exercise cancellation, forced exit and a real zombie under both SDKs in a native Git fixture."""
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import subprocess
+repository=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary=Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source=Path('/dev/shm/rustdom-pilot-lifecycle-fix-source-20261026')
+output=repository/'.cache/pilot-lifecycle-zombie-fix-20261026'
+scratch=Path('/dev/shm/rustdom-pilot-lifecycle-zombie-fix-20261026')
+assert not source.exists() and not output.exists() and not scratch.exists()
+output.mkdir();scratch.mkdir()
+subprocess.run(['git','clone','--local','/dev/shm/rustdom-pilot-method-source-20261026',str(source)],check=True,capture_output=True)
+pilot='reports/benchmarks/native-class-ownership/control-precision/pilot'
+publication='reports/validation/jsdom-block-pilot/capture-method/review.json'
+current=json.loads((repository/publication).read_bytes())
+changed=[]
+for relative,checksum in {**current['files'],publication:hashlib.sha256((repository/publication).read_bytes()).hexdigest()}.items():
+    target=source/relative
+    if not target.exists() or hashlib.sha256(target.read_bytes()).hexdigest()!=checksum:
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(repository/relative,target);changed.append(relative)
+    assert hashlib.sha256(target.read_bytes()).hexdigest()==checksum
+git=['git','-c','core.longpaths=true','-c','gc.auto=0']
+subprocess.run(git+['add','--',*changed],cwd=source,check=True)
+subprocess.run(git+['-c','user.name=Native CI fixture','-c','user.email=fixture@example.invalid',
+                    'commit','-m','Functional real zombie reaping regression fixture'],cwd=source,check=True,capture_output=True)
+head=subprocess.check_output(git+['rev-parse','HEAD'],cwd=source).decode().strip()
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+commands=[]
+for version,relative,checksum in [('22.12.0','.tools/node-22/bin/node','177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+                                 ('24.14.1','.tools/node/bin/node','bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    node=primary/relative;assert hashlib.sha256(node.read_bytes()).hexdigest()==checksum
+    arguments=['python3','-B',str(source/pilot/'capture/qualify-lifecycle.py'),str(node),
+               '/dev/shm/rustdom-envelope-package-20261026',str(scratch/version)]
+    with (output/(version+'.stdout.log')).open('xb') as stdout,(output/(version+'.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(arguments,cwd=source,stdout=stdout,stderr=stderr,timeout=180)
+    record={'node':version,'argv':arguments,'exitCode':result.returncode,'sourceCommit':head,'sourceIsPublishedCommit':False}
+    commands.append(record);(output/'commands.json').write_bytes(json.dumps(commands,indent=2).encode()+b'\n')
+    print(json.dumps(record),flush=True)
+    assert result.returncode==0,(output/(version+'.stderr.log')).read_text()
+    cases=json.loads((scratch/version/'outcomes.json').read_bytes())
+    assert len(cases)==3 and all(case['activeChildrenRemaining']==0 and case['partialPreserved'] for case in cases)
+    shutil.copyfile(scratch/version/'outcomes.json',output/(version+'-outcomes.json'))
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+(output/'source-commit.txt').write_bytes(subprocess.check_output(git+['cat-file','commit','HEAD'],cwd=source))
+(output/'source-tree.txt').write_bytes(subprocess.check_output(git+['ls-tree','-r','HEAD'],cwd=source))
+(output/'summary.json').write_bytes(json.dumps({'sourceCommit':head,'sourceIsPublishedCommit':False,
+    'changedSourceFiles':changed,'sourceClean':True,'realTerminationCases':6,'realZombieCases':2,
+    'allRemainingOwnedDescendants':0,'scientificCaptureExecuted':False,'performanceAccepted':None,'gateReevaluated':False},indent=2).encode()+b'\n')

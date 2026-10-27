@@ -1,0 +1,15 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const source = require('../reports/benchmarks/native-class-ownership/control-precision/pilot/capture/source.cjs');
+const output = process.argv[2];
+assert.ok(output && !fs.existsSync(output));
+fs.mkdirSync(output);
+const files = source.currentFiles(source.repository, true);
+const snapshot = source.snapshot({files, publication:null}, output);
+fs.writeFileSync(path.join(output, 'method-snapshot.json'), JSON.stringify(snapshot, null, 2) + '\n', {flag:'wx'});
+process.stdout.write(JSON.stringify({files:Object.keys(files).length, sourceFilesDigest:source.filesDigest(files),
+  copiedFiles:Object.values(snapshot).filter((member)=>member.location!==null).length,
+  referenceFiles:Object.values(snapshot).filter((member)=>member.location===null).length,
+  scientificCaptureExecuted:false}) + '\n');

@@ -1,0 +1,110 @@
+"""Add current transport/resource evidence to the owned activation packet, preserving every original observation."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import sys
+import zipfile
+
+if sys.flags.optimize:
+    raise RuntimeError('Activation evidence requires non-optimized Python')
+
+ROOT = Path(__file__).resolve().parent.parent
+PACKET = ROOT / 'reports/validation/native-class-ownership/range-collapse-study-activation/02291d6b'
+MEMORY = ROOT / 'reports/memory/range-collapse-activation-02291d6b'
+
+
+def main():
+    activation = json.loads((PACKET / 'activation.json').read_bytes())
+    assert activation['runId'] == 40137458635 and activation['jobId'] == 121001909695
+    assert activation['labelApplications'] == 1 and activation['allEightRequiredChecksPassed'] is True
+    assert not MEMORY.with_suffix('.json').exists() and not MEMORY.with_suffix('.md').exists()
+    observations = ROOT / '.cache/range-capture-observations-02291d6b'
+    latest = json.loads((observations / 'latest.json').read_bytes())
+    assert latest['runId'] == activation['runId'] and latest['jobId'] == activation['jobId']
+    assert latest['status'] == 'in_progress' and latest['activeSteps'] == ['Ejecutar una única secuencia completa en ambos Node']
+    shutil.copytree(observations, PACKET / 'capture-observations-through-publication')
+    shutil.copyfile(Path('C:/Users/guido/ghq/projects/rustdom/.codex-autofix/watch-80.range-collapse-02291d6b.json'), PACKET / 'operational-pointer.json')
+    profiles = []
+    for system in ['ubuntu-22.04', 'windows-latest', 'macos-latest']:
+        directory = PACKET / ('general-ci/validation-' + system)
+        metadata = json.loads((directory / 'artifact.json').read_bytes())
+        filename = directory / 'artifact.zip'
+        assert 'sha256:' + hashlib.sha256(filename.read_bytes()).hexdigest() == metadata['digest']
+        with zipfile.ZipFile(filename) as archive:
+            memory_names = [name for name in archive.namelist() if name.startswith('memory/') and name.endswith('.json')]
+            summaries = []
+            for name in memory_names:
+                value = json.loads(archive.read(name))
+                assert value['pass'] is True, (system, name)
+                summaries.append({'path': name, 'pass': value['pass'], 'node': value.get('node'),
+                                  'sha256': hashlib.sha256(archive.read(name)).hexdigest()})
+            profile = {'system': system, 'artifactId': metadata['id'], 'zipSha256': metadata['digest'],
+                       'memoryReports': summaries, 'observedNodeVersions': sorted({entry['node'] for entry in summaries if entry['node']})}
+            if system == 'ubuntu-22.04':
+                name = next(name for name in memory_names if name.endswith('-valgrind.json'))
+                value = json.loads(archive.read(name))
+                selected = [test for entry in value['runs'] for test in entry['tests']]
+                inventory_name = name.removesuffix('.json') + '-0-inventory.log'
+                inventory = [line.removesuffix(': test') for line in archive.read(inventory_name).decode().splitlines() if line.endswith(': test')]
+                assert selected == inventory and len(set(selected)) == len(inventory) == 311
+                assert len(value['runs']) == 10
+                assert all(entry['testsCompleted'] and entry['exitCode'] == 0 and not entry.get('signal') and not entry.get('error') for entry in value['runs'])
+                profile['valgrind'] = {'report': name, 'version': value['version'], 'tests': len(selected),
+                    'batches': len(value['runs']), 'allSelectedTestsCompleted': True, 'pass': value['pass'],
+                    'limitations': value['limitations'], 'runs': value['runs']}
+            profiles.append(profile)
+    report = {'generalCiRunId': 40135020046, 'pullHead': activation['sourceCommit'],
+        'actualCiCheckoutCommit': '28236ed8b1da003a9770c6c20ae3945767c12267',
+        'studyRunId': activation['runId'], 'studyJobId': activation['jobId'], 'studyAttempt': 1,
+        'studyResourceResultsPending': True, 'newRuntimeChange': False, 'collectorExecutedDOM': False,
+        'performanceAccepted': None, 'historicalGateReevaluated': False, 'profiles': profiles,
+        'limits': ['Finite existing CI scenarios, not universal absence of leaks',
+                   'Memcheck covers the Rust test executable, not V8 or the loaded Node-API addon',
+                   'Original possible leaks and reachable allocations remain in raw logs',
+                   'Snapshots do not establish peak memory',
+                   'General CI memory and benchmark samples do not qualify the isolated collapse candidate']}
+    MEMORY.with_suffix('.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    counts = ', '.join(f"{entry['system']}: {len(entry['memoryReports'])}" for entry in profiles)
+    nodes = ', '.join(f"{entry['system']}: {', '.join(entry['observedNodeVersions'])}" for entry in profiles)
+    document = f'''# Recursos al activar collapse
+
+El CI general40135020046 de la cabeza02291d6b terminó con sus ocho jobs aprobados.
+Sus siete ZIP de reportes, muestras, logs, metadata y manifiestos completos están
+en [el paquete de activación](../validation/native-class-ownership/range-collapse-study-activation/02291d6b/README.md).
+La identidad original del checkout es el merge28236ed8, vinculado por sus padres
+a02291d6b; no se normalizó. Node observado por sistema: {nodes}.
+
+Reportes de memoria conservados por sistema: {counts}. Todos registran `pass=true`
+según sus propios contratos finitos; el JSON adyacente conserva nombres y hashes.
+Valgrind3.18.1 completó los311tests Rust del inventario real en10batches exhaustivos,
+sin omitir ni duplicar nombres. Cada batch terminó con exit0 y todos los tests
+seleccionados completos. Los logs retienen asignaciones alcanzables y pérdidas
+posibles; no se ocultan mediante el resumen. El gate falla ante accesos inválidos,
+tests incompletos y pérdidas definitivas/indirectas. Memcheck observa el ejecutable
+Rust, no V8 ni el addon cargado. Las pruebas del addon y sus límites permanecen
+separadas en los reportes originales.
+
+Este cambio publica lectores, datos y estado; no modifica el runtime. El colector
+autentica tamaño/digest, CRC y cada archivo contra el manifest propio. Usa handles
+acotados por context managers y procesa una entrada a la vez; no crea objetos DOM
+ni mantiene caches nativas. No se midió memoria pico del colector ni se infiere
+ausencia universal de fugas a partir de estos escenarios o snapshots.
+
+La captura única de collapse está activa en run40137458635/job121001909695/intento1,
+con Node22.12.0/24.14.1 fijados. Sus resultados de recursos siguen pendientes:
+no convertir los reportes de este CI en evidencia del candidato aislado ni en
+aceptación de rendimiento. Se mantienen presupuestos±2%/±5%, métodos/rechazos
+históricos, runtime híbrido y migración general pendiente; sin tag ni merge.
+'''
+    MEMORY.with_suffix('.md').write_text(document, encoding='utf-8')
+    manifest = {'files': [{'path': str(filename.relative_to(ROOT)).replace('\\', '/'),
+                          'bytes': filename.stat().st_size, 'sha256': hashlib.sha256(filename.read_bytes()).hexdigest()}
+                         for filename in sorted(PACKET.rglob('*')) if filename.is_file() and filename.name != 'files.json']}
+    (PACKET / 'files.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps({'memoryProfiles': counts, 'valgrindTests': 311, 'valgrindBatches': 10,
+                      'studyResourceResultsPending': True, 'packetFiles': len(manifest['files'])}))
+
+
+if __name__ == '__main__':
+    main()

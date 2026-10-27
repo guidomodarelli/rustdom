@@ -1,0 +1,68 @@
+"""Authenticate and retain already-completed ordinary CI benchmark artifacts as data only."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('CI transport authentication requires non-optimized Python')
+import hashlib
+import io
+import json
+from pathlib import Path, PurePosixPath
+import stat
+import subprocess
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / 'reports/benchmarks/ci-general/40344594060'
+root.mkdir(parents=True, exist_ok=False)
+prefix = 'repos/guidomodarelli/rustdom/'
+source = '7148577dcf1eeffda2ebf95a3ccd1eb173a6082b'
+
+def api(endpoint, filename):
+    raw = subprocess.check_output(['gh', 'api', prefix + endpoint], cwd=repository, timeout=120)
+    (root / filename).write_bytes(raw)
+    return json.loads(raw)
+
+run = api('actions/runs/40344594060/attempts/1', 'run-observation.json')
+assert run['head_sha'] == source and run['path'] == '.github/workflows/ci.yml' and run['run_attempt'] == 1
+jobs = api('actions/runs/40344594060/attempts/1/jobs?per_page=100', 'jobs-observation.json')
+artifacts = api('actions/runs/40344594060/artifacts?per_page=100', 'artifacts-observation.json')
+records = []
+for shard in range(4):
+    name = 'benchmark-linux-' + str(shard)
+    job = next(job for job in jobs['jobs'] if job['name'] == 'Benchmark shard ' + str(shard))
+    assert job['head_sha'] == source and job['run_attempt'] == 1 and job['conclusion'] == 'success'
+    matches = [artifact for artifact in artifacts['artifacts'] if artifact['name'] == name]
+    assert len(matches) == 1
+    artifact = matches[0]
+    assert artifact['workflow_run']['id'] == run['id'] and artifact['workflow_run']['head_sha'] == source
+    assert not artifact['expired'] and 0 < artifact['size_in_bytes'] <= 16777216
+    assert job['started_at'] <= artifact['created_at'] <= job['completed_at']
+    metadata = api('actions/artifacts/' + str(artifact['id']), name + '-metadata.json')
+    assert metadata == artifact
+    raw = subprocess.check_output(['gh', 'api', prefix + 'actions/artifacts/' + str(artifact['id']) + '/zip'], cwd=repository, timeout=120)
+    checksum = hashlib.sha256(raw).hexdigest()
+    assert len(raw) == artifact['size_in_bytes'] and artifact['digest'] == 'sha256:' + checksum
+    (root / (name + '.zip')).write_bytes(raw)
+    inventory = {}
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        members = archive.infolist(); names = [member.filename for member in members]
+        assert len(names) == len(set(names)) and len(members) <= 4096
+        assert sum(member.file_size for member in members) <= 134217728
+        for member in members:
+            path = PurePosixPath(member.filename)
+            assert not path.is_absolute() and '..' not in path.parts and '\\' not in member.filename
+            assert not stat.S_ISLNK(member.external_attr >> 16)
+            if member.is_dir(): continue
+            assert member.file_size <= 16777216
+            data = archive.read(member)
+            inventory[member.filename] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+    (root / (name + '-members.json')).write_bytes(json.dumps(inventory, indent=2).encode() + b'\n')
+    log = subprocess.check_output(['gh', 'api', prefix + 'actions/jobs/' + str(job['id']) + '/logs'], cwd=repository, timeout=120)
+    (root / (name + '-job.log')).write_bytes(log)
+    records.append({'shard': shard, 'jobId': job['id'], 'artifactId': artifact['id'], 'zipBytes': len(raw),
+        'zipSha256': checksum, 'members': len(inventory), 'jobConclusion': job['conclusion']})
+receipt = {'sourceCommit': source, 'runId': run['id'], 'attempt': 1, 'benchmarkShardsPassed': 4,
+    'overallCiStatusAtObservation': run['status'], 'overallCiConclusionAtObservation': run['conclusion'],
+    'artifacts': records, 'archivedCodeExecuted': False, 'measurementsRepeatedByCollector': False,
+    'ownershipGateReevaluated': False, 'ownershipPerformanceAccepted': None, 'runtimeIsHybrid': True}
+(root / 'receipt.json').write_bytes(json.dumps(receipt, indent=2).encode() + b'\n')
+print(json.dumps(receipt))

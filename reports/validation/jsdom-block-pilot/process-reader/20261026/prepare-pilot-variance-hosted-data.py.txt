@@ -1,0 +1,20 @@
+import hashlib
+import json
+from pathlib import Path
+import shutil
+
+repository = Path(__file__).resolve().parent.parent
+source = repository / '.cache/jsdom-block-pilot-hosted-40288143186'
+destination = repository / 'reports/validation/jsdom-block-pilot/hosted/40288143186'
+assert not destination.exists(); shutil.copytree(source, destination)
+receipt = json.loads((source / 'receipt.json').read_bytes())
+policy = {'runId': receipt['runId'], 'attempt': 1, 'head': receipt['qualifiedHead'],
+    'workflow': '.github/workflows/jsdom-block-pilot-contracts.yml',
+    'calendarSha256': '6e6c0daf78493567b9ad8723b6ea3d09ea59d33821f05a68163ccb9a69b5fc9a',
+    'testsPerSdk': 11, 'readerTestsPerSdk': 6, 'expectedZipMembers': 11, 'inputFiles': 810,
+    'scope': 'calendar-scalar-variance-and-hosted-reader-contracts-only',
+    'files': {member.name: hashlib.sha256(member.read_bytes()).hexdigest() for member in source.iterdir() if member.is_file()},
+    'artifacts': receipt['artifacts']}
+target = destination.parent / 'tools/constants/40288143186.json'
+target.write_bytes(json.dumps(policy, indent=2).encode() + b'\n')
+print(json.dumps({'runId': policy['runId'], 'files': len(policy['files']), 'expectedZipMembers': policy['expectedZipMembers']}))

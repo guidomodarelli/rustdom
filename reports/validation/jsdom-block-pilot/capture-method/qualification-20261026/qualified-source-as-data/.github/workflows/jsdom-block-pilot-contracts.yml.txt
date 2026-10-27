@@ -1,0 +1,182 @@
+name: Calendario prospectivo de bloques jsdom
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/jsdom-block-pilot-contracts.yml'
+      - '.github/workflows/jsdom-block-pilot-capture.yml'
+      - 'reports/validation/jsdom-block-pilot/capture-method/**'
+      - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+      - 'reports/validation/jsdom-block-pilot/hosted/**'
+      - 'reports/validation/jsdom-block-pilot/process-reader/fixtures/**'
+      - 'reports/validation/jsdom-block-pilot/worker/20261026/manifest.json'
+      - 'reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/fixed-auth/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jsdom-block-pilot-contracts.yml'
+      - '.github/workflows/jsdom-block-pilot-capture.yml'
+      - 'reports/validation/jsdom-block-pilot/capture-method/**'
+      - 'reports/benchmarks/native-class-ownership/control-precision/pilot/**'
+      - 'reports/validation/jsdom-block-pilot/hosted/**'
+      - 'reports/validation/jsdom-block-pilot/process-reader/fixtures/**'
+      - 'reports/validation/jsdom-block-pilot/worker/20261026/manifest.json'
+      - 'reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/fixed-auth/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Calendario y medias Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      PILOT: reports/benchmarks/native-class-ownership/control-precision/pilot
+      READER: reports/validation/jsdom-block-pilot/hosted/tools
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/benchmarks/native-class-ownership/control-precision/pilot/
+            /.github/workflows/jsdom-block-pilot-capture.yml
+            /.github/workflows/jsdom-block-pilot-contracts.yml
+            /.github/workflows/ci.yml
+            /reports/validation/jsdom-block-pilot/capture-method/
+            /reports/validation/jsdom-block-pilot/hosted/
+            /reports/validation/jsdom-block-pilot/process-reader/fixtures/
+            /reports/validation/jsdom-block-pilot/worker/20261026/manifest.json
+            /reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/fixed-auth/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materializar las dependencias de calendario sin ejecutar DOM
+        run: |
+          mkdir -p "$RUNNER_TEMP/pilot-blocks-qa"
+          python -B "$TOOLS/checkout.py" "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/pilot-blocks-qa/checkout.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/checkout.stderr.log"
+      - name: Verificar el archivo hosted original y rechazar corrupciones
+        run: |
+          python -B "$READER/verify.spec.py" > "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader-tests.stderr.log"
+          python -B "$READER/verify.py" reports/validation/jsdom-block-pilot/hosted/40286292347 > "$RUNNER_TEMP/pilot-blocks-qa/reader.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader.stderr.log"
+          python -B "$READER/verify.py" reports/validation/jsdom-block-pilot/hosted/40288143186 40288143186 > "$RUNNER_TEMP/pilot-blocks-qa/reader-variance.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/reader-variance.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Probar calendario, dispersión y tareas históricas sin ejecutar DOM
+        run: |
+          node --test "$PILOT/blocks.spec.cjs" "$PILOT/variance.spec.cjs" "$PILOT/process-reader.spec.cjs" "$PILOT/worker.spec.cjs" "$PILOT/envelope.spec.cjs" "$PILOT/capture/binding.spec.cjs" "$PILOT/capture/once.spec.cjs" "$PILOT/capture/io.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/tests.stderr.log"
+          python -B "$PILOT/capture/test_archive.py" > "$RUNNER_TEMP/pilot-blocks-qa/archive-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/archive-tests.stderr.log"
+          python -B "$PILOT/capture/test_supervise.py" > "$RUNNER_TEMP/pilot-blocks-qa/publication-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/publication-tests.stderr.log"
+      - name: Guardar el calendario completo sin activar captura
+        run: node "$PILOT/plan.cjs" "$RUNNER_TEMP/pilot-blocks-qa/calendar.json" > "$RUNNER_TEMP/pilot-blocks-qa/plan.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/plan.stderr.log"
+      - name: Extraer el paquete sellado sin instalar ni reconstruir
+        run: python -B "$TOOLS/transport.py" --extract reports/validation/range-numeric-composed-package/20261026/packages.tar.xz "$RUNNER_TEMP/pilot-worker-package" > "$RUNNER_TEMP/pilot-blocks-qa/package-extraction.json" 2> "$RUNNER_TEMP/pilot-blocks-qa/package-extraction.stderr.log"
+      - name: Rechazar verificadores alterados antes de ejecutarlos
+        env:
+          RUSTDOM_JSDOM_BLOCK_FUNCTIONAL_PACKAGE: ${{ runner.temp }}/pilot-worker-package
+        run: node --test "$PILOT/integrity.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/integrity-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/integrity-tests.stderr.log"
+      - name: Validar controles jsdom reales, fallos y cleanup con procesos independientes
+        run: node --expose-gc "$PILOT/functional.cjs" --functional "$RUNNER_TEMP/pilot-worker-package" "$RUNNER_TEMP/pilot-blocks-qa/functional" > "$RUNNER_TEMP/pilot-blocks-qa/functional.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/functional.stderr.log"
+      - name: Probar dos bloques completos funcionales con supervisor y archivo real
+        env:
+          MATRIX_NODE: ${{ matrix.node }}
+        run: |
+          qa="$RUNNER_TEMP/pilot-blocks-qa"
+          for phase in AA AB; do
+            criterion="v$MATRIX_NODE/$phase/jsdom/mutation-records-collect/100"
+            node "$PILOT/capture/expectation.cjs" functional "$criterion" "$qa/$phase-expected.json" --supervised
+            python -B "$PILOT/capture/supervise.py" --functional "$qa/$phase-supervisor.json" "$(command -v node)" --expose-gc "$GITHUB_WORKSPACE/$PILOT/capture/run.cjs" --functional "$RUNNER_TEMP/pilot-worker-package" "$qa/criterion-$phase" "$criterion" > "$qa/$phase.stdout.log" 2> "$qa/$phase.stderr.log"
+            node "$PILOT/capture/io.cjs" --copy-new "$qa/$phase-supervisor.json" "$qa/criterion-$phase/supervisor.json"
+            python -B "$PILOT/capture/archive.py" --pack "$qa/criterion-$phase" "$qa/$phase.tar.gz" > "$qa/$phase-archive.json"
+            node "$PILOT/capture/verify.cjs" "$qa/criterion-$phase" "$qa/$phase-expected.json" "$qa/$phase-replay.json"
+          done
+      - name: Rechazar alteraciones coherentes de datos reales sin nuevas muestras
+        env:
+          RUSTDOM_JSDOM_PILOT_CRITERION_FIXTURE: ${{ runner.temp }}/pilot-blocks-qa/criterion-AA
+          RUSTDOM_JSDOM_PILOT_CRITERION_EXPECTED: ${{ runner.temp }}/pilot-blocks-qa/AA-expected.json
+        run: node --test "$PILOT/capture/verify.spec.cjs" > "$RUNNER_TEMP/pilot-blocks-qa/criterion-tests.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/criterion-tests.stderr.log"
+      - name: Verificar cancelación del controller y muerte forzada de Node sin huérfanos
+        run: python -B "$PILOT/capture/qualify-lifecycle.py" "$(command -v node)" "$RUNNER_TEMP/pilot-worker-package" "$RUNNER_TEMP/pilot-blocks-qa/lifecycle" > "$RUNNER_TEMP/pilot-blocks-qa/lifecycle.stdout.log" 2> "$RUNNER_TEMP/pilot-blocks-qa/lifecycle.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jsdom-block-calendar-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/pilot-blocks-qa/
+          if-no-files-found: error
+          retention-days: 90
+  replay:
+    name: Replay transportado Node ${{ matrix.node }}
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      PILOT: reports/benchmarks/native-class-ownership/control-precision/pilot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/benchmarks/native-class-ownership/control-precision/pilot/
+            /.github/workflows/jsdom-block-pilot-capture.yml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Materializar únicamente los lectores actuales
+        run: python -B "$TOOLS/checkout.py" "$GITHUB_WORKSPACE"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: jsdom-block-calendar-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/transported
+      - name: Extraer y reproducir ambos archivos sin ejecutar su código
+        run: |
+          mkdir "$RUNNER_TEMP/replayed"
+          for phase in AA AB; do
+            checksum=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["archiveSha256"])' "$RUNNER_TEMP/transported/$phase-archive.json")
+            python -B "$PILOT/capture/archive.py" --extract "$RUNNER_TEMP/transported/$phase.tar.gz" "$checksum" "$RUNNER_TEMP/replayed/$phase" > "$RUNNER_TEMP/replayed/$phase-extraction.json"
+            node "$PILOT/capture/verify.cjs" "$RUNNER_TEMP/replayed/$phase" "$RUNNER_TEMP/transported/$phase-expected.json" "$RUNNER_TEMP/replayed/$phase-result.json"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jsdom-block-replay-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/replayed/*-extraction.json
+            ${{ runner.temp }}/replayed/*-result.json
+          if-no-files-found: error
+          retention-days: 90

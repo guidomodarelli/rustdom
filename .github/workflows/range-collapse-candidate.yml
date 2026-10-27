@@ -1,0 +1,89 @@
+# Calificación histórica de un método/paquete consumido. No acredita la fuente de producción del PR.
+# CI e inventory-qualification construyen y prueban el PR actual; ownership permanece bloqueado sin nueva aceptación.
+name: Histórico — Calificar candidato de collapse nativo
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  qualify:
+    if: github.event.pull_request.number == 80 && github.event.label.name == 'ownership-range-collapse-functional-v1' && github.run_attempt == 1
+    name: Collapse nativo ${{ matrix.os }} Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536 # Fuente original del método consumido; no es producción actual.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Fijar npm para la instalación reproducible
+        run: npm install --global npm@11.19.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: range-collapse-candidate
+      - name: Definir directorio nuevo de evidencia del job
+        run: |
+          echo "RANGE_BUILD=$RUNNER_TEMP/range-collapse-build" >> "$GITHUB_ENV"
+          echo "RUSTDOM_RANGE_MEMORY_OUTPUT=$RUNNER_TEMP/range-collapse-build/memory.json" >> "$GITHUB_ENV"
+      - name: Probar preparación con Git y filesystem reales
+        run: node --test reports/benchmarks/native-class-ownership/range-collapse-candidate/prepare.spec.cjs
+      - name: Aplicar únicamente el candidato y registrar fuentes reales
+        run: node reports/benchmarks/native-class-ownership/range-collapse-candidate/prepare.cjs "$GITHUB_WORKSPACE" "$RANGE_BUILD"
+      - name: Registrar versiones reales del job
+        run: |
+          {
+            node --version
+            npm --version
+            rustc -Vv
+            cargo --version
+            node -p 'JSON.stringify({platform:process.platform,arch:process.arch})'
+          } > "$RANGE_BUILD/tool-versions.txt"
+      - run: npm ci
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: npm run build
+      - name: Comprobar tipos y ejecutar consumidores CJS y ESM reales
+        run: |
+          node node_modules/typescript/bin/tsc --strict --module NodeNext --target ES2022 --esModuleInterop --skipLibCheck false --types node --rootDir . --outDir .cache/range-collapse-types tests/consumers/consumer.cts tests/consumers/consumer.mts
+          node .cache/range-collapse-types/tests/consumers/consumer.cjs
+          node .cache/range-collapse-types/tests/consumers/consumer.mjs
+      - run: npm test
+      - run: npm run test:corpus
+      - run: npm run test:wpt
+      - name: Conservar addon, tipos, runtime, reportes y fallos parciales
+        if: always()
+        run: |
+          if [ -d "$RANGE_BUILD" ]; then
+            node .github/scripts/collect-report-artifacts.cjs "$RANGE_BUILD/reports"
+            if [ -d dist ]; then cp -R dist "$RANGE_BUILD/dist"; fi
+            if [ -d types ]; then cp -R types "$RANGE_BUILD/types"; fi
+            if [ -f package.json ]; then cp package.json "$RANGE_BUILD/package.json"; fi
+            if [ -f package-lock.json ]; then cp package-lock.json "$RANGE_BUILD/package-lock.json"; fi
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: range-collapse-${{ matrix.os }}-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/range-collapse-build/
+          include-hidden-files: true

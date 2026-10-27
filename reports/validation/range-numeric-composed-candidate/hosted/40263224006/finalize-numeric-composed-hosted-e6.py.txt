@@ -1,0 +1,79 @@
+"""Close only the exact terminal functional matrix; retain API, logs and artifacts without executing archived code."""
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / '.cache/numeric-composed-hosted-40263224006'
+tools = repository / 'reports/validation/range-numeric-composed-candidate/hosted/tools'
+policy_path = tools / 'constants/qualification.json'
+policy = json.loads(policy_path.read_bytes())
+
+def api(endpoint, filename):
+    result = subprocess.run(['gh', 'api', 'repos/guidomodarelli/rustdom/' + endpoint],
+                            cwd=repository, capture_output=True, timeout=120)
+    assert result.returncode == 0, endpoint
+    target = root / filename
+    if target.exists():
+        assert target.read_bytes() == result.stdout, 'Preserve terminal API response: ' + filename
+    else:
+        target.write_bytes(result.stdout)
+    return json.loads(result.stdout)
+
+run = api('actions/runs/' + str(policy['run']), 'run.json')
+assert run['head_sha'] == policy['head'] and run['run_attempt'] == 1
+assert run['status'] == 'completed' and run['conclusion'] == 'success'
+assert run['path'] == '.github/workflows/range-numeric-composed-candidate.yml'
+jobs = api('actions/runs/' + str(policy['run']) + '/jobs?per_page=100', 'jobs.json')['jobs']
+assert len(jobs) == 6 and all(job['status'] == 'completed' and job['conclusion'] == 'success' for job in jobs)
+assert all(job['head_sha'] == policy['head'] and job['run_attempt'] == 1 for job in jobs)
+artifacts = api('actions/runs/' + str(policy['run']) + '/artifacts?per_page=100', 'artifacts.json')['artifacts']
+assert len(artifacts) == 6
+pins = {}
+for artifact in artifacts:
+    directory = root / ('artifact-' + str(artifact['id']))
+    assert json.loads((directory / 'metadata.json').read_bytes()) == artifact
+    platform, node = next((platform, node) for platform in ['ubuntu-22.04', 'windows-latest', 'macos-latest']
+                          for node in ['22.12.0', '24.14.1']
+                          if artifact['name'] == f'range-numeric-composed-{platform}-{node}-{policy["head"]}')
+    job = next(job for job in jobs if job['name'] == f'Extremos y colapso Range {platform} Node {node}')
+    raw_job = subprocess.check_output(['gh', 'api', 'repos/guidomodarelli/rustdom/actions/jobs/' + str(job['id'])], cwd=repository, timeout=120)
+    assert json.loads(raw_job) == job
+    job_path = directory / 'job.json'
+    if job_path.exists():
+        assert job_path.read_bytes() == raw_job
+    else:
+        job_path.write_bytes(raw_job)
+    pin = {'name': artifact['name'], 'bytes': artifact['size_in_bytes'],
+           'sha256': artifact['digest'].removeprefix('sha256:'), 'jobId': job['id'],
+           'jobSha256': hashlib.sha256(raw_job).hexdigest()}
+    if str(artifact['id']) in policy['artifacts']:
+        assert policy['artifacts'][str(artifact['id'])] == pin, 'Preserve existing independent pins'
+    pins[str(artifact['id'])] = pin
+    log = directory / 'job.log'
+    if not log.exists():
+        result = subprocess.run(['gh', 'api', 'repos/guidomodarelli/rustdom/actions/jobs/' + str(job['id']) + '/logs'],
+                                cwd=repository, capture_output=True, timeout=120)
+        assert result.returncode == 0
+        log.write_bytes(result.stdout)
+policy['artifacts'] = pins
+policy_path.write_text(json.dumps(policy, indent=2) + '\n', encoding='utf-8', newline='\n')
+specification = importlib.util.spec_from_file_location('current_hosted_verification', tools / 'verify.py')
+reader = importlib.util.module_from_spec(specification)
+specification.loader.exec_module(reader)
+results = []
+for artifact in artifacts:
+    directory = root / ('artifact-' + str(artifact['id']))
+    record = reader.verify(repository, directory)
+    (directory / 'verification.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8', newline='\n')
+    results.append(record)
+selected = next(record for record in results if record['node'] == 'v24.14.1' and record['platform'] == 'linux')
+assert len({record['nativeBinarySha256'] for record in results if record['platform'] == 'linux'}) == 1
+result = {'runId': policy['run'], 'head': policy['head'], 'attempt': 1, 'matrixQualified': True,
+          'artifacts': results, 'selectedHostedLinuxArtifactId': selected['artifactId'],
+          'selectedHostedLinuxNativeSha256': selected['nativeBinarySha256'],
+          'runtimeIntegrated': False, 'benchmarkExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(root / 'collection.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps({'matrixQualified': True, 'artifacts': len(results), 'selectedArtifact': selected['artifactId']}))

@@ -1,0 +1,75 @@
+"""Archive an already authenticated package as data; preserve every regular member and internal link."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import tarfile
+import types
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = repository / 'reports/benchmarks/native-class-ownership/numeric-composed-packages'
+location = source / 'assemble.py'
+assembler = types.ModuleType('current_numeric_assembler')
+assembler.__file__ = str(location)
+exec(compile(location.read_bytes(), str(location), 'exec'), assembler.__dict__)
+root = Path('/dev/shm/rustdom-numeric-hosted-package-20261026')
+node = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node')
+verification = assembler.verify(root, node)
+output = repository / 'reports/validation/range-numeric-composed-package/20261026'
+(output / 'pre-archive-verification.json').write_text(json.dumps(verification, indent=2) + '\n', encoding='utf-8', newline='\n')
+members = []
+for path in sorted(root.rglob('*')):
+    relative = path.relative_to(root).as_posix()
+    if path.is_symlink():
+        assert path.resolve(strict=True).is_relative_to(root)
+        members.append({'path': relative, 'kind': 'symlink', 'target': path.readlink().as_posix()})
+    elif path.is_dir():
+        members.append({'path': relative, 'kind': 'directory'})
+    else:
+        assert path.is_file() and path.stat().st_nlink == 1
+        members.append({'path': relative, 'kind': 'file', 'bytes': path.stat().st_size, 'sha256': assembler.digest(path)})
+archive = output / 'packages.tar.xz'
+with archive.open('xb') as raw:
+    with tarfile.open(fileobj=raw, mode='w:xz', dereference=False) as stream:
+        stream.add(root, arcname='numeric-composed-package')
+expected = {member['path']: member for member in members}
+actual = {}; roots = 0
+with tarfile.open(archive, 'r:xz') as stream:
+    for entry in stream:
+        if entry.name == 'numeric-composed-package':
+            assert entry.isdir(); roots += 1; continue
+        assert entry.name.startswith('numeric-composed-package/')
+        relative = entry.name[len('numeric-composed-package/'):]
+        assert relative not in actual and relative in expected
+        if entry.isdir():
+            record = {'path': relative, 'kind': 'directory'}
+        elif entry.issym():
+            record = {'path': relative, 'kind': 'symlink', 'target': entry.linkname}
+        else:
+            assert entry.isfile()
+            with stream.extractfile(entry) as reader:
+                checksum = hashlib.sha256()
+                for chunk in iter(lambda: reader.read(1048576), b''):
+                    checksum.update(chunk)
+            record = {'path': relative, 'kind': 'file', 'bytes': entry.size, 'sha256': checksum.hexdigest()}
+        assert record == expected[relative]
+        actual[relative] = record
+assert roots == 1 and actual == expected
+assert sum(member['kind'] == 'symlink' for member in members) == 6
+manifest = {'archive': {'path': 'packages.tar.xz', 'root': 'numeric-composed-package', 'bytes': archive.stat().st_size, 'sha256': assembler.digest(archive)},
+    'members': members, 'complete': True, 'runtimeExecuted': False, 'benchmarkExecuted': False,
+    'installExecuted': False, 'rustRebuilt': False, 'performanceAccepted': None, 'gateReevaluated': False}
+manifest_path = output / 'archive.json'
+with manifest_path.open('x', encoding='utf-8', newline='\n') as stream:
+    stream.write(json.dumps(manifest, indent=2) + '\n')
+def binding(relative):
+    return {'path': relative, 'sha256': assembler.digest(repository / relative)}
+policy = {'assembler': binding('reports/benchmarks/native-class-ownership/numeric-composed-packages/assemble.py'),
+    'assemblyPolicy': binding('reports/benchmarks/native-class-ownership/numeric-composed-packages/constants/package.json'),
+    'reader': binding('reports/benchmarks/native-class-ownership/owner-batch-packages/transport.py'),
+    'archivePolicy': {'revision': 'numeric-composed-hosted-transport-v1',
+        'manifestPath': manifest_path.relative_to(repository).as_posix(), 'manifestSha256': assembler.digest(manifest_path),
+        'members': len(members), 'links': 6, 'readChunkBytes': 1048576}}
+with (source / 'constants/transport.json').open('x', encoding='utf-8', newline='\n') as stream:
+    stream.write(json.dumps(policy, indent=2) + '\n')
+print(json.dumps({'archive': manifest['archive'], 'members': len(members), 'links': 6, 'runtimeExecuted': False}))

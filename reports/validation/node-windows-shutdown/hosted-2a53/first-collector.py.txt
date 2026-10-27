@@ -1,0 +1,97 @@
+"""Collect terminal functional evidence; data transport only, no archived execution."""
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import subprocess
+import zipfile
+
+repository = Path(__file__).resolve().parent.parent
+head = '2a53f88c9c272d2753f6ef052132bbb72ada62ee'
+root = repository / 'reports/validation/node-windows-shutdown/hosted-2a53'
+root.mkdir(exist_ok=True)
+runs = {
+    'combined': (40268998980, 'combined-range-candidate.yml', 'combined-range', 'Candidato Range'),
+    'numeric': (40268999071, 'range-numeric-composed-candidate.yml', 'range-numeric-composed', 'Extremos y colapso Range'),
+    'owner': (40268998982, 'static-range-owner-batch-candidate.yml', 'owner-pair', 'Owners StaticRange'),
+}
+def checksum(raw):
+    return hashlib.sha256(raw).hexdigest()
+def fetch(endpoint, target):
+    if target.exists():
+        return target.read_bytes()
+    with target.open('xb') as stream:
+        result = subprocess.run(['gh', 'api', 'repos/guidomodarelli/rustdom/' + endpoint], cwd=repository,
+                                stdout=stream, stderr=subprocess.PIPE, timeout=120)
+    target.with_name(target.name + '.stderr.log').write_bytes(result.stderr)
+    if result.returncode:
+        raise RuntimeError('Preserved partial transport: ' + endpoint)
+    return target.read_bytes()
+pins = {'head': head, 'attempt': 1, 'runs': {}, 'artifacts': {}}
+for kind, (run_id, workflow, prefix, job_prefix) in runs.items():
+    directory = root / kind
+    directory.mkdir(exist_ok=True)
+    run = json.loads(fetch(f'actions/runs/{run_id}', directory / 'run.json'))
+    assert run['head_sha'] == head and run['run_attempt'] == 1
+    assert run['path'] == '.github/workflows/' + workflow and run['conclusion'] == 'success' and run['status'] == 'completed'
+    jobs = json.loads(fetch(f'actions/runs/{run_id}/jobs?per_page=100', directory / 'jobs.json'))['jobs']
+    assert len(jobs) == 6 and all(job['conclusion'] == 'success' and job['head_sha'] == head and job['run_attempt'] == 1 for job in jobs)
+    artifacts = json.loads(fetch(f'actions/runs/{run_id}/artifacts?per_page=100', directory / 'artifacts.json'))['artifacts']
+    expected = {(platform, node) for platform in ['ubuntu-22.04', 'windows-latest', 'macos-latest'] for node in ['22.12.0', '24.14.1']}
+    expected.remove(('windows-latest', '24.14.1')); expected.add(('windows-latest', '24.20.0'))
+    assert len(artifacts) == 6
+    seen = set()
+    for artifact in artifacts:
+        platform, node = next(pair for pair in expected if artifact['name'] == f'{prefix}-{pair[0]}-{pair[1]}-{head}')
+        assert (platform, node) not in seen; seen.add((platform, node))
+        target = directory / ('artifact-' + str(artifact['id']))
+        target.mkdir(exist_ok=True)
+        metadata = json.loads(fetch('actions/artifacts/' + str(artifact['id']), target / 'metadata.json'))
+        assert metadata == artifact and not metadata['expired']
+        assert metadata['workflow_run']['id'] == run_id and metadata['workflow_run']['head_sha'] == head
+        job = next(job for job in jobs if job['name'] == f'{job_prefix} {platform} Node {node}')
+        job_raw = fetch('actions/jobs/' + str(job['id']), target / 'job.json')
+        assert json.loads(job_raw) == job
+        fetch('actions/jobs/' + str(job['id']) + '/logs', target / 'job.log')
+        raw = fetch('actions/artifacts/' + str(artifact['id']) + '/zip', target / 'artifact.zip')
+        assert len(raw) == metadata['size_in_bytes'] and metadata['digest'] == 'sha256:' + checksum(raw)
+        files = {}
+        with zipfile.ZipFile(target / 'artifact.zip') as bundle:
+            assert bundle.testzip() is None
+            for member in bundle.infolist():
+                if member.is_dir():
+                    continue
+                path = PurePosixPath(member.filename)
+                assert not path.is_absolute() and '..' not in path.parts and '\\' not in member.filename
+                assert member.filename not in files
+                contents = bundle.read(member)
+                files[member.filename] = {'bytes': len(contents), 'sha256': checksum(contents)}
+        manifest = json.dumps({'files': files}, indent=2).encode() + b'\n'
+        manifest_path = target / 'members.json'
+        if manifest_path.exists():
+            assert manifest_path.read_bytes() == manifest
+        else:
+            manifest_path.write_bytes(manifest)
+        pins['artifacts'][str(artifact['id'])] = {'kind': kind, 'run': run_id, 'name': metadata['name'],
+            'platform': platform, 'node': 'v' + node, 'bytes': len(raw), 'sha256': checksum(raw),
+            'jobId': job['id'], 'jobSha256': checksum(job_raw), 'metadataSha256': checksum((target / 'metadata.json').read_bytes()),
+            'logSha256': checksum((target / 'job.log').read_bytes()), 'membersSha256': checksum(manifest)}
+        print(json.dumps({'kind': kind, 'artifact': artifact['id'], 'files': len(files), 'bytes': len(raw)}), flush=True)
+    assert seen == expected
+    pins['runs'][kind] = {'id': run_id, 'workflow': workflow, 'runSha256': checksum((directory / 'run.json').read_bytes()),
+                           'jobsSha256': checksum((directory / 'jobs.json').read_bytes())}
+for name, run_id, conclusion in [('general', 40268998988, 'success'), ('ownership', 40268999068, 'failure')]:
+    directory = root / name
+    directory.mkdir(exist_ok=True)
+    run = json.loads(fetch(f'actions/runs/{run_id}', directory / 'run.json'))
+    assert run['head_sha'] == head and run['run_attempt'] == 1 and run['conclusion'] == conclusion and run['status'] == 'completed'
+    jobs = json.loads(fetch(f'actions/runs/{run_id}/jobs?per_page=100', directory / 'jobs.json'))['jobs']
+    for job in jobs:
+        fetch(f'actions/jobs/{job["id"]}/logs', directory / f'job-{job["id"]}.log')
+    pins['runs'][name] = {'id': run_id, 'conclusion': conclusion, 'files': {file.name: checksum(file.read_bytes()) for file in directory.iterdir() if file.is_file()}}
+payload = json.dumps(pins, indent=2).encode() + b'\n'
+policy = root / 'transport-pins.json'
+if policy.exists():
+    assert policy.read_bytes() == payload
+else:
+    policy.write_bytes(payload)
+print(json.dumps({'authenticatedArtifacts': len(pins['artifacts']), 'complete': True}))

@@ -1,0 +1,112 @@
+name: Current source ownership evidence
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ownership-current-source-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    if: github.event.label.name == 'ownership-current-source-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Impedir una segunda ejecución del candidato actual
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ownership-current-source.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/ownership-current-existing-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/ownership-current-existing-runs.txt" "$GITHUB_RUN_ID"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar la ruta de Node 22
+        run: echo "OWNERSHIP_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar la ruta de Node 24
+        run: echo "OWNERSHIP_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Autenticar la preparación actual sin reconstruir paquetes
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/ownership-current"
+          mkdir "$RUNNER_TEMP/ownership-current/preparation"
+          echo "OWNERSHIP_CURRENT_ROOT=$RUNNER_TEMP/ownership-current" >> "$GITHUB_ENV"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const raw = fs.readFileSync('reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip');
+          assert.equal(createHash('sha256').update(raw).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip -d "$RUNNER_TEMP/ownership-current/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const raw = fs.readFileSync(`${process.env.RUNNER_TEMP}/ownership-current/preparation/ownership-build.tar.gz`);
+          assert.equal(createHash('sha256').update(raw).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/ownership-current/preparation/ownership-build.tar.gz" -C "$RUNNER_TEMP/ownership-current/preparation"
+      - name: Exigir las fuentes y el recibo de revisión publicados
+        env:
+          OWNERSHIP_REVIEWED_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const study = require('./reports/benchmarks/native-class-ownership/current-ownership-experiment.cjs');
+          const review = require('./reports/validation/native-class-ownership/current-ownership-method/review.json');
+          const harness = study.captureHarness();
+          assert.equal(review.actionableFindings, 0);
+          assert.equal(review.harnessSha256, harness.sha256);
+          study.inspectPreparation(`${process.env.OWNERSHIP_CURRENT_ROOT}/preparation/ownership-build`);
+          fs.writeFileSync(`${process.env.OWNERSHIP_CURRENT_ROOT}/provenance.json`, JSON.stringify({
+            reviewedCommit: process.env.OWNERSHIP_REVIEWED_COMMIT,
+            harnessSha256: harness.sha256,
+            receiptUrl: `https://github.com/guidomodarelli/rustdom/blob/${process.env.OWNERSHIP_REVIEWED_COMMIT}/reports/validation/native-class-ownership/current-ownership-method/review.json`
+          }, null, 2));
+          JS
+      - name: Ejecutar una secuencia en Node 22 y después Node 24
+        shell: bash
+        run: |
+          set +e
+          script=reports/benchmarks/native-class-ownership/current-ownership-experiment.cjs
+          "$OWNERSHIP_NODE22" "$script" "$OWNERSHIP_CURRENT_ROOT/preparation/ownership-build" "$OWNERSHIP_CURRENT_ROOT/node-22" "$OWNERSHIP_CURRENT_ROOT/provenance.json" > "$OWNERSHIP_CURRENT_ROOT/node-22.stdout.log" 2> "$OWNERSHIP_CURRENT_ROOT/node-22.stderr.log"
+          node22_status=$?
+          echo "$node22_status" > "$OWNERSHIP_CURRENT_ROOT/node-22.exit-code"
+          if [ "$node22_status" -gt 1 ]; then exit "$node22_status"; fi
+          "$OWNERSHIP_NODE24" "$script" "$OWNERSHIP_CURRENT_ROOT/preparation/ownership-build" "$OWNERSHIP_CURRENT_ROOT/node-24" "$OWNERSHIP_CURRENT_ROOT/provenance.json" > "$OWNERSHIP_CURRENT_ROOT/node-24.stdout.log" 2> "$OWNERSHIP_CURRENT_ROOT/node-24.stderr.log"
+          node24_status=$?
+          echo "$node24_status" > "$OWNERSHIP_CURRENT_ROOT/node-24.exit-code"
+          if [ "$node24_status" -gt 1 ]; then exit "$node24_status"; fi
+          "$OWNERSHIP_NODE24" "$script" --verify-set "$OWNERSHIP_CURRENT_ROOT/node-22" "$OWNERSHIP_CURRENT_ROOT/node-24" > "$OWNERSHIP_CURRENT_ROOT/verification.json" 2> "$OWNERSHIP_CURRENT_ROOT/verification.stderr.log"
+          verification_status=$?
+          if [ "$verification_status" -ne 0 ]; then exit "$verification_status"; fi
+          "$OWNERSHIP_NODE24" -e 'process.exit(require(process.argv[1]).accepted ? 0 : 1)' "$OWNERSHIP_CURRENT_ROOT/verification.json"
+      - name: Conservar toda la evidencia y los enlaces relativos
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/ownership-current" ]; then
+            cp "$RUNNER_TEMP/ownership-current-existing-runs.txt" "$RUNNER_TEMP/ownership-current/"
+            tar -cJf "$RUNNER_TEMP/ownership-current-results.tar.xz" -C "$RUNNER_TEMP" ownership-current
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-current-source-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/ownership-current-results.tar.xz

@@ -1,0 +1,117 @@
+name: Prepare XML packages
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/xml-build.yml'
+      - 'reports/benchmarks/native-class-ownership/*.cjs'
+      - 'reports/benchmarks/native-class-ownership/*xml*.py'
+      - 'reports/benchmarks/native-class-ownership/constants/**'
+      - 'reports/benchmarks/native-class-ownership/*PROTOCOL.md'
+      - 'src/**'
+      - 'scripts/**'
+      - 'benchmarks/**'
+      - 'third-party/**'
+      - 'tests/xml-*.spec.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.npmrc'
+      - 'npm-shrinkwrap.json'
+      - '.cargo/**'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xml-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: XML packages and contracts Node 22 and 24
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: checkpoint-066-reference-catalog
+          path: .baseline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Declarar rutas de fuentes y artefactos
+        run: |
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/xml-build-target"
+            echo "RUSTDOM_XML_BUILD_ARCHIVE=$RUNNER_TEMP/xml-build"
+            echo "RUSTDOM_XML_INPUTS_BASELINE=$RUNNER_TEMP/xml-build/baseline-sources"
+            echo "RUSTDOM_XML_INPUTS_CANDIDATE=$RUNNER_TEMP/xml-build/sources"
+          } >> "$GITHUB_ENV"
+      - name: Construir fuentes completas y paquetes XML sin medir rendimiento
+        shell: bash
+        run: |
+          set -o pipefail
+          node reports/benchmarks/native-class-ownership/prepare-xml-hosted-build.cjs .baseline . "$RUNNER_TEMP/xml-build" 2>&1 | tee "$RUNNER_TEMP/xml-build.log"
+      - name: Validar las cinco copias y su liberación en Node 24
+        run: node --expose-gc reports/benchmarks/native-class-ownership/xml-hosted-build-worker.cjs "$RUNNER_TEMP/xml-build" > "$RUNNER_TEMP/xml-node24.json" 2> "$RUNNER_TEMP/xml-node24.stderr.log"
+      - name: Ejercer XML público y nativo en Node 24
+        shell: bash
+        run: |
+          set -o pipefail
+          node --expose-gc --test --test-concurrency=1 tests/xml-serialization.spec.cjs tests/xml-serialization-native.spec.cjs tests/xml-serialization-iterator.spec.cjs tests/xml-serializer-controller.spec.cjs 2>&1 | tee "$RUNNER_TEMP/xml-product-node24.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Validar las cinco copias y su liberación en Node 22
+        run: node --expose-gc reports/benchmarks/native-class-ownership/xml-hosted-build-worker.cjs "$RUNNER_TEMP/xml-build" > "$RUNNER_TEMP/xml-node22.json" 2> "$RUNNER_TEMP/xml-node22.stderr.log"
+      - name: Ejercer XML público y nativo en Node 22
+        shell: bash
+        run: |
+          set -o pipefail
+          node --expose-gc --test --test-concurrency=1 tests/xml-serialization.spec.cjs tests/xml-serialization-native.spec.cjs tests/xml-serialization-iterator.spec.cjs tests/xml-serializer-controller.spec.cjs 2>&1 | tee "$RUNNER_TEMP/xml-product-node22.log"
+      - name: Verificar fuentes, archivo preparado y CLI en Node 22
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/xml-build-inputs.spec.cjs reports/benchmarks/native-class-ownership/prepare-xml-hosted-build.spec.cjs reports/benchmarks/native-class-ownership/xml-current-run.spec.cjs 2>&1 | tee "$RUNNER_TEMP/xml-contracts-node22.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Verificar fuentes, archivo preparado y CLI en Node 24
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/xml-build-inputs.spec.cjs reports/benchmarks/native-class-ownership/prepare-xml-hosted-build.spec.cjs reports/benchmarks/native-class-ownership/xml-current-run.spec.cjs 2>&1 | tee "$RUNNER_TEMP/xml-contracts-node24.log"
+      - name: Verificar las muestras XML históricas y sus rechazos sin medir
+        run: python3 -B reports/benchmarks/native-class-ownership/test-verify-xml-observations.py
+      - name: Conservar todos los datos parciales y symlinks del build
+        if: always()
+        shell: bash
+        run: |
+          if [ -d "$RUNNER_TEMP/xml-build" ]; then
+            tar -czf "$RUNNER_TEMP/xml-build.tar.gz" -C "$RUNNER_TEMP" xml-build
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xml-prepared-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/xml-build.tar.gz
+            ${{ runner.temp }}/xml-build.log
+            ${{ runner.temp }}/xml-node*.json
+            ${{ runner.temp }}/xml-node*.stderr.log
+            ${{ runner.temp }}/xml-product-node*.log
+            ${{ runner.temp }}/xml-contracts-node*.log
+            ${{ runner.temp }}/xml-relocated-*.json
+            ${{ runner.temp }}/xml-relocated-*.stderr.log
+            reports/compatibility/*-xml-serialization.json
+            reports/compatibility/*-xml-iterator.json

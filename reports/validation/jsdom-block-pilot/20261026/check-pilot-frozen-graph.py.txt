@@ -1,0 +1,27 @@
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+output = repository / 'reports/validation/jsdom-block-pilot/20261026/final'
+previous = output / 'frozen-graph.json'
+assert previous.read_bytes() == b''
+previous.rename(output / 'frozen-graph-windows.failed.stdout.log')
+(output / 'frozen-graph-windows-failure.json').write_text(json.dumps({
+    'role': 'summary-of-observed-tool-result-not-raw-stderr', 'exitCode': 1, 'node': 'v22.12.0',
+    'operation': 'historical streaming source hash reader on Windows',
+    'error': 'AssertionError: 3963524908 !== 0 at combined-process-study/io.cjs:16:12',
+    'reason': 'The existing reader requires equal descriptor/path stat identity; this check failed on Windows before any hash result.',
+    'methodChanged': False, 'scientificCaptureExecuted': False}, indent=2) + '\n', encoding='utf-8')
+result = subprocess.run(['wsl', '-d', 'Rustdom-Validation-20261025', '-u', 'root', '--cd',
+    '/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom', '--',
+    '/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node-22/bin/node', '.cache/verify-owner-batch-frozen-graph.cjs'],
+    capture_output=True, timeout=120)
+(output / 'frozen-graph-linux.stdout.json').write_bytes(result.stdout)
+(output / 'frozen-graph-linux.stderr.log').write_bytes(result.stderr)
+assert result.returncode == 0, result.stderr.decode(errors='replace')
+report = json.loads(result.stdout)
+assert report['producerFiles'] == 786
+assert report['methodFilesSha256'] == '417b3e7ed42638c2371eb97e8458ebe9145f4ceacc0a866d5f749b5926e57601'
+print(json.dumps(report))

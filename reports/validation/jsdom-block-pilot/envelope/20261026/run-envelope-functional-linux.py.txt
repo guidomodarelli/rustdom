@@ -1,0 +1,65 @@
+"""Run current parent/envelope integration against the authenticated existing package; no scientific entry point."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Functional qualification requires non-optimized Python')
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source = Path('/dev/shm/rustdom-envelope-source-20261026')
+prepared = Path('/dev/shm/rustdom-envelope-package-20261026')
+scratch = Path('/dev/shm/rustdom-envelope-results-20261026')
+raw_root = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-envelope-functional/20261026'
+validation = repository / 'reports/validation/jsdom-block-pilot/envelope/20261026/runtime'
+memory = repository / 'reports/memory/jsdom-block-pilot/envelope/20261026'
+assert not scratch.exists() and not raw_root.exists() and not validation.exists() and not memory.exists()
+scratch.mkdir(); raw_root.mkdir(parents=True); validation.mkdir(parents=True); memory.mkdir(parents=True)
+head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source).decode().strip()
+assert head == 'a7c7f16d5f16013272643ae3d8e806daae8b9998'
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''
+records = []
+for version, relative, expected in [
+    ('22.12.0', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    executable = primary / relative
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    assert subprocess.check_output([str(executable), '--version']).decode().strip() == 'v' + version
+    destination = scratch / ('node-' + version)
+    command = [str(executable), '--expose-gc', str(source / 'reports/benchmarks/native-class-ownership/control-precision/pilot/functional.cjs'),
+        '--functional', str(prepared), str(destination)]
+    (validation / (version + '-command.json')).write_bytes(json.dumps({'argv': command, 'cwd': str(source),
+        'executableSha256': expected, 'fixtureHead': head, 'fixtureIsPublishedCommit': False,
+        'functionalOnly': True, 'scientificCaptureExecuted': False}, indent=2).encode() + b'\n')
+    with (validation / (version + '.stdout.log')).open('xb') as stdout, (validation / (version + '.stderr.log')).open('xb') as stderr:
+        process = subprocess.Popen(command, cwd=source, stdout=stdout, stderr=stderr)
+        print(json.dumps({'node': version, 'parentPid': process.pid, 'started': True}), flush=True)
+        offset = 0
+        while process.poll() is None:
+            raw = (validation / (version + '.stdout.log')).read_bytes()
+            if len(raw) > offset: print(raw[offset:].decode(errors='replace'), end='', flush=True); offset = len(raw)
+            time.sleep(2)
+        code = process.wait()
+    if destination.exists():
+        for member in destination.rglob('*'): assert not member.is_symlink()
+        shutil.copytree(destination, raw_root / ('node-' + version))
+    record = {'node': version, 'parentPid': process.pid, 'exitCode': code, 'fixtureHead': head}
+    records.append(record)
+    (validation / 'outcomes.json').write_bytes(json.dumps(records, indent=2).encode() + b'\n')
+    assert code == 0, version
+    index = json.loads((destination / 'index.json').read_bytes())
+    assert index['complete'] and len(index['processes']) == 16 and len(index['adverse']) == 6
+    assert index['sourceIdentity'] == {'sourceCommit': head, 'sourceChangesRaw': '', 'sourceGitErrors': []}
+    assert index['packageVerificationAfter'] == index['packageVerification']
+    resources = {'sourceIdentity': index['sourceIdentity'], 'node': index['node'], 'parentSnapshots': index['parentMemory'],
+        'positive': [{'input': entry['input'], 'observed': entry['observed']} for entry in index['processes']],
+        'adverse': index['adverse'], 'nativeBaseline': None, 'runtime': 'jsdom 27.4.0 only',
+        'peakMemoryMeasured': False, 'universalLeakFreedomDemonstrated': False,
+        'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+    (memory / (version + '.json')).write_bytes(json.dumps(resources, indent=2).encode() + b'\n')
+    print(json.dumps({**record, 'complete': True, 'positiveWorkers': 16, 'adverseWorkers': 6}), flush=True)
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''

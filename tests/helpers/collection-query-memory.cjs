@@ -2,7 +2,9 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { mkdirSync, writeFileSync } = require('node:fs');
-const { collectGarbage, captureMemoryState, waitForMemoryQuiescence } = require('../../scripts/memory-endpoint.cjs');
+const { collectGarbage, captureMemoryState } = require('../../scripts/memory-endpoint.cjs');
+const { waitForCollectionQuiescence } = require('./collection-query-quiescence.cjs');
+const { RELEASE_MAX_ROUNDS } = require('./constants/collection-query-quiescence.cjs');
 const { WINDOWS_PER_BATCH, ELEMENTS_PER_WINDOW, MUTATIONS_PER_WINDOW, MEASURED_CYCLES, RETAINED_QUERY_CYCLES } = require('../../scripts/constants/collection-query-memory.cjs');
 const engines = { jsdom: require('jsdom'), rustdom: require('../../dist/index.cjs') };
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
@@ -139,6 +141,7 @@ function transportFixture(runtime, mode, transport) {
 /** @returns {Promise<void>} Preserve finite held/released scenarios and post-GC heap/external/RSS evidence. */
 async function main() {
   const report = { capturedAt: new Date().toISOString(), node: process.version, reference: require('jsdom/package.json').version,
+    releaseObservationMaxRounds: RELEASE_MAX_ROUNDS,
     windowsPerBatch: WINDOWS_PER_BATCH, measuredCycles: MEASURED_CYCLES, mutationsPerWindow: MUTATIONS_PER_WINDOW,
     retainedQueryCycles: RETAINED_QUERY_CYCLES, pass: false, cases: [],
     methodology: 'Both engines and default/VM realms. One warmup and three measured batches of twelve Windows with twenty-four Elements, live descendant collections and physical Element-relative reads, forty mutation/requery cycles per Window, then close and drop owners. Separately churn two hundred class or document-name queries and hold a class/tag/namespace/children/document-name collection after close; require owner retention then release every weak group and native liveness counter across two clear GC samples. Document-name fixtures are placed in head because Window.close clears body; members outside body intentionally remain connected. A removed matched child must collect while a children or document-name list and its parent/document remain held; read the live result first to refresh lazy NodeList state. Document names match both HTML and foreign Elements. Native-only cases retain numeric transport and names from descendant queries, ordinary children, and children/form.elements under a throwing host Float64Array.from getter restored in finally; all DOM owners must clear. Class tokens release synchronously. Heap/external/RSS are post-GC, not peak. Finite scenarios cannot prove absence of all leaks.' };
@@ -147,7 +150,7 @@ async function main() {
       for (let cycle = -1; cycle < MEASURED_CYCLES; cycle++) {
         await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.();
         const observed = batch(runtime, mode);
-        const endpoint = await waitForMemoryQuiescence({ label: `collections-${engine}-${mode}-${cycle}`,
+        const endpoint = await waitForCollectionQuiescence({ label: `collections-${engine}-${mode}-${cycle}`,
           sample: () => captureMemoryState(observed, runtime), expectedNative: baseline });
         report.cases.push({ engine, mode, cycle, endpoint });
         assert.equal(endpoint.reached, true, JSON.stringify(endpoint.state));
@@ -158,21 +161,21 @@ async function main() {
         const held = captureMemoryState(sample.observed, runtime);
         assert.equal(held.survivors.collections, 1); assert.equal(held.survivors.documents, 1); assert.equal(held.survivors.roots, 1);
         sample.held = null;
-        const released = await waitForMemoryQuiescence({ label: `collection-${engine}-${mode}-${kind}-released`,
+        const released = await waitForCollectionQuiescence({ label: `collection-${engine}-${mode}-${kind}-released`,
           sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
         report.cases.push({ engine, mode, kind, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
       }
       for (const kind of ['children', 'document-name']) {
         await collectGarbage(); const baseline = runtime.getNativeTreeStatistics?.(); const sample = removedChildFixture(runtime, mode, kind);
-        const removed = await waitForMemoryQuiescence({ label: `${kind}-${engine}-${mode}-removed-with-live-owner`,
+        const removed = await waitForCollectionQuiescence({ label: `${kind}-${engine}-${mode}-removed-with-live-owner`,
           sample: () => captureMemoryState(sample.removedObservation) });
         assert.equal(removed.reached, true, JSON.stringify(removed.state));
         verifyHeld(sample);
         const held = captureMemoryState(sample.observed, runtime);
         assert.equal(held.survivors.collections, 1); assert.equal(held.survivors.documents, 1); assert.equal(held.survivors.roots, 1);
         sample.held = null;
-        const released = await waitForMemoryQuiescence({ label: `${kind}-${engine}-${mode}-owner-released`,
+        const released = await waitForCollectionQuiescence({ label: `${kind}-${engine}-${mode}-owner-released`,
           sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
         report.cases.push({ engine, mode, kind: 'removed-child-with-live-collection', query: kind, removed, held, released });
         assert.equal(released.reached, true, JSON.stringify(released.state));
@@ -180,7 +183,7 @@ async function main() {
       if (engine === 'rustdom') {
         for (const transport of ['native-query', 'native-children', 'generic-children', 'generic-controls']) {
           await collectGarbage(); const baseline = runtime.getNativeTreeStatistics(); const sample = transportFixture(runtime, mode, transport);
-          const released = await waitForMemoryQuiescence({ label: `collection-${engine}-${mode}-${transport}-numeric-transport-held`,
+          const released = await waitForCollectionQuiescence({ label: `collection-${engine}-${mode}-${transport}-numeric-transport-held`,
             sample: () => captureMemoryState(sample.observed, runtime), expectedNative: baseline });
           assert.equal(released.reached, true, JSON.stringify(released.state));
           assert.equal(sample.ids.length, sample.expectedLength); assert.ok(sample.ids[0] > 0);

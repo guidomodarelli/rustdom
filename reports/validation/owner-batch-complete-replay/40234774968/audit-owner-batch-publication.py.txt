@@ -1,0 +1,71 @@
+"""Verify unchanged copied evidence and record a complete publication manifest, without new measurements."""
+import hashlib
+import json
+from pathlib import Path
+
+repository = Path(__file__).resolve().parents[1]
+benchmark = repository / 'reports/benchmarks/native-class-ownership/owner-batch-study-results/40234774968'
+exports = repository / 'reports/benchmarks/native-class-ownership/owner-batch-exports'
+memory = repository / 'reports/memory/owner-batch-study/40234774968'
+validation = repository / 'reports/validation/owner-batch-complete-replay/40234774968'
+
+def read(filename):
+    return json.loads(filename.read_bytes())
+
+def digest(filename):
+    with filename.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+summaries = [read(benchmark / 'verification' / ('node' + major + '-export-summary.json')) for major in ['22', '24']]
+decisions = [read(benchmark / 'verification' / ('node' + major + '-decision.json')) for major in ['22', '24']]
+for summary, decision in zip(summaries, decisions):
+    assert summary['complete'] is True and summary['captureAuthenticated'] is True
+    assert summary['performanceAccepted'] is False and summary['gateReevaluated'] is True
+    assert summary['decisionCLIExitCode'] == 1
+    assert decision['complete'] is True and decision['captureAuthenticated'] is True
+    assert decision['performanceAccepted'] is False and decision['comparison']['allBudgetsMet'] is False
+    for name, checksum in summary['pythonReaderFiles'].items():
+        assert digest(exports / name) == checksum
+    for name, entry in summary['tableFiles'].items():
+        filename = benchmark / 'tables' / name
+        assert filename.stat().st_size == entry['bytes'] and digest(filename) == entry['sha256']
+    for part in decision['parts']:
+        filename = benchmark / 'verification' / ('part-' + part['node'] + '.json')
+        assert filename.stat().st_size == part['bytes'] and digest(filename) == part['sha256']
+assert summaries[0]['tableFiles'] == summaries[1]['tableFiles']
+assert summaries[0]['counts'] == summaries[1]['counts']
+assert decisions[0]['comparison'] == decisions[1]['comparison']
+
+original = repository / '.cache/owner-batch-science-collection-40234774968'
+for filename in original.rglob('*'):
+    if filename.is_file():
+        copied = benchmark / 'transport' / filename.relative_to(original)
+        assert copied.stat().st_size == filename.stat().st_size and digest(copied) == digest(filename)
+binding = read(benchmark / 'transport/authenticated-binding.json')
+assert (binding['runId'], binding['attempt'], binding['head']) == (40234774968, 1, '504ebc36b66dd6f36b19fd67bd6d61b3faff3f67')
+for name, entry in binding['savedFiles'].items():
+    filename = benchmark / 'transport' / name
+    assert filename.stat().st_size == entry['bytes'] and digest(filename) == entry['sha256']
+for major in ['22', '24']:
+    receipt = read(validation / ('owner-batch-complete-reader-node' + major + '-preservation.json'))
+    archive = validation / Path(receipt['derivedArchive']).name
+    assert archive.stat().st_size == receipt['derivedArchiveBytes'] and digest(archive) == receipt['derivedArchiveSha256']
+    assert receipt['immutablePayloadFilesVerified'] == 9748
+    assert receipt['performanceAccepted'] is False
+    assert digest(benchmark / 'verification' / ('node' + major + '-decision.json')) == summaries[['22', '24'].index(major)]['decisionSha256']
+analysis = read(benchmark / 'analysis-source.json')
+assert digest(validation / 'publish-owner-batch-results-analysis.py.txt') == analysis['scriptSha256']
+assessment = read(benchmark / 'assessment.json')
+assert assessment['counts'] == summaries[0]['counts']
+assert (assessment['passedCriteria'], assessment['totalCriteria'], assessment['failedJsdomControls'], assessment['failedRustCandidateComparisons']) == (42, 64, 19, 3)
+receipt = read(validation / 'receipt.json')
+receipt['readerSourceFiles'] = {filename.relative_to(exports).as_posix(): digest(filename) for filename in sorted(exports.rglob('*')) if filename.is_file()}
+(validation / 'receipt.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+manifest = {'runId': 40234774968, 'complete': True, 'performanceAccepted': False, 'newBenchmarkSamples': False,
+            'files': {filename.relative_to(repository).as_posix(): {'bytes': filename.stat().st_size, 'sha256': digest(filename)}
+                      for root in [benchmark, exports, memory, validation] for filename in sorted(root.rglob('*'))
+                      if filename.is_file() and filename != validation / 'manifest.json'}}
+with (validation / 'manifest.json').open('x', encoding='utf-8') as stream:
+    json.dump(manifest, stream, indent=2); stream.write('\n')
+print(json.dumps({'filesVerified': len(manifest['files']), 'bytes': sum(entry['bytes'] for entry in manifest['files'].values()),
+                  'complete': True, 'performanceAccepted': False, 'bothReadersIdentical': True}))

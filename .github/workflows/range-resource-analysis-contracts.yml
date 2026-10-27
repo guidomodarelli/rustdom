@@ -1,0 +1,48 @@
+name: Contratos offline de recursos de Range
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/range-resource-analysis-contracts.yml'
+      - 'reports/validation/native-class-ownership/range-control-telemetry-analysis/20261025/**'
+      - 'reports/benchmarks/native-class-ownership/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/range-resource-analysis-contracts.yml'
+      - 'reports/validation/native-class-ownership/range-control-telemetry-analysis/20261025/**'
+      - 'reports/benchmarks/native-class-ownership/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Recursos offline de Range Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      RANGE_RESOURCE_TOOLS: reports/validation/native-class-ownership/range-control-telemetry-analysis/20261025/tools
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Probar recursos completos con reportes originales y sin DOM
+        run: node --test "$RANGE_RESOURCE_TOOLS/resources.spec.cjs" > "$RUNNER_TEMP/range-resource-contracts.stdout.log" 2> "$RUNNER_TEMP/range-resource-contracts.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: range-resource-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/range-resource-contracts.*.log
+          if-no-files-found: error

@@ -23,3 +23,26 @@ La crate declara MIT pero no incluía el texto de licencia. LICENSE se obtuvo
 del commit indicado por .cargo_vcs_info.json:
 https://raw.githubusercontent.com/napi-rs/napi-rs/31c27a1676a7c4b317f4e144e0a9cb94e8354143/LICENSE
 Git blob SHA: 7fe7e35eff46457f65a4e30a717fada632de9e03.
+
+## Ownership durante creación de instancias
+
+`new_instance<T>` conserva la propiedad de la asignación hasta que
+`new_instance_raw` registra el finalizador mediante `napi_wrap`. Un error
+anterior libera el valor Rust; un error posterior al wrap, incluido el tag de
+tipo, deja la liberación al finalizador de JavaScript. El guard distingue
+`Box<T>` de los placeholders de un byte que genera el SDK para ciertas clases
+de tamaño cero. Los callbacks de referencias se asignan después de un wrap
+correcto y la bandera de fábrica recupera su valor anterior también al fallar.
+
+`CallbackInfo::_construct`, usado por los constructores directos, reutiliza el
+mismo guard y posterga la asignación del bookkeeping hasta después del wrap.
+La regresión invoca constructores sobre objetos ya envueltos: conserva el error
+original y verifica la destrucción inmediata de Range y del input UTF-16 del
+parser XML. Los receivers originales deben seguir siendo utilizables.
+
+La reproducción usa `NativeRange.copy`, consumidor ya integrado, durante la
+terminación de workers reales. Se observó retención nativa en Node 24 con el
+SDK anterior. La corrección se separa de las primitivas experimentales de Attr;
+no agrega APIs ni cambia la implementación de Range. Seis tests Rust ejercen
+el guard real, su transferencia de ownership y ambos layouts de clases de
+tamaño cero, también disponibles para Memcheck.

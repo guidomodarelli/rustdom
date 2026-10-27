@@ -1,0 +1,34 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Production preservation requires non-optimized Python')
+repository = pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = pathlib.Path('/run/rustdom-range-production-integration-20261027')
+export = root / 'export-v2'
+validation = repository / 'reports/validation/range-native-production/20261027'
+benchmark = repository / 'reports/benchmarks/range-native-production/20261027'
+memory = repository / 'reports/memory/range-native-production/20261027'
+for directory in [validation, benchmark, memory]:
+    directory.mkdir(exist_ok=False, parents=True)
+def copy(source, target):
+    assert not target.exists()
+    shutil.copyfile(source, target)
+    assert hashlib.sha256(source.read_bytes()).digest() == hashlib.sha256(target.read_bytes()).digest()
+for name in ['evidence.tar.gz', 'archive.json', 'manifest.json', 'summary.json']:
+    copy(export / name, validation / name)
+copy(export / 'resources.json', memory / 'endpoints.json')
+for name in ['node22', 'node24']:
+    directory = root / (name + '-benchmarks')
+    target = benchmark / name; target.mkdir()
+    for source in directory.iterdir():
+        assert source.is_file() and not source.is_symlink()
+        copy(source, target / source.name)
+copy(root / 'production-identity/node22.stdout.log', validation / 'compiler-input-equivalence.json')
+copy(root / 'js-rebuild-v2/runtime-audit.json', validation / 'js-runtime-rebuild.json')
+cache = repository / '.cache/confirmation-authentication-20261027'
+for name in ['export-production.py', 'preserve-production.py']:
+    copy(cache / name, validation / (name + '.txt'))
+print(json.dumps(dict(preserved=True, archive=json.loads((validation / 'archive.json').read_bytes()))))

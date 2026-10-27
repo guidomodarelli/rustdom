@@ -1,0 +1,17 @@
+import pathlib,json,hashlib,subprocess,os,sys,time
+if sys.flags.optimize: raise RuntimeError('Authentication qualification requires non-optimized Python')
+root=pathlib.Path('/run/rustdom-confirmation-functional-20261027')
+source=root/'source';method='reports/benchmarks/native-class-ownership/block-confirmation'
+name=sys.argv[1];assert name in ['node22','node24']
+fixture=root/(name+'-authentication');index=json.loads((fixture/'index.json').read_bytes());assert index['complete'] and not pathlib.Path('/proc/'+str(index['parentPid'])).exists()
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools');node=tools/('node-22/bin/node' if name=='node22' else 'node/bin/node')
+output=root/(name+'-authentication-tests-final');output.mkdir(exist_ok=False)
+environment=dict(os.environ);environment.update(RUSTDOM_CONFIRMATION_FUNCTIONAL_FIXTURE=str(fixture),RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE='/dev/shm/rustdom-pilot-v2-published-525e2be6',RUSTDOM_CONFIRMATION_FUNCTIONAL_PACKAGE=str(root/'package'),RUSTDOM_CONFIRMATION_CANDIDATE_SOURCES=str(root/'package/candidate-sources'),RUSTDOM_CONFIRMATION_BASELINE_SOURCES='/run/rustdom-confirmation-authentication-20261027/baseline-inputs',RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE='/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom',RUSTDOM_CONFIRMATION_PLAN=str(output/'plan.stdout.log'))
+commands=[('tests',[str(node),'--test',*[method+'/'+name for name in ['compare.spec.cjs','plan.spec.cjs','envelope.spec.cjs','finalize.spec.cjs','authentication.spec.cjs','production.spec.cjs']]]),('plan',[str(node),method+'/plan.cjs',method+'/planning-inputs']),('audit',['python3','-B',method+'/audit.py',str(output/'plan.stdout.log')]),('audit-tests',['python3','-B',method+'/test_audit.py']),('production',[str(node),'-e',"const p=require('./"+method+"/production.cjs'); console.log(JSON.stringify(p.inspectProduction(process.env.RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE),null,2))"])]
+receipts={'node':index['node'],'nodeExecutableSha256':hashlib.sha256(node.read_bytes()).hexdigest(),'commands':[],'scientificCaptureExecuted':False}
+for label,argv in commands:
+ started=time.monotonic()
+ with (output/(label+'.stdout.log')).open('wb') as stdout,(output/(label+'.stderr.log')).open('wb') as stderr: result=subprocess.run(argv,cwd=source,env=environment,stdout=stdout,stderr=stderr,timeout=120,check=False)
+ receipts['commands'].append({'name':label,'exitCode':result.returncode,'argv':argv,'elapsedSeconds':time.monotonic()-started})
+ (output/'receipts.json').write_text(json.dumps(receipts,indent=2)+'\n');assert result.returncode==0,label
+print(json.dumps({'node':index['node'],'nodeTests':26,'pythonTests':3,'passed':True}))

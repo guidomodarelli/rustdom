@@ -276,21 +276,11 @@ unsafe fn new_instance_raw(
   )?;
 
   let mut result = std::ptr::null_mut();
-  crate::__private::___CALL_FROM_FACTORY.with(|inner| inner.set(true));
-  check_status!(
-    sys::napi_new_instance(env, ctor, 0, std::ptr::null_mut(), &mut result),
-    "Failed to construct class `{}`",
-    class_name,
-  )?;
-  crate::__private::___CALL_FROM_FACTORY.with(|inner| inner.set(false));
+  let previous_factory = crate::__private::___CALL_FROM_FACTORY.with(|inner| inner.replace(true));
+  let status = sys::napi_new_instance(env, ctor, 0, std::ptr::null_mut(), &mut result);
+  crate::__private::___CALL_FROM_FACTORY.with(|inner| inner.set(previous_factory));
+  check_status!(status, "Failed to construct class `{}`", class_name,)?;
   let mut object_ref = std::ptr::null_mut();
-  let initial_finalize: Box<dyn FnOnce()> = Box::new(|| {});
-  // `Arc` (not `Rc`) is required so it matches `Reference`'s `Arc<Cell<..>>` field and its
-  // `Sync` impl; the `Cell` is only accessed on the JS thread.
-  #[allow(clippy::arc_with_non_send_sync)]
-  let finalize_callbacks_ptr = std::sync::Arc::into_raw(std::sync::Arc::new(std::cell::Cell::new(
-    Box::into_raw(initial_finalize),
-  )));
   check_status!(
     sys::napi_wrap(
       env,
@@ -304,6 +294,15 @@ unsafe fn new_instance_raw(
     class_name,
   )?;
 
+  // Do not allocate reference bookkeeping until wrapping succeeds. The scoped
+  // result remains rooted, and no N-API call can collect it before add_ref.
+  let initial_finalize: Box<dyn FnOnce()> = Box::new(|| {});
+  // `Arc` matches `Reference`; the `Cell` is only accessed on the JS thread.
+  #[allow(clippy::arc_with_non_send_sync)]
+  let finalize_callbacks_ptr = std::sync::Arc::into_raw(std::sync::Arc::new(std::cell::Cell::new(
+    Box::into_raw(initial_finalize),
+  )));
+
   super::value_ref::add_ref(
     env,
     wrapped_value,
@@ -315,13 +314,17 @@ unsafe fn new_instance_raw(
 
 /// # Safety
 ///
-/// create instance of class
+/// Create an instance, adopting the unique boxed native value even on error.
+/// `wrapped_value` must follow PendingClassValue's allocation contract.
 #[doc(hidden)]
+#[inline]
 pub unsafe fn new_instance<T: 'static + ObjectFinalize + MaybeTypeTag>(
   env: sys::napi_env,
   wrapped_value: *mut std::ffi::c_void,
   ctor_ref: sys::napi_ref,
 ) -> Result<sys::napi_value> {
+  let pending =
+    unsafe { super::super::class_ownership::PendingClassValue::<T>::new(wrapped_value) };
   let result = unsafe {
     new_instance_raw(
       env,
@@ -331,6 +334,9 @@ pub unsafe fn new_instance<T: 'static + ObjectFinalize + MaybeTypeTag>(
       type_name::<T>(),
     )
   }?;
+  // new_instance_raw has registered the finalizer and cannot return an error
+  // after wrapping. Later type-tag errors must leave this allocation to GC.
+  pending.transfer();
 
   // Stamp the type tag AFTER `add_ref` so a tag failure cannot leak the Arc +
   // napi_ref (see `CallbackInfo::_construct`). Compiled only on napi8 NATIVE

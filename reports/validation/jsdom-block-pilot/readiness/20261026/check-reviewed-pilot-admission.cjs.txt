@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=process.argv[2];
+const pilot=path.join(root,'reports/benchmarks/native-class-ownership/control-precision/pilot');
+const source=require(path.join(pilot,'capture/source.cjs'));
+const {expectation}=require(path.join(pilot,'capture/expectation.cjs'));
+const policy=require(path.join(pilot,'constants/capture.json'));
+const origin=source.producer('capture');
+assert.equal(origin.sourceChangesRaw,'');assert.deepEqual(origin.sourceGitErrors,[]);
+assert.equal(origin.publication.completeMethodReview,true);assert.equal(origin.publication.actionableFindings,0);
+assert.equal(process.env[policy.consumptionEnvironment],undefined);
+assert.equal(process.env[policy.consumptionDigestEnvironment],undefined);
+let rejection;
+assert.throws(()=>expectation('capture','v22.12.0/AA/jsdom/mutation-records-collect/100'),(error)=>{
+  rejection={code:error.code,actual:error.actual,expected:error.expected};
+  return error.code==='ERR_ASSERTION'&&error.actual==='undefined'&&error.expected==='string';
+});
+let snapshot;
+if(process.argv[3]){
+  assert.equal(fs.existsSync(process.argv[3]),false);fs.mkdirSync(process.argv[3]);
+  snapshot=source.snapshot(origin,process.argv[3]);
+  fs.writeFileSync(path.join(process.argv[3],policy.methodSnapshotIndex),JSON.stringify(snapshot,null,2)+'\n',{flag:'wx'});
+}
+process.stdout.write(JSON.stringify({sourceCommit:origin.sourceCommit,sourceIsPublishedCommit:false,
+  sourceClean:true,sourceFiles:Object.keys(origin.files).length,sourceFilesDigest:source.filesDigest(origin.files),
+  reviewedSourceAdmissionPassed:true,missingControllerReceiptRejected:true,rejection,
+  snapshotMembers:snapshot?Object.keys(snapshot).length:null,DOMExecuted:false,
+  scientificCaptureExecuted:false,performanceAccepted:null,gateReevaluated:false})+'\n');

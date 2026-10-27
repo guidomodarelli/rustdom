@@ -1,0 +1,62 @@
+"""Apply the actual isolated review to the private source only and exercise admission without controller or DOM."""
+from pathlib import Path
+from datetime import datetime,timezone
+import hashlib
+import json
+import subprocess
+repository=Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary=Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source=Path('/dev/shm/rustdom-pilot-readiness-source-20261026-v2')
+output=repository/'.cache/pilot-readiness-reviewed-20261026';output.mkdir(exist_ok=False)
+publication='reports/validation/jsdom-block-pilot/capture-method/review.json'
+file=source/publication;pending=json.loads(file.read_bytes())
+assert pending['kind']=='private-readiness-review-pending' and not pending['completeMethodReview']
+git=['git','-c','core.longpaths=true','-c','gc.auto=0']
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+previous_head=subprocess.check_output(git+['rev-parse','HEAD'],cwd=source).decode().strip()
+(output/'review-pending.json').write_bytes(file.read_bytes())
+review={**pending,'kind':'complete-method-review','completeMethodReview':True,'actionableFindings':0,
+    'reviewer':'/root/review_ownership_closeout',
+    'reviewedAtUTC':datetime.now(timezone.utc).isoformat(),
+    'reviewedSourceFilesDigest':'2df2d476eeb99593b2988622373071a132ba14efcec471d7e2f54762af327fad',
+    'reviewScope':'Complete method, fixed lifecycle harness and readiness transition; hosted qualification is separately required for the final published SHA',
+    'priorPrivateReadinessSourceCommit':previous_head,'privateSourceIsPublishedCommit':False,
+    'localQualification':{'sourceCommit':'7c29a39433c28e0c2f3cd741587b565c05322916',
+        'sourceIsPublishedCommit':False,'realTerminationCases':6,'realZombieCases':2,'remainingOwnedDescendants':0,
+        'enabledProfileContractsPerSdk':51,'nodeVersions':['22.12.0','24.14.1']},
+    'hostedQualificationComplete':False,'scientificCaptureExecuted':False}
+file.write_bytes(json.dumps(review,indent=2).encode()+b'\n')
+subprocess.run(git+['add','--',publication],cwd=source,check=True)
+subprocess.run(git+['-c','user.name=Native CI fixture','-c','user.email=fixture@example.invalid',
+    'commit','-m','Apply actual isolated source review; controller remains absent'],cwd=source,check=True,capture_output=True)
+head=subprocess.check_output(git+['rev-parse','HEAD'],cwd=source).decode().strip()
+commands=[]
+snapshot=Path('/dev/shm/rustdom-pilot-reviewed-source-snapshot-20261026')
+for version,relative in [('22.12.0','.tools/node-22/bin/node'),('24.14.1','.tools/node/bin/node')]:
+    arguments=[str(primary/relative),str(repository/'.cache/check-reviewed-pilot-admission.cjs'),str(source)]
+    if version=='22.12.0':arguments.append(str(snapshot))
+    with (output/(version+'-admission.json')).open('xb') as stdout,(output/(version+'-admission.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(arguments,cwd=source,stdout=stdout,stderr=stderr,timeout=120)
+    commands.append({'sdk':version,'argv':arguments,'exitCode':result.returncode,'sourceCommit':head})
+    (output/'commands.json').write_bytes(json.dumps(commands,indent=2).encode()+b'\n')
+    assert result.returncode==0,(output/(version+'-admission.stderr.log')).read_text()
+    actual=json.loads((output/(version+'-admission.json')).read_bytes())
+    assert actual['sourceCommit']==head and actual['reviewedSourceAdmissionPassed'] and actual['missingControllerReceiptRejected']
+    print(json.dumps({'node':version,'reviewedSourceAccepted':True,'missingControllerRejected':True,'DOMExecuted':False}),flush=True)
+archive=output/'reviewed-source-snapshot.tar.gz'
+for label,arguments in [('pack',['--pack',str(snapshot),str(archive)]),
+                        ('verify',None)]:
+    if arguments is None:
+        checksum=json.loads((output/'pack.json').read_bytes())['archiveSha256']
+        arguments=['--verify',str(archive),checksum]
+    with (output/(label+'.json')).open('xb') as stdout,(output/(label+'.stderr.log')).open('xb') as stderr:
+        subprocess.run(['python3','-B',str(source/'reports/benchmarks/native-class-ownership/control-precision/pilot/capture/archive.py'),*arguments],
+                       stdout=stdout,stderr=stderr,check=True,timeout=120)
+assert subprocess.check_output(git+['status','--porcelain'],cwd=source)==b''
+(output/'source-commit.txt').write_bytes(subprocess.check_output(git+['cat-file','commit','HEAD'],cwd=source))
+(output/'source-tree.txt').write_bytes(subprocess.check_output(git+['ls-tree','-r','HEAD'],cwd=source))
+(output/'review.json').write_bytes(file.read_bytes())
+(output/'summary.json').write_bytes(json.dumps({'privateSourceCommit':head,'sourceIsPublishedCommit':False,
+    'reviewActionableFindings':0,'sourceFiles':850,'reviewedSourceAdmittedBothSdks':True,
+    'missingControllerRejectedBothSdks':True,'sourceSnapshotArchiveVerified':True,
+    'scientificCaptureExecuted':False,'performanceAccepted':None,'gateReevaluated':False},indent=2).encode()+b'\n')

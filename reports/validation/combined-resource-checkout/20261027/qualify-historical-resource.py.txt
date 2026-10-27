@@ -1,0 +1,45 @@
+import hashlib
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+
+if sys.flags.optimize:
+    raise RuntimeError('Qualification requires non-optimized Python')
+root = pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+output = pathlib.Path('/run/rustdom-resource-checkout-qualification-20261027')
+output.mkdir(exist_ok=False)
+reference = '4196c496187c88c92304516287a7e644659a8536'
+reader = 'reports/benchmarks/native-class-ownership/combined-process-exports'
+policy = json.loads((root / reader / 'constants/ci-files.json').read_bytes())
+source.mkdir(exist_ok=False)
+subprocess.run(['git','init',str(source)],check=True,capture_output=True)
+(source / '.git/objects/info/alternates').write_text('/mnt/c/Users/guido/ghq/projects/rustdom/.git/objects\n')
+subprocess.run(['git','-C',str(source),'update-ref','HEAD',reference],check=True)
+subprocess.run(['git','-C',str(source),'config','core.sparseCheckout','true'],check=True)
+(source / '.git/info/sparse-checkout').write_text('/' + reader + '/\n')
+subprocess.run(['git','-C',str(source),'read-tree','-mu','HEAD'],check=True)
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain']) == b''
+for name in ['resources.cjs','resources.spec.cjs','tools/configure-checkout.py','constants/ci-files.json']:
+    assert (source / reader / name).read_bytes() == (root / reader / name).read_bytes(), name
+def execute(name, args):
+    started = time.monotonic()
+    with (output / (name + '.stdout.log')).open('xb') as stdout, (output / (name + '.stderr.log')).open('xb') as stderr:
+        result = subprocess.run(args,cwd=source,stdout=stdout,stderr=stderr,timeout=300,env=os.environ.copy())
+    record = dict(command=args,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started)
+    (output / (name+'.json')).write_text(json.dumps(record,indent=2)+'\n')
+    assert result.returncode == 0, name
+execute('checkout',['python3','-B',str(source / reader / 'tools/configure-checkout.py'),str(source)])
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain']) == b''
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+for label, executable, expected in [
+    ('node22',tools/'node-22/bin/node','177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('node24',tools/'node/bin/node','bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    execute(label+'-runtime',[str(executable),'reports/benchmarks/native-class-ownership/combined-process-study/tools/runtime.cjs', '22.12.0' if label=='node22' else '24.14.1'])
+    execute(label+'-tests',[str(executable),'--test',str(source / reader / 'resources.spec.cjs')])
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain']) == b''
+print(json.dumps(dict(complete=True,sourceCommit=reference,headClean=True,verifiedFiles=len(policy['files']),historicalPins=policy['historicalPins'],sourceCurrentReaderByteEquality=True,scientificCaptures=0,output=str(output))))

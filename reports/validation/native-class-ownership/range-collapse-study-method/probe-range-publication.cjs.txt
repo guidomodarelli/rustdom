@@ -1,0 +1,29 @@
+/** Exercise the actual publication boundary with owned receipts; never load runtime packages or start samples. */
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const repository = process.argv[2];
+const study = require(path.join(repository, 'reports/benchmarks/native-class-ownership/range-collapse-study/study.cjs'));
+const policy = require(path.join(repository, 'reports/benchmarks/native-class-ownership/range-collapse-study/constants/protocol.json'));
+const filename = path.join(repository, policy.publicationReceipt);
+const original = fs.readFileSync(filename);
+const receipt = JSON.parse(original);
+const unchanged = () => assert.deepEqual(study.publication().files, receipt.files);
+let negativeCases = 0;
+unchanged();
+try {
+  for (const change of [
+    (value) => { value.revision = 'unrelated-study'; },
+    (value) => { value.actionableFindings = 1; },
+    (value) => { delete value.files[Object.keys(value.files)[0]]; },
+    (value) => { value.files[Object.keys(value.files)[0]] = '0'.repeat(64); },
+  ]) {
+    const changed = structuredClone(receipt); change(changed); fs.writeFileSync(filename, JSON.stringify(changed));
+    assert.throws(() => study.publication(), { code: 'ERR_ASSERTION' }); negativeCases++;
+    fs.writeFileSync(filename, original); unchanged();
+  }
+} finally { fs.writeFileSync(filename, original); }
+unchanged();
+console.log(JSON.stringify({ node: process.version, negativeCases, positiveCases: 6,
+  sourceFilesPinned: Object.keys(receipt.files).length, benchmarkExecuted: false, performanceAccepted: null }));

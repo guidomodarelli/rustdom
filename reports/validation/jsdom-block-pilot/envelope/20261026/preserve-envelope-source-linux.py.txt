@@ -1,0 +1,31 @@
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Source preservation requires non-optimized Python')
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/dev/shm/rustdom-envelope-source-20261026')
+root = repository / 'reports/validation/jsdom-block-pilot/envelope/20261026/source'
+root.mkdir()
+
+def git(*arguments): return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=source)
+head = git('rev-parse', 'HEAD').decode().strip()
+assert head == 'a7c7f16d5f16013272643ae3d8e806daae8b9998' and git('status', '--porcelain=v1') == b''
+index = json.loads((repository / 'reports/benchmarks/native-class-ownership/jsdom-block-envelope-functional/20261026/node-22.12.0/index.json').read_bytes())
+files = {}
+for relative, expected in index['ownSourceFiles'].items():
+    location = 'reports/benchmarks/native-class-ownership/control-precision/pilot/' + relative
+    raw = git('show', head + ':' + location)
+    assert hashlib.sha256(raw).hexdigest() == expected
+    target = root / (relative + '.txt'); target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw)
+    files[relative] = {'bytes': len(raw), 'sha256': expected, 'archivedRole': 'source-data-never-execute'}
+(root / 'commit-object.txt').write_bytes(git('cat-file', '-p', head))
+(root / 'tree.nul').write_bytes(git('ls-tree', '-r', '-z', head))
+(root / 'receipt.json').write_bytes(json.dumps({'nativeGitHead': head, 'fixtureIsPublishedCommit': False,
+    'sourceGitChangesRaw': '', 'sourceGitErrors': [], 'files': files,
+    'all1152InputsIndexedSeparately': '../preparation/inputs.json', 'archivedSourceMustNotBeExecuted': True,
+    'scientificCaptureExecuted': False}, indent=2).encode() + b'\n')
+print(json.dumps({'fixtureHead': head, 'ownSourceFilesPreserved': len(files)}))

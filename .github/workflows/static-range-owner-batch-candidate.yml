@@ -1,0 +1,124 @@
+# Calificación histórica de un método/paquete consumido. No acredita la fuente de producción del PR.
+# CI e inventory-qualification construyen y prueban el PR actual; ownership permanece bloqueado sin nueva aceptación.
+name: Histórico — Candidato StaticRange con owners agrupados
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/**/windows-node-exit*.cjs'
+      - '.github/workflows/static-range-owner-batch-candidate.yml'
+      - 'reports/implementation/static-range-owner-batch-candidate/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/**/windows-node-exit*.cjs'
+      - '.github/workflows/static-range-owner-batch-candidate.yml'
+      - 'reports/implementation/static-range-owner-batch-candidate/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Owners StaticRange ${{ matrix.os }} Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+        node: ['22.12.0', '24.14.1']
+        # Node 24.20.0 includes nodejs/node#61999; this is functional qualification only.
+        exclude:
+          - os: windows-latest
+            node: '24.14.1'
+        include:
+          - os: windows-latest
+            node: '24.20.0'
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+      CARGO_BUILD_JOBS: '2'
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CANDIDATE_TOOLS: reports/implementation/static-range-owner-batch-candidate/tools
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536 # Fuente original del método consumido; no es producción actual.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            !/Cargo.toml
+            /.github/
+            /reports/implementation/static-range-owner-batch-candidate/
+            /reports/implementation/range-combined-candidate/tools/
+            /reports/implementation/static-range-candidate/
+            /reports/benchmarks/native-class-ownership/range-collapse-candidate/
+      - uses: actions/checkout@v4
+        with:
+          ref: f781c3b7549a86b6aa8b5a34d2bbb32038c315b7
+          fetch-depth: 2
+          path: artifacts/static-range-owner-batch-source
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /src/
+            /scripts/
+            /benchmarks/
+            /tests/
+            /types/
+            /third-party/
+            /reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz
+            /reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz
+            /reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Comprobar cierre real de Node sin cargar el addon
+        if: runner.os == 'Windows'
+        run: node --test .github/scripts/windows-node-exit.spec.cjs
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: Probar preparación real y protección de cambios ajenos
+        run: |
+          python -B "$CANDIDATE_TOOLS/prepare-platform.spec.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-prepare-contracts" > "$RUNNER_TEMP/owner-pair-prepare.stdout.log" 2> "$RUNNER_TEMP/owner-pair-prepare.stderr.log"
+          python -B reports/implementation/range-combined-candidate/tools/command.spec.py > "$RUNNER_TEMP/owner-pair-command.stdout.log" 2> "$RUNNER_TEMP/owner-pair-command.stderr.log"
+      - name: Aplicar el candidato y verificar todas sus fuentes
+        run: python -B "$CANDIDATE_TOOLS/candidate.py" --prepare "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-proof" > "$RUNNER_TEMP/owner-pair-apply.stdout.log" 2> "$RUNNER_TEMP/owner-pair-apply.stderr.log"
+      - name: Construir y probar addon, consumidores, runners, corpus y memoria
+        timeout-minutes: 40
+        run: python -B "$CANDIDATE_TOOLS/candidate.py" --qualify "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/artifacts/static-range-owner-batch-source" "$RUNNER_TEMP/owner-pair-proof" "$(node -p 'process.execPath')" > "$RUNNER_TEMP/owner-pair-qualify.stdout.log" 2> "$RUNNER_TEMP/owner-pair-qualify.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: owner-pair-${{ matrix.os }}-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/owner-pair-*.log
+            ${{ runner.temp }}/owner-pair-proof/
+            ${{ runner.temp }}/owner-pair-prepare-contracts/
+            artifacts/static-range-owner-batch-source/dist/
+            artifacts/static-range-owner-batch-source/types/
+            artifacts/static-range-owner-batch-source/src/
+            artifacts/static-range-owner-batch-source/Cargo.toml
+            artifacts/static-range-owner-batch-source/Cargo.lock
+            artifacts/static-range-owner-batch-source/build.rs
+            artifacts/static-range-owner-batch-source/package.json
+            artifacts/static-range-owner-batch-source/package-lock.json
+          if-no-files-found: error

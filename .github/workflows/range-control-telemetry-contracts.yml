@@ -1,0 +1,54 @@
+# Calificación histórica de un método/paquete consumido. No acredita la fuente de producción del PR.
+# CI e inventory-qualification construyen y prueban el PR actual; ownership permanece bloqueado sin nueva aceptación.
+name: Histórico — Contratos de telemetría AA de Range
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  contracts:
+    name: Telemetría AA de Range Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536 # Fuente original del método consumido; no es producción actual.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar Node 22
+        run: echo "RANGE_TELEMETRY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar Node 24
+        run: echo "RANGE_TELEMETRY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probar transporte, derivaciones y lectores con datos auténticos
+        env:
+          READER_VERSION: v${{ matrix.node }}
+        run: python3 -B reports/benchmarks/native-class-ownership/range-control-telemetry/qualify.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/range-aa-qa" "$RANGE_TELEMETRY_NODE22" "$RANGE_TELEMETRY_NODE24" "$READER_VERSION" > "$RUNNER_TEMP/range-aa-qualification.stdout.log" 2> "$RUNNER_TEMP/range-aa-qualification.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: range-aa-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/range-aa-qualification.*.log
+            ${{ runner.temp }}/range-aa-qa/*.log
+            ${{ runner.temp }}/range-aa-qa/*.json

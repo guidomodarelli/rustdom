@@ -1,0 +1,28 @@
+"""Read private Git blobs as data, preserving the exact producer sources of both functional epochs."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/dev/shm/rustdom-pilot-worker-source-20261026')
+raw = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026'
+output = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/source-epochs'
+output.mkdir(exist_ok=False)
+prefix = 'reports/benchmarks/native-class-ownership/control-precision/pilot/'
+for name, index_path in [('preliminary', raw / 'node-22.12.0/index.json'), ('fixed-auth', raw / 'fixed-auth/node-22.12.0/index.json')]:
+    index = json.loads(index_path.read_bytes()); commit = index['sourceIdentity']['sourceCommit']
+    target = output / name; target.mkdir()
+    commit_raw = subprocess.check_output(['git', 'cat-file', '-p', commit], cwd=source)
+    (target / 'private-commit.txt').write_bytes(commit_raw)
+    files = {}
+    for relative, expected in index['ownSourceFiles'].items():
+        contents = subprocess.check_output(['git', 'show', commit + ':' + prefix + relative], cwd=source)
+        assert hashlib.sha256(contents).hexdigest() == expected
+        member = target / (relative + '.txt'); member.parent.mkdir(parents=True, exist_ok=True); member.write_bytes(contents)
+        files[relative] = {'bytes': len(contents), 'sha256': expected}
+    (target / 'receipt.json').write_bytes(json.dumps({'sourceCommit': commit, 'sourceContextRole': index['sourceContextRole'],
+        'fixtureIsPublishedCommit': False, 'sourceChangesRaw': index['sourceIdentity']['sourceChangesRaw'],
+        'sourceGitErrors': index['sourceIdentity']['sourceGitErrors'], 'files': files,
+        'snapshotIsDataOnly': True, 'scientificCaptureExecuted': False}, indent=2).encode() + b'\n')
+print('Exact eight-file source snapshots and native private commit objects preserved for both epochs; none executed.')

@@ -1,0 +1,62 @@
+"""Run the new fixed functional qualifier against the existing payload, preserving every process and failure as data."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+source = Path('/dev/shm/rustdom-pilot-worker-source-20261026')
+prepared = Path('/dev/shm/rustdom-pilot-worker-functional-20261026')
+scratch = Path('/dev/shm/rustdom-pilot-worker-functional-results-20261026-fixed-auth')
+raw_root = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-pilot-functional/20261026/fixed-auth'
+validation = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/fixed-auth-runtime'
+memory = repository / 'reports/memory/jsdom-block-pilot/worker/20261026/fixed-auth'
+assert not scratch.exists() and not raw_root.exists() and not validation.exists() and not memory.exists()
+scratch.mkdir(); raw_root.mkdir(parents=True); validation.mkdir(parents=True); memory.mkdir(parents=True)
+assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source).decode().strip() == 'c5298ad15859a54ef2ef76feb02b3f557c560243'
+assert subprocess.check_output(['git', 'status', '--porcelain=v1'], cwd=source) == b''
+records = []
+for version, relative, expected in [
+    ('22.12.0', '.tools/node-22/bin/node', '177208bfc4a9403121a40c72d038c670f4fd937fa16ca7df0a720e90be0fe2d9'),
+    ('24.14.1', '.tools/node/bin/node', 'bf9112eb83a827dc9f9c8d19bb7bddcbf00f7b2fedae18fdcaee05406981f20a')]:
+    executable = primary / relative
+    assert hashlib.sha256(executable.read_bytes()).hexdigest() == expected
+    assert subprocess.check_output([str(executable), '--version']).decode().strip() == 'v' + version
+    destination = scratch / ('node-' + version)
+    command = [str(executable), '--expose-gc', str(source / 'reports/benchmarks/native-class-ownership/control-precision/pilot/functional.cjs'),
+        '--functional', str(prepared), str(destination)]
+    (validation / (version + '-command.json')).write_bytes(json.dumps({'argv': command, 'cwd': str(source),
+        'nodeSha256': expected, 'functionalOnly': True, 'scientificCaptureExecuted': False}, indent=2).encode() + b'\n')
+    with (validation / (version + '.stdout.log')).open('xb') as stdout, (validation / (version + '.stderr.log')).open('xb') as stderr:
+        process = subprocess.Popen(command, cwd=source, stdout=stdout, stderr=stderr)
+        print(json.dumps({'node': version, 'parentPid': process.pid, 'phase': 'functional-started'}), flush=True)
+        observed_bytes = 0
+        while process.poll() is None:
+            stdout.flush()
+            raw = (validation / (version + '.stdout.log')).read_bytes()
+            if len(raw) > observed_bytes:
+                print(raw[observed_bytes:].decode(errors='replace'), end='', flush=True); observed_bytes = len(raw)
+            time.sleep(2)
+        code = process.wait()
+    if destination.exists():
+        for member in destination.rglob('*'): assert not member.is_symlink(), str(member)
+        shutil.copytree(destination, raw_root / ('node-' + version))
+    record = {'node': version, 'exitCode': code, 'parentPid': process.pid, 'sourceFixtureHead': 'c5298ad15859a54ef2ef76feb02b3f557c560243', 'sourceFixtureIsPublishedCommit': False}
+    records.append(record)
+    (validation / 'outcomes.json').write_bytes(json.dumps(records, indent=2).encode() + b'\n')
+    assert code == 0, 'Functional qualifier failed; all partials preserved without retry: ' + version
+    index = json.loads((destination / 'index.json').read_bytes())
+    assert index['complete'] and index['functionalOnly'] and not index['scientificCaptureExecuted']
+    assert len(index['processes']) == 16 and len(index['adverse']) == 6 and len(index['parentMemory']) == 3
+    assert index['sourceIdentity']['sourceCommit'] == record['sourceFixtureHead'] and index['sourceIdentity']['sourceChangesRaw'] == '' and index['sourceIdentity']['sourceGitErrors'] == []
+    endpoints = {'node': version, 'parentMemory': index['parentMemory'],
+        'positive': [{'input': entry['input'], 'pid': entry['invocation']['command']['pid'], 'observed': entry['observed']} for entry in index['processes']],
+        'adverse': index['adverse'], 'functionalOnly': True, 'scientificCaptureExecuted': False,
+        'performanceAccepted': None, 'gateReevaluated': False}
+    (memory / (version + '.json')).write_bytes(json.dumps(endpoints, indent=2).encode() + b'\n')
+    print(json.dumps({'node': version, 'exitCode': code, 'positiveWorkers': 16, 'adverseWorkers': 6, 'domExecuted': True, 'scientificCaptureExecuted': False}), flush=True)
+(validation / 'summary.json').write_bytes(json.dumps({'outcomes': records, 'positiveWorkers': 32, 'adverseWorkers': 12,
+    'domExecuted': True, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}, indent=2).encode() + b'\n')

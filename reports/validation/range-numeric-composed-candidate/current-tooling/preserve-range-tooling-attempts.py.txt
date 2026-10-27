@@ -1,0 +1,63 @@
+"""Preserve completed functional-tooling attempts, including failures, without executing any saved code."""
+import gzip
+import hashlib
+import json
+from pathlib import Path
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+destination = repository / 'reports/validation/range-numeric-composed-candidate/tooling-attempts'
+assert not destination.exists(); destination.mkdir(parents=True)
+attempts = [
+    ('factory-missing-fixtures', Path('/dev/shm/range-initialization-hosted-tools-contracts-v1'), 'good', 'good-proof', False),
+    ('factory-fixtures-corrected', Path('/dev/shm/range-initialization-hosted-tools-contracts-v2'), 'good', 'good-proof', True),
+    ('composed-output-collision-cancelled', Path('/dev/shm/rustdom-range-numeric-composed-v1'), 'qualified-source', 'proof-node22', False),
+]
+files = []
+
+def preserve(original, target):
+    assert original.is_file() and not original.is_symlink()
+    raw = original.read_bytes()
+    compressed = len(raw) >= 1000000
+    target = target.with_name(target.name + '.gz') if compressed else target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    assert not target.exists()
+    if compressed:
+        with target.open('xb') as stream:
+            with gzip.GzipFile(fileobj=stream, mode='wb', mtime=0, filename='') as archive:
+                archive.write(raw)
+        assert gzip.decompress(target.read_bytes()) == raw
+    else:
+        target.write_bytes(raw)
+        assert target.read_bytes() == raw
+    files.append({'path': target.relative_to(repository).as_posix(), 'bytes': target.stat().st_size,
+        'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'originalBytes': len(raw),
+        'originalSha256': hashlib.sha256(raw).hexdigest(), 'gzip': compressed})
+
+outcomes = []
+for name, root, source_name, proof_name, expected in attempts:
+    source = root / source_name; proof = root / proof_name
+    record = json.loads((proof / 'qualification.json').read_bytes())
+    assert record['qualified'] is expected
+    if expected:
+        assert all(command['exitCode'] == 0 and not command['timedOut'] for command in record['commands'])
+    else:
+        assert record.get('failure') and any(command['exitCode'] != 0 for command in record['commands'])
+    target = destination / name
+    for filename in sorted(proof.rglob('*')):
+        if filename.is_file():
+            preserve(filename, target / 'proof' / filename.relative_to(proof))
+    if (root / 'contracts.json').exists():
+        preserve(root / 'contracts.json', target / 'contracts.json')
+    binary = source / 'dist/rustdom.node'
+    assert hashlib.sha256(binary.read_bytes()).hexdigest() == record['nativeBuild']['binarySha256']
+    preserve(binary, target / 'rustdom.node')
+    preserve(source / 'dist/native-build.json', target / 'native-build.json')
+    outcomes.append({'attempt': name, 'qualified': expected, 'commands': len(record['commands']),
+        'failedCommands': [command['label'] for command in record['commands'] if command['exitCode'] != 0],
+        'performanceAccepted': None, 'gateReevaluated': False})
+for filename in sorted(Path('/dev/shm/range-numeric-hosted-tool-checks-v1').iterdir()):
+    preserve(filename, destination / 'linter-and-process-contracts' / filename.name)
+manifest = {'attempts': outcomes, 'files': files, 'performanceAccepted': None, 'gateReevaluated': False,
+    'scope': 'Completed functional qualification and tooling tests only; no new benchmark or acceptance study.'}
+(destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+print(json.dumps({'files': len(files), 'bytes': sum(entry['bytes'] for entry in files), 'attempts': outcomes}))

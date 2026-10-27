@@ -143,9 +143,29 @@ impl NativeRange {
     pub fn new() -> Self {
         Self::with_state(RangeState::default())
     }
+    /// Construct both validated numeric endpoints before exposing a V8-owned state.
+    #[napi]
+    pub fn from_endpoints(
+        start_node: f64,
+        start_offset: f64,
+        end_node: f64,
+        end_offset: f64,
+    ) -> Result<Self> {
+        let mut state = RangeState::default();
+        state
+            .set_start(start_node, start_offset)
+            .map_err(to_napi_error)?;
+        state.set_end(end_node, end_offset).map_err(to_napi_error)?;
+        Ok(Self::with_state(state))
+    }
     #[napi]
     pub fn copy(&self) -> Self {
         Self::with_state(self.state.clone())
+    }
+    /// Apply collapse without transporting a point object back through JavaScript.
+    #[napi]
+    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
+        self.state.collapse(to_start).map_err(to_napi_error)
     }
     #[napi]
     pub fn collapse_plan(&self, to_start: bool) -> Result<NativeCollapsePlan> {

@@ -1,0 +1,58 @@
+"""Test the provenance fix using current source in the native fixture and the existing exact extracted package."""
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import time
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+fixture = Path('/dev/shm/rustdom-numeric-ci-minimal-20261026')
+output = repository / 'reports/validation/numeric-package-index-fix/20261026'
+assert not output.exists(); output.mkdir(parents=True)
+relatives = ['assemble.py', 'test_assemble.py', 'constants/package.json', 'constants/smoke.json', 'constants/transport.json']
+prefix = 'reports/benchmarks/native-class-ownership/numeric-composed-packages/'
+def git(*arguments):
+    return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=fixture)
+assert git('status', '--porcelain=v1') == b''
+before = git('rev-parse', 'HEAD').decode().strip()
+changes = {}
+for relative in relatives:
+    path = prefix + relative
+    changes[path] = {'before': hashlib.sha256((fixture / path).read_bytes()).hexdigest()}
+    shutil.copyfile(repository / path, fixture / path)
+    changes[path]['after'] = hashlib.sha256((fixture / path).read_bytes()).hexdigest()
+git('add', '--', *[prefix + relative for relative in relatives])
+git('-c', 'user.name=Native CI fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Authenticate the sealed assembly index before parsing')
+after = git('rev-parse', 'HEAD').decode().strip()
+(output / 'source-fixture.json').write_text(json.dumps({'before': before, 'after': after, 'changes': changes,
+    'fixtureIsPublishedCommit': False, 'publishedCommitImpersonated': False}, indent=2) + '\n', encoding='utf-8', newline='\n')
+tools = fixture / prefix
+node22 = '/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node-22/bin/node'
+node24 = '/mnt/c/Users/guido/ghq/projects/rustdom/.tools/node/bin/node'
+package = '/dev/shm/rustdom-numeric-ci-job-package-fixed-20261026'
+commands = [
+    ('transport', ['python3', '-B', str(tools / 'test_transport.py')]),
+    ('assembly', ['python3', '-B', str(tools / 'test_assemble.py'), package, node22, node24]),
+    ('node22', [node22, '--expose-gc', str(tools / 'smoke.cjs'), package]),
+    ('node24', [node24, '--expose-gc', str(tools / 'smoke.cjs'), package]),
+]
+record = {'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'commands': [],
+    'fixtureIsPublishedCommit': False, 'complete': False, 'runtimeRebuilt': False,
+    'newScientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+environment = {**os.environ, 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.autocrlf', 'GIT_CONFIG_VALUE_0': 'false'}
+try:
+    for label, arguments in commands:
+        start = time.monotonic()
+        with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+            result = subprocess.run(arguments, cwd=fixture, env=environment, stdout=stdout, stderr=stderr, timeout=600)
+        record['commands'].append({'label': label, 'argv': arguments, 'exitCode': result.returncode, 'seconds': time.monotonic() - start})
+        print(json.dumps({'label': label, 'exitCode': result.returncode}), flush=True)
+        assert result.returncode == 0, label
+    record['complete'] = True
+finally:
+    record['finishedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    (output / 'outcomes.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8', newline='\n')
+print(json.dumps({'complete': record['complete'], 'commands': len(record['commands'])}))

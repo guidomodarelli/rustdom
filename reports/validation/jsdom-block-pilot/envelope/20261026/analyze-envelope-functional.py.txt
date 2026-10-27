@@ -1,0 +1,72 @@
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Functional analysis requires non-optimized Python')
+import hashlib
+import json
+from pathlib import Path
+import shutil
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / 'reports/validation/jsdom-block-pilot/envelope/20261026'
+raw_root = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-envelope-functional/20261026'
+totals = {'positiveWorkers': 0, 'adverseWorkers': 0, 'measuredDurations': 0, 'positiveWarmup': 0,
+    'adverseWarmup': 0, 'windows': 0, 'documents': 0, 'domProcesses': 0, 'firstUnclearRounds': 0,
+    'finalClearEndpoints': 0, 'parentSnapshots': 0}
+source = {}; unclear = []
+for version in ['22.12.0', '24.14.1']:
+    directory = raw_root / ('node-' + version)
+    index = json.loads((directory / 'index.json').read_bytes())
+    assert index['complete'] and index['functionalOnly'] and not index['scientificCaptureExecuted']
+    assert index['analysisObservation'] is None and index['performanceAccepted'] is None and not index['gateReevaluated']
+    assert index['sourceIdentity'] == {'sourceCommit': 'a7c7f16d5f16013272643ae3d8e806daae8b9998', 'sourceChangesRaw': '', 'sourceGitErrors': []}
+    assert index['packageVerification'] == index['packageVerificationAfter']
+    assert len(index['processes']) == 16 and len(index['adverse']) == 6 and len(index['parentMemory']) == 3
+    assert 'envelope.cjs' in index['ownSourceFiles'] and 'constants/envelope.json' in index['ownSourceFiles']
+    for relative, expected in index['ownSourceFiles'].items():
+        location = repository / 'reports/benchmarks/native-class-ownership/control-precision/pilot' / relative
+        assert hashlib.sha256(location.read_bytes()).hexdigest() == expected, relative
+    source[version] = {'sourceIdentity': index['sourceIdentity'], 'fixtureIsPublishedCommit': False,
+        'ownSourceFiles': index['ownSourceFiles'], 'packageIdentityRechecked': True, 'parentPid': index['parentPid']}
+    totals['parentSnapshots'] += len(index['parentMemory'])
+    for entry in index['processes']:
+        assert entry['complete'] and entry['invocation']['command']['exitCode'] == 0
+        report = json.loads((directory / entry['directory'] / 'report.json').read_bytes())
+        context = json.loads((directory / entry['directory'] / 'report.json.context.json').read_bytes())
+        assert context['pid'] == entry['invocation']['command']['pid'] and context['parentPid'] == index['parentPid']
+        assert report['trackedOwners'] == {'window': 12, 'document': 12}
+        blocks = report['blocks']
+        measured = sum(len(block['tasks']) for block in blocks if block['stage'] == 'measured')
+        warmup = sum(len(block['tasks']) for block in blocks if block['stage'] == 'warmup')
+        assert measured == entry['observed']['measured'] == 144 and warmup == entry['observed']['warmup'] == 48
+        totals['measuredDurations'] += measured; totals['positiveWarmup'] += warmup
+        totals['windows'] += 12; totals['documents'] += 12; totals['positiveWorkers'] += 1; totals['domProcesses'] += 1
+        assert len(report['cleanupTrace']) == 3 and all(point['clear'] for point in report['cleanupTrace'][-2:])
+        totals['finalClearEndpoints'] += 2
+        if not report['cleanupTrace'][0]['clear']:
+            totals['firstUnclearRounds'] += 1
+            unclear.append({'node': version, 'row': entry['input']['row'], 'label': entry['input']['label'],
+                'trace': report['cleanupTrace'], 'finalTwoClear': True})
+    totals['adverseWorkers'] += len(index['adverse'])
+    for entry in index['adverse']: assert entry['command']['exitCode'] == 2
+    partial = json.loads((directory / 'adverse/progress-failure/report.json').read_bytes())
+    assert not partial['complete'] and len(partial['blocks']) == 1 and partial['blocks'][0]['stage'] == 'warmup'
+    assert partial['trackedOwners'] == {'window': 1, 'document': 1}
+    assert len(partial['cleanupTrace']) == 3 and all(point['clear'] for point in partial['cleanupTrace'][-2:])
+    totals['adverseWarmup'] += len(partial['blocks'][0]['tasks'])
+    totals['windows'] += 1; totals['documents'] += 1; totals['domProcesses'] += 1; totals['finalClearEndpoints'] += 2
+    if not partial['cleanupTrace'][0]['clear']:
+        totals['firstUnclearRounds'] += 1
+        unclear.append({'node': version, 'case': 'progress-failure', 'trace': partial['cleanupTrace'], 'finalTwoClear': True})
+record = {'scope': 'Real functional parent/envelope qualification, not a scientific pilot', 'totals': totals,
+    'versions': source, 'firstUnclearRounds': unclear, 'epochsPooled': False,
+    'runtime': 'jsdom 27.4.0 only', 'rustCandidateOperationsExecuted': False,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(root / 'analysis.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+environment = root / 'environment'; environment.mkdir()
+for name in ['verified-range-aa-transport-duplicates-20261026.json', 'pilot-functional-ram-preserved-20261026.json']:
+    shutil.copyfile(repository / '.cache' / name, environment / name)
+shutil.copytree(repository / '.cache/linux-recovery-envelope-20261026', environment / 'restart')
+for name in ['prepare-envelope-linux.py', 'qualify-envelope-contracts.py', 'run-envelope-functional-linux.py',
+    'preserve-current-pilot-ram.py', 'restart-preserved-validation-linux.py']:
+    shutil.copyfile(repository / '.cache' / name, root / (name + '.txt'))
+print(json.dumps({'totals': totals, 'fixtureIsPublishedCommit': False, 'scientificCaptureExecuted': False}))

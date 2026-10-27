@@ -1,0 +1,47 @@
+import hashlib
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import time
+if sys.flags.optimize:raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+historical=pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+current=pathlib.Path('/run/rustdom-current-source-profile-7b60-20261027')
+output=pathlib.Path('/run/rustdom-source-profile-qualification-20261027');output.mkdir(exist_ok=False)
+receiptPath='reports/validation/jsdom-block-pilot-v2/capture-method/review.json'
+raw=subprocess.check_output(['git','-C',str(historical),'show','4196c496187c88c92304516287a7e644659a8536:'+receiptPath])
+assert hashlib.sha256(raw).hexdigest()=='dd019dc36e3921287f8bf1d7591f196e5a62866401d37cae7236ad2197aa3beb'
+files=json.loads(raw)['files'];assert len(files)==903
+patterns=['/'+re.sub(r'([\\*?\[\]])',r'\\\1',name) for name in [*files,receiptPath]]
+subprocess.run(['git','-C',str(historical),'sparse-checkout','add','--no-cone','--stdin'],input='\n'.join(patterns)+'\n',text=True,check=True,capture_output=True)
+assert subprocess.check_output(['git','-C',str(historical),'status','--porcelain'])==b''
+current.mkdir(exist_ok=False)
+subprocess.run(['git','init',str(current)],check=True,capture_output=True)
+(current/'.git/objects/info/alternates').write_text('/mnt/c/Users/guido/ghq/projects/rustdom/.git/objects\n')
+subprocess.run(['git','-C',str(current),'update-ref','HEAD','7b60027838f729ea46bc2eab6212f0351d6e05cf'],check=True)
+subprocess.run(['git','-C',str(current),'config','core.sparseCheckout','true'],check=True)
+declaration=json.loads((root/'reports/implementation/range-numeric-composed-candidate/inputs.json').read_bytes())['candidateInputs']
+names=set([*files,receiptPath,*declaration,'AGENTS.md','.gitignore','.gitattributes','reports/implementation/range-numeric-composed-candidate/inputs.json','.github/workflows/ownership-block-confirmation-contracts.yml'])
+patterns=['/'+re.sub(r'([\\*?\[\]])',r'\\\1',name) for name in sorted(names)]
+patterns.append('/reports/benchmarks/native-class-ownership/block-confirmation/')
+(current/'.git/info/sparse-checkout').write_text('\n'.join(patterns)+'\n')
+subprocess.run(['git','-C',str(current),'read-tree','-mu','HEAD'],check=True)
+assert subprocess.check_output(['git','-C',str(current),'status','--porcelain'])==b''
+for name in ['source.cjs','source.spec.cjs','constants/source.json']:
+    relative='reports/benchmarks/native-class-ownership/block-confirmation/'+name
+    destination=current/relative;assert not destination.exists();destination.parent.mkdir(parents=True,exist_ok=True)
+    shutil.copyfile(root/relative,destination)
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+environment=dict(os.environ,RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE=str(current),RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE=str(historical))
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    args=[str(node),'--test',str(root/'reports/benchmarks/native-class-ownership/block-confirmation/source.spec.cjs')]
+    started=time.monotonic()
+    with (output/(label+'.stdout.log')).open('xb') as stdout,(output/(label+'.stderr.log')).open('xb') as stderr:
+        result=subprocess.run(args,cwd=root,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+    (output/(label+'.process.json')).write_text(json.dumps(dict(command=args,exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),DOMExecuted=False,scientificSamplesCollected=0))+'\n')
+    assert result.returncode==0,label
+print(json.dumps(dict(complete=True,output=str(output),currentNativeGitHead='7b60027838f729ea46bc2eab6212f0351d6e05cf',historicalNativeGitHead='4196c496187c88c92304516287a7e644659a8536',ownNewSourceFilesAreUntrackedInFunctionalFixture=True,scientificCapture=False)))

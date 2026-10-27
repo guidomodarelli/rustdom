@@ -1,0 +1,70 @@
+"""Preserve exact current functional artifacts as bytes; never execute archive contents."""
+import datetime
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import zipfile
+
+RUN = 40263224006
+HEAD = 'e6c4e6a9e376c5f13474087550f96668ac0d476d'
+repository = Path(__file__).resolve().parent.parent
+output = repository / '.cache/numeric-composed-hosted-40263224006'
+output.mkdir(exist_ok=True)
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+
+def api(endpoint, filename):
+    result = subprocess.run(['gh', 'api', 'repos/guidomodarelli/rustdom/' + endpoint],
+                            cwd=repository, capture_output=True, timeout=120)
+    (output / (filename + '.stderr.log')).write_bytes(result.stderr)
+    if result.returncode:
+        raise RuntimeError('Artifact transport failed: ' + endpoint)
+    (output / filename).write_bytes(result.stdout)
+    return json.loads(result.stdout)
+
+run = api(f'actions/runs/{RUN}', stamp + '-run.json')
+assert run['head_sha'] == HEAD and run['run_attempt'] == 1
+assert run['path'] == '.github/workflows/range-numeric-composed-candidate.yml'
+jobs = api(f'actions/runs/{RUN}/jobs?per_page=100', stamp + '-jobs.json')
+assert jobs['total_count'] == len(jobs['jobs']) == 6
+artifacts = api(f'actions/runs/{RUN}/artifacts?per_page=100', stamp + '-artifacts.json')
+expected = {f'range-numeric-composed-{platform}-{node}-{HEAD}'
+            for platform in ['ubuntu-22.04', 'windows-latest', 'macos-latest']
+            for node in ['22.12.0', '24.14.1']}
+assert artifacts['total_count'] == len(artifacts['artifacts']) <= 6
+seen = set()
+for artifact in artifacts['artifacts']:
+    assert artifact['name'] in expected and artifact['name'] not in seen
+    seen.add(artifact['name'])
+    assert artifact['workflow_run']['id'] == RUN and artifact['workflow_run']['head_sha'] == HEAD
+    assert not artifact['expired'] and artifact['digest'].startswith('sha256:')
+    destination = output / ('artifact-' + str(artifact['id']))
+    destination.mkdir(exist_ok=True)
+    metadata = api('actions/artifacts/' + str(artifact['id']), stamp + '-artifact-' + str(artifact['id']) + '.json')
+    assert all(metadata[key] == artifact[key] for key in ['id', 'name', 'size_in_bytes', 'digest', 'workflow_run'])
+    archive = destination / 'artifact.zip'
+    if not archive.exists():
+        with archive.open('xb') as stream:
+            result = subprocess.run(['gh', 'api', 'repos/guidomodarelli/rustdom/actions/artifacts/' + str(artifact['id']) + '/zip'],
+                                    cwd=repository, stdout=stream, stderr=subprocess.PIPE, timeout=120)
+        (destination / 'download.stderr.log').write_bytes(result.stderr)
+        assert result.returncode == 0, 'Preserved partial download; inspect without overwriting'
+    raw = archive.read_bytes()
+    assert len(raw) == artifact['size_in_bytes']
+    assert 'sha256:' + hashlib.sha256(raw).hexdigest() == artifact['digest']
+    with zipfile.ZipFile(archive) as bundle:
+        assert bundle.testzip() is None
+        files = {}
+        for member in bundle.infolist():
+            if member.is_dir():
+                continue
+            assert member.filename not in files and not member.filename.startswith('/')
+            assert '..' not in Path(member.filename).parts
+            contents = bundle.read(member)
+            files[member.filename] = {'bytes': len(contents), 'sha256': hashlib.sha256(contents).hexdigest()}
+        manifest = {'artifactId': artifact['id'], 'runId': RUN, 'attempt': 1, 'head': HEAD,
+                    'archiveSha256': hashlib.sha256(raw).hexdigest(), 'files': files}
+    (destination / 'metadata.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8', newline='\n')
+    (destination / 'members.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8', newline='\n')
+    print(json.dumps({'artifact': artifact['id'], 'name': artifact['name'], 'files': len(files), 'digestVerified': True}), flush=True)
+print(json.dumps({'runId': RUN, 'status': run['status'], 'conclusion': run['conclusion'], 'artifacts': len(seen)}))

@@ -1,0 +1,118 @@
+# Contratos del candidato histórico, ligados al paquete ya consumido y su fuente original.
+# La integración actual se verifica en CI general y Range integrado del PR.
+name: Histórico — Calificar fixtures compartidos
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/shared-fixture-candidate.yml'
+      - 'reports/benchmarks/native-class-ownership/shared-fixture-candidate/**'
+      - 'reports/validation/native-class-ownership/shared-fixture-candidate/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: shared-fixture-candidate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: '22.12.0'
+            major: 22
+          - node: '24.14.1'
+            major: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Autenticar la preparación oficial sin reconstruir paquetes
+        run: |
+          mkdir "$RUNNER_TEMP/shared-fixtures"
+          mkdir "$RUNNER_TEMP/shared-fixtures/preparation"
+          mkdir "$RUNNER_TEMP/shared-fixtures/results"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync('reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip');
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip -d "$RUNNER_TEMP/shared-fixtures/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync(`${process.env.RUNNER_TEMP}/shared-fixtures/preparation/ownership-build.tar.gz`);
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/shared-fixtures/preparation/ownership-build.tar.gz" -C "$RUNNER_TEMP/shared-fixtures/preparation"
+      - name: Registrar identidad y host de la calificación funcional
+        env:
+          QUALIFICATION_HEAD: ${{ github.event.pull_request.head.sha }}
+          QUALIFICATION_RUN_ID: ${{ github.run_id }}
+          QUALIFICATION_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const os = require('node:os');
+          const { execFileSync } = require('node:child_process');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/shared-fixtures/results/host.json`, JSON.stringify({
+            head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            eventHead: process.env.QUALIFICATION_HEAD, sourceRole: 'historical-functional-qualification',
+            runId: process.env.QUALIFICATION_RUN_ID,
+            runAttempt: process.env.QUALIFICATION_ATTEMPT,
+            functionalOnly: true, performanceAccepted: null, node: process.version,
+            platform: process.platform, architecture: process.arch, release: os.release(),
+            cpus: os.cpus(), totalMemory: os.totalmem(), preparationArtifactSha256: receipt.artifactSha256,
+            preparationTarSha256: receipt.tarSha256
+          }, null, 2) + '\n');
+          JS
+      - name: Comprobar que tee no oculta un test fallido
+        run: |
+          cat > "$RUNNER_TEMP/shared-fixtures/results/pipeline-negative.cjs" <<'JS'
+          const { test } = require('node:test');
+          const assert = require('node:assert/strict');
+          test('expected pipeline failure', () => assert.fail('Controlled failure for shell propagation'));
+          JS
+          set +e
+          node --test --test-reporter=tap "$RUNNER_TEMP/shared-fixtures/results/pipeline-negative.cjs" 2>&1 | tee "$RUNNER_TEMP/shared-fixtures/results/pipeline-negative.log"
+          observed_status=$?
+          set -e
+          if [ "$observed_status" -ne 1 ]; then
+            echo "::error::El pipeline ocultó el fallo de node --test: exit $observed_status"
+            exit 1
+          fi
+          grep -q '^not ok 1 - expected pipeline failure' "$RUNNER_TEMP/shared-fixtures/results/pipeline-negative.log"
+          printf '{"expectedExitCode":1,"observedExitCode":%s}\n' "$observed_status" > "$RUNNER_TEMP/shared-fixtures/results/pipeline-status.json"
+      - name: Ejercitar cargas públicas y liberación con ambos paquetes reales
+        env:
+          RUSTDOM_SHARED_FIXTURE_PREPARATION: ${{ runner.temp }}/shared-fixtures/preparation/ownership-build
+          RUSTDOM_SHARED_FIXTURE_EVIDENCE: ${{ runner.temp }}/shared-fixtures/results/functional.json
+        run: |
+          node --expose-gc --test reports/benchmarks/native-class-ownership/shared-fixture-candidate/contracts.spec.cjs 2>&1 | tee "$RUNNER_TEMP/shared-fixtures/results/functional.log"
+      - name: Verificar la evidencia versionada y los rechazos controlados
+        run: |
+          node --test reports/benchmarks/native-class-ownership/shared-fixture-candidate/evidence.spec.cjs 2>&1 | tee "$RUNNER_TEMP/shared-fixtures/results/evidence.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-fixtures-node${{ matrix.major }}-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/shared-fixtures/results/

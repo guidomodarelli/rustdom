@@ -1,0 +1,121 @@
+"""Preserve real qualification bytes and resource endpoints; never execute DOM or archived code."""
+from pathlib import Path
+import gzip
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import tarfile
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/dev/shm/rustdom-pilot-method-source-20261026')
+scratch = Path('/dev/shm/rustdom-pilot-method-qualification-20261026')
+cache = repository / '.cache/pilot-method-qualification-20261026'
+validation = repository / 'reports/validation/jsdom-block-pilot/capture-method/qualification-20261026'
+benchmarks = repository / 'reports/benchmarks/native-class-ownership/jsdom-block-method-functional/20261026'
+memory = repository / 'reports/memory/jsdom-block-pilot/capture-method/20261026'
+for directory in [validation, benchmarks, memory]:
+    directory.mkdir(parents=True, exist_ok=False)
+
+def digest(file):
+    checksum = hashlib.sha256()
+    with file.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
+
+def save(file, value):
+    file.write_bytes(json.dumps(value, indent=2).encode() + b'\n')
+
+def copy_tree(original, target):
+    target.mkdir(parents=True, exist_ok=False)
+    for member in sorted(original.rglob('*')):
+        if member.is_file():
+            assert not member.is_symlink()
+            destination = target / member.relative_to(original)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(member, destination)
+            assert digest(member) == digest(destination)
+
+assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source).decode().strip() == '5bd2e200019b54f9b333cec5c6b7b5e0de85ce41'
+assert subprocess.check_output(['git', 'status', '--porcelain'], cwd=source) == b''
+summary = json.loads((cache / 'summary.json').read_bytes())
+assert all(command['exitCode'] == 0 for command in summary['commands'])
+for member in cache.iterdir():
+    if member.is_file():
+        shutil.copyfile(member, (benchmarks if member.suffix == '.gz' else validation) / member.name)
+copy_tree(repository / '.cache/pilot-method-windows-20261026', validation / 'windows')
+# The extracted duplicate is unnecessary: its exact original transport is preserved separately.
+# Remove only our just-created duplicate after checking it is inside the new validation folder.
+for version in ['22.12.0', '24.14.1']:
+    duplicate = validation / 'windows' / (version + '-AA')
+    assert duplicate.resolve().is_relative_to(validation.resolve())
+    shutil.rmtree(duplicate)
+
+historical = json.loads((source / 'reports/validation/owner-batch-capture-method/review.json').read_bytes())['files']
+catalog_path = 'reports/benchmarks/native-class-ownership/control-precision/pilot/capture/files.json'
+catalog = json.loads((source / catalog_path).read_bytes())
+owned_source = {name: checksum for name, checksum in catalog['files'].items() if name not in historical}
+owned_source[catalog_path] = digest(source / catalog_path)
+publication_path = 'reports/validation/jsdom-block-pilot/capture-method/review.json'
+owned_source[publication_path] = digest(source / publication_path)
+source_data = validation / 'qualified-source-as-data'
+source_data.mkdir()
+for name, checksum in owned_source.items():
+    assert digest(source / name) == checksum
+    target = source_data / (name + '.txt')
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source / name, target)
+    assert digest(target) == checksum
+save(validation / 'qualified-source-map.json', {'sourceCommit': summary['sourceCommit'],
+    'sourceIsPublishedCommit': False, 'files': catalog['files'], 'additionalPreservedFiles': owned_source,
+    'historicalPins': len(historical), 'historicalFilesAvailableInPublishedRepository': True})
+(validation / 'qualified-git-commit.txt').write_bytes(subprocess.check_output(['git', 'cat-file', 'commit', 'HEAD'], cwd=source))
+(validation / 'qualified-git-tree.txt').write_bytes(subprocess.check_output(['git', 'ls-tree', '-r', '--full-tree', 'HEAD'], cwd=source))
+
+raw_archive = benchmarks / 'legacy-lifecycle-raw.tar.gz'
+inventory = {}
+with raw_archive.open('xb') as output, gzip.GzipFile(fileobj=output, mode='wb', mtime=0) as compressed, tarfile.open(fileobj=compressed, mode='w|', format=tarfile.USTAR_FORMAT) as archive:
+    for version in ['22.12.0', '24.14.1']:
+        for role in ['legacy', 'lifecycle']:
+            for member in sorted((scratch / version / role).rglob('*')):
+                if member.is_file():
+                    assert not member.is_symlink()
+                    relative = member.relative_to(scratch).as_posix()
+                    inventory[relative] = {'bytes': member.stat().st_size, 'sha256': digest(member)}
+                    archive.add(member, arcname=relative, recursive=False)
+save(benchmarks / 'legacy-lifecycle-manifest.json', {'archiveBytes': raw_archive.stat().st_size,
+    'archiveSha256': digest(raw_archive), 'files': inventory, 'scientificCaptureExecuted': False})
+
+resources = []
+for version in ['22.12.0', '24.14.1']:
+    for phase in ['AA', 'AB']:
+        replay = json.loads((cache / (version + '-' + phase + '-result.json')).read_bytes())
+        assert replay['complete'] and replay['totals']['processes'] == 32
+        resources.append({key: replay[key] for key in ['criterionId', 'sourceCommit', 'totals', 'parentSnapshots']})
+    for role in ['controller-cancel', 'parent-hard-exit']:
+        original = scratch / version / 'lifecycle' / role / 'supervisor.json'
+        target = memory / (version + '-' + role + '-supervisor.json')
+        shutil.copyfile(original, target)
+        journal = json.loads(original.read_bytes())
+        assert journal['exitCode'] == 2 and journal['ownedDescendantsRemaining'] == []
+save(memory / 'resources.json', {'coordinatorPositiveWorkers': 128, 'criteria': resources,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False,
+    'limits': ['finite functional cases', 'snapshots do not measure peak memory',
+               'zero remaining descendants in four forced termination cases is not a universal leak guarantee']})
+
+earlier = repository / '.cache/pilot-coordinator-functional-preserved-20261026'
+copy_tree(earlier, benchmarks / 'previous-cf636e78-epoch')
+archive_qualification = repository / '.cache/criterion-archive-qualification-20261026'
+copy_tree(archive_qualification, validation / 'previous-archive-qualification')
+hosted = repository / '.cache/shared-worker-sparse-hosted-40320141130'
+copy_tree(hosted, validation / 'hosted-checkout-40320141130')
+save(validation / 'scope.json', {**{key: value for key, value in summary.items() if key != 'commands'},
+    'windowsNodeContractsPerSdk': 60, 'windowsPythonContracts': 10,
+    'qualifiedEpochDiffersFromPublishedSource': True,
+    'subsequentChanges': ['artifact-ID path and merge-multiple fix in two workflows'],
+    'hostedCheckoutHead': '6a8f541cc6454feaf0e91ea5abb8fb86cb821c1d',
+    'hostedCheckoutJobsPassed': 2, 'ownershipPerformanceGateStillRejected': True})
+print(json.dumps({'validation': str(validation.relative_to(repository)), 'rawArchiveBytes': raw_archive.stat().st_size,
+                  'rawArchiveSha256': digest(raw_archive), 'coordinatorWorkers': 128, 'terminationCases': 4}), flush=True)

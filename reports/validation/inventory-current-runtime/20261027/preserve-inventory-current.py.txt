@@ -1,0 +1,50 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+if sys.flags.optimize:raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+cache=root/'.cache/confirmation-authentication-20261027'
+source=pathlib.Path('/run/rustdom-inventory-current-20261027')
+snapshot=pathlib.Path('/run/rustdom-inventory-a89ce898-20261027')
+output=root/'reports/validation/inventory-current-runtime/20261027';output.mkdir(parents=True,exist_ok=False)
+memory=root/'reports/memory/inventory-current-runtime/20261027';memory.mkdir(parents=True,exist_ok=False)
+def copy(source,destination):
+    destination.parent.mkdir(parents=True,exist_ok=True);assert not destination.exists()
+    shutil.copyfile(source,destination)
+    assert hashlib.sha256(source.read_bytes()).digest()==hashlib.sha256(destination.read_bytes()).digest()
+for member in source.rglob('*'):
+    if member.is_file() and not member.is_symlink():copy(member,output/'qualification'/member.relative_to(source))
+for name in ['qualify-inventory-current.py','qualify-inventory-current-final.py','preserve-inventory-current.py']:
+    copy(cache/name,output/(name+'.txt'))
+for name in ['ci-5caa-inventory22-full.log','ci-5caa-xmlserializer24-full.log','ci-5caa-range24-full.log']:
+    copy(cache/name,output/name)
+for label in ['node22','node24']:
+    for family in ['token-list-memory','dataset-memory']:
+        result=json.loads((source/(label+'-final')/(family+'.stdout.log')).read_bytes())
+        assert result['pass'] is True
+        filename=pathlib.Path(result['path'])
+        if not filename.is_absolute():filename=snapshot/filename
+        filename=filename.resolve(strict=True)
+        assert filename.is_relative_to(snapshot/'reports/memory')
+        copy(filename,memory/(label+'-'+family+'.json'))
+workflows=['.github/workflows/combined-resource-exports.yml','.github/workflows/shared-fixture-candidate.yml','.github/workflows/inventory-qualification.yml','.github/workflows/ownership-block-confirmation-contracts.yml']
+executable='/run/rustdom-resource-actionlint-20261027/actionlint'
+with (output/'actionlint.stdout.log').open('xb') as stdout,(output/'actionlint.stderr.log').open('xb') as stderr:
+    result=subprocess.run([executable,'-no-color','-shellcheck=','-pyflakes=',*workflows],cwd=root,stdout=stdout,stderr=stderr,timeout=60)
+assert result.returncode==0
+names=['reports/benchmarks/native-class-ownership/inventory-runtime-sources/'+name for name in ['sources.cjs','sources.spec.cjs','constants/correspondence.json']]
+receipt=dict(parentCommit='5caa3ea90a394584e33c661ad7ddaf4c6654b515',proposalCommit='a89ce8980c41a400e05860c36c50f09e31159741',
+    localSUTGitHead='7aeb20759d30b58925a8efda5154702a789bd93a',localSUTHasIntegratedCandidateSources=True,localSUTNativeBinarySha256='a6a21c3c97f6972eb871be739fd4e4f9d7d4030156ab8062c69bab5a6d80c3b0',
+    canonicalCompilerInputsMatched=344,sourceGuardTestsPerSDK=8,publicInventoryAndDOMTestsPerSDK=279,memoryHelpersPerSDK=2,
+    historicalSourceBytesEquatedWithCurrentDifferentBridge=False,proposalLedgerModified=False,scientificCaptures=0,
+    actionlintVersion='1.7.7',actionlintExitCode=result.returncode,sources={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in names+workflows},
+    firstSparseQualificationHadFourMissingEvidenceFailures=True,finalQualificationComplete=True,
+    performanceAccepted=None,gateReevaluated=False,XMLPerformanceForCurrentSourceAccepted=False,ownershipPerformanceForCurrentSourceAccepted=False,
+    rangeJobFailureCause='Rustfmt component not installed by minimal toolchain action; components now explicit, no Rust source change.')
+(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+manifest={str(member.relative_to(output)):dict(bytes=member.stat().st_size,sha256=hashlib.sha256(member.read_bytes()).hexdigest()) for member in output.rglob('*') if member.is_file()}
+(output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps(dict(preserved=True,files=len(manifest),memoryReports=4,sourceTestsPerSDK=8,publicTestsPerSDK=279,actionlintExitCode=result.returncode)))

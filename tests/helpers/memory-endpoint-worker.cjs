@@ -33,10 +33,21 @@ async function main() {
     assert.equal(retained.reached, false, 'a strongly retained Document must fail the bounded endpoint');
     assert.equal(retained.state.survivors.documents, 1);
     if (baseline) assert.ok(retained.state.nativeTree.liveNodes > baseline.liveNodes);
-    retainedDocument = null;
-    const released = await waitForMemoryQuiescence({ label: `released-${cycle}`, sample, expectedNative: baseline });
+    // Keep a real Document alive through three observations: one clear third round cannot satisfy two clear endpoints.
+    let observations = 0;
+    const released = await waitForMemoryQuiescence({ label: `released-${cycle}`, expectedNative: baseline,
+      sample: () => {
+        observations++;
+        if (observations <= 3) assert.equal(retainedDocument.nodeType, 9);
+        const state = sample();
+        if (observations === 3) retainedDocument = null;
+        return state;
+      } });
     assert.equal(released.reached, true, JSON.stringify(released.trace));
     assert.deepEqual(released.state.survivors, { documents: 0, windows: 0, elements: 0 });
+    assert.ok(released.trace.length >= 5);
+    assert.ok(released.trace.slice(0, 3).every((observation) => !observation.clear && observation.survivors.documents === 1));
+    assert.ok(released.trace.slice(-2).every((observation) => observation.clear));
     if (baseline) {
       assert.equal(released.state.nativeTree.liveNodes, baseline.liveNodes);
       assert.equal(released.state.nativeTree.dataNodes, baseline.dataNodes);

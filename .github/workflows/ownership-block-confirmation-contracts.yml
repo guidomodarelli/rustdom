@@ -1,0 +1,249 @@
+name: Contratos de la confirmación de ownership por bloques
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ownership-block-confirmation-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/**'
+      - 'src/**'
+      - 'types/**'
+      - 'scripts/**'
+      - 'tests/range-native*'
+      - 'tests/helpers/range-native*'
+      - 'tests/helpers/constants/range-native*'
+      - 'tests/distribution/consumer.cts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.cargo/**'
+      - '.npmrc'
+      - 'npm-shrinkwrap.json'
+      - 'rust-toolchain*'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ownership-block-confirmation-contracts.yml'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/**'
+      - 'src/**'
+      - 'types/**'
+      - 'scripts/**'
+      - 'tests/range-native*'
+      - 'tests/helpers/range-native*'
+      - 'tests/helpers/constants/range-native*'
+      - 'tests/distribution/consumer.cts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.cargo/**'
+      - '.npmrc'
+      - 'npm-shrinkwrap.json'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  production:
+    name: Range integrado del PR Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Declarar target temporal para Cargo
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/production-range-target" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Instalar y construir la fuente actual del PR
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/production-range"
+          npm ci 2>&1 | tee "$RUNNER_TEMP/production-range/install.log"
+          npm run build 2>&1 | tee "$RUNNER_TEMP/production-range/build.log"
+          cargo fmt --check 2>&1 | tee "$RUNNER_TEMP/production-range/format.log"
+          cargo test --release --locked 2>&1 | tee "$RUNNER_TEMP/production-range/rust-tests.log"
+      - name: Probar Range actual, addon real, Jest y Vitest sin paquetes históricos
+        env:
+          RUSTDOM_RANGE_MEMORY_OUTPUT: ${{ runner.temp }}/production-range/range-memory.json
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/production-range/tests.log"
+          npm run test:corpus 2>&1 | tee "$RUNNER_TEMP/production-range/corpus.log"
+          npm run test:wpt 2>&1 | tee "$RUNNER_TEMP/production-range/wpt.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-range-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/production-range/
+          if-no-files-found: error
+          retention-days: 90
+  contracts:
+    name: Comparación de bloques Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar el SDK fijado
+        run: |
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto"),assert=require("node:assert/strict"); const policy=require("./"+process.env.METHOD+"/constants/design.json"); assert.equal(crypto.createHash("sha256").update(fs.readFileSync(process.execPath)).digest("hex"),policy.nodeExecutableSha256[process.version]);'
+      - name: Probar calendario completo, presupuestos y rechazos sin ejecutar DOM
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-contracts"
+          node --test "$METHOD/compare.spec.cjs" "$METHOD/plan.spec.cjs" > "$RUNNER_TEMP/confirmation-contracts/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-contracts/tests.stderr.log"
+      - name: Contrastar el plan con los datos reales y una cuenta independiente
+        run: |
+          node "$METHOD/plan.cjs" "$METHOD/planning-inputs" > "$RUNNER_TEMP/confirmation-contracts/plan.json"
+          python -B "$METHOD/audit.py" "$RUNNER_TEMP/confirmation-contracts/plan.json" > "$RUNNER_TEMP/confirmation-contracts/audit.json"
+          RUSTDOM_CONFIRMATION_PLAN="$RUNNER_TEMP/confirmation-contracts/plan.json" python -B "$METHOD/test_audit.py" > "$RUNNER_TEMP/confirmation-contracts/audit-tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-contracts/audit-tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-contracts-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-contracts/
+          if-no-files-found: error
+          retention-days: 90
+  functional:
+    name: Addon y teardown Node ${{ matrix.node }}
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+      PACKAGE_TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE: ${{ github.workspace }}/historical-authentication-source
+    defaults:
+      run:
+        working-directory: producer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: producer
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+          path: historical-authentication-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer el paquete autenticado sin instalar ni reconstruir
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-functional"
+          node "$METHOD/authentication.cjs" --inspect "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE" > "$RUNNER_TEMP/confirmation-functional/historical-source.json"
+          python -B "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/$PACKAGE_TOOLS/transport.py" --extract "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/reports/validation/range-numeric-composed-package/20261026/packages.tar.xz" "$RUNNER_TEMP/confirmation-package" > "$RUNNER_TEMP/confirmation-functional/extraction.json" 2> "$RUNNER_TEMP/confirmation-functional/extraction.stderr.log"
+      - name: Probar los 64 workers reales de Rust y jsdom con cleanup separado
+        run: |
+          node --expose-gc "$METHOD/functional.cjs" --functional "$RUNNER_TEMP/confirmation-package" "$RUNNER_TEMP/confirmation-functional/qualification" > "$RUNNER_TEMP/confirmation-functional/qualification.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/qualification.stderr.log"
+      - name: Rechazar alteraciones de datos reales y cancelaciones durante el cierre
+        env:
+          RUSTDOM_CONFIRMATION_FUNCTIONAL_FIXTURE: ${{ runner.temp }}/confirmation-functional/qualification
+          RUSTDOM_CONFIRMATION_FUNCTIONAL_PACKAGE: ${{ runner.temp }}/confirmation-package
+          RUSTDOM_CONFIRMATION_PRODUCTION_SOURCE: ${{ github.workspace }}/producer
+          RUSTDOM_CONFIRMATION_BASELINE_SOURCES: ${{ github.workspace }}/historical-authentication-source
+          RUSTDOM_CONFIRMATION_CANDIDATE_SOURCES: ${{ runner.temp }}/confirmation-package/candidate-sources
+        run: node --test "$METHOD/authentication.spec.cjs" "$METHOD/production.spec.cjs" "$METHOD/source.spec.cjs" "$METHOD/envelope.spec.cjs" "$METHOD/finalize.spec.cjs" > "$RUNNER_TEMP/confirmation-functional/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-functional/tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-functional-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-functional/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+  bound:
+    name: Controlador y replay integral Node ${{ matrix.node }}
+    needs: contracts
+    runs-on: ubuntu-22.04
+    timeout-minutes: 95
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      METHOD: reports/benchmarks/native-class-ownership/block-confirmation
+      PACKAGE_TOOLS: reports/benchmarks/native-class-ownership/numeric-composed-packages
+      RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE: ${{ github.workspace }}/historical-authentication-source
+    defaults:
+      run:
+        working-directory: producer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: producer
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536
+          path: historical-authentication-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer el paquete sellado sin reconstruirlo
+        run: |
+          mkdir -p "$RUNNER_TEMP/confirmation-bound"
+          python -B "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/$PACKAGE_TOOLS/transport.py" --extract "$RUSTDOM_CONFIRMATION_AUTHENTICATION_SOURCE/reports/validation/range-numeric-composed-package/20261026/packages.tar.xz" "$RUNNER_TEMP/confirmation-bound-package" > "$RUNNER_TEMP/confirmation-bound/extraction.json" 2> "$RUNNER_TEMP/confirmation-bound/extraction.stderr.log"
+      - name: Probar cuatro bloques funcionales completos con supervisor y lector independientes
+        run: |
+          python -B "$METHOD/qualify.py" --functional "$(command -v node)" "$RUNNER_TEMP/confirmation-bound-package" "$RUNNER_TEMP/confirmation-bound/qualification" > "$RUNNER_TEMP/confirmation-bound/qualification.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/qualification.stderr.log"
+      - name: Rechazar alteraciones del binding, relojes, fuente, tareas, recursos y consumo
+        env:
+          RUSTDOM_CONFIRMATION_BOUND_FIXTURE: ${{ runner.temp }}/confirmation-bound/qualification/0/criterion
+          RUSTDOM_CONFIRMATION_BOUND_EXPECTED: ${{ runner.temp }}/confirmation-bound/qualification/0/replay/expected-context.json
+        run: node --test "$METHOD/bound-replay.spec.cjs" "$METHOD/criterion-reader.spec.cjs" "$METHOD/consumption.spec.cjs" "$METHOD/publication-data.spec.cjs" > "$RUNNER_TEMP/confirmation-bound/tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/tests.stderr.log"
+      - name: Probar timeout, terminación y descendientes reales sin datos científicos
+        run: RUSTDOM_CONFIRMATION_NODE="$(command -v node)" python -B "$METHOD/test_supervise.py" > "$RUNNER_TEMP/confirmation-bound/supervisor-tests.stdout.log" 2> "$RUNNER_TEMP/confirmation-bound/supervisor-tests.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-block-confirmation-bound-${{ matrix.node }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/confirmation-bound/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

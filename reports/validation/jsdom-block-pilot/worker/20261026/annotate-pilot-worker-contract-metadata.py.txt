@@ -1,0 +1,15 @@
+"""Distinguish a copied historical QA note from the new worker's successful contract run."""
+import hashlib
+import json
+from pathlib import Path
+
+repository = Path(__file__).resolve().parent.parent
+original = repository / 'reports/validation/jsdom-block-pilot/process-reader/20261026/initial-path-failure.json'
+target = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/contracts/initial-path-failure.json'
+assert target.read_bytes() == original.read_bytes()
+record = json.loads(target.read_bytes())
+record.update(historicalSourceRecord=original.relative_to(repository).as_posix(),
+    historicalSourceRecordSha256=hashlib.sha256(original.read_bytes()).hexdigest(),
+    copiedByQaTemplate=True, observedDuringCurrentWorkerContracts=False)
+target.write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print('Historical QA note explicitly distinguished; the current 88 worker contracts all passed.')

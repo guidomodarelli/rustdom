@@ -1,0 +1,102 @@
+"""Observe and pin only the single resulting labeled run; never mutate GitHub or execute DOM."""
+import datetime
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Range capture observation requires non-optimized Python')
+
+ROOT = Path(__file__).resolve().parent.parent
+HEAD = '02291d6b7a234a26ffaf364a1f377766e2338e7a'
+WORKFLOW = '.github/workflows/ownership-range-collapse-study.yml'
+JOURNAL = ROOT / '.cache/range-study-trigger-02291d6b'
+OBSERVATIONS = ROOT / '.cache/range-capture-observations-02291d6b'
+
+
+def preserve(filename, value):
+    with filename.open('x', encoding='utf-8', newline='\n') as destination:
+        json.dump(value, destination, indent=2, ensure_ascii=False)
+        destination.write('\n')
+
+
+def pin(filename, value):
+    """An already registered run or job is immutable, including after an uncertain activation response."""
+    if filename.exists():
+        assert json.loads(filename.read_bytes()) == value, 'Observe only the pinned run/job; never switch or retry'
+    else:
+        preserve(filename, value)
+
+
+def eligible(run, jobs, issued_at):
+    """A pending label event is ambiguous until the capture job really starts; omitted jobs cannot claim a pin."""
+    issued = datetime.datetime.fromisoformat(issued_at).replace(microsecond=0)
+    created = datetime.datetime.fromisoformat(run['created_at'].replace('Z', '+00:00'))
+    # pull_requests[].head.sha follows the current PR after a push; run.head_sha is the immutable capture source.
+    if created < issued or run['head_sha'] != HEAD or not any(pull['number'] == 80 for pull in run['pull_requests']):
+        return False
+    return len(jobs) == 1 and jobs[0]['name'] == 'compare' and jobs[0]['status'] in ['in_progress', 'completed'] and jobs[0]['conclusion'] != 'skipped'
+
+
+def observe():
+    assert (JOURNAL / 'mutation-issued.json').is_file(), 'No mutation journal: do not infer or issue an activation'
+    issued_at = json.loads((JOURNAL / 'mutation-issued.json').read_bytes())['issuedAtUTC']
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    output = OBSERVATIONS / stamp
+    output.mkdir(parents=True)
+    prefix = 'repos/guidomodarelli/rustdom/actions'
+    def api(endpoint, name, paginate=False):
+        arguments = ['gh', 'api', endpoint]
+        if paginate:
+            arguments.extend(['--paginate', '--slurp'])
+        raw = subprocess.check_output(arguments, cwd=ROOT)
+        with (output / name).open('xb') as destination:
+            destination.write(raw)
+        return json.loads(raw)
+    known = JOURNAL / 'run-pin.json'
+    if known.exists():
+        identity = json.loads(known.read_bytes())
+        run = api(f'{prefix}/runs/{identity["runId"]}', 'run.json')
+        jobs = api(f'{prefix}/runs/{run["id"]}/jobs?per_page=100', 'jobs.json')['jobs']
+        assert eligible(run, jobs, issued_at), 'The pinned capture identity changed; preserve observations and do not switch runs'
+    else:
+        pages = api(f'{prefix}/runs?event=pull_request&head_sha={HEAD}&per_page=100', 'runs.json', True)
+        selected = [entry for page in pages for entry in page['workflow_runs']
+                    if entry['path'].split('@', 1)[0] == WORKFLOW and entry['conclusion'] != 'skipped']
+        confirmed = []
+        for candidate in selected:
+            observed_jobs = api(f'{prefix}/runs/{candidate["id"]}/jobs?per_page=100', str(candidate['id']) + '-jobs.json')['jobs']
+            if eligible(candidate, observed_jobs, issued_at):
+                confirmed.append((candidate, observed_jobs))
+        assert len(confirmed) <= 1, 'Multiple active capture jobs: preserve observations, never select a favorable run'
+        if not confirmed:
+            state = {'head': HEAD, 'status': 'waiting_for_resulting_run', 'observedAtUTC': stamp,
+                     'observerExecutedDOM': False, 'sharedWatchModified': False, 'retryAllowed': False,
+                     'unconfirmedCandidates': [entry['id'] for entry in selected]}
+            preserve(output / 'observation.json', state)
+            print(json.dumps(state))
+            return
+        run, jobs = confirmed[0]
+        preserve(output / 'run.json', run)
+        preserve(output / 'jobs.json', {'jobs': jobs})
+    assert run['head_sha'] == HEAD and run['run_attempt'] == 1 and run['event'] == 'pull_request'
+    assert run['path'].split('@', 1)[0] == WORKFLOW
+    identity = {'runId': run['id'], 'head': HEAD, 'attempt': 1, 'workflow': WORKFLOW}
+    pin(known, identity)
+    assert len(jobs) <= 1, 'Declared workflow has only one study job'
+    state = {**identity, 'status': run['status'], 'conclusion': run['conclusion'],
+             'observedAtUTC': stamp, 'observerExecutedDOM': False, 'sharedWatchModified': False, 'retryAllowed': False,
+             'observationDirectory': str(output.relative_to(ROOT)).replace('\\', '/')}
+    if jobs:
+        job = jobs[0]
+        pin(JOURNAL / 'job-pin.json', {**identity, 'jobId': job['id']})
+        state.update(jobId=job['id'], jobStatus=job['status'], jobConclusion=job['conclusion'],
+                     activeSteps=[step['name'] for step in job['steps'] if step['status'] == 'in_progress'])
+    preserve(output / 'observation.json', state)
+    (OBSERVATIONS / 'latest.json').write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(state))
+
+
+if __name__ == '__main__':
+    observe()

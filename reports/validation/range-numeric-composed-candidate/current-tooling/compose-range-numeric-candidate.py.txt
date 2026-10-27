@@ -1,0 +1,52 @@
+"""Compose two reviewed source patches in a separate real checkout; never rebuild historical packages."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+base = Path('/dev/shm/rustdom-range-initialization-candidate-v1/source')
+root = Path('/dev/shm/rustdom-range-numeric-composed-v1')
+assert not root.exists(); root.mkdir()
+source = root / 'source'
+base_commit = 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7'
+initial = repository / 'reports/implementation/range-initialization-candidate'
+collapse = repository / 'reports/benchmarks/native-class-ownership/range-collapse-candidate'
+patches = [(initial / 'range-initialization.patch', '96066778716f2c71108e6cfae5ad45a51ec03ae603cf10736df8e0a76330fe27'),
+    (collapse / 'range-collapse.patch', '07edaa896fbe901140f084e4abef154accd2d029d6bdb7742c54b92e6fc31012')]
+argvs = [['git', 'clone', '--shared', '--no-checkout', str(base), str(source)],
+    ['git', '-C', str(source), 'sparse-checkout', 'set', '--no-cone', '/*', '!/*/', '/src/', '/scripts/',
+        '/benchmarks/', '/types/', '/tests/', '/third-party/',
+        '/reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz',
+        '/reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz',
+        '/reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz'],
+    ['git', '-C', str(source), 'checkout', '--detach', base_commit]]
+for argv in argvs:
+    subprocess.run(argv, check=True, capture_output=True, timeout=60)
+assert subprocess.check_output(['git', 'status', '--porcelain'], cwd=source) == b''
+for patch, checksum in patches:
+    assert hashlib.sha256(patch.read_bytes()).hexdigest() == checksum
+    subprocess.run(['git', 'apply', '--check', str(patch)], cwd=source, check=True, capture_output=True, timeout=30)
+    subprocess.run(['git', 'apply', str(patch)], cwd=source, check=True, capture_output=True, timeout=30)
+audit = json.loads((repository / 'reports/validation/range-initialization-candidate/local-linux/inputs.json').read_bytes())
+after = {name: hashlib.sha256((source / name).read_bytes()).hexdigest() for name in audit['productionInputs']}
+changed = {name for name in after if after[name] != audit['productionInputs'][name]}
+assert changed == {'src/dom/native-tree.cjs', 'src/dom/range_state.rs', 'src/dom/range_state_binding.rs', 'types/native.d.cts'}
+packet = repository / 'reports/implementation/range-numeric-composed-candidate'
+assert not packet.exists(); packet.mkdir()
+patch = subprocess.check_output(['git', 'diff', '--binary', '--full-index', '--', *sorted(changed)], cwd=source)
+(packet / 'range-numeric-composed.patch').write_bytes(patch)
+(packet / 'inputs.json').write_text(json.dumps({'productionInputs': audit['productionInputs'], 'candidateInputs': after,
+    'changes': {name: {'production': audit['productionInputs'][name], 'candidate': after[name]} for name in sorted(changed)}}, indent=2) + '\n')
+shutil.copyfile(initial / 'public.spec.cjs', packet / 'initialization.spec.cjs')
+for filename in (collapse / 'functional').rglob('*'):
+    if filename.is_file():
+        target = packet / 'functional' / filename.relative_to(collapse / 'functional')
+        target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(filename, target)
+record = {'revision': 'native-range-numeric-composed-candidate-v1', 'baseCommit': base_commit,
+    'patchSha256': hashlib.sha256(patch).hexdigest(), 'sourcePatches': [{'path': p.relative_to(repository).as_posix(), 'sha256': h} for p, h in patches],
+    'changedCompilerInputs': sorted(changed), 'compilerInputCount': len(after),
+    'runtimeIntegrated': False, 'qualified': False, 'benchmarkExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(packet / 'source.json').write_text(json.dumps(record, indent=2) + '\n')
+print(json.dumps(record))

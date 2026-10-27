@@ -1,0 +1,3175 @@
+{
+  "capturedAt": "2026-10-26T01:35:08.510Z",
+  "node": "v24.14.1",
+  "reference": "27.4.0",
+  "cases": [
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "html",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "fragment",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "template",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "default",
+      "kind": "shadow",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "fragment",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "template",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    },
+    {
+      "title": "match only exact null-namespace id attributes on every Element namespace",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      },
+      "actual": {
+        "identities": [
+          "namespace-0",
+          "namespace-1",
+          "namespace-2"
+        ],
+        "absent": null,
+        "namespaced": "chosen"
+      }
+    },
+    {
+      "title": "select the first duplicate in current physical tree order after moves and removals",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ],
+      "actual": [
+        "first",
+        "second",
+        "first",
+        "first",
+        "deep",
+        "clone",
+        null
+      ]
+    },
+    {
+      "title": "preserve literal values case whitespace NUL and UTF16 while excluding empty ID",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      },
+      "actual": {
+        "values": [
+          "",
+          "A",
+          "a",
+          "*",
+          "a b",
+          "\t",
+          "\u0000",
+          "\ud800",
+          "\udc00",
+          "𠮷",
+          "null",
+          "undefined",
+          "17",
+          "[object Object]"
+        ],
+        "results": [
+          null,
+          "value-1",
+          "value-2",
+          "value-3",
+          "value-4",
+          "value-5",
+          "value-6",
+          "value-7",
+          "value-8",
+          "value-9",
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ],
+        "missing": null,
+        "coerced": [
+          "value-10",
+          "value-11",
+          "value-12",
+          "value-13"
+        ]
+      }
+    },
+    {
+      "title": "observe canonical Attr writes replacement removal and detached subtrees immediately",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ],
+      "actual": [
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target",
+        null,
+        "target"
+      ]
+    },
+    {
+      "title": "bound lookup to its own fragment excluding nested templates shadow trees and external owners",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      },
+      "actual": {
+        "results": [
+          null,
+          null,
+          null,
+          "nested-shadow-host",
+          "in-scope",
+          null,
+          null
+        ],
+        "independent": "other",
+        "template": "template-inner",
+        "shadow": "shadow-inner",
+        "ownHostOutside": true
+      }
+    },
+    {
+      "title": "preserve identities and live attributes after adoption to another document",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      },
+      "actual": {
+        "before": "adopted",
+        "old": null,
+        "after": "adopted",
+        "nodeOwner": true,
+        "scopeOwner": true,
+        "independent": true
+      }
+    },
+    {
+      "title": "preserve receiver checks conversion ordering exceptions and one DOMString conversion",
+      "mode": "xml",
+      "realm": "vm",
+      "kind": "shadow",
+      "expected": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      },
+      "actual": {
+        "invalidReceiver": {
+          "name": "TypeError",
+          "message": "'getElementById' called on an object that is not a valid instance of DocumentFragment."
+        },
+        "found": "coercion-created",
+        "conversions": 1,
+        "sameError": true,
+        "missing": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': 1 argument required, but only 0 present."
+        },
+        "symbol": {
+          "name": "TypeError",
+          "message": "Failed to execute 'getElementById' on 'DocumentFragment': parameter 1 is a symbol, which cannot be converted to a string."
+        },
+        "extraArgument": "coercion-created"
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+--- frozen/benchmarks/worker.cjs
++++ diagnostic/benchmarks/worker.cjs
+@@ -349,6 +349,7 @@
+       : (await import(environmentEntry)).default
+     : null;
+   const samplesMs = [];
++  const sampleTimings = [];
+   const realmReferences = trackRealms ? { window: [], document: [] } : undefined;
+   const memory = [];
+   let measuredInputBytes = Buffer.byteLength(html);
+@@ -396,6 +397,8 @@
+       if (name === 'environment-vm-setup') target = session.getVmContext();
+       dom = target.jsdom;
+       elapsed = performance.now() - start;
++      sampleTimings.push({ index: sample, stage: sample < WARMUP_SAMPLES ? "warmup" : "measured",
++        startMs: start, durationMs: elapsed });
+       cleanup = () => session.teardown(target);
+       assert.equal(dom.window.document.querySelectorAll('tr').length, size);
+     } else if (name.startsWith('construct')) {
+@@ -404,6 +407,8 @@
+       const start = performance.now();
+       dom = new runtime.JSDOM(html, options);
+       elapsed = performance.now() - start;
++      sampleTimings.push({ index: sample, stage: sample < WARMUP_SAMPLES ? "warmup" : "measured",
++        startMs: start, durationMs: elapsed });
+       assert.equal(dom.window.document.querySelectorAll('tr').length, size);
+     } else {
+       dom = new runtime.JSDOM(name === 'innerHTML' ? '<!doctype html><body>' : html,
+@@ -796,6 +801,8 @@
+         result = Buffer.byteLength(dom.serialize());
+       } else throw new Error(`benchmark: unsupported workload ${name}`);
+       elapsed = performance.now() - start;
++      sampleTimings.push({ index: sample, stage: sample < WARMUP_SAMPLES ? "warmup" : "measured",
++        startMs: start, durationMs: elapsed });
+       if (runsEventLifecycle) assert.equal(result, size * 8);
+       if (dispatchesSimpleEvents) { assert.equal(result, size); assert.equal(simpleEventCalls, size); assert.equal(simpleEventPhases, size * 2); }
+       if ((runsEventLifecycle || dispatchesSimpleEvents) && engine === 'rustdom') assert.ok(runtime.getNativeTreeStatistics().eventStates.created >= eventStatesBefore + size);
+@@ -1013,7 +1020,7 @@
+       memory.push(process.memoryUsage());
+     }
+   }
+-  const report = { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, memoryAfterCleanup: memory };
++  const report = { name, rows: size, inputBytes: measuredInputBytes, outputHash, samplesMs, sampleTimings, memoryAfterCleanup: memory };
+   if (realmReferences) report.realmReferences = realmReferences;
+   return report;
+ }

@@ -1,0 +1,89 @@
+name: JSDOM CPU GC JIT diagnostic
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ownership-jsdom-telemetry-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.event.label.name == 'ownership-jsdom-telemetry-v1' && github.run_attempt == 1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Impedir que se repita el diagnóstico autorizado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ownership-jsdom-telemetry.yml/runs?event=pull_request&per_page=100" --jq '.workflow_runs[] | select(.conclusion != "skipped") | .id' > "$RUNNER_TEMP/jsdom-telemetry-runs.txt"
+          node reports/benchmarks/native-class-ownership/current-ownership-consumption.cjs "$RUNNER_TEMP/jsdom-telemetry-runs.txt" "$GITHUB_RUN_ID"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - run: echo "TELEMETRY_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - run: echo "TELEMETRY_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - name: Autenticar y extraer la preparación original
+        run: |
+          mkdir "$RUNNER_TEMP/jsdom-telemetry"
+          mkdir "$RUNNER_TEMP/jsdom-telemetry/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync('reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip');
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.artifactSha256);
+          JS
+          unzip -q reports/validation/native-class-ownership/current-source-preparation/39906777389/artifact.zip -d "$RUNNER_TEMP/jsdom-telemetry/preparation"
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const { createHash } = require('node:crypto');
+          const receipt = require('./reports/validation/native-class-ownership/current-source-preparation/39906777389/receipt.json');
+          const bytes = fs.readFileSync(`${process.env.RUNNER_TEMP}/jsdom-telemetry/preparation/ownership-build.tar.gz`);
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), receipt.tarSha256);
+          JS
+          tar -xzf "$RUNNER_TEMP/jsdom-telemetry/preparation/ownership-build.tar.gz" -C "$RUNNER_TEMP/jsdom-telemetry/preparation"
+      - name: Exigir que el método publicado coincida con su revisión
+        env:
+          TELEMETRY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const method = require('./reports/benchmarks/native-class-ownership/jsdom-telemetry/run.cjs');
+          const review = require('./reports/validation/native-class-ownership/jsdom-telemetry-method/review.json');
+          assert.equal(review.actionableFindings, 0);
+          assert.deepEqual(review.files, method.sourceFiles());
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/jsdom-telemetry/publication.json`, JSON.stringify({ ...review, commit: process.env.TELEMETRY_SOURCE_COMMIT }));
+          JS
+      - name: Capturar una vez los 64 procesos de jsdom
+        env:
+          TELEMETRY_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          "$TELEMETRY_NODE24" reports/benchmarks/native-class-ownership/jsdom-telemetry/run.cjs capture "$RUNNER_TEMP/jsdom-telemetry/preparation/ownership-build" "$RUNNER_TEMP/jsdom-telemetry/capture" "$RUNNER_TEMP/jsdom-telemetry/publication.json" "$TELEMETRY_NODE22" "$TELEMETRY_NODE24"
+      - name: Conservar toda la captura y cualquier resultado parcial
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/jsdom-telemetry" ]; then
+            cp "$RUNNER_TEMP/jsdom-telemetry-runs.txt" "$RUNNER_TEMP/jsdom-telemetry/"
+            tar -cJf "$RUNNER_TEMP/jsdom-telemetry-results.tar.xz" -C "$RUNNER_TEMP" jsdom-telemetry
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jsdom-telemetry-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/jsdom-telemetry-results.tar.xz

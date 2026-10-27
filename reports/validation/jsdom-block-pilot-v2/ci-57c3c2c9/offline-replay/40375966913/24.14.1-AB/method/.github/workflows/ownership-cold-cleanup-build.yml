@@ -1,0 +1,80 @@
+name: Preparar candidato de ownership con limpieza fría
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ownership-cold-cleanup-build.yml'
+      - 'reports/benchmarks/native-class-ownership/cold-cleanup-build/**'
+      - 'reports/benchmarks/native-class-ownership/cold-cleanup-candidate/cold-cleanup.patch'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ownership-cold-cleanup-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: 3d37f89976a48203e80cc5c435e099267f4ce346
+          path: .baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: 8dba217bc46d601f8798ce89f6edc3c0b841454e
+          path: .candidate
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Declarar directorios propios de preparación
+        run: |
+          mkdir "$RUNNER_TEMP/cold-cleanup-preparation"
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cold-cleanup-target"
+            echo "RUSTDOM_COLD_BUILD_ARCHIVE=$RUNNER_TEMP/cold-cleanup-preparation/build"
+          } >> "$GITHUB_ENV"
+      - name: Aplicar únicamente el patch calificado y construir los cinco paquetes
+        run: |
+          node reports/benchmarks/native-class-ownership/cold-cleanup-build/prepare.cjs --patch .candidate > "$RUNNER_TEMP/cold-cleanup-preparation/patch.json" 2> "$RUNNER_TEMP/cold-cleanup-preparation/patch.stderr.log"
+          node reports/benchmarks/native-class-ownership/cold-cleanup-build/prepare.cjs .baseline .candidate "$RUSTDOM_COLD_BUILD_ARCHIVE" > "$RUNNER_TEMP/cold-cleanup-preparation/identity.json" 2> "$RUNNER_TEMP/cold-cleanup-preparation/prepare.stderr.log"
+      - name: Probar comportamiento y liberación en Node24
+        run: node --expose-gc reports/benchmarks/native-class-ownership/cold-cleanup-build/worker.cjs "$RUSTDOM_COLD_BUILD_ARCHIVE" > "$RUNNER_TEMP/cold-cleanup-preparation/cold-node24.json" 2> "$RUNNER_TEMP/cold-cleanup-preparation/cold-node24.stderr.log"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Probar comportamiento y liberación en Node22
+        run: node --expose-gc reports/benchmarks/native-class-ownership/cold-cleanup-build/worker.cjs "$RUSTDOM_COLD_BUILD_ARCHIVE" > "$RUNNER_TEMP/cold-cleanup-preparation/cold-node22.json" 2> "$RUNNER_TEMP/cold-cleanup-preparation/cold-node22.stderr.log"
+      - name: Contratos reales en Node22
+        run: node --test reports/benchmarks/native-class-ownership/cold-cleanup-build/contracts.spec.cjs > "$RUNNER_TEMP/cold-cleanup-preparation/contracts-node22.log" 2>&1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Contratos reales en Node24
+        run: node --test reports/benchmarks/native-class-ownership/cold-cleanup-build/contracts.spec.cjs > "$RUNNER_TEMP/cold-cleanup-preparation/contracts-node24.log" 2>&1
+      - name: Conservar toda la preparación y los parciales
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/cold-cleanup-preparation" ]; then
+            tar -cJf "$RUNNER_TEMP/cold-cleanup-preparation.tar.xz" -C "$RUNNER_TEMP" cold-cleanup-preparation
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ownership-cold-cleanup-build-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cold-cleanup-preparation.tar.xz
+          retention-days: 30

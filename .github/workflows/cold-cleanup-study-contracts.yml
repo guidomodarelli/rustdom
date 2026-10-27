@@ -1,0 +1,65 @@
+# Calificación histórica de un método/paquete consumido. No acredita la fuente de producción del PR.
+# CI e inventory-qualification construyen y prueban el PR actual; ownership permanece bloqueado sin nueva aceptación.
+name: Histórico — Contratos del estudio de limpieza fría
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cold-cleanup-study-contracts.yml'
+      - '.github/workflows/ownership-cold-cleanup-study.yml'
+      - 'reports/benchmarks/native-class-ownership/cold-cleanup-study/**'
+      - 'reports/validation/native-class-ownership/cold-cleanup-study-method/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  contracts:
+    name: Método frío Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536 # Fuente original del método consumido; no es producción actual.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar y extraer datos reales con lectores actuales
+        run: |
+          node <<'JS'
+          const fs = require('node:fs'); const assert = require('node:assert/strict'); const { createHash } = require('node:crypto');
+          const policy = require('./reports/benchmarks/native-class-ownership/cold-cleanup-study/constants/protocol.json');
+          const hash = (filename) => createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
+          assert.equal(hash(`${policy.historicalCollection}/artifact.zip`), policy.historicalZipSha256);
+          assert.equal(hash(`${policy.historicalCollection}/shared-study.tar.xz`), policy.historicalTarSha256);
+          JS
+          python -B reports/benchmarks/native-class-ownership/cold-cleanup-transport/extract.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reports/validation/native-class-ownership/cold-cleanup-build-preparation/40065437939/transport" "$RUNNER_TEMP/cold-method-preparation" > "$RUNNER_TEMP/cold-method-preparation.json"
+          python -B -X "pycache_prefix=$RUNNER_TEMP/cold-history-cache-unused" reports/benchmarks/native-class-ownership/shared-fixture-study-results/40012710923/tools/extract.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reports/benchmarks/native-class-ownership/shared-fixture-study-results/40012710923" "$RUNNER_TEMP/cold-method-history" > "$RUNNER_TEMP/cold-method-history.json"
+          echo "RUSTDOM_COLD_STUDY_PREPARATION=$RUNNER_TEMP/cold-method-preparation/cold-cleanup-preparation" >> "$GITHUB_ENV"
+          echo "RUSTDOM_COLD_STUDY_HISTORY=$RUNNER_TEMP/cold-method-history/shared-study/capture" >> "$GITHUB_ENV"
+      - name: Probar autenticación, derivación y datos históricos sin muestras nuevas
+        run: node --test reports/benchmarks/native-class-ownership/cold-cleanup-study/contracts.spec.cjs > "$RUNNER_TEMP/cold-method-contracts.log" 2>&1
+      - name: Verificar declaración completa sin ejecutar DOM
+        run: node reports/benchmarks/native-class-ownership/cold-cleanup-study/study.cjs --preflight "$RUSTDOM_COLD_STUDY_PREPARATION" > "$RUNNER_TEMP/cold-method-preflight.json" 2> "$RUNNER_TEMP/cold-method-preflight.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cold-method-contracts-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/cold-method-contracts.log
+            ${{ runner.temp }}/cold-method-preflight.json
+            ${{ runner.temp }}/cold-method-preflight.stderr.log
+            ${{ runner.temp }}/cold-method-preparation.json
+            ${{ runner.temp }}/cold-method-history.json

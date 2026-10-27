@@ -1,35 +1,45 @@
-# Migración a Rust: catálogo de referencia y auditoría pendiente
+# Migración a Rust: estado verificable del catálogo
 
 El índice histórico de 45,8% por áreas queda retirado como medida de migración.
 Sus pesos no representan APIs, algoritmos ni esfuerzo. Se conserva abajo como
 historia de planificación; no es el porcentaje actual del proyecto.
 
-El [catálogo versionado](inventory/README.md) enumera jsdom 27.4.0 con fuentes,
-dependencias, APIs observadas, herencia y unidades ejecutables. Esta primera
-entrega tiene 531 archivos (528 JavaScript y tres datos), 4.331 entradas de API y
-7.246 cuerpos ejecutables. Son dimensiones separadas y no se suman. Solo dos
-módulos tenían clasificación revisada como híbridos en checkpoint 66; la
-auditoría de los demás registros sigue pendiente. Eso no significa que carezcan
-de código Rust.
+El [catálogo versionado](inventory/README.md) enumera la referencia fijada
+jsdom 27.4.0 con fuentes, dependencias, APIs observadas, herencia y anclas de
+implementación. El [resumen canónico](inventory/summary.json) registra:
+
+| Dimensión | Total catalogado | Filas auditadas | Rust completo | Híbrido | Pendiente |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Módulos/archivos | 531 | 6 | 0 | 6 | 525 |
+| Entradas de API | 4331 | 32 | 0 | 28 | 4303 |
+| Anclas ejecutables | 7246 | 1 | 1 | 0 | 7245 |
+
+Son dimensiones separadas: no se suman ni estiman esfuerzo. Las seis filas de
+módulo auditadas son Node, Element, XMLSerializer, AbstractRange, Range y
+StaticRange. Entre las32APIs auditadas hay28híbridas y cuatro pendientes;
+las4299APIs restantes todavía no tienen una clasificación auditada. `pending`
+sin auditoría no demuestra ausencia de trabajo Rust ni permite interpretar los
+recuentos como0% de implementación. Auditar más filas tampoco aumenta por sí
+mismo la implementación Rust.
+
+La única ancla clasificada como Rust completo cubre el control declarado de
+`XMLSerializer.serializeToString`. Su API pública sigue híbrida por WebIDL y la
+factory de DOMException. Un cuerpo ejecutable no equivale a un algoritmo
+normativo completo ni acredita todo el módulo. Las fuentes, pruebas y límites
+se registran por fila en [audits.json](inventory/audits.json).
 
 `summary.json` mantiene `scopeClosed=false` y `migrationPercent=null`: faltan
-dependencias de plataforma externas, contratos dinámicos, opciones/diccionarios,
-otros perfiles de realms y agrupaciones semánticas de algoritmos. No hay todavía
-un porcentaje auditado ni se puede interpretar este catálogo como 0% de Rust.
+algoritmos de dependencias de plataforma, contratos dinámicos, opciones y
+diccionarios, otros perfiles de realms y agrupaciones semánticas. No existe
+todavía un porcentaje defendible del objetivo completo. Implementación,
+compatibilidad verificada, rendimiento y memoria son dimensiones distintas.
 
-La base del motor utilizada para esta auditoría es `271221abbfeafebebb7dd817b98fd559592696d3`,
-`checkpoint-065-attribute-reads` (PR 77). El WIP de atributos y calibración está
-publicado aparte en `feature/native-attribute-copy`, commit `c51f9fb`; sus
-controles de rendimiento no están aprobados y no forman parte de este inventario.
-
-El PR 79 agrega la auditoría de XMLSerializer: tres módulos híbridos en total,
-una API híbrida y un ancla con control Rust completo dentro de su alcance
-declarado. WebIDL y la factory de DOMException siguen pendientes. La revisión
-de `62cf726` no encontró hallazgos y sus nueve checks pasaron, incluido el
-control dedicado de Node 24. Falta publicar los resultados y cerrar CI/review
-del SHA final. No contar esta rama como integrada ni ampliar el alcance acreditado
-por haber trasladado el control de un método. Ver
-[validación del controlador](../validation/xml-serializer-controller.md).
+El catálogo se inició sobre `271221abbfeafebebb7dd817b98fd559592696d3`,
+`checkpoint-065-attribute-reads` (PR77). Las auditorías posteriores conservan sus
+propias fuentes y evidencias; la [auditoría integrada de Range](inventory/range-audit-20261024/README.md)
+agregó tres módulos y31APIs a las filas anteriores. Los candidatos aislados,
+incluido el prototipo StaticRange, no cuentan como migración de producción.
+El runtime continúa híbrido y el objetivo general sigue incompleto.
 
 ## Registro histórico
 

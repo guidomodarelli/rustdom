@@ -1,0 +1,79 @@
+# Calificación histórica de un método/paquete consumido. No acredita la fuente de producción del PR.
+# CI e inventory-qualification construyen y prueban el PR actual; ownership permanece bloqueado sin nueva aceptación.
+name: Histórico — Verificar integración archivada de fixtures
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/shared-fixture-worker.yml'
+      - 'reports/benchmarks/native-class-ownership/shared-fixture-worker/**'
+      - 'reports/validation/native-class-ownership/shared-fixture-worker/**'
+      - 'reports/benchmarks/native-class-ownership/numeric-composed-packages/**'
+      - 'reports/validation/owner-batch-capture-method/review.json'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: shared-fixture-worker-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    name: Integración archivada Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: core.autocrlf
+      GIT_CONFIG_VALUE_0: 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4196c496187c88c92304516287a7e644659a8536 # Fuente original del método consumido; no es producción actual.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /reports/benchmarks/native-class-ownership/numeric-composed-packages/
+            /reports/validation/range-numeric-composed-package/20261026/archive.json
+            /reports/validation/owner-batch-capture-method/review.json
+            /reports/validation/native-class-ownership/shared-fixture-worker/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materializar únicamente el grafo autenticado de los lectores
+        run: |
+          mkdir "$RUNNER_TEMP/shared-worker"
+          python -B reports/benchmarks/native-class-ownership/numeric-composed-packages/checkout.py "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/shared-worker/checkout.json" 2> "$RUNNER_TEMP/shared-worker/checkout.stderr.log"
+      - name: Autenticar y extraer datos sin ejecutar código archivado
+        run: |
+          python reports/validation/native-class-ownership/shared-fixture-worker/replay.py "$RUNNER_TEMP/shared-worker/raw"
+      - name: Verificar contratos reales y rechazos controlados en el lector actual
+        env:
+          SHARED_WORKER_EVIDENCE: ${{ runner.temp }}/shared-worker/raw/shared-worker-qualification
+        run: |
+          node reports/benchmarks/native-class-ownership/shared-fixture-worker/verify.cjs "$SHARED_WORKER_EVIDENCE" "$RUNNER_TEMP/shared-worker/replay.json" 2>&1 | tee "$RUNNER_TEMP/shared-worker/replay.log"
+          node --test reports/benchmarks/native-class-ownership/shared-fixture-worker/contracts.spec.cjs 2>&1 | tee "$RUNNER_TEMP/shared-worker/contracts.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-worker-replay-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}-attempt${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/shared-worker/replay.json
+            ${{ runner.temp }}/shared-worker/replay.log
+            ${{ runner.temp }}/shared-worker/contracts.log
+            ${{ runner.temp }}/shared-worker/checkout.json
+            ${{ runner.temp }}/shared-worker/checkout.stderr.log

@@ -1,0 +1,67 @@
+"""Preserve exact existing CI evidence for a scheduling-only change; no measurements or workflow activation."""
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+
+repository = Path(__file__).resolve().parent.parent
+root = repository / 'reports/validation/ci-pr-concurrency/20261026'
+root.mkdir(parents=True, exist_ok=False)
+prefix = 'repos/guidomodarelli/rustdom/'
+
+def read(endpoint, filename):
+    raw = subprocess.check_output(['gh', 'api', prefix + endpoint], cwd=repository, timeout=120)
+    (root / filename).write_bytes(raw)
+    return json.loads(raw)
+
+job = read('actions/jobs/121500981859', 'ownership-node24-job.json')
+assert job['head_sha'] == '2466b8d35910e5f663224203462d341fdae14f64'
+assert job['run_id'] == 40301728369 and job['run_attempt'] == 1 and job['conclusion'] == 'failure'
+failed = [step['name'] for step in job['steps'] if step['conclusion'] == 'failure']
+assert failed == ['Recalcular la captura actual completa y exigir el presupuesto original']
+log = subprocess.check_output(['gh', 'api', prefix + 'actions/jobs/121500981859/logs'], cwd=repository, timeout=120)
+assert b'Current ownership evidence: the complete current-source study rejected the performance budget; no measurement was repeated.' in log
+assert b'Process completed with exit code 1.' in log
+(root / 'ownership-node24-job.log').write_bytes(log)
+previous = read('actions/runs/40291196776/attempts/1', 'previous-general-ci.json')
+assert previous['head_sha'] == '8e9d68d0011a847d09122684af0738edca4a239b'
+assert previous['path'] == '.github/workflows/ci.yml' and previous['conclusion'] == 'success'
+executable = repository / '.cache/actionlint-win-1.7.12/actionlint.exe'
+archive = repository / '.cache/actionlint-win-1.7.12/actionlint.zip'
+assert hashlib.sha256(archive.read_bytes()).hexdigest() == '6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9'
+result = subprocess.run([str(executable), '.github/workflows/ci.yml'], cwd=repository, capture_output=True, timeout=60)
+(root / 'actionlint.stdout.log').write_bytes(result.stdout)
+(root / 'actionlint.stderr.log').write_bytes(result.stderr)
+assert result.returncode == 0
+pins = json.loads((repository / 'reports/benchmarks/native-class-ownership/owner-batch-study/constants/method-files.json').read_bytes())
+assert '.github/workflows/ci.yml' not in pins['files']
+baseline = (repository / '.cache/jsdom-telemetry-foreign-wip-preserved.txt').read_bytes()
+foreign = Path(r'C:\Users\guido\.codex\worktrees\native-collection-queries\rustdom')
+actual = subprocess.check_output(['git', '-c', 'core.longpaths=true', 'status', '--short', '--untracked-files=normal'], cwd=foreign)
+assert actual == baseline and len(actual.splitlines()) == 48
+record = {
+    'baseCommit': '2466b8d35910e5f663224203462d341fdae14f64',
+    'scope': 'Only workflow-level concurrency for ordinary ci.yml; no product, gate, scientific workflow, or timeout change',
+    'workflowSha256': hashlib.sha256((repository / '.github/workflows/ci.yml').read_bytes()).hexdigest(),
+    'actionlintVersion': '1.7.12', 'actionlintExitCode': result.returncode,
+    'actionlintPlatform': 'windows-amd64', 'actionlintArchiveSha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+    'actionlintExecutableSha256': hashlib.sha256(executable.read_bytes()).hexdigest(),
+    'localLinuxLintAttempt': {'completed': False, 'error': 'WSL_E_USER_NOT_FOUND; getpwnam(root) failed 5',
+        'substitute': 'Same official actionlint version on Windows; real hosted CI still required'},
+    'isolatedReview': {'reviewer': 'review_ownership_closeout', 'findings': [],
+        'reviewedWorkflowSha256': '94011d1d376639e145cc9ad99a28a38e4d2d2afd7f8b77f59f7e32c4f19f9de2'},
+    'ownedTransportCleanup': {'removed': '.cache/row-isolation-study-full-a0643d2c.tar.gz',
+        'retained': 'reports/benchmarks/native-class-ownership/row-isolation-results/2026-10-22/study.tar.gz.part-*',
+        'parts': 8, 'concatenatedSha256': 'a0643d2c1ff7431f0aea1200e66b2a8bd51a9b4059a51e382b2daf277d0e981c',
+        'scientificBytesRemainPublished': True},
+    'previousGeneralCi': {'runId': previous['id'], 'conclusion': previous['conclusion']},
+    'currentOwnershipFailure': {'runId': job['run_id'], 'jobId': job['id'], 'node': '24.14.1',
+        'reason': 'Original performance budget rejected; evidence verification succeeded', 'exitCode': 1},
+    'officialSemantics': 'https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency',
+    'foreignEntriesPreserved': 48, 'newHostedQualificationPending': True,
+    'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False
+}
+assert record['workflowSha256'] == record['isolatedReview']['reviewedWorkflowSha256']
+(root / 'validation.json').write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps({'actionlint': result.returncode, 'reviewFindings': 0, 'foreignPreserved': 48,
+    'workflowSha256': record['workflowSha256'], 'ownershipBudgetStillRejected': True}))

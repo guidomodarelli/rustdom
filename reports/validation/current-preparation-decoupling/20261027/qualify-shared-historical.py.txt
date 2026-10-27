@@ -1,0 +1,63 @@
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+import zipfile
+if sys.flags.optimize: raise RuntimeError('Qualification requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=pathlib.Path('/run/rustdom-resource-historical-4196-20261027')
+output=pathlib.Path('/run/rustdom-shared-historical-20261027');output.mkdir(exist_ok=False)
+subprocess.run(['git','-C',str(source),'sparse-checkout','add','--no-cone',
+    '/reports/benchmarks/native-class-ownership/shared-fixture-candidate/',
+    '/reports/validation/native-class-ownership/shared-fixture-candidate/',
+    '/reports/validation/native-class-ownership/current-source-preparation/39906777389/'],check=True,capture_output=True)
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain'])==b''
+packet=source/'reports/validation/native-class-ownership/current-source-preparation/39906777389'
+receipt=json.loads((packet/'receipt.json').read_bytes());archive=packet/'artifact.zip'
+assert hashlib.sha256(archive.read_bytes()).hexdigest()==receipt['artifactSha256']
+with zipfile.ZipFile(archive) as bundle:
+    for member in bundle.infolist():
+        name=pathlib.PurePosixPath(member.filename)
+        assert not name.is_absolute() and '..' not in name.parts and member.file_size<=256*1024*1024
+        if member.is_dir(): continue
+        destination=output/'preparation'/member.filename;destination.parent.mkdir(parents=True,exist_ok=True)
+        destination.write_bytes(bundle.read(member))
+archive=output/'preparation/ownership-build.tar.gz'
+assert hashlib.sha256(archive.read_bytes()).hexdigest()==receipt['tarSha256']
+extraction=output/'preparation'
+with tarfile.open(archive,'r:gz') as bundle:
+    members=bundle.getmembers(); assert sum(member.size for member in members)<1024*1024*1024
+    assert len(set(member.name.rstrip('/') for member in members))==len(members)
+    for member in members:
+        name=pathlib.PurePosixPath(member.name)
+        assert not name.is_absolute() and '..' not in name.parts and name.parts[0]=='ownership-build'
+        destination=extraction/member.name;assert destination.resolve().is_relative_to(extraction)
+        assert member.isdir() or member.isfile() or member.issym()
+        if member.isdir(): destination.mkdir(parents=True,exist_ok=True)
+        elif member.isfile():
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            with destination.open('xb') as stream: shutil.copyfileobj(bundle.extractfile(member),stream)
+            destination.chmod(0o700 if member.mode & 0o100 else 0o600)
+    for member in members:
+        if not member.issym():continue
+        destination=extraction/member.name;target=pathlib.Path(member.linkname)
+        assert not target.is_absolute() and (destination.parent/target).resolve().is_relative_to(extraction/'ownership-build')
+        assert not destination.exists() and not destination.is_symlink()
+        destination.parent.mkdir(parents=True,exist_ok=True);destination.symlink_to(member.linkname)
+tools=pathlib.Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools')
+for label,node in [('node22',tools/'node-22/bin/node'),('node24',tools/'node/bin/node')]:
+    directory=output/label;directory.mkdir()
+    environment=dict(os.environ,RUSTDOM_SHARED_FIXTURE_PREPARATION=str(extraction/'ownership-build'),RUSTDOM_SHARED_FIXTURE_EVIDENCE=str(directory/'functional.json'))
+    for stage,args in [('functional',['--expose-gc','--test','reports/benchmarks/native-class-ownership/shared-fixture-candidate/contracts.spec.cjs']),('evidence',['--test','reports/benchmarks/native-class-ownership/shared-fixture-candidate/evidence.spec.cjs'])]:
+        started=time.monotonic()
+        with (directory/(stage+'.stdout.log')).open('xb') as stdout,(directory/(stage+'.stderr.log')).open('xb') as stderr:
+            result=subprocess.run([str(node),*args],cwd=source,env=environment,stdout=stdout,stderr=stderr,timeout=300)
+        (directory/(stage+'.json')).write_text(json.dumps(dict(exitCode=result.returncode,elapsedSeconds=time.monotonic()-started,nodeExecutableSha256=hashlib.sha256(node.read_bytes()).hexdigest(),scientificCapture=False))+'\n')
+        assert result.returncode==0,(label,stage)
+assert subprocess.check_output(['git','-C',str(source),'status','--porcelain'])==b''
+print(json.dumps(dict(complete=True,sourceCommit='4196c496187c88c92304516287a7e644659a8536',headClean=True,scientificCapture=False,output=str(output))))

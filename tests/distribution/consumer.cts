@@ -315,6 +315,7 @@ assert.deepEqual(tree.rangeInsertionPlan(rangeState, handle), { startNode: textH
 assert.equal(tree.rangeInsertionOffset(handle, namespaceHandle, 0), 3);
 assert.deepEqual(rangeState.characterDataPlan(textHandle, 1, 3, 2), [{ start: false, node: textHandle, offset: 6 }]);
 assert.equal(rangeState.endOffset, 7);
+
 /** Host links remain separate from ordinary topology and disappear with either endpoint. */
 const hostTree = new native.NativeTree(); const hostedRoot = hostTree.allocate(); const rootHost = hostTree.allocate();
 hostTree.setRootHost(hostedRoot, rootHost, true);
@@ -386,3 +387,11 @@ tree.release(namespaceHandle);
 tree.release(handle);
 assert.equal(tree.statistics().liveNodes, 0);
 assert.equal(rangeState.endOffset, 7);
+
+/** Verify the installed endpoint API after the earlier DOM activation/counter checks. */
+const installedRange = native.NativeRange.fromEndpoints(1, 2, 1, 7);
+const installedRangeCopy = installedRange.copy();
+const updatedStart: boolean = installedRangeCopy.collapse(false);
+assert.equal(updatedStart, true);
+assert.equal(installedRangeCopy.startOffset, 7); assert.equal(installedRangeCopy.endOffset, 7);
+assert.equal(installedRange.startOffset, 2); assert.equal(installedRange.endOffset, 7);

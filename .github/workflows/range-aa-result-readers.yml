@@ -1,0 +1,63 @@
+name: Lectores del resultado AA de Range
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/range-aa-result-readers.yml'
+      - 'reports/benchmarks/native-class-ownership/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/range-aa-result-readers.yml'
+      - 'reports/benchmarks/native-class-ownership/**'
+
+permissions:
+  contents: read
+
+jobs:
+  readers:
+    name: Replay AA y exports en Node 22 y 24
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      RESULT_TOOLS: reports/benchmarks/native-class-ownership/range-control-telemetry-results/40154725015/tools
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: d5ec4186d2033709e532bc93d6f47d930afe525f
+          path: .cache/range-aa-source-d5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+      - name: Conservar Node 22
+        run: echo "RESULT_NODE22=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.14.1'
+      - name: Conservar Node 24
+        run: echo "RESULT_NODE24=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconstruir y verificar datos originales sin capturar DOM
+        run: python3 -B "$RESULT_TOOLS/qualify.py" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/.cache/range-aa-source-d5" "$RUNNER_TEMP/range-aa-result-qa" "$RESULT_NODE22" "$RESULT_NODE24" > "$RUNNER_TEMP/range-aa-result-qa.stdout.log" 2> "$RUNNER_TEMP/range-aa-result-qa.stderr.log"
+      - name: Verificar exploración temporal con las muestras existentes
+        run: python3 -B reports/benchmarks/native-class-ownership/range-aa-exploration/40154725015/tools/explore.spec.py reports/benchmarks/native-class-ownership/range-control-telemetry-results/40154725015 > "$RUNNER_TEMP/range-aa-exploration.stdout.log" 2> "$RUNNER_TEMP/range-aa-exploration.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: range-aa-result-readers-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/range-aa-result-qa.*.log
+            ${{ runner.temp }}/range-aa-exploration.*.log
+            ${{ runner.temp }}/range-aa-result-qa/*.json
+            ${{ runner.temp }}/range-aa-result-qa/logs/*.log
+            ${{ runner.temp }}/range-aa-result-qa/description/*.json
+          if-no-files-found: error

@@ -1,0 +1,48 @@
+"""Synchronize only new owned method files and run offline contracts on pinned Node."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+if sys.flags.optimize:
+    raise RuntimeError('Cold method QA requires assertions enabled')
+working = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = Path('/home/guido/rustdom-validation/cold-study-method-4aba')
+relative = Path('reports/benchmarks/native-class-ownership/cold-cleanup-study')
+version = sys.argv[1]
+attempt = sys.argv[2] if len(sys.argv) > 2 else 'attempt1'
+output = Path('/home/guido/rustdom-validation/cold-study-contracts-20261024') / attempt
+output.mkdir(parents=True, exist_ok=True)
+for filename in (working / relative).rglob('*'):
+    if not filename.is_file() or '__pycache__' in filename.parts:
+        continue
+    target = source / relative / filename.relative_to(working / relative)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(filename, target)
+for name in ['cold-cleanup-study-contracts.yml', 'ownership-cold-cleanup-study.yml']:
+    filename = Path('.github/workflows') / name
+    shutil.copyfile(working / filename, source / filename)
+node_root = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools') / ('node-22' if version == '22' else 'node')
+node = node_root / 'bin/node'
+environment = dict(os.environ, PATH=str(node_root / 'bin') + os.pathsep + os.environ.get('PATH', ''),
+    RUSTDOM_COLD_STUDY_PREPARATION='/home/guido/rustdom-validation/cold-preparation-40065437939/archive-current-reader/cold-cleanup-preparation',
+    RUSTDOM_COLD_STUDY_HISTORY='/home/guido/rustdom-validation/shared-study-result-40012710923/archive/shared-study/capture')
+policy = json.loads((source / 'reports/benchmarks/native-class-ownership/constants/current-ownership.json').read_text())
+actual_version = subprocess.check_output([node, '--version'], text=True).strip()
+assert actual_version == {'22': 'v22.12.0', '24': 'v24.14.1'}[version]
+assert hashlib.sha256(node.read_bytes()).hexdigest() == policy['runtimeExecutableHashes'][actual_version]
+command = [str(node), '--test', str(source / relative / 'contracts.spec.cjs')]
+label = 'node' + version
+with (output / (label + '.stdout.log')).open('xb') as stdout, (output / (label + '.stderr.log')).open('xb') as stderr:
+    result = subprocess.run(command, cwd=source, env=environment, stdout=stdout, stderr=stderr)
+receipt = {'argv': command, 'node': actual_version, 'exitCode': result.returncode,
+    'sourceCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip(),
+    'methodFiles': {filename.relative_to(source).as_posix(): hashlib.sha256(filename.read_bytes()).hexdigest()
+        for filename in sorted((source / relative).rglob('*')) if filename.is_file() and '__pycache__' not in filename.parts},
+    'benchmarkExecuted': False, 'performanceAccepted': None}
+(output / (label + '.command.json')).write_text(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps({'node': actual_version, 'exitCode': result.returncode, 'output': str(output)}), flush=True)
+sys.exit(result.returncode)

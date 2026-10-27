@@ -1,0 +1,209 @@
+name: Validar propuestas del inventario
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/inventory-qualification.yml'
+      - 'src/**'
+      - 'scripts/**'
+      - 'reports/benchmarks/native-class-ownership/inventory-runtime-sources/**'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/production.cjs'
+      - 'reports/benchmarks/native-class-ownership/block-confirmation/constants/production.json'
+      - 'reports/implementation/range-numeric-composed-candidate/inputs.json'
+      - 'third-party/**'
+      - 'benchmarks/sources.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
+      - '.npmrc'
+      - 'npm-shrinkwrap.json'
+      - 'rust-toolchain*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inventory-qualification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Inventario y DOM público en Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      RUSTDOM_INVENTORY_SNAPSHOT: 'a89ce8980c41a400e05860c36c50f09e31159741'
+      RUSTDOM_EXPECTED_NODE: ${{ matrix.node }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RUSTDOM_INVENTORY_SNAPSHOT }}
+          path: .inventory
+      - name: Declarar rutas temporales de build y evidencia
+        run: |
+          echo "CARGO_TARGET_DIR=$RUNNER_TEMP/inventory-qualification-target" >> "$GITHUB_ENV"
+          echo "RUSTDOM_INVENTORY_OUTPUT=$RUNNER_TEMP/inventory-qualification" >> "$GITHUB_ENV"
+      - run: mkdir "$RUSTDOM_INVENTORY_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - name: Instalar dependencias fijadas del PR actual
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/install.log"
+      - name: Construir el runtime real del PR actual
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/build.log"
+      - name: Probar la correspondencia entre auditoría histórica y fuentes actuales
+        env:
+          RUSTDOM_INVENTORY_SOURCE_SNAPSHOT: ${{ github.workspace }}/.inventory
+          RUSTDOM_INVENTORY_RUNTIME_SOURCE: ${{ github.workspace }}
+        run: node --test reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.spec.cjs > "$RUSTDOM_INVENTORY_OUTPUT/source-contracts.stdout.log" 2> "$RUSTDOM_INVENTORY_OUTPUT/source-contracts.stderr.log"
+      - name: Vincular el SUT real tras verificar las fuentes propuestas
+        id: context
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+          const { createHash } = require('node:crypto');
+          const { execFileSync } = require('node:child_process');
+          const root = process.cwd();
+          const snapshot = path.join(root, '.inventory');
+          const output = process.env.RUSTDOM_INVENTORY_OUTPUT;
+          const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const gitHead = (cwd) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim();
+          assert.equal(process.version, `v${process.env.RUSTDOM_EXPECTED_NODE}`);
+          assert.equal(gitHead(snapshot), process.env.RUSTDOM_INVENTORY_SNAPSHOT);
+          const { verifyMappedSources } = require('./reports/benchmarks/native-class-ownership/inventory-runtime-sources/sources.cjs');
+          const correspondence = verifyMappedSources(snapshot, root);
+          const sources = new Map(correspondence.sources.map((entry) => [entry.path, entry.runtimeSha256]));
+          for (const name of ['dist', 'node_modules']) {
+            const destination = path.join(snapshot, name);
+            assert.equal(fs.existsSync(destination), false);
+            fs.symlinkSync(path.join(root, name), destination, 'dir');
+            assert.equal(fs.realpathSync(destination), fs.realpathSync(path.join(root, name)));
+          }
+          const baselineReports = Object.fromEntries(['memory', 'compatibility'].map((name) =>
+            [name, fs.readdirSync(path.join(snapshot, 'reports', name))]));
+          const context = { capturedAt: new Date().toISOString(), runtimeHead: gitHead(root), snapshotHead: gitHead(snapshot),
+            node: process.version, npm: execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim(),
+            rustc: execFileSync('rustc', ['-Vv'], { encoding: 'utf8' }).trim(),
+            sourceCorrespondence: Object.fromEntries(sources), auditRuntimeCorrespondence: correspondence,
+            packageLockSha256: hash(path.join(root, 'package-lock.json')),
+            nativeBinarySha256: hash(path.join(root, 'dist/rustdom.node')), nativeBuild: read(path.join(root, 'dist/native-build.json')),
+            canonicalRuntimeSources: require('./benchmarks/sources.cjs').captureSourceIdentity(root),
+            baselineReports, runtimeFrom: root, toolsAndTestsFrom: snapshot,
+            inventoryBranchRuntimeBuilt: false, measurementExecuted: false, performanceAccepted: null };
+          fs.writeFileSync(path.join(output, 'context.json'), JSON.stringify(context, null, 2) + '\n', { flag: 'wx' });
+          JS
+      - name: Probar algoritmos Rust de tokens y dataset
+        run: |
+          set -o pipefail
+          cargo test dom::token_list::tests -- --nocapture 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/rust-token-list.log"
+          cargo test dom::string_map::tests -- --nocapture 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/rust-string-map.log"
+      - name: Probar catálogo y contratos públicos y nativos reales
+        working-directory: .inventory
+        run: |
+          set -o pipefail
+          node --expose-gc --test --test-concurrency=1 tests/validation/migration-inventory.spec.mjs tests/dom-token-list.spec.cjs tests/dom-token-list-native.spec.cjs tests/dom-string-map.spec.cjs tests/dom-string-map-native.spec.cjs 2>&1 | tee "$RUSTDOM_INVENTORY_OUTPUT/contracts.log"
+      - name: Regenerar catálogo sin modificar el ledger versionado
+        working-directory: .inventory
+        run: |
+          node scripts/migration-inventory.cjs --output "$RUSTDOM_INVENTORY_OUTPUT/catalog" > "$RUSTDOM_INVENTORY_OUTPUT/catalog-summary.json"
+          node <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+          const { SURFACE_EXCLUSION, REFERENCE_GLOBALS_FILE, SURFACE_DOCUMENT_URL } = require('./scripts/constants/migration-inventory.cjs');
+          for (const name of ['reference.json', 'surface.json', 'implementation-units.json', 'classification.json', 'summary.json']) {
+            const actual = JSON.parse(fs.readFileSync(path.join(process.env.RUSTDOM_INVENTORY_OUTPUT, 'catalog', name)));
+            const expected = JSON.parse(fs.readFileSync(path.join('reports/progress/inventory', name)));
+            if (name === 'surface.json') {
+              assert.equal(actual.profile.node, process.version);
+              const referenceRoot = path.dirname(require.resolve('jsdom/package.json'));
+              const globals = JSON.parse(fs.readFileSync(path.join(referenceRoot, REFERENCE_GLOBALS_FILE)));
+              const dom = new (require('jsdom').JSDOM)('', { url: SURFACE_DOCUMENT_URL });
+              const excluded = actual.exclusions.filter((entry) => entry.reason === SURFACE_EXCLUSION.ecmascriptGlobal);
+              for (const entry of expected.exclusions.filter((entry) => entry.reason === SURFACE_EXCLUSION.ecmascriptGlobal)) {
+                assert.ok(Object.hasOwn(globals, entry.name));
+                assert.deepEqual(entry, { name: entry.name, reason: SURFACE_EXCLUSION.ecmascriptGlobal });
+              }
+              try {
+                const observed = Reflect.ownKeys(dom.window).filter((key) => typeof key === 'string' && Object.hasOwn(globals, key));
+                assert.deepEqual(excluded.map((entry) => entry.name).sort(), observed.sort());
+                for (const entry of excluded) assert.deepEqual(entry, { name: entry.name, reason: SURFACE_EXCLUSION.ecmascriptGlobal });
+              } finally { dom.window.close(); }
+              const exclusions = { node: process.version, referenceNode: expected.profile.node,
+                actual: actual.exclusions, expected: expected.exclusions, hostGlobalsVerifiedInRealRealm: true };
+              fs.writeFileSync(path.join(process.env.RUSTDOM_INVENTORY_OUTPUT, 'catalog-exclusions.json'), JSON.stringify(exclusions, null, 2) + '\n', { flag: 'wx' });
+              actual.exclusions = actual.exclusions.filter((entry) => entry.reason !== SURFACE_EXCLUSION.ecmascriptGlobal);
+              expected.exclusions = expected.exclusions.filter((entry) => entry.reason !== SURFACE_EXCLUSION.ecmascriptGlobal);
+              actual.profile.node = expected.profile.node;
+            }
+            assert.deepEqual(actual, expected, `Regenerated inventory differs: ${name}`);
+          }
+          JS
+      - name: Observar retención y liberación de mapas y listas reales
+        working-directory: .inventory
+        run: |
+          node --expose-gc tests/helpers/token-list-memory.cjs > "$RUSTDOM_INVENTORY_OUTPUT/token-list-memory.stdout.json" 2> "$RUSTDOM_INVENTORY_OUTPUT/token-list-memory.stderr.log"
+          node --expose-gc tests/helpers/dataset-memory.cjs > "$RUSTDOM_INVENTORY_OUTPUT/dataset-memory.stdout.json" 2> "$RUSTDOM_INVENTORY_OUTPUT/dataset-memory.stderr.log"
+      - name: Conservar solo reportes nuevos y todos los datos parciales
+        if: always() && steps.context.outcome == 'success'
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+          const { createHash } = require('node:crypto');
+          const output = process.env.RUSTDOM_INVENTORY_OUTPUT;
+          const context = JSON.parse(fs.readFileSync(path.join(output, 'context.json')));
+          const selected = [];
+          for (const family of ['memory', 'compatibility']) {
+            const directory = path.join('.inventory/reports', family);
+            for (const name of fs.readdirSync(directory)) {
+              if (context.baselineReports[family].includes(name)) continue;
+              const source = path.join(directory, name);
+              if (!fs.statSync(source).isFile() || !name.endsWith('.json')) continue;
+              const destination = path.join(output, 'reports', family, name);
+              fs.mkdirSync(path.dirname(destination), { recursive: true });
+              fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+              selected.push({ path: path.relative(output, destination), bytes: fs.statSync(destination).size,
+                sha256: createHash('sha256').update(fs.readFileSync(destination)).digest('hex') });
+            }
+          }
+          const after = require('./benchmarks/sources.cjs').captureSourceIdentity(process.cwd());
+          assert.equal(after.sourceHash, context.canonicalRuntimeSources.sourceHash);
+          const snapshot = JSON.parse(fs.readFileSync('.inventory/reports/validation/inventory-dom-string-map-audit/catalog-integrity.json'));
+          for (const [name, expected] of Object.entries(snapshot.files)) {
+            const actual = createHash('sha256').update(fs.readFileSync(path.join('.inventory/reports/progress/inventory', name))).digest('hex');
+            assert.equal(actual, expected, `Versioned ledger changed: ${name}`);
+          }
+          fs.writeFileSync(path.join(output, 'selected-reports.json'), JSON.stringify({ node: process.version, selected,
+            runtimeSourcesUnchanged: true, versionedCatalogUnchanged: true, measurementExecuted: false,
+            performanceAccepted: null }, null, 2) + '\n', { flag: 'wx' });
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inventory-qualification-${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/inventory-qualification/

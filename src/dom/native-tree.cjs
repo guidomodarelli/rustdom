@@ -201,11 +201,15 @@ class NativeSymbolTree extends SymbolTree {
       return;
     }
     const { start, end } = data;
-    range._nativeRange = new NativeRange();
+    range._nativeRange = start && end
+      ? NativeRange.fromEndpoints(this._ensure(start.node), start.offset, this._ensure(end.node), end.offset)
+      : new NativeRange();
     range._rangeStartNode = start?.node;
     range._rangeEndNode = end?.node;
-    if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
-    if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
+    if (!start || !end) {
+      if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+      if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
+    }
   }
   /** @param {object} range - Source Range implementation. @returns {object} Independent numeric state with GC-visible endpoint identities. */
   cloneRangeData(range) {
@@ -221,6 +225,12 @@ class NativeSymbolTree extends SymbolTree {
   }
   /** @param {object} range - Live Range implementation. @param {boolean} toStart - Public converted direction. @returns {void} Applies the native collapse decision to the correct ownership edge. */
   collapseRange(range, toStart) {
+    // Equal owner identities require no change to V8 edges or weak registrations.
+    // Rust still selects and updates the offsets; the binding only avoids replaying unchanged edges.
+    if (range._rangeStartNode === range._rangeEndNode) {
+      range._nativeRange.collapse(Boolean(toStart));
+      return;
+    }
     const plan = range._nativeRange.collapsePlan(Boolean(toStart));
     const node = this._object(plan.node);
     if (plan.updateStart) range._setLiveRangeStart(node, plan.offset);

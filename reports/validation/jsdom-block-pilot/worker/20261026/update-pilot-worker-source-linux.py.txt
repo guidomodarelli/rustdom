@@ -1,0 +1,32 @@
+"""Update only the agent-owned current worker files in its private Git fixture before any DOM worker runs."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-pilot-worker-source-20261026')
+output = repository / 'reports/validation/jsdom-block-pilot/worker/20261026/source-fixture/correction.json'
+assert not output.exists()
+def git(*arguments): return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=root)
+assert git('status', '--porcelain=v1') == b''
+before = git('rev-parse', 'HEAD').decode().strip()
+prefix = 'reports/benchmarks/native-class-ownership/control-precision/pilot/'
+names = ['blocks.cjs', 'packages.cjs', 'worker.cjs', 'functional.cjs', 'process-reader.cjs', 'constants/design.json', 'constants/worker.json', 'fixtures/progress-failure.cjs']
+changes = {}
+for name in names:
+    relative = prefix + name; old = (root / relative).read_bytes(); new = (repository / relative).read_bytes()
+    if old != new:
+        shutil.copyfile(repository / relative, root / relative)
+        changes[relative] = {'before': hashlib.sha256(old).hexdigest(), 'after': hashlib.sha256(new).hexdigest()}
+assert changes
+git('add', '--', *changes)
+git('-c', 'user.name=Native CI fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Protect complete package root and check matched RNG prefix before functional qualification')
+after = git('rev-parse', 'HEAD').decode().strip()
+assert git('status', '--porcelain=v1') == b''
+record = {'fixtureBefore': before, 'fixtureAfter': after, 'changedFiles': changes,
+    'fixtureIsPublishedCommit': False, 'domWorkersHadStarted': False, 'runtimePackageChanged': False,
+    'reason': 'Proteger también dependencias/root del paquete y comprobar el prefix RNG pareado antes de probar el productor.'}
+output.write_bytes(json.dumps(record, indent=2).encode() + b'\n')
+print(json.dumps(record))

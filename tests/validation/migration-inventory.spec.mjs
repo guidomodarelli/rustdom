@@ -67,15 +67,33 @@ test('should keep a closed reference graph for internal dependencies and explici
 test('should validate authored audit evidence and reject stale IDs or unsupported completion claims', () => {
   const audits = JSON.parse(readFileSync(join(repositoryRoot, 'reports/progress/inventory/audits.json')));
   const audited = buildInventory({ referenceRoot, repositoryRoot, audits });
-  assert.equal(audited.summary.counts.files.states.hybrid, 3);
-  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 1);
-  assert.equal(audited.summary.counts.apis.states.hybrid, 1);
+  assert.equal(audited.summary.counts.files.states.hybrid, 7);
+  assert.equal(audited.summary.counts.callableUnits.states['rust-complete'], 2);
+  assert.equal(audited.summary.counts.apis.states.hybrid, 32);
+  assert.equal(audited.summary.counts.apis.audited, 37);
+  for (const id of ['api:Window.AbstractRange', 'api:Window.AbstractRange.prototype.startContainer',
+    'api:Window.AbstractRange.prototype.endContainer', 'api:Window.Range.prototype.detach']) {
+    const entry = audited.classification.find((candidate) => candidate.id === id);
+    assert.equal(entry.auditComplete, true, id);
+    assert.equal(entry.status, 'pending', id);
+    assert.ok(entry.pending.length > 0, id);
+  }
+  const staticRange = audited.classification.find((entry) => entry.id === 'api:Window.StaticRange');
+  assert.equal(staticRange.status, 'hybrid');
+  assert.ok(staticRange.pending.length > 0, 'An isolated native candidate does not complete the published constructor');
   const serializerAlgorithm = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/domparsing/XMLSerializer-impl.js:11:3');
   const serializerApi = audited.classification.find((entry) => entry.id === 'api:Window.XMLSerializer.prototype.serializeToString');
   assert.equal(serializerAlgorithm.status, 'rust-complete');
   assert.deepEqual(serializerAlgorithm.pending, []);
   assert.equal(serializerApi.status, 'hybrid');
   assert.ok(serializerApi.pending.length > 0, 'Native method control does not complete its generated WebIDL API');
+  const documentModule = audited.classification.find((entry) => entry.id === 'module:lib/jsdom/living/nodes/DOMImplementation-impl.js');
+  const featureBody = audited.classification.find((entry) => entry.id === 'unit:lib/jsdom/living/nodes/DOMImplementation-impl.js:15:3');
+  const featureApi = audited.classification.find((entry) => entry.id === 'api:Window.DOMImplementation.prototype.hasFeature');
+  assert.equal(documentModule.status, 'hybrid'); assert.ok(documentModule.pending.length > 0);
+  assert.equal(featureBody.status, 'rust-complete'); assert.deepEqual(featureBody.pending, []);
+  assert.equal(featureApi.status, 'hybrid'); assert.ok(featureApi.pending.length > 0);
+  assert.equal(audited.classification.find((entry) => entry.id === 'api:Window.DOMImplementation').status, 'pending');
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot, audits: { 'module:missing': {} } }), /Unknown inventory audit ID/);
   const node = audits['module:lib/jsdom/living/nodes/Node-impl.js'];
   assert.throws(() => buildInventory({ referenceRoot, repositoryRoot,

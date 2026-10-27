@@ -1,0 +1,48 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import sys
+import tarfile
+if sys.flags.optimize:raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+output=root/'reports/validation/current-preparation-decoupling/20261027'
+shared=pathlib.Path('/run/rustdom-shared-historical-20261027')
+def copy(source,target):
+    target.parent.mkdir(parents=True,exist_ok=True);assert not target.exists()
+    shutil.copyfile(source,target);assert hashlib.sha256(source.read_bytes()).digest()==hashlib.sha256(target.read_bytes()).digest()
+copy(output/'manifest.json',output/'manifest-before-resource-recovery.json')
+copy(output/'receipt.json',output/'receipt-before-resource-recovery.json')
+for label in ['node22','node24']:
+    source=shared/(label+'-resource-preservation')
+    for member in source.iterdir():
+        assert member.is_file() and not member.is_symlink()
+        copy(member,output/'shared'/source.name/member.name)
+    report=source/'functional.json';receipt=json.loads((source/'functional.process.json').read_bytes())
+    assert hashlib.sha256(report.read_bytes()).hexdigest()==receipt['functionalReportSha256']
+    assert len(json.loads(report.read_bytes())['cases'])==38
+    memory=root/('reports/memory/current-preparation-decoupling/20261027/'+label+'-functional.json')
+    assert not json.loads(memory.read_bytes()).get('cases')
+    memory.write_bytes(report.read_bytes())
+    assert hashlib.sha256(memory.read_bytes()).hexdigest()==receipt['functionalReportSha256']
+for name in ['recover-shared-functional-resources.py','preserve-resource-correction.py']:
+    copy(root/'.cache/confirmation-authentication-20261027'/name,output/(name+'.txt'))
+archive=pathlib.Path('/run/rustdom-xml-ci-5caa-20261027/zip-data/_temp/xml-build.tar.gz')
+destination=pathlib.Path('/run/rustdom-xml-data-filter-diagnostic-20261027');destination.mkdir(exist_ok=False)
+with tarfile.open(archive) as bundle:
+    member=bundle.getmember('xml-build/node_modules/.bin/tldts')
+    actual=(destination/member.name).parent.joinpath(member.linkname).resolve()
+    assert actual.is_relative_to(destination/'xml-build')
+    try:tarfile.data_filter(member,str(destination))
+    except tarfile.FilterError as error:
+        diagnostic=dict(member=member.name,link=member.linkname,actualResolvedTarget=str(actual),validInternalRelativeLink=True,
+            errorType=type(error).__name__,message=str(error),testOnly=True,extractionPerformed=False,DOMExecuted=False)
+    else:raise RuntimeError('The observed Python3.10 filter failure was not reproduced')
+(output/'xml/data-filter-diagnostic.json').write_text(json.dumps(diagnostic,indent=2)+'\n')
+receipt=json.loads((output/'receipt.json').read_bytes())
+receipt['resourcePreservationCorrection']=dict(priorTwoReportsLost=True,priorReportsReconstructed=False,
+    functionalTestsRepeatedPerSDK=4,newCasesPerSDK=38,separateProcessReceipt=True,newScientificSamples=0)
+(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+manifest={str(member.relative_to(output)):dict(bytes=member.stat().st_size,sha256=hashlib.sha256(member.read_bytes()).hexdigest()) for member in output.rglob('*') if member.is_file() and member.name!='manifest.json'}
+(output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps(dict(preserved=True,files=len(manifest),newCasesPerSDK=38,priorTwoReportsLost=True,scientificCaptures=0)))

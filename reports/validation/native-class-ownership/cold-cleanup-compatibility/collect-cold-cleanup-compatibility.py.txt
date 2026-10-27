@@ -1,0 +1,100 @@
+"""Preserve raw functional qualification, including the invalid setup attempt."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import sys
+import tarfile
+from cold_cleanup_summary import read_node_summaries
+
+if sys.flags.optimize:
+    raise RuntimeError('Functional evidence collection requires Python assertions enabled; remove -O/PYTHONOPTIMIZE')
+
+root = Path('/home/guido/rustdom-validation/ownership-cold-cleanup-prototype')
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source = root / 'source'
+destination = repository / 'reports/validation/native-class-ownership/cold-cleanup-compatibility'
+assert not destination.exists()
+attempts = [root / 'full-compatibility', root / 'full-compatibility-attempt2']
+receipts = {}
+for version in ['22', '24']:
+    for script in ['compat', 'jest', 'vitest', 'vm', 'corpus', 'wpt']:
+        label = 'node' + version + '-test-' + script
+        receipt = json.loads((attempts[1] / (label + '.json')).read_text())
+        assert receipt['exitCode'] == 0, label
+        receipts[label] = receipt
+
+digest = lambda filename: hashlib.sha256(filename.read_bytes()).hexdigest()
+copy_plan = json.loads((root / 'source-copy-plan.json').read_text())
+changed_sources = []
+source_files = []
+for entry in copy_plan['files']:
+    filename = source / entry['path']
+    observed = digest(filename)
+    source_files.append({'path': entry['path'], 'sha256': observed, 'bytes': filename.stat().st_size})
+    if observed != entry['sha256']:
+        changed_sources.append(entry['path'])
+assert changed_sources == ['third-party/napi/src/bindgen_runtime/class_ownership.rs']
+assert digest(source / changed_sources[0]) == 'ee6a0045cc4e6ba5687344a7b3b67698a54dc1922b42efb3f65f9703fdc52490'
+binary_hash = digest(source / 'dist/rustdom.node')
+assert binary_hash == '9bab7909799346eedf30f380b78eb9dcbda085e38bc6eb82df9fda12eb0d1f7e'
+destination.mkdir(parents=True)
+members = []
+archive = destination / 'functional-attempts.tar.xz'
+with tarfile.open(archive, 'w:xz') as output:
+    for attempt in attempts:
+        for filename in sorted(attempt.rglob('*')):
+            if filename.is_file():
+                name = filename.relative_to(root).as_posix()
+                members.append({'path': name, 'bytes': filename.stat().st_size, 'sha256': digest(filename)})
+                output.add(filename, arcname=name, recursive=False)
+(destination / 'members.json').write_text(json.dumps(members, indent=2) + '\n')
+(destination / 'candidate-source-files.json').write_text(json.dumps(source_files, indent=2) + '\n')
+distribution = [{'path': filename.relative_to(source).as_posix(), 'bytes': filename.stat().st_size, 'sha256': digest(filename)}
+    for filename in sorted((source / 'dist').rglob('*')) if filename.is_file()]
+(destination / 'candidate-distribution.json').write_text(json.dumps(distribution, indent=2) + '\n')
+reports = {}
+resource_rows = []
+for version in ['22', '24']:
+    prefix = 'node' + version + '-test-'
+    corpus = json.loads((attempts[1] / (prefix + 'corpus-reports/validation/html5lib.json')).read_text())
+    wpt_files = list((attempts[1] / (prefix + 'wpt-reports/compatibility')).glob('*-wpt.json'))
+    assert len(wpt_files) == 1
+    wpt = json.loads(wpt_files[0].read_text())
+    assert wpt['pass'] and not corpus['mismatches']
+    for row in wpt['results']:
+        for role in ['reference', 'candidate']:
+            execution = row['execution'][role]
+            resource_rows.append({'node': version, 'file': row['file'], 'role': role,
+                'engine': execution['engine'], 'exitCode': execution['exitCode'], 'signal': execution['signal'],
+                'memoryBefore': execution['memoryBefore'], 'memoryAfterClose': execution['memoryAfterClose']})
+    compat = (attempts[1] / (prefix + 'compat.stdout.log')).read_text()
+    totals = read_node_summaries(compat)
+    assert len(totals) == 2, version
+    assert all(summary[field] == 0 for summary in totals for field in ['fail', 'cancelled', 'skipped', 'todo']), version
+    reports['node' + version] = {'compatibilitySummaries': totals,
+        'html5': {key: corpus[key] for key in ['total', 'passed', 'excludedScriptOn', 'mismatches', 'oracle', 'revision']},
+        'wpt': {'pass': wpt['pass'], 'complete': wpt['complete'], 'fixtures': len(wpt['results']),
+            'blockedSuites': wpt['blockedSuites'], 'excludedFixtures': wpt['excludedFixtures'],
+            'jsdom': wpt['jsdom'], 'revision': wpt['wptRevision'],
+            'assertions': sum(len(row['actual']['tests']) for row in wpt['results']),
+            'sharedNonPassingAssertions': sum(sum(test['status'] != 0 for test in row['actual']['tests']) for row in wpt['results'])}}
+summary = {'originCommit': copy_plan['originCommit'], 'candidateEvidenceCommit': 'fb4bb26c71e064abfa68c6d8746611a076622d38',
+    'candidateBinarySha256': binary_hash, 'productionRuntimeChanged': False, 'candidateIntegrated': False,
+    'benchmarkExecuted': False, 'performanceAccepted': None, 'linuxX64Only': True,
+    'invalidFirstAttemptPreserved': True, 'invalidFirstAttemptReason': 'Incomplete isolated dist: native loader absent. Five scripts failed; WPT interrupted; five processes reaped. No acceptance from that attempt.',
+    'secondAttemptRealBuildNativeAndJavaScript': True, 'secondAttemptCommands': receipts, 'reports': reports,
+    'copiedSourcesChecked': len(source_files), 'changedSourceFiles': changed_sources,
+    'rawArchive': {'path': archive.name, 'bytes': archive.stat().st_size, 'sha256': digest(archive), 'regularFiles': len(members)}}
+(destination / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
+memory = {'scope': 'Snapshots del proceso de cada fixture WPT antes y después de close(), sin GC forzado; el proceso termina después.',
+    'candidateBinarySha256': binary_hash, 'platform': 'Linux x64', 'rows': resource_rows,
+    'limits': ['No son memoria pico.', 'No observan Window y Document débiles por separado.',
+        'El heap después de close() puede contener objetos aún no recolectados; no demuestra fuga ni ausencia de fugas.',
+        'No permiten atribuir diferencias al atributo cold; no constituyen un estudio de aceptación de rendimiento.'],
+    'dedicatedOwnershipMemcheck': 'reports/memory/cold-cleanup-candidate.json',
+    'performanceAccepted': None, 'benchmarkExecuted': False}
+(repository / 'reports/memory/cold-cleanup-compatibility.json').write_text(json.dumps(memory, ensure_ascii=False, indent=2) + '\n')
+shutil.copyfile(repository / '.cache/qualify-cold-cleanup-full.py', destination / 'qualification-controller.py.txt')
+shutil.copyfile(repository / '.cache/cold_cleanup_summary.py', destination / 'summary-reader.py.txt')
+print(json.dumps({'preservedFiles': len(members), 'summary': str(destination / 'summary.json')}))

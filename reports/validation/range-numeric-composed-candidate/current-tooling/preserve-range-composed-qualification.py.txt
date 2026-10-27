@@ -1,0 +1,87 @@
+"""Authenticate and preserve both completed real functional qualifications and every generated report."""
+import gzip
+import hashlib
+import json
+from pathlib import Path
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-range-numeric-composed-v1')
+destination = repository / 'reports/validation/range-numeric-composed-candidate/local-linux'
+memory_root = repository / 'reports/memory/range-numeric-composed-candidate/local-linux'
+qualified = []
+for major in ['22', '24']:
+    proof = root / ('proof-reviewed-node' + major)
+    aggregate = json.loads((proof / 'composed-qualification.json').read_bytes())
+    suites = json.loads((proof / 'qualification.json').read_bytes())
+    assert aggregate['qualified'] and aggregate['suiteQualificationComplete'] and aggregate['collapseEvidenceComplete']
+    assert suites['qualified'] and len(suites['commands']) == 18
+    assert all(command['exitCode'] == 0 and not command['timedOut'] for command in suites['commands'])
+    assert aggregate['sourceCommit'] == 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7' and not aggregate['sourceGitErrors']
+    assert aggregate['performanceAccepted'] is None and not aggregate['gateReevaluated']
+    source = root / ('qualified-source-reviewed-node' + major)
+    binary = source / 'dist/rustdom.node'
+    assert hashlib.sha256(binary.read_bytes()).hexdigest() == aggregate['nativeBinarySha256']
+    assert aggregate['nativeBinarySha256'] == suites['nativeBuild']['binarySha256']
+    qualified.append((major, source, proof, aggregate, suites))
+assert not destination.exists() and not memory_root.exists()
+destination.mkdir(parents=True); memory_root.mkdir(parents=True)
+files = []
+
+def preserve(original, target):
+    assert original.is_file() and not original.is_symlink()
+    raw = original.read_bytes()
+    compressed = len(raw) >= 1000000
+    target = target.with_name(target.name + '.gz') if compressed else target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    assert not target.exists()
+    if compressed:
+        with target.open('xb') as stream:
+            with gzip.GzipFile(fileobj=stream, mode='wb', mtime=0, filename='') as archive:
+                archive.write(raw)
+        assert gzip.decompress(target.read_bytes()) == raw
+    else:
+        target.write_bytes(raw)
+        assert target.read_bytes() == raw
+    files.append({'path': target.relative_to(repository).as_posix(), 'bytes': target.stat().st_size,
+        'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'originalBytes': len(raw),
+        'originalSha256': hashlib.sha256(raw).hexdigest(), 'gzip': compressed})
+
+outcomes = []
+for major, source, proof, aggregate, suites in qualified:
+    target = destination / ('node' + major)
+    for filename in sorted(proof.rglob('*')):
+        if filename.is_file():
+            preserve(filename, target / 'proof' / filename.relative_to(proof))
+    preserve(source / 'dist/rustdom.node', target / 'rustdom.node')
+    preserve(source / 'dist/native-build.json', target / 'native-build.json')
+    factory_memory = json.loads((proof / 'logs/memory.stdout.log').read_bytes())
+    collapse_memory = json.loads((proof / 'collapse-memory/collapse-memory.stdout.log').read_bytes())
+    assert factory_memory['pass'] and collapse_memory['pass']
+    assert factory_memory['nativeRanges']['live'] == 0
+    assert len(factory_memory['cycles']) == len(collapse_memory['cycles']) == 6
+    preserve(proof / 'logs/memory.stdout.log', memory_root / ('node' + major) / 'range-state.json')
+    preserve(proof / 'collapse-memory/collapse-memory.stdout.log', memory_root / ('node' + major) / 'collapse.json')
+    wpt = []
+    for filename in sorted((proof / 'reports/compatibility').glob('*linux-wpt.json')):
+        data = json.loads(filename.read_bytes())
+        assert data['pass'] and all(result['pass'] for result in data['results'])
+        counts = []
+        for engine in ['expected', 'actual']:
+            tests = [test for result in data['results'] for test in result[engine]['tests']]
+            counts.append({'engine': engine, 'assertions': len(tests), 'passed': sum(test['status'] == 0 for test in tests),
+                'failedOrOtherStatus': sum(test['status'] != 0 for test in tests)})
+        wpt.append({'node': data['node'], 'fixtures': len(data['results']), 'complete': data['complete'],
+            'excludedFixtures': data['excludedFixtures'], 'blockedSuites': data['blockedSuites'], 'assertions': counts})
+    assert len(wpt) == 1
+    outcomes.append({'node': suites['node'], 'qualified': True, 'suiteCommands': len(suites['commands']),
+        'additionalCollapseCommand': aggregate['memoryCommand']['exitCode'],
+        'nativeBinarySha256': aggregate['nativeBinarySha256'], 'nativeRanges': factory_memory['nativeRanges'],
+        'rangeCycles': 6, 'collapseCycles': 6, 'wpt': wpt,
+        'regression': json.loads((proof / 'qualification-regression.json').read_bytes())
+                      if (proof / 'qualification-regression.json').exists() else
+                      {'scope': 'CLI qualification with a pre-existing inherited output sentinel; caller verified unchanged bytes',
+                       'sentinelSha256': hashlib.sha256((proof / 'review-environment-sentinel.json').read_bytes()).hexdigest()}})
+(destination / 'summary.json').write_text(json.dumps({'qualifications': outcomes, 'runtimeIntegrated': False,
+    'benchmarkExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}, indent=2) + '\n')
+(destination / 'manifest.json').write_text(json.dumps({'files': files}, indent=2) + '\n')
+print(json.dumps({'files': len(files), 'bytes': sum(entry['bytes'] for entry in files), 'qualifications': outcomes}, indent=2))

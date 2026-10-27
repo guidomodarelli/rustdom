@@ -1,0 +1,100 @@
+name: Contratos del estudio de collapse nativo
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/range-collapse-study-contracts.yml'
+      - '.github/workflows/ownership-range-collapse-study.yml'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-study/**'
+      - 'reports/benchmarks/native-class-ownership/range-collapse-packages/**'
+      - 'reports/validation/native-class-ownership/range-collapse-study-method/**'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  packages:
+    name: Paquetes collapse Node ${{ matrix.node }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extraer el tar preparado exacto con el lector actual
+        run: |
+          python -B reports/benchmarks/native-class-ownership/range-collapse-study/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/range-packages" > "$RUNNER_TEMP/range-packages.json"
+          # These existing roots exercise preservation/overlap refusals before authentication; no original inputs are changed.
+          printf '%s\n' "RUSTDOM_RANGE_PACKAGE_PREPARATION=$RUNNER_TEMP/range-packages/range-collapse-packages" \
+            "RUSTDOM_RANGE_PACKAGE_HISTORY=$RUNNER_TEMP/range-packages/range-collapse-packages" \
+            "RUSTDOM_RANGE_PACKAGE_SOURCE=$RUNNER_TEMP/range-packages/range-collapse-packages/sources" >> "$GITHUB_ENV"
+      - name: Probar paquetes reales, resolución y rechazos sin muestras nuevas
+        run: node --test --test-concurrency=1 reports/benchmarks/native-class-ownership/range-collapse-packages/contracts.spec.cjs > "$RUNNER_TEMP/range-packages-contracts.log" 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: range-packages-contracts-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/range-packages.json
+            ${{ runner.temp }}/range-packages-contracts.log
+
+  contracts:
+    name: Método collapse Node ${{ matrix.node }}
+    needs: packages
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24.14.1']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Autenticar preparación e historia preservadas con lectores actuales
+        run: |
+          node <<'JS'
+          const fs = require('node:fs'); const assert = require('node:assert/strict'); const { createHash } = require('node:crypto');
+          const policy = require('./reports/benchmarks/native-class-ownership/range-collapse-study/constants/protocol.json');
+          const hash = (filename) => createHash('sha256').update(fs.readFileSync(filename)).digest('hex');
+          assert.equal(hash(`${policy.historicalCollection}/artifact.zip`), policy.historicalZipSha256);
+          assert.equal(hash(`${policy.historicalCollection}/shared-study.tar.xz`), policy.historicalTarSha256);
+          JS
+          python -B reports/benchmarks/native-class-ownership/range-collapse-study/extract.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/range-method-preparation" > "$RUNNER_TEMP/range-method-preparation.json"
+          python -B -X "pycache_prefix=$RUNNER_TEMP/range-history-cache-unused" reports/benchmarks/native-class-ownership/shared-fixture-study-results/40012710923/tools/extract.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reports/benchmarks/native-class-ownership/shared-fixture-study-results/40012710923" "$RUNNER_TEMP/range-method-history" > "$RUNNER_TEMP/range-method-history.json"
+          printf '%s\n' "RUSTDOM_RANGE_STUDY_PREPARATION=$RUNNER_TEMP/range-method-preparation/range-collapse-packages" \
+            "RUSTDOM_RANGE_STUDY_HISTORY=$RUNNER_TEMP/range-method-history/shared-study/capture" >> "$GITHUB_ENV"
+      - name: Probar derivación, rechazos y estimador sobre datos reales sin capturar
+        run: node --test reports/benchmarks/native-class-ownership/range-collapse-study/contracts.spec.cjs > "$RUNNER_TEMP/range-method-contracts.log" 2>&1
+      - name: Verificar declaración completa sin ejecutar DOM
+        run: node reports/benchmarks/native-class-ownership/range-collapse-study/study.cjs --preflight "$RUSTDOM_RANGE_STUDY_PREPARATION" > "$RUNNER_TEMP/range-method-preflight.json" 2> "$RUNNER_TEMP/range-method-preflight.stderr.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: range-method-contracts-node${{ matrix.node }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/range-method-contracts.log
+            ${{ runner.temp }}/range-method-preflight.json
+            ${{ runner.temp }}/range-method-preflight.stderr.log
+            ${{ runner.temp }}/range-method-preparation.json
+            ${{ runner.temp }}/range-method-history.json

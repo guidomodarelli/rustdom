@@ -1,0 +1,78 @@
+"""Exercise the proposed workflow in a real native Linux Git fixture using only current source bytes."""
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import types
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+primary = Path('/mnt/c/Users/guido/ghq/projects/rustdom')
+root = Path('/dev/shm/rustdom-jsdom-process-reader-ci-20261026')
+output = repository / 'reports/validation/jsdom-block-pilot/process-reader/20261026/sparse'
+assert not root.exists() and not output.exists()
+output.mkdir()
+helper_path = repository / 'reports/benchmarks/native-class-ownership/numeric-composed-packages/checkout.py'
+helper = types.ModuleType('current_sparse_helper'); helper.__file__ = str(helper_path)
+exec(compile(helper_path.read_bytes(), str(helper_path), 'exec'), helper.__dict__)
+pilot = 'reports/benchmarks/native-class-ownership/control-precision/pilot'
+files = helper.required(repository)
+files += [member.relative_to(repository).as_posix() for member in (repository / pilot).rglob('*') if member.is_file()]
+hosted = 'reports/validation/jsdom-block-pilot/hosted'
+files += [member.relative_to(repository).as_posix() for member in (repository / hosted).rglob('*') if member.is_file()]
+fixtures = 'reports/validation/jsdom-block-pilot/process-reader/fixtures'
+files += [member.relative_to(repository).as_posix() for member in (repository / fixtures).rglob('*') if member.is_file()]
+files += ['.github/workflows/jsdom-block-pilot-contracts.yml']
+files = sorted(set(files)); snapshot = {}
+for relative in files:
+    source = repository / relative; target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
+    contents = target.read_bytes()
+    snapshot[relative] = {'bytes': len(contents), 'sha256': hashlib.sha256(contents).hexdigest()}
+(output / 'current-inputs.json').write_text(json.dumps(snapshot, indent=2) + '\n', encoding='utf-8')
+
+def git(*arguments, input_bytes=None):
+    return subprocess.check_output(['git', '-c', 'core.longpaths=true', *arguments], cwd=root, input=input_bytes, timeout=180)
+
+git('init', '--initial-branch=main'); git('config', 'core.autocrlf', 'false')
+git('--literal-pathspecs', 'add', '--pathspec-from-file=-', '--pathspec-file-nul', input_bytes='\0'.join(files).encode() + b'\0')
+git('-c', 'user.name=Native CI fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Current jsdom block calendar preparation fixture')
+fixture_head = git('rev-parse', 'HEAD').decode().strip()
+patterns = b'''/*
+!/*/
+/reports/benchmarks/native-class-ownership/numeric-composed-packages/
+/reports/validation/range-numeric-composed-package/20261026/archive.json
+/reports/validation/owner-batch-capture-method/review.json
+/reports/benchmarks/native-class-ownership/control-precision/pilot/
+/reports/validation/jsdom-block-pilot/hosted/
+/reports/validation/jsdom-block-pilot/process-reader/fixtures/
+'''
+git('sparse-checkout', 'set', '--no-cone', '--stdin', input_bytes=patterns)
+assert not (root / 'src/lib.rs').exists()
+commands = [
+    ('checkout', ['python3', '-B', str(root / 'reports/benchmarks/native-class-ownership/numeric-composed-packages/checkout.py'), str(root)]),
+    ('reader-tests', ['python3', '-B', hosted + '/tools/verify.spec.py']),
+    ('reader', ['python3', '-B', hosted + '/tools/verify.py', hosted + '/40286292347']),
+    ('reader-variance', ['python3', '-B', hosted + '/tools/verify.py', hosted + '/40288143186', '40288143186'])]
+for version, sdk in [('22.12.0', '.tools/node-22/bin/node'), ('24.14.1', '.tools/node/bin/node')]:
+    commands += [(f'node-{version}-tests', [str(primary / sdk), '--test', pilot + '/blocks.spec.cjs', pilot + '/variance.spec.cjs', pilot + '/process-reader.spec.cjs']),
+        (f'node-{version}-plan', [str(primary / sdk), pilot + '/plan.cjs', str(output / f'node-{version}-calendar.json')])]
+outcomes = []
+for label, command in commands:
+    result = subprocess.run(command, cwd=root, capture_output=True, timeout=180)
+    (output / (label + '.stdout.log')).write_bytes(result.stdout)
+    (output / (label + '.stderr.log')).write_bytes(result.stderr)
+    outcomes.append({'label': label, 'exitCode': result.returncode})
+    assert result.returncode == 0, label
+for relative, expected in snapshot.items():
+    if relative.startswith('.github/'):
+        continue  # The proposed initial sparse checkout does not materialize workflow source for Node.
+    contents = (root / relative).read_bytes()
+    assert len(contents) == expected['bytes'] and hashlib.sha256(contents).hexdigest() == expected['sha256'], relative
+assert git('status', '--porcelain=v1') == b''
+record = {'fixtureHead': fixture_head, 'fixtureIsPublishedCommit': False, 'nativeLinuxGit': True,
+    'sourceFiles': len(files), 'commands': outcomes, 'allMaterializedSourceBytesMatch': True,
+    'domExecuted': False, 'scientificCaptureExecuted': False, 'performanceAccepted': None, 'gateReevaluated': False}
+(output / 'qa.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(record))

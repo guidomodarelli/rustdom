@@ -1,0 +1,93 @@
+"""Prepare a distinct candidate from unchanged production sources; never mutate measured packages or prior methods."""
+import sys
+if sys.flags.optimize:
+    raise RuntimeError('Range initialization preparation requires non-optimized source verification')
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+repository = Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+root = Path('/dev/shm/rustdom-range-initialization-candidate-v1')
+source = root / 'source'
+baseline = Path('/home/guido/rustdom-validation/combined-process-source-95e64bd2')
+assert not root.exists() and (baseline / '.git').is_dir()
+root.mkdir()
+subprocess.run(['git', 'clone', '--shared', '--no-checkout', str(baseline), str(source)], check=True)
+patterns = ['/*', '!/*/', '/src/', '/scripts/', '/benchmarks/', '/tests/', '/types/', '/third-party/',
+    '/reports/validation/native-class-ownership/ci-macos-timeout/fixture.json.gz',
+    '/reports/validation/native-class-ownership/ci-macos-timeout/39686199408/fixture.json.gz',
+    '/reports/validation/native-class-ownership/ci-windows-timeout/39894045206/comparison.json.gz']
+subprocess.run(['git', 'sparse-checkout', 'init', '--no-cone'], cwd=source, check=True)
+subprocess.run(['git', 'sparse-checkout', 'set', '--no-cone', '--stdin'], input='\n'.join(patterns) + '\n', text=True, cwd=source, check=True)
+subprocess.run(['git', 'checkout', '--detach', 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7'], cwd=source, check=True)
+assert not subprocess.check_output(['git', 'status', '--porcelain'], cwd=source)
+paths = ['src/dom/range_state_binding.rs', 'src/dom/native-tree.cjs', 'types/native.d.cts']
+before = {}
+for name in paths:
+    assert (source / name).read_bytes() == (repository / name).read_bytes()
+    before[name] = hashlib.sha256((source / name).read_bytes()).hexdigest()
+filename = source / paths[0]
+text = filename.read_text()
+needle = '    #[napi]\n    pub fn copy(&self) -> Self {'
+assert text.count(needle) == 1
+factory = '''    /// Construct both validated numeric endpoints before exposing a V8-owned state.
+    #[napi]
+    pub fn from_endpoints(
+        start_node: f64,
+        start_offset: f64,
+        end_node: f64,
+        end_offset: f64,
+    ) -> Result<Self> {
+        let mut state = RangeState::default();
+        state
+            .set_start(start_node, start_offset)
+            .map_err(to_napi_error)?;
+        state.set_end(end_node, end_offset).map_err(to_napi_error)?;
+        Ok(Self::with_state(state))
+    }
+'''
+filename.write_text(text.replace(needle, factory + needle))
+filename = source / paths[1]
+text = filename.read_text()
+needle = '''    range._nativeRange = new NativeRange();
+    range._rangeStartNode = start?.node;
+    range._rangeEndNode = end?.node;
+    if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+    if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);'''
+replacement = '''    range._nativeRange = start && end
+      ? NativeRange.fromEndpoints(this._ensure(start.node), start.offset, this._ensure(end.node), end.offset)
+      : new NativeRange();
+    range._rangeStartNode = start?.node;
+    range._rangeEndNode = end?.node;
+    if (!start || !end) {
+      if (start) range._nativeRange.setStart(this._ensure(start.node), start.offset);
+      if (end) range._nativeRange.setEnd(this._ensure(end.node), end.offset);
+    }'''
+assert text.count(needle) == 1
+filename.write_text(text.replace(needle, replacement))
+filename = source / paths[2]
+text = filename.read_text()
+needle = 'export class NativeRange {\n  constructor();\n  static statistics(): NativeRangeStatistics;'
+assert text.count(needle) == 1
+filename.write_text(text.replace(needle, needle + '\n  /** Validate both endpoint identities before allocating a native state. */\n'
+    '  static fromEndpoints(startNode: number, startOffset: number, endNode: number, endOffset: number): NativeRange;'))
+shutil.copyfile(repository / 'reports/implementation/range-initialization-candidate/public.spec.cjs', source / 'tests/range-initialization-candidate.spec.cjs')
+(source / 'tests/consumers').mkdir(exist_ok=True)
+shutil.copyfile(repository / 'reports/implementation/range-initialization-candidate/consumer.cts', source / 'tests/consumers/range-initialization.cts')
+toolchain = Path('/mnt/c/Users/guido/ghq/projects/rustdom/.tools/rustup/toolchains/1.99.1-x86_64-unknown-linux-gnu/bin')
+environment = dict(os.environ, PATH=str(toolchain) + os.pathsep + os.environ['PATH'])
+format_result = subprocess.run([str(toolchain / 'cargo'), 'fmt', '--', '--check'], cwd=source, env=environment, check=False,
+               stdout=(root / 'initial-format.stdout.log').open('xb'), stderr=(root / 'initial-format.stderr.log').open('xb'))
+if format_result.returncode != 0:
+    raise RuntimeError('Range initialization preparation: formatting rejected; preserve the source and raw logs')
+receipt = {'revision': 'native-range-initialization-candidate-v1', 'baseCommit': 'f781c3b7549a86b6aa8b5a34d2bbb32038c315b7',
+           'productionCommit': 'dc0b2df487d2845bc952ec08265773eb798eb419', 'sourceBefore': before,
+           'sourceChangesRaw': subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=source, text=True),
+           'measuredPackagesChanged': False, 'runtimeIntegrated': False, 'benchmarkExecuted': False,
+           'performanceAccepted': None, 'gateReevaluated': False}
+(root / 'preparation.json').write_text(json.dumps(receipt, indent=2) + '\n')
+print(json.dumps({'source': str(source), 'realNativeGit': (source / '.git').is_dir(), 'runtimeIntegrated': False,
+                  'benchmarkExecuted': False, 'performanceAccepted': None}))
