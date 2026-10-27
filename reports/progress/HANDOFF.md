@@ -1,5 +1,53 @@
 # Continuar rustdom en otra máquina
 
+## Range integrado y probado en ambos SDK; falta el gate de rendimiento — 2026-10-27 UTC
+
+Desde7aeb2075 se aplicaron a producción los cuatro archivos exactos del
+candidato a277: native-tree.cjs, range_state.rs, range_state_binding.rs y
+types/native.d.cts. Los344 inputs coinciden, cero diferencias. El binario
+local nuevo a6a21c3c se distingue del a277 sellado; no se sustituyeron paquetes
+consumidos ni se afirma equivalencia de binarios/entorno global.
+
+Pasaron formato/313tests Rust/build/Clippy y npm test, corpus, WPT y consumidor
+TS/CommonJS en Node22.12.0/24.14.1. Por SDK:3784tests Node+9del procesoWPT,
+Jest22, Vitest33/VM34; corpus1784+8excluidos;240fixturesWPT/83007aserciones,
+81804aprobadas y1203adversas compartidas. complete=false conserva bloqueos y
+exclusiones conocidos; no es certificación total de estándares. Nueve tests
+nuevos ejercen los endpoints/colapso, realms, mutaciones, errores y memoria.
+
+Memoria: seis ciclos por SDK, Window/Document/rangos/native separados; últimos
+supervivientes cero y contadores de vuelta al baseline. No memoria pico ni
+ausencia universal de fugas. Datos en reports/memory/range-native-production/20261027/.
+Benchmarks ordinarios guardados en reports/benchmarks/range-native-production/20261027/:
+las ocho medianas Rust superaron jsdom. No estiman la ganancia del parche ni
+aceptan los presupuestos originales. No presentar este motor híbrido como
+íntegramente Rust ni calcular porcentaje de migración sin cerrar el inventario.
+
+Quince workflows históricos quedaron rotulados y fijados al Git4196 original,
+con todos sus tests. El job Range integrado del PR, CI general e inventario
+siguen usando HEAD. actionlint verificó16workflows; revisión local aislada sin
+hallazgos. Los903 bindings históricos y rechazos originales se conservan.
+
+Archivo nuevo de validación:12.370.352B/574miembros, SHA
+55ff6a89b6bc362e85c43780a821a01829cca32f10b4d0fc376a90bce4b15153,
+en reports/validation/range-native-production/20261027/. Todos sus miembros se
+releyeron. Se declaran intentos fallidos de staging y un rescate anterior
+parcial con siete archivos no legibles; no se ocultan ni se confunden con la
+calificación final completa. Se recuperó espacio comprimiendo cache de Cargo
+y se reinició solo el entorno temporal propio después del rescate; los33ZIP
+del piloto previo ya estaban publicados en97partes, dataHEAD9c6a4c8a. No se
+repitió ninguna captura científica. Las rutas Linux efímeras anteriores a la
+recuperación ya no existen; los registros y resultados publicados sí.
+
+Pendiente inmediato: consultar CI del nuevo commit, atender fallos reales y
+comentarios, terminar productor/lector integral de block-confirmation,
+publicar/revisar método y ejecutar una sola secuencia nueva. executionReady=false,
+performanceAccepted=null, gateReevaluated=false. El gate ownership sigue sin
+resolver; no tag/merge hasta aceptación. Autorización permanente, no preguntar.
+Objetivo ACTIVE. Preservar48entradas ajenas; Engram sin identidad registrada.
+
+---
+
 ## Dos checks de rendimiento pendientes; frontera de fuentes cerrada — 2026-10-27 UTC
 
 En HEAD54831a7e GitHub confirma 81 checks SUCCESS y dos FAILURE: Native class

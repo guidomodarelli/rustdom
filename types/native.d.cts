@@ -363,6 +363,8 @@ export interface RangeInsertionPlan { startNode: number; startOffset: number; pa
 export class NativeRange {
   constructor();
   static statistics(): NativeRangeStatistics;
+  /** Validate both endpoint identities before allocating a native state. */
+  static fromEndpoints(startNode: number, startOffset: number, endNode: number, endOffset: number): NativeRange;
   readonly start: NativeBoundaryPoint | null;
   readonly end: NativeBoundaryPoint | null;
   readonly startOffset: number;
@@ -371,6 +373,8 @@ export class NativeRange {
   setStart(node: number, offset: number): void;
   setEnd(node: number, offset: number): void;
   copy(): NativeRange;
+  /** Collapse numeric endpoints; returns whether the start edge was selected for update. */
+  collapse(toStart: boolean): boolean;
   collapsePlan(toStart: boolean): NativeCollapsePlan;
   /** Mutation inputs come from the host's validated DOM operation. Handles must be positive safe integers; no tree is owned or consulted. */
   characterDataPlan(node: number, offset: number, count: number, insertedLength: number): NativeRangeUpdate[];

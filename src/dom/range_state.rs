@@ -55,6 +55,14 @@ impl RangeState {
         let (start, end) = self.points()?;
         Ok(start.node == end.node && start.offset == end.offset)
     }
+    /// Collapse both numeric endpoints in one native operation.
+    /// Returns the host edge selected by the existing plan, preserving errors atomically.
+    pub fn collapse(&mut self, to_start: bool) -> Result<bool> {
+        let (point, update_start) = self.collapse_plan(to_start)?;
+        self.apply_point(update_start, point);
+        Ok(update_start)
+    }
+
     /// Select the retained point and which host ownership edge must be moved.
     pub fn collapse_plan(&self, to_start: bool) -> Result<(BoundaryPoint, bool)> {
         let (start, end) = self.points()?;
@@ -102,6 +110,51 @@ mod tests {
         assert_eq!(clone.start().unwrap().offset, 3.0);
         assert!(RangeState::default().collapse_plan(true).is_err());
     }
+    #[test]
+    fn should_collapse_both_directions_without_changing_an_independent_copy() {
+        let mut original = RangeState::default();
+        original.set_start(1.0, -0.0).unwrap();
+        original.set_end(2.0, 7.5).unwrap();
+        for to_start in [true, false] {
+            let mut copy = original.clone();
+            let retained = if to_start {
+                original.start().unwrap()
+            } else {
+                original.end().unwrap()
+            };
+            assert_eq!(copy.collapse(to_start).unwrap(), !to_start);
+            let (start, end) = copy.points().unwrap();
+            assert_eq!(start.node, retained.node);
+            assert_eq!(end.node, retained.node);
+            assert_eq!(start.offset.to_bits(), retained.offset.to_bits());
+            assert_eq!(end.offset.to_bits(), retained.offset.to_bits());
+            assert!(copy.collapsed().unwrap());
+        }
+        assert_eq!(original.start().unwrap().node, 1);
+        assert_eq!(original.end().unwrap().node, 2);
+    }
+
+    #[test]
+    fn should_preserve_partial_state_when_native_collapse_rejects_it() {
+        for (has_start, has_end) in [(false, false), (true, false), (false, true)] {
+            let mut state = RangeState::default();
+            if has_start {
+                state.set_start(1.0, 2.0).unwrap();
+            }
+            if has_end {
+                state.set_end(2.0, 3.0).unwrap();
+            }
+            let before = (state.start(), state.end());
+            for to_start in [true, false] {
+                assert!(matches!(
+                    state.collapse(to_start),
+                    Err(TreeError::UninitializedRange)
+                ));
+                assert_eq!((state.start(), state.end()), before);
+            }
+        }
+    }
+
     #[test]
     fn should_preserve_independent_endpoint_snapshots_and_collapsed_state() {
         let mut state = RangeState::default();
