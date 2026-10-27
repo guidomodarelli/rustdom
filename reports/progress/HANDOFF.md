@@ -1,5 +1,38 @@
 # Continuar rustdom en otra máquina
 
+## Primer criterio v2 autenticado y releído — 2026-10-27 UTC
+
+El run 40426500725 sigue siendo la única captura v2. Se leyó exclusivamente
+el criterio 0 ya terminado y el recibo de consumo, conservando el estado real
+del run, sin convertirlo en terminal ni ejecutar DOM. Ambos SDK fijados
+coinciden: 512 procesos, 73.728 medidas, 24.576 warmup, 6.144 Window y Document
+separados, siete primeros estados no claros y 1.024 finales claros. Se conservan
+las tres rondas por proceso y tres snapshots del padre. No hay decisión global.
+
+Dos ZIP completos (80.567.677 bytes) están en cuatro partes, tip adfd44fa.
+Se preservaron antes de abrirlos y se releyeron remotamente y desde Git local.
+Metadata/análisis/recursos están en reports/benchmarks/native-class-ownership/
+jsdom-block-pilot-v2-results/40426500725/first-completed-criterion/ y
+reports/memory/jsdom-block-pilot-v2/40426500725/criterion-0.json. No ejecutar
+código archivado. Los intervalos de SD son condicionales/puntuales; no prueban
+independencia, potencia, cobertura conjunta ni rendimiento Rust.
+
+La sincronización inicial paró por capacidad, sin fetch. Se desmaterializaron
+cinco copias históricas versionadas/verificadas (307.530.492 bytes) conservando
+objetos Git/remoto, 903 pins, paquete fb y SOURCE4196 limpio. Solo se importaron
+cuatro commits acotados mediante fetch normal sin filtros; no se habilita un
+fetch del piloto completo ni limpieza de targets rechazados. Ver STORAGE.md.
+
+Continúa el mismo run/intento y los IDs del binding. Las partes anticipadas
+están bajo first-completed-criterion, distintas del namespace del recolector
+final. Al terminar el workflow, collect.py sigue exigiendo terminalidad y
+puede releer transporte; nunca repetir mediciones ni completar muestras.
+No cambiar método, presupuestos, semillas o candidato. El diagnóstico mantiene
+performanceAccepted=null/gateReevaluated=false; ownership sigue rechazado,
+sin tag/merge. Runtime híbrido y objetivo general activo. Preservar las 48 entradas
+ajenas y el WSL vivo con la fuente y herramientas fijadas.
+
+
 ## Auditoría de MutationRecord y recuentos corregidos — 2026-10-27 UTC
 
 La rama de evidencia conserva una auditoría de la fuente 4196c496: un módulo,
