@@ -1,0 +1,37 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import sys
+import tarfile
+if sys.flags.optimize:raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=pathlib.Path('/run/rustdom-source-profile-qualification-20261027')
+output=root/'reports/validation/block-confirmation-source-profile/20261027'
+cache=root/'.cache/confirmation-authentication-20261027'
+members={member.relative_to(source).as_posix():dict(bytes=member.stat().st_size,sha256=hashlib.sha256(member.read_bytes()).hexdigest()) for member in source.rglob('*') if member.is_file()}
+archive=output/'qualification.tar.gz.next';assert not archive.exists()
+with tarfile.open(archive,'w:gz') as bundle:
+    for name in sorted(members):bundle.add(source/name,arcname=name,recursive=False)
+with tarfile.open(archive,'r:gz') as bundle:
+    assert len(bundle.getmembers())==len(members)
+    for member in bundle.getmembers():
+        assert member.isfile() and member.name in members
+        raw=bundle.extractfile(member).read();assert len(raw)==members[member.name]['bytes']
+        assert hashlib.sha256(raw).hexdigest()==members[member.name]['sha256']
+for filename in ['qualification.tar.gz','manifest.json','receipt.json']:
+    target=cache/('source-profile-before-final-'+filename);assert not target.exists()
+    shutil.copyfile(output/filename,target)
+archive.replace(output/'qualification.tar.gz');archive=output/'qualification.tar.gz'
+(output/'manifest.json').write_text(json.dumps(members,indent=2)+'\n')
+for name in ['qualify-source-profile-contract-final.py','preserve-source-profile-final.py']:
+    shutil.copyfile(cache/name,output/(name+'.txt'))
+profile=json.loads((source/'contract-final/node22-profile.stdout.log').read_bytes())
+receipt=json.loads((output/'receipt.json').read_bytes())
+receipt.update(currentFilesDigest=profile['currentFilesSha256'],finalConstantRefactorQualified=True,
+    functionalProfileIncludesParentWorkflowBytes=True,completeScientificPublicationClaimed=False,
+    archive=dict(bytes=archive.stat().st_size,sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),members=len(members),allMembersReadbackVerified=True))
+for name in receipt['sources']:
+    receipt['sources'][name]=hashlib.sha256((root/name).read_bytes()).hexdigest()
+(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps(dict(archive=receipt['archive'],currentFiles=receipt['currentFiles'],testsPerSDK=8,scientificCapture=False)))

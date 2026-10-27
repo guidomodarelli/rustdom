@@ -1,0 +1,41 @@
+import hashlib
+import json
+import pathlib
+import shutil
+import subprocess
+import sys
+import tarfile
+if sys.flags.optimize:raise RuntimeError('Preservation requires non-optimized Python')
+root=pathlib.Path('/mnt/c/Users/guido/.codex/worktrees/native-class-ownership/rustdom')
+source=pathlib.Path('/run/rustdom-source-profile-qualification-20261027')
+output=root/'reports/validation/block-confirmation-source-profile/20261027';output.mkdir(exist_ok=False,parents=True)
+members={member.relative_to(source).as_posix():dict(bytes=member.stat().st_size,sha256=hashlib.sha256(member.read_bytes()).hexdigest()) for member in source.rglob('*') if member.is_file()}
+archive=output/'qualification.tar.gz'
+with tarfile.open(archive,'w:gz') as bundle:
+    for name in sorted(members):bundle.add(source/name,arcname=name,recursive=False)
+with tarfile.open(archive,'r:gz') as bundle:
+    assert len(bundle.getmembers())==len(members)
+    for member in bundle.getmembers():
+        assert member.isfile() and member.name in members
+        raw=bundle.extractfile(member).read();assert len(raw)==members[member.name]['bytes']
+        assert hashlib.sha256(raw).hexdigest()==members[member.name]['sha256']
+(output/'manifest.json').write_text(json.dumps(members,indent=2)+'\n')
+cache=root/'.cache/confirmation-authentication-20261027'
+for name in ['qualify-source-profile.py','qualify-source-profile-final.py','qualify-source-profile-complete.py','preserve-source-profile.py']:
+    shutil.copyfile(cache/name,output/(name+'.txt'))
+workflow='.github/workflows/ownership-block-confirmation-contracts.yml'
+with (output/'actionlint.stdout.log').open('xb') as stdout,(output/'actionlint.stderr.log').open('xb') as stderr:
+    result=subprocess.run(['/run/rustdom-resource-actionlint-20261027/actionlint','-no-color','-shellcheck=','-pyflakes=',workflow],cwd=root,stdout=stdout,stderr=stderr,timeout=60)
+assert result.returncode==0
+method='reports/benchmarks/native-class-ownership/block-confirmation/'
+profile=json.loads((source/'complete/node22-profile.stdout.log').read_bytes())
+receipt=dict(revision=profile['revision'],currentSourceCommit=profile['sourceCommit'],currentSourceChangesRaw=profile['sourceChangesRaw'],currentSourceGitErrors=profile['sourceGitErrors'],
+    currentFiles=len(profile['currentFiles']),historicalFiles=len(profile['historicalSource']['files']),changedHistoricalCounterparts=len(profile['changedHistoricalMembers']),
+    currentCanonicalSourceHash=profile['canonicalRuntimeIdentity']['sourceHash'],compilerInputsMatched=344,testsPerSDK=8,nodeVersions=['22.12.0','24.14.1'],
+    initialMissingRootAndTypeBindingsCorrected=True,initialTestFixtureGitStatusBufferFailureCorrected=True,
+    currentFilesDigest=profile['currentFilesSha256'],profileIsPreparationOnly=True,sourceCLIHasNoCaptureMode=True,
+    sources={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in [method+'source.cjs',method+'source.spec.cjs',method+'constants/source.json',workflow]},
+    archive=dict(bytes=archive.stat().st_size,sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),members=len(members),allMembersReadbackVerified=True),
+    actionlintVersion='1.7.7',actionlintExitCode=result.returncode,scientificCaptureExecuted=False,executionReady=False,performanceAccepted=None,gateReevaluated=False)
+(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+print(json.dumps(receipt))

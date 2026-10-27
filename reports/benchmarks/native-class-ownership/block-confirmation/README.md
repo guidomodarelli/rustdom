@@ -12,6 +12,18 @@ verifica pero conserva `accepted=false`: 13/32 controles jsdom no calibraron
 dentro de ±2%. El CI general pasa. Publicar un piloto nuevo no cambia ese
 rechazo y volver a ejecutar ese check no lo resolvería.
 
+### Perfil actual para la integración siguiente — 2026-10-27
+
+`source.cjs --inspect <Git-actual> <Git-original>` verifica un perfil de
+preparación separado: conserva los 903 archivos históricos originales y
+registra los bytes actuales, su identidad Git real y los 344 inputs completos
+del candidato. No traslada la identidad histórica al productor actual ni
+habilita captura. El perfil funcional probado tiene 947 archivos y conserva
+los tres archivos nuevos sin commitear; no es un productor científico limpio.
+Ocho tests por SDK y sus negativos están en
+`reports/validation/block-confirmation-source-profile/20261027/`.
+El CLI no admite `--capture`. El productor/lector integral sigue pendiente.
+
 ## Método propuesto
 
 Se compararán los 64 criterios originales: dos SDK, AA/AB, jsdom/Rust y ocho

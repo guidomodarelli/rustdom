@@ -1,5 +1,27 @@
 # Continuar rustdom en otra máquina
 
+## Perfil de fuentes para la confirmación; CI de7b600278 en seguimiento — 2026-10-27 UTC
+
+Las correcciones de contratos están publicadas en7b600278. Su CI terminó con
+82checks aprobados y3fallidos: Range, XMLpackages, fixtures e inventario aprobaron
+en ambos SDK. Quedan los tres gates de evidencia: ownership Node22/24 y
+XMLSerializer Node24. No reutilizar fuentes/aceptaciones antiguas para aprobarlos.
+
+Se preparó block-confirmation/source.cjs: 947 archivos actuales, 903 históricos
+separados,344inputs completos del candidato. Ocho tests por SDK pasaron con
+Git Linux real7b600278+los tres archivos nuevos sin commitear, preservando ese
+sourceChangesRaw y errores Git reales. La preparación no admite captura ni
+autentica paquetes/acepta rendimiento. Archivo de30miembros/399910bytes, SHA
+2be06d7e1e6b8c3efba5e7a9cdcc73800fc57e6e4d026f26b49a1ba760e4d42c en
+reports/validation/block-confirmation-source-profile/20261027/. Review local0.
+Se conservan fallos de desarrollo: ocho inputs de raíz/types omitidos, luego
+incluidos íntegramente, y buffer del fixture Git, resuelto con sparse real.
+
+Pendiente: vincular invocaciones/worker, terminar productor y lector integral,
+calificar ambos SDK, revisar/publicar método y ejecutar una confirmación única
+con presupuestos originales. También preparar evidencia XML nueva equivalente.
+Autorización permanente, sin preguntas. executionReady=false; no tag/merge.
+
 ## Correcciones adicionales y gates que requieren evidencia nueva — 2026-10-27 UTC
 
 El CI de5caa3ea9 terminó detectando fallos adicionales a los dos de ownership:
